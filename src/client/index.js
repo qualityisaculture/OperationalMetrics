@@ -1,7 +1,9 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-ReactDOM.createRoot(
-  document.getElementById("root")
-).render(
-  <div>Hello World 2</div>
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { Button } from './Button';
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <div>
+    <h1>Hello World 2</h1>
+    <Button />
+  </div>
 );

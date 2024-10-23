@@ -6,9 +6,9 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.(js|jsx)$/,
+        test: /\.(ts|tsx|js|jsx)$/,
         exclude: /node_modules/,
-        loader: 'babel-loader',
+        loader: 'ts-loader',
       },
     ],
   },
@@ -19,5 +19,8 @@ module.exports = {
     path: path.resolve(__dirname, 'dist/'),
     publicPath: '/dist/',
     filename: 'index.bundle.js',
+  },
+  resolve: {
+    extensions: ['.tsx', '.ts', '.js'],
   },
 };
