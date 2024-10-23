@@ -1,0 +1,44 @@
+{
+  "name": "operationalmetrics",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack",
+    "start-dev": "ts-node src/server/dev-server.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/plugin-transform-runtime": "^7.25.9",
+    "@babel/preset-env": "^7.25.9",
+    "@babel/preset-react": "^7.25.9",
+    "@babel/runtime": "^7.25.9",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.14",
+    "babel-loader": "^9.2.1",
+    "eslint": "^9.13.0",
+    "eslint-plugin-jest": "^28.8.3",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "prettier-eslint-cli": "^8.0.1",
+    "tsc-watch": "^6.2.0",
+    "webpack": "^5.95.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-middleware": "^7.4.2"
+  },
+  "dependencies": {
+    "@babel/preset-typescript": "^7.25.9",
+    "express": "^4.21.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "globals": {
+      "IS_REACT_ACT_ENVIRONMENT": true
+    }
+  }
+}
