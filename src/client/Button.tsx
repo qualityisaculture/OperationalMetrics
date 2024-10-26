@@ -29,7 +29,6 @@ class Button extends React.Component<Props, State> {
           type="text"
           value={this.state.input}
           onChange={(e) => {
-            console.log('Input changed');
             this.setState({ input: e.target.value });
           }}
         />

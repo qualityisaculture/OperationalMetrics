@@ -81,7 +81,6 @@ export default class Jira {
       date: this.created,
       status: statusItems[0].fromString,
     });
-    console.log('statusChanges', statusChanges);
     return statusChanges;
   }
 

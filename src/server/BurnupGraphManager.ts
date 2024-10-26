@@ -28,7 +28,6 @@ export default class BurnupGraphManager {
     ) {
       let doneChildren = childJiras.filter((child) => child.isDone(date));
       let existingChildren = await this.getAllChildrenJiras(epic, date);
-      console.log('existingChildren', date, existingChildren);
       let scopeChildren = existingChildren.filter((child) => child.isInScope(date));
       burnupArray.push({
         date: new Date(date),
