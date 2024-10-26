@@ -1,15 +1,39 @@
 import React from 'react';
 
-class Button extends React.Component {
+interface Props {};
+interface State {
+  input: string;
+};
+
+class Button extends React.Component<Props, State> {
+  constructor(props) {
+    super(props);
+    this.onClick = this.onClick.bind(this);
+    this.state = {
+      input: 'AF-15921',
+    };
+  }
   onClick() {
     console.log('Button clicked');
     //Request to the server /api/metrics
-    fetch('/api/metrics')
-      .then(response => response.json())
-      .then(data => console.log(data));
+    fetch('/api/epicBurnup?epicIssueKey=' + this.state.input)
+      .then((response) => response.json())
+      .then((data) => console.log(data));
   }
   render() {
-    return <button onClick={this.onClick}>Click me</button>;
+    return (
+      <div>
+        <input
+          type="text"
+          value={this.state.input}
+          onChange={(e) => {
+            console.log('Input changed');
+            this.setState({ input: e.target.value });
+          }}
+        />
+        <button onClick={this.onClick}>Click me</button>
+      </div>
+    );
   }
 }
 
