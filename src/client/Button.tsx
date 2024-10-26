@@ -20,7 +20,7 @@ class Button extends React.Component<Props, State> {
     //Request to the server /api/metrics
     fetch('/api/epicBurnup?epicIssueKey=' + this.state.input)
       .then((response) => response.json())
-      .then((data) => console.log(data));
+      .then((data) => console.log(JSON.parse(data.data)));
   }
   render() {
     return (

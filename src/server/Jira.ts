@@ -98,4 +98,9 @@ export default class Jira {
   isDone(date?: Date) {  
     return this.getStatus(date) === 'Done';
   }
+
+  isInScope(date?: Date) {
+    let descopedStatuses = ['Cancelled'];
+    return !descopedStatuses.includes(this.getStatus(date));
+  }
 }

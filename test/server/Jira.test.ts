@@ -191,6 +191,44 @@ describe('Jira', () => {
       expect(jira.isDone(new Date(nineThirtyAm))).toEqual(false);
       expect(jira.isDone(new Date(tenAm))).toEqual(true);
     });
+
+    describe('isInScope', () => {
+      it('should return true if status is not Cancelled', () => {
+        let jira = new Jira({
+          ...defaultJiraJSON,
+          fields: {...defaultJiraJSONFields, status: { name: 'Done' }},
+        });
+        expect(jira.isInScope()).toEqual(true);
+      });
+
+      it('should return false if status is Cancelled', () => {
+        let jira = new Jira({
+          ...defaultJiraJSON,
+          fields: {...defaultJiraJSONFields, status: { name: 'Cancelled' }},
+        });
+        expect(jira.isInScope()).toEqual(false);
+      });
+
+      it('should return true if status is Cancelled at a point in time', () => {
+        let jira = new Jira({
+          ...defaultJiraJSON,
+          changelog: {
+            histories: [
+              {
+                created: nineThirtyAm,
+                items: [{ field: 'status', fromString: 'Backlog', toString: 'In Progress' }],
+              },
+              {
+                created: tenAm,
+                items: [{ field: 'status', fromString: 'In Progress', toString: 'Cancelled' }],
+              },
+            ],
+          },
+        });
+        expect(jira.isInScope(new Date(nineThirtyAm))).toEqual(true);
+        expect(jira.isInScope(new Date(tenAm))).toEqual(false);
+      });
+    });
   });
   
 });
