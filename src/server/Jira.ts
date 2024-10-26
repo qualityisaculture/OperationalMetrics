@@ -1,3 +1,5 @@
+import { history, historyItem, omHistoryItem } from "./JiraAPITypes";
+
 type JiraJson = {
   key: string;
   fields: { created: string; status: { name: string } };
@@ -20,15 +22,17 @@ export default class Jira {
   getKey() {
     return this.json.key;
   }
-  getChildrenKeys(): string[] {
+  getChildrenKeys(date?: Date): string[] {
     if (!this.json.changelog || !this.json.changelog.histories) {
       return [];
     }
-    let histories = this.json.changelog.histories;
     let children = new Set<string>();
 
     let chronologicalEpicChildItems = this.getHistoriesItems('Epic Child');
     chronologicalEpicChildItems.forEach((item) => {
+      if (item.created && date && item.created > date) {
+        return Array.from(children);
+      }
       if (item.toString) {
         children.add(item.toString);
       } else {
@@ -38,10 +42,11 @@ export default class Jira {
     return Array.from(children);
   }
 
-  getHistoriesItems(field) {
+  getHistoriesItems(field): omHistoryItem[] {
     let epicChildItems = this.histories
       .map((history) => {
-        let items = this.filterHistoryItems(history, field);
+        
+        let items: (historyItem & {created?: Date})[] = this.filterHistoryItems(history, field);
         items.forEach((item) => {
           let date = new Date(history.created);
           item.created = date;
@@ -49,10 +54,10 @@ export default class Jira {
         return items;
       })
       .flat();
-    return epicChildItems;
+    return epicChildItems as omHistoryItem[];
   }
 
-  filterHistoryItems(history, field) {
+  filterHistoryItems(history: history, field): historyItem[] {
     return history.items.filter((item) => {
       return item.field === field;
     });
@@ -102,5 +107,9 @@ export default class Jira {
   isInScope(date?: Date) {
     let descopedStatuses = ['Cancelled'];
     return !descopedStatuses.includes(this.getStatus(date));
+  }
+
+  existsOn(date: Date) {
+    return date >= this.created;
   }
 }

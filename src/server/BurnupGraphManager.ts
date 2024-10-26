@@ -1,3 +1,4 @@
+import Jira from './Jira';
 import JiraRequester from './JiraRequester';
 
 export default class BurnupGraphManager {
@@ -26,7 +27,9 @@ export default class BurnupGraphManager {
       date.setDate(date.getDate() + 1)
     ) {
       let doneChildren = childJiras.filter((child) => child.isDone(date));
-      let scopeChildren = childJiras.filter((child) => child.isInScope(date));
+      let existingChildren = await this.getAllChildrenJiras(epic, date);
+      console.log('existingChildren', date, existingChildren);
+      let scopeChildren = existingChildren.filter((child) => child.isInScope(date));
       burnupArray.push({
         date: new Date(date),
         doneCount: doneChildren.length,
@@ -38,8 +41,8 @@ export default class BurnupGraphManager {
     return burnupArray;
   }
 
-  async getAllChildrenJiras(jira) {
-    let children = jira.getChildrenKeys();
+  async getAllChildrenJiras(jira: Jira, date?: Date) {
+    let children = jira.getChildrenKeys(date);
     let childPromises = children.map((childKey) => {
       return this.jiraRequester.getJira(childKey);
     });

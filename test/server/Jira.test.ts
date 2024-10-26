@@ -67,8 +67,6 @@ describe('Jira', () => {
       expect(jira.getChildrenKeys()).toEqual(['KEY-1', 'KEY-2']);
     });
 
-
-
     it('should remove children which are removed in later histories', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
@@ -86,6 +84,28 @@ describe('Jira', () => {
         },
       });
       expect(jira.getChildrenKeys()).toEqual([]);
+    });
+
+    it('should return only the children that exist to that point when data is passed', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        changelog: {
+          histories: [
+            {
+              created: "2024-10-21T09:49:29.143Z",
+              items: [{ field: 'Epic Child', fromString: null, toString: 'KEY-1' }],
+            },
+            {
+              created: "2024-10-22T09:49:29.143Z",
+              items: [{ field: 'Epic Child', fromString: 'KEY-1', toString: null }],
+            },
+
+          ],
+        },
+      });
+      expect(jira.getChildrenKeys(new Date("2024-10-21T09:00:00.000Z"))).toEqual([]);
+      expect(jira.getChildrenKeys(new Date("2024-10-22T09:00:00.000Z"))).toEqual(['KEY-1']);
+      expect(jira.getChildrenKeys(new Date("2024-10-23T09:00:00.000Z"))).toEqual([]);
     });
   });
 
@@ -228,6 +248,32 @@ describe('Jira', () => {
         expect(jira.isInScope(new Date(nineThirtyAm))).toEqual(true);
         expect(jira.isInScope(new Date(tenAm))).toEqual(false);
       });
+    });
+  });
+
+  describe('existsOn', () => {
+    it('should return true if date is after creation date', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSONFields, created: nineAm},
+      });
+      expect(jira.existsOn(new Date(nineThirtyAm))).toEqual(true);
+    });
+
+    it('should return true if date is equal to creation date', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSONFields, created: nineAm},
+      });
+      expect(jira.existsOn(new Date(nineAm))).toEqual(true);
+    });
+
+    it('should return false if date is before creation date', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSONFields, created: nineAm},
+      });
+      expect(jira.existsOn(new Date("2024-10-21T08:59:59.999Z"))).toEqual(false);
     });
   });
   
