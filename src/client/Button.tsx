@@ -6,6 +6,8 @@ interface State {
 };
 
 class Button extends React.Component<Props, State> {
+  state: { input: string; }; //Remove when TS is fixed.
+  setState: any; //Remove when TS is fixed.
   constructor(props) {
     super(props);
     this.onClick = this.onClick.bind(this);

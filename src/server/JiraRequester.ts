@@ -1,11 +1,11 @@
-import { Jira } from './Jira';
+import Jira from './Jira';
 export default class JiraRequester {
   jiraMap: Map<string, any>;
   constructor() {
     this.jiraMap = new Map();
   }
 
-  async getJira(issueKey: string) {
+  async getJira(issueKey: string): Promise<Jira> {
     if (this.jiraMap.has(issueKey)) {
       return this.jiraMap.get(issueKey);
     }
@@ -18,7 +18,6 @@ export default class JiraRequester {
   async requestJiraDataFromServer(issueKey: string) {
     const domain = process.env.JIRA_DOMAIN;
     const url = `${domain}/rest/api/3/issue/${issueKey}?expand=changelog`;
-    console.log(url);
     const email = process.env.JIRA_EMAIL;
     const apiToken = process.env.JIRA_API_TOKEN;
     const response = await fetch(url, {

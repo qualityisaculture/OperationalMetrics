@@ -3,7 +3,7 @@ type JiraJson = {
   fields: { created: string; status: { name: string } };
   changelog?: { histories: any[] };
 };
-class Jira {
+export default class Jira {
   json: JiraJson;
   created: Date;
   histories: any[];
@@ -20,12 +20,12 @@ class Jira {
   getKey() {
     return this.json.key;
   }
-  getChildren() {
+  getChildrenKeys(): string[] {
     if (!this.json.changelog || !this.json.changelog.histories) {
       return [];
     }
     let histories = this.json.changelog.histories;
-    let children = new Set();
+    let children = new Set<string>();
 
     let chronologicalEpicChildItems = this.getHistoriesItems('Epic Child');
     chronologicalEpicChildItems.forEach((item) => {
@@ -43,7 +43,8 @@ class Jira {
       .map((history) => {
         let items = this.filterHistoryItems(history, field);
         items.forEach((item) => {
-          item.created = new Date(history.created);
+          let date = new Date(history.created);
+          item.created = date;
         });
         return items;
       })
@@ -75,6 +76,7 @@ class Jira {
       date: this.created,
       status: statusItems[0].fromString,
     });
+    console.log('statusChanges', statusChanges);
     return statusChanges;
   }
 
@@ -97,5 +99,3 @@ class Jira {
     return this.getStatus(date) === 'Done';
   }
 }
-
-export { Jira };

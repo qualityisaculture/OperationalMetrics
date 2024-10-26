@@ -1,25 +1,26 @@
-import { Jira } from '../../src/server/Jira';
+import Jira from '../../src/server/Jira';
+
+let nineAm = "2024-10-21T09:00:00.000Z";
+let nineThirtyAm = "2024-10-21T09:30:00.000Z";
+let tenAm = "2024-10-21T10:00:00.000Z";
+export const defaultJiraJSONFields = { created: nineAm,  status: { name: 'Backlog' } };
+export const defaultJiraJSON = { key: 'KEY-1', fields: defaultJiraJSONFields };
 
 describe('Jira', () => {
-  let nineAm = "2024-10-21T09:00:00.000Z";
-  let nineThirtyAm = "2024-10-21T09:30:00.000Z";
-  let tenAm = "2024-10-21T10:00:00.000Z";
-  let defaultFields = { created: nineAm,  status: { name: 'Backlog' } };
-  let defaultJson = { key: 'KEY-1', fields: defaultFields };
   it('should return the key', () => {
-    let jira = new Jira({ ...defaultJson, key: 'KEY-2' });
+    let jira = new Jira({ ...defaultJiraJSON, key: 'KEY-2' });
     expect(jira.getKey()).toEqual('KEY-2');
   });
 
   describe('getChildren', () => {
     it('should return nothing with no history', () => {
-      let jira = new Jira(defaultJson);
-      expect(jira.getChildren()).toEqual([]);
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getChildrenKeys()).toEqual([]);
     });
 
     it('should return when setting Epic Child is only history item', () => {
       let jira = new Jira({
-        ...defaultJson,
+        ...defaultJiraJSON,
         changelog: {
           histories: [
             {
@@ -28,12 +29,12 @@ describe('Jira', () => {
           ],
         },
       });
-      expect(jira.getChildren()).toEqual(['KEY-1']);
+      expect(jira.getChildrenKeys()).toEqual(['KEY-1']);
     });
 
     it('should return when setting Epic Child has multiple items in a history', () => {
       let jira = new Jira({
-        ...defaultJson,
+        ...defaultJiraJSON,
         changelog: {
           histories: [
             {
@@ -46,12 +47,12 @@ describe('Jira', () => {
           ],
         },
       });
-      expect(jira.getChildren()).toEqual(['KEY-1', 'KEY-2']);
+      expect(jira.getChildrenKeys()).toEqual(['KEY-1', 'KEY-2']);
     });
 
     it('should return when setting Epic Child has multiple histories', () => {
       let jira = new Jira({
-        ...defaultJson,
+        ...defaultJiraJSON,
         changelog: {
           histories: [
             {
@@ -63,14 +64,14 @@ describe('Jira', () => {
           ],
         },
       });
-      expect(jira.getChildren()).toEqual(['KEY-1', 'KEY-2']);
+      expect(jira.getChildrenKeys()).toEqual(['KEY-1', 'KEY-2']);
     });
 
 
 
     it('should remove children which are removed in later histories', () => {
       let jira = new Jira({
-        ...defaultJson,
+        ...defaultJiraJSON,
         changelog: {
           histories: [
             {
@@ -84,30 +85,30 @@ describe('Jira', () => {
           ],
         },
       });
-      expect(jira.getChildren()).toEqual([]);
+      expect(jira.getChildrenKeys()).toEqual([]);
     });
   });
 
   describe('getStatus', () => {
     it('should return the current state when no date passed', () => {
       let jira = new Jira({
-        ...defaultJson,
-        fields: {...defaultFields, status: { name: 'In Progress' }},
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSONFields, status: { name: 'In Progress' }},
       });
       expect(jira.getStatus()).toEqual('In Progress');
     });
 
     it('should return null if passed date prior to Jira creation', () => {
       let jira = new Jira({
-        ...defaultJson,
-        fields: {...defaultFields, created: "2024-10-21T09:46:38.582+0100",},
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSONFields, created: "2024-10-21T09:46:38.582+0100",},
       });
       expect(jira.getStatus(new Date("2024-10-20T09:46:38.582+0100"))).toEqual(null);
     });
 
     it('should return the starting state if date is prior to first state change', () => {
       let jira = new Jira({
-        ...defaultJson,
+        ...defaultJiraJSON,
         changelog: {
           histories: [
             {
@@ -120,7 +121,7 @@ describe('Jira', () => {
       expect(jira.getStatus(new Date(nineThirtyAm))).toEqual('Backlog');
 
       let jira2 = new Jira({
-        ...defaultJson,
+        ...defaultJiraJSON,
         changelog: {
           histories: [
             {
@@ -135,7 +136,7 @@ describe('Jira', () => {
 
     it('should return the state of the last change before the date', () => {
       let jira = new Jira({
-        ...defaultJson,
+        ...defaultJiraJSON,
         changelog: {
           histories: [
             {
@@ -157,23 +158,23 @@ describe('Jira', () => {
   describe('isDone', () => {
     it('should return true if status is Done', () => {
       let jira = new Jira({
-        ...defaultJson,
-        fields: {...defaultFields, status: { name: 'Done' }},
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSONFields, status: { name: 'Done' }},
       });
       expect(jira.isDone()).toEqual(true);
     });
 
     it('should return false if status is not Done', () => {
       let jira = new Jira({
-        ...defaultJson,
-        fields: {...defaultFields, status: { name: 'In Progress' }},
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSONFields, status: { name: 'In Progress' }},
       });
       expect(jira.isDone()).toEqual(false);
     });
 
     it('should return true if status is Done at a point in time', () => {
       let jira = new Jira({
-        ...defaultJson,
+        ...defaultJiraJSON,
         changelog: {
           histories: [
             {

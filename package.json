@@ -37,6 +37,9 @@
     "react-dom": "^18.3.1"
   },
   "jest": {
+    "setupFilesAfterEnv": [
+      "./test/jestGlobals.js"
+    ],
     "testEnvironment": "jsdom",
     "globals": {
       "IS_REACT_ACT_ENVIRONMENT": true

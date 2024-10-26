@@ -1,15 +1,21 @@
 const express = require('express');
 const metricsRoute = express.Router();
-const { Jira } = require('../../client/Jira');
+import Jira from '../../server/Jira';
+import JiraRequester from '../JiraRequester';
+import BurnupGraphManager from '../BurnupGraphManager';
 import {
   TypedResponse as TR,
   TypedRequestQuery as TRQ,
   TypedRequestBody as TRB,
 } from '../../Types';
 
+
 async function getJiraData(issueKey: string) {
   
 }
+
+const jiraRequester = new JiraRequester();
+const burnupGraphManager = new BurnupGraphManager(jiraRequester);
 
 metricsRoute.get(
   '/epicBurnup',
@@ -18,10 +24,10 @@ metricsRoute.get(
     res: TR<{ message: string; data: string }>
   ) => {
     const issueKey = req.query.epicIssueKey;
-    getJiraData(issueKey)
+    burnupGraphManager
+      .getEpicBurnupData(issueKey)
       .then((data) => {
-        let epicJira = new Jira(data);
-        res.json({ message: 'Metrics route', data: epicJira.getChildren() });
+        res.json({ message: 'Metrics route', data: JSON.stringify(data) });
       })
       .catch((error) => console.error('Error:', error));
   }
