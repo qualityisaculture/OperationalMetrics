@@ -2,7 +2,7 @@ import { history, historyItem, omHistoryItem } from "./JiraAPITypes";
 
 type JiraJson = {
   key: string;
-  fields: { created: string; status: { name: string } };
+  fields: { created: string; status: { name: string }, customfield_10015?: string, duedate?: string };
   changelog?: { histories: any[] };
 };
 export default class Jira {
@@ -24,6 +24,18 @@ export default class Jira {
   }
   getCreated() {
     return new Date(this.created);
+  }
+  getEpicStartDate(): Date | null {
+    if (!this.json.fields.customfield_10015) {
+      return null;
+    }
+    return new Date(this.json.fields.customfield_10015);
+  }
+  getEpicDueDate(): Date | null {
+    if (!this.json.fields.duedate) {
+      return null;
+    }
+    return new Date(this.json.fields.duedate);
   }
   getChildrenKeys(date?: Date): string[] {
     if (!this.json.changelog || !this.json.changelog.histories) {

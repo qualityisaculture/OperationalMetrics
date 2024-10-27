@@ -17,11 +17,11 @@ export default class BurnupGraphManager {
     this.jiraRequester = jiraRequester;
   }
 
-  async getEpicBurnupData(epicKey: string) {
+  async getEpicBurnupData(epicKey: string): Promise<BurnupDataArray> {
     let epic = await this.jiraRequester.getJira(epicKey);
     let childJiras = await this.getAllChildrenJiras(epic);
-    let startDate = epic.getCreated();
-    let endDate = new Date();
+    let startDate = epic.getEpicStartDate() || epic.getCreated();
+    let endDate = epic.getEpicDueDate() || new Date();
     endDate.setDate(endDate.getDate() + 1);
 
     let burnupArray: BurnupDataArray = [];

@@ -34,15 +34,71 @@ describe('BurnupGraphManager', () => {
     expect(mockJiraRequester.getJira).toHaveBeenCalledWith('KEY-2');
   });
 
-  it('should return a list of dates between start date and current date', async () => {
-    mockJira.created = new Date('2024-10-21T09:00:00.000Z');
-    jest.setSystemTime(new Date('2024-10-22').getTime());
+  describe('Get the Start and End Date', () => {
 
-    let bgm = new BurnupGraphManager(mockJiraRequester);
-    let result = await bgm.getEpicBurnupData('KEY-1');
-    expect(result.length).toEqual(2);
-    expect(result[0].date).toEqual(new Date('2024-10-21T09:00:00.000Z'));
-    expect(result[1].date).toEqual(new Date('2024-10-22T09:00:00.000Z'));
+    it('should use the epic start date if it exists', async () => {
+      mockJira = new Jira({
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-23'}
+      });
+      mockJiraRequester.getJira = jest.fn().mockResolvedValue(mockJira);
+
+      let bgm = new BurnupGraphManager(mockJiraRequester);
+      let result = await bgm.getEpicBurnupData('KEY-1');
+      expect(result[0].date).toEqual(new Date('2024-10-23Z'));
+    });
+
+    it('should use the created date if the epic start date does not exist', async () => {
+      mockJira = new Jira({
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSON.fields}
+      });
+      mockJiraRequester.getJira = jest.fn().mockResolvedValue(mockJira);
+
+      let bgm = new BurnupGraphManager(mockJiraRequester);
+      let result = await bgm.getEpicBurnupData('KEY-1');
+      expect(result[0].date).toEqual(new Date('2024-10-21T09:00:00.000Z'));
+    });
+
+    it('should use the epic due date if it exists', async () => {
+      mockJira = new Jira({
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-28', duedate: '2024-10-30'}
+      });
+      mockJiraRequester.getJira = jest.fn().mockResolvedValue(mockJira);
+
+      let bgm = new BurnupGraphManager(mockJiraRequester);
+      let result = await bgm.getEpicBurnupData('KEY-1');
+      expect(result[result.length - 1].date).toEqual(new Date('2024-10-30Z'));
+    });
+
+    it('should use the current date if the epic due date does not exist', async () => {
+      mockJira = new Jira({
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-28'}
+      });
+      mockJiraRequester.getJira = jest.fn().mockResolvedValue(mockJira);
+
+      jest.setSystemTime(new Date('2024-10-30').getTime());
+      let bgm = new BurnupGraphManager(mockJiraRequester);
+      let result = await bgm.getEpicBurnupData('KEY-1');
+      expect(result[result.length - 1].date).toEqual(new Date('2024-10-30Z'));
+    });
+
+    it('should return a list of dates between start date and current date', async () => {
+      mockJira = new Jira({
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-28', duedate: '2024-10-30'}
+      });
+      mockJiraRequester.getJira = jest.fn().mockResolvedValue(mockJira);
+
+      let bgm = new BurnupGraphManager(mockJiraRequester);
+      let result = await bgm.getEpicBurnupData('KEY-1');
+      expect(result.length).toEqual(3);
+      expect(result[0].date).toEqual(new Date('2024-10-28Z'));
+      expect(result[1].date).toEqual(new Date('2024-10-29Z'));
+      expect(result[2].date).toEqual(new Date('2024-10-30Z'));
+    });
   });
 
   describe('Get the Done Data', () => {
@@ -159,7 +215,7 @@ describe('BurnupGraphManager', () => {
       expect(result[2].scopeKeys).toEqual(['KEY-2']);
       expect(result[3].scopeKeys).toEqual([]);
     });
-  }); 
+  });
 });
 
 function getJiraCompletedOnDate(date: string) {

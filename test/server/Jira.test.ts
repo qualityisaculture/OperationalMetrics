@@ -287,5 +287,33 @@ describe('Jira', () => {
       expect(jira.existsOn(new Date("2024-10-21T08:59:59.999Z"))).toEqual(false);
     });
   });
+
+  describe('epic functions', () => {
+    it('should return the epic start date if exists', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSONFields, customfield_10015: '2024-10-23'},
+      });
+      expect(jira.getEpicStartDate()).toEqual(new Date('2024-10-23Z'));
+    });
+
+    it('should return null if no epic start date', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getEpicStartDate()).toEqual(null);
+    });
+
+    it('should retrn the epic due date', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSONFields, duedate: '2024-12-18'},
+      });
+      expect(jira.getEpicDueDate()).toEqual(new Date('2024-12-18'));
+    });
+
+    it('should return null if no epic due date', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getEpicDueDate()).toEqual(null);
+    });
+  })
   
 });
