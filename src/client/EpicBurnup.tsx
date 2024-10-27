@@ -33,23 +33,39 @@ class Button extends React.Component<Props, State> {
   // draws it.
   drawChart(burnupDataArray: BurnupDataArray) {
     let googleBurnupDataArray = burnupDataArray.map((item) => {
-      return [new Date(item.date), item.doneCount, item.scopeCount];
+      return [
+        new Date(item.date),
+        item.doneCount,
+        item.scopeCount,
+        item.idealTrend,
+        item.forecastTrend,
+      ];
     });
 
     var data = new google.visualization.DataTable();
     data.addColumn('date', 'Date');
     data.addColumn('number', 'Done');
     data.addColumn('number', 'Scope');
+    data.addColumn('number', 'Ideal Trend');
+    data.addColumn('number', 'Forecast Trend');
     data.addRows(googleBurnupDataArray);
     console.log(googleBurnupDataArray);
 
     var options = {
       title: 'Issue Burnup',
       curveType: 'function',
-      legend: { position: 'bottom' }
+      legend: { position: 'bottom' },
+      series: {
+        0: { color: 'blue' }, //done
+        1: { color: 'green' }, //scope
+        2: { color: 'red' }, //ideal
+        3: { color: 'orange', lineDashStyle: [4, 4] }, //forecast
+      }
     };
 
-    var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+    var chart = new google.visualization.LineChart(
+      document.getElementById('chart_div')
+    );
 
     chart.draw(data, options);
   }
