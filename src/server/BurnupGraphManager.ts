@@ -1,6 +1,16 @@
 import Jira from './Jira';
 import JiraRequester from './JiraRequester';
 
+export type BurnupData = {
+  date: Date;
+  doneCount: number;
+  doneKeys: string[];
+  scopeCount: number;
+  scopeKeys: string[];
+};
+
+export type BurnupDataArray = BurnupData[];
+
 export default class BurnupGraphManager {
   jiraRequester: JiraRequester;
   constructor(jiraRequester) {
@@ -14,13 +24,7 @@ export default class BurnupGraphManager {
     let endDate = new Date();
     endDate.setDate(endDate.getDate() + 1);
 
-    let burnupArray: {
-      date: Date;
-      doneCount: number;
-      doneKeys: string[];
-      scopeCount: number;
-      scopeKeys: string[];
-    }[] = [];
+    let burnupArray: BurnupDataArray = [];
     for (
       let date = startDate;
       date < endDate;

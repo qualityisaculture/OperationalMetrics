@@ -1,9 +1,12 @@
 import React from 'react';
+import { BurnupDataArray } from '../server/BurnupGraphManager';
 
 interface Props {}
 interface State {
   input: string;
 }
+
+const google = globalThis.google;
 
 class Button extends React.Component<Props, State> {
   state: { input: string }; //Remove when TS is fixed.
@@ -21,37 +24,33 @@ class Button extends React.Component<Props, State> {
     fetch('/api/epicBurnup?epicIssueKey=' + this.state.input)
       .then((response) => response.json())
       .then((data) => {
-        console.log(JSON.parse(data.data));
-        this.drawChart();
+        let burnupDataArray: BurnupDataArray = JSON.parse(data.data);
+        this.drawChart(burnupDataArray);
       });
   }
   // Callback that creates and populates a data table,
   // instantiates the pie chart, passes in the data and
   // draws it.
-  drawChart() {
-    // Create the data table.
-    var data = new globalThis.google.visualization.DataTable();
-    data.addColumn('string', 'Topping');
-    data.addColumn('number', 'Slices');
-    data.addRows([
-      ['Mushrooms', 3],
-      ['Onions', 1],
-      ['Olives', 1],
-      ['Zucchini', 1],
-      ['Pepperoni', 2],
-    ]);
+  drawChart(burnupDataArray: BurnupDataArray) {
+    let googleBurnupDataArray = burnupDataArray.map((item) => {
+      return [new Date(item.date), item.doneCount, item.scopeCount];
+    });
 
-    // Set chart options
+    var data = new google.visualization.DataTable();
+    data.addColumn('date', 'Date');
+    data.addColumn('number', 'Done');
+    data.addColumn('number', 'Scope');
+    data.addRows(googleBurnupDataArray);
+    console.log(googleBurnupDataArray);
+
     var options = {
-      title: 'How Much Pizza I Ate Last Night',
-      width: 400,
-      height: 300,
+      title: 'Issue Burnup',
+      curveType: 'function',
+      legend: { position: 'bottom' }
     };
 
-    // Instantiate and draw our chart, passing in some options.
-    var chart = new globalThis.google.visualization.PieChart(
-      document.getElementById('chart_div')
-    );
+    var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+
     chart.draw(data, options);
   }
   render() {
