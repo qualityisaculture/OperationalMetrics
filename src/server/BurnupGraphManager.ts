@@ -10,7 +10,7 @@ export default class BurnupGraphManager {
   async getEpicBurnupData(epicKey: string) {
     let epic = await this.jiraRequester.getJira(epicKey);
     let childJiras = await this.getAllChildrenJiras(epic);
-    let startDate = epic.created;
+    let startDate = epic.getCreated();
     let endDate = new Date();
     endDate.setDate(endDate.getDate() + 1);
 

@@ -12,6 +12,17 @@ describe('Jira', () => {
     expect(jira.getKey()).toEqual('KEY-2');
   });
 
+  it('should return the created date', () => {
+    let jira = new Jira(defaultJiraJSON);
+    expect(jira.getCreated()).toEqual(new Date(nineAm));
+  });
+  it('you should be able to mutate the created date without altering the original', () => {
+    let jira = new Jira(defaultJiraJSON);
+    let created = jira.getCreated();
+    created.setFullYear(2023);
+    expect(jira.getCreated()).toEqual(new Date(nineAm));
+  });
+
   describe('getChildren', () => {
     it('should return nothing with no history', () => {
       let jira = new Jira(defaultJiraJSON);

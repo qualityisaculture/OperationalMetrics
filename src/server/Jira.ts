@@ -22,6 +22,9 @@ export default class Jira {
   getKey() {
     return this.json.key;
   }
+  getCreated() {
+    return new Date(this.created);
+  }
   getChildrenKeys(date?: Date): string[] {
     if (!this.json.changelog || !this.json.changelog.histories) {
       return [];
