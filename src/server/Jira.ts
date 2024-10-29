@@ -1,5 +1,5 @@
 import { history, historyItem, omHistoryItem } from "./JiraAPITypes";
-
+import { getWorkHoursBetween } from "./Utils";
 type JiraJson = {
   key: string;
   fields: { created: string; status: { name: string }, customfield_10015?: string, duedate?: string };
@@ -99,12 +99,12 @@ export default class Jira {
     return statusChanges;
   }
 
-  getStatus(date?: Date) {
+  getStatus(date?: Date): string {
     if (!date) {
       return this.json.fields.status.name;
     }
     if (date < this.created) {
-      return null;
+      return 'NOT_CREATED_YET';
     }
     for (let i = 0; i < this.statusChanges.length; i++) {
       if (this.statusChanges[i].date > date) {
@@ -112,6 +112,39 @@ export default class Jira {
       }
     }
     return this.statusChanges[this.statusChanges.length - 1].status;
+  }
+
+  getStatuses(): string[] {
+    let statusSet = new Set<string>();
+    this.statusChanges.forEach((change) => {
+      statusSet.add(change.status);
+    });
+    return Array.from(statusSet).sort();
+  }
+
+  getStatusTimes(): {status: string, time: number}[] {
+    let statuses = this.getStatuses();
+    let statusMap = new Map<string, number>();
+    statuses.forEach((status) => {
+      statusMap.set(status, 0);
+    });
+    let previousTime = this.statusChanges[0].date;
+    for (let i = 1; i < this.statusChanges.length; i++) {
+      let status = this.statusChanges[i-1].status;
+      let time = this.statusChanges[i].date;
+      let duration = getWorkHoursBetween(previousTime, time) * 60 * 60 * 1000;
+      let previousDuration = statusMap.get(status) || 0;
+      statusMap.set(status, previousDuration + duration);
+      previousTime = time;
+    }
+    let finalTime = new Date();
+    let finalDuration = getWorkHoursBetween(previousTime,finalTime) * 60 * 60 * 1000;
+    let finalStatus = this.getStatus(finalTime);
+    let finalPreviousDuration = statusMap.get(finalStatus) || 0;
+    statusMap.set(finalStatus, finalPreviousDuration + finalDuration);
+    return Array.from(statusMap).map(([status, time]) => {
+      return {status, time};
+    });
   }
 
   isDone(date?: Date) {  

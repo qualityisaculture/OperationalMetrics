@@ -1,9 +1,16 @@
 import Jira from '../../src/server/Jira';
 
-let nineAm = "2024-10-21T09:00:00.000Z";
-let nineThirtyAm = "2024-10-21T09:30:00.000Z";
-let tenAm = "2024-10-21T10:00:00.000Z";
-export const defaultJiraJSONFields = { created: nineAm,  status: { name: 'Backlog' } };
+let nineAm = '2024-10-21T09:00:00.000Z';
+let nineThirtyAm = '2024-10-21T09:30:00.000Z';
+let tenAm = '2024-10-21T10:00:00.000Z';
+let tenThirtyAm = '2024-10-21T10:30:00.000Z';
+let elevenAm = '2024-10-21T11:00:00.000Z';
+let twelvePm = '2024-10-21T12:00:00.000Z';
+let midnight = '2024-10-22T00:00:00.000Z';
+export const defaultJiraJSONFields = {
+  created: nineAm,
+  status: { name: 'Backlog' },
+};
 export const defaultJiraJSON = { key: 'KEY-1', fields: defaultJiraJSONFields };
 
 describe('Jira', () => {
@@ -35,7 +42,9 @@ describe('Jira', () => {
         changelog: {
           histories: [
             {
-              items: [{ field: 'Epic Child', fromString: null, toString: 'KEY-1' }],
+              items: [
+                { field: 'Epic Child', fromString: null, toString: 'KEY-1' },
+              ],
             },
           ],
         },
@@ -50,7 +59,11 @@ describe('Jira', () => {
           histories: [
             {
               items: [
-                { field: 'Other Field', fromString: null, toString: 'Other Field' },
+                {
+                  field: 'Other Field',
+                  fromString: null,
+                  toString: 'Other Field',
+                },
                 { field: 'Epic Child', fromString: null, toString: 'KEY-1' },
                 { field: 'Epic Child', fromString: null, toString: 'KEY-2' },
               ],
@@ -67,10 +80,14 @@ describe('Jira', () => {
         changelog: {
           histories: [
             {
-              items: [{ field: 'Epic Child', fromString: null, toString: 'KEY-1' }],
+              items: [
+                { field: 'Epic Child', fromString: null, toString: 'KEY-1' },
+              ],
             },
             {
-              items: [{ field: 'Epic Child', fromString: null, toString: 'KEY-2' }],
+              items: [
+                { field: 'Epic Child', fromString: null, toString: 'KEY-2' },
+              ],
             },
           ],
         },
@@ -84,13 +101,17 @@ describe('Jira', () => {
         changelog: {
           histories: [
             {
-              created: "2024-10-22T09:46:38.582+0100",
-              items: [{ field: 'Epic Child', fromString: 'KEY-1', toString: null }],
+              created: '2024-10-22T09:46:38.582+0100',
+              items: [
+                { field: 'Epic Child', fromString: 'KEY-1', toString: null },
+              ],
             },
             {
-              created: "2024-10-20T09:49:29.143+0100",
-              items: [{ field: 'Epic Child', fromString: null, toString: 'KEY-1' }],
-            }
+              created: '2024-10-20T09:49:29.143+0100',
+              items: [
+                { field: 'Epic Child', fromString: null, toString: 'KEY-1' },
+              ],
+            },
           ],
         },
       });
@@ -103,20 +124,29 @@ describe('Jira', () => {
         changelog: {
           histories: [
             {
-              created: "2024-10-21T09:49:29.143Z",
-              items: [{ field: 'Epic Child', fromString: null, toString: 'KEY-1' }],
+              created: '2024-10-21T09:49:29.143Z',
+              items: [
+                { field: 'Epic Child', fromString: null, toString: 'KEY-1' },
+              ],
             },
             {
-              created: "2024-10-22T09:49:29.143Z",
-              items: [{ field: 'Epic Child', fromString: 'KEY-1', toString: null }],
+              created: '2024-10-22T09:49:29.143Z',
+              items: [
+                { field: 'Epic Child', fromString: 'KEY-1', toString: null },
+              ],
             },
-
           ],
         },
       });
-      expect(jira.getChildrenKeys(new Date("2024-10-21T09:00:00.000Z"))).toEqual([]);
-      expect(jira.getChildrenKeys(new Date("2024-10-22T09:00:00.000Z"))).toEqual(['KEY-1']);
-      expect(jira.getChildrenKeys(new Date("2024-10-23T09:00:00.000Z"))).toEqual([]);
+      expect(
+        jira.getChildrenKeys(new Date('2024-10-21T09:00:00.000Z'))
+      ).toEqual([]);
+      expect(
+        jira.getChildrenKeys(new Date('2024-10-22T09:00:00.000Z'))
+      ).toEqual(['KEY-1']);
+      expect(
+        jira.getChildrenKeys(new Date('2024-10-23T09:00:00.000Z'))
+      ).toEqual([]);
     });
   });
 
@@ -124,17 +154,22 @@ describe('Jira', () => {
     it('should return the current state when no date passed', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
-        fields: {...defaultJiraJSONFields, status: { name: 'In Progress' }},
+        fields: { ...defaultJiraJSONFields, status: { name: 'In Progress' } },
       });
       expect(jira.getStatus()).toEqual('In Progress');
     });
 
-    it('should return null if passed date prior to Jira creation', () => {
+    it('should return NOT_CREATED_YET if passed date prior to Jira creation', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
-        fields: {...defaultJiraJSONFields, created: "2024-10-21T09:46:38.582+0100",},
+        fields: {
+          ...defaultJiraJSONFields,
+          created: '2024-10-21T09:46:38.582+0100',
+        },
       });
-      expect(jira.getStatus(new Date("2024-10-20T09:46:38.582+0100"))).toEqual(null);
+      expect(jira.getStatus(new Date('2024-10-20T09:46:38.582+0100'))).toEqual(
+        "NOT_CREATED_YET"
+      );
     });
 
     it('should return the starting state if date is prior to first state change', () => {
@@ -144,7 +179,13 @@ describe('Jira', () => {
           histories: [
             {
               created: tenAm,
-              items: [{ field: 'status', fromString: 'Backlog', toString: 'In Progress' }],
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'Backlog',
+                  toString: 'In Progress',
+                },
+              ],
             },
           ],
         },
@@ -157,13 +198,19 @@ describe('Jira', () => {
           histories: [
             {
               created: tenAm,
-              items: [{ field: 'status', fromString: 'Todo', toString: 'In Progress' }],
-            }
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'Todo',
+                  toString: 'In Progress',
+                },
+              ],
+            },
           ],
         },
       });
       expect(jira2.getStatus(new Date(nineThirtyAm))).toEqual('Todo');
-    })
+    });
 
     it('should return the state of the last change before the date', () => {
       let jira = new Jira({
@@ -172,11 +219,23 @@ describe('Jira', () => {
           histories: [
             {
               created: nineThirtyAm,
-              items: [{ field: 'status', fromString: 'Backlog', toString: 'In Progress' }],
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'Backlog',
+                  toString: 'In Progress',
+                },
+              ],
             },
             {
               created: tenAm,
-              items: [{ field: 'status', fromString: 'In Progress', toString: 'Done' }],
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'In Progress',
+                  toString: 'Done',
+                },
+              ],
             },
           ],
         },
@@ -184,13 +243,194 @@ describe('Jira', () => {
       expect(jira.getStatus(new Date(nineThirtyAm))).toEqual('In Progress');
       expect(jira.getStatus(new Date(tenAm))).toEqual('Done');
     });
-  })
+  });
+
+  describe('getStatuses', () => {
+
+    describe('work hours behaviour', () => {
+      it('should return 8 hours, even at midnight', () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(midnight).getTime());
+        let jira = new Jira(defaultJiraJSON);
+        expect(jira.getStatusTimes()).toEqual([
+          { status: 'Backlog', time: 8 * 3600000 },
+        ]);
+      });
+
+      it('should return 0 if status is Jira has existed less than hour', () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(nineThirtyAm).getTime());
+        let jira = new Jira(defaultJiraJSON);
+        expect(jira.getStatusTimes()).toEqual([
+          { status: 'Backlog', time: 0 },
+        ]);
+      });
+
+      it('should round up to the nearest hour', () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(tenThirtyAm).getTime());
+        let jira = new Jira(defaultJiraJSON);
+        expect(jira.getStatusTimes()).toEqual([
+          { status: 'Backlog', time: 2 * 3600000 },
+        ]);
+      });
+    });
+
+    it('should just return the current status if there are no status changes', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getStatuses()).toEqual(['Backlog']);
+    });
+
+    it('should return all the statuses in alphabetical order', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        changelog: {
+          histories: [
+            {
+              created: nineThirtyAm,
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'Backlog',
+                  toString: 'In Progress',
+                },
+              ],
+            },
+            {
+              created: tenAm,
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'In Progress',
+                  toString: 'Done',
+                },
+              ],
+            },
+          ],
+        },
+      });
+      expect(jira.getStatuses()).toEqual(['Backlog', 'Done', 'In Progress']);
+    });
+  });
+
+  describe('getStatusTimes', () => {
+    it('should return the amount of time the jira existed with the current status if there are no status changes', () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date(tenAm).getTime());
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getStatusTimes()).toEqual([
+        { status: 'Backlog', time: 3600000 },
+      ]);
+    });
+
+    it('should return the amount of time the jira existed with each status', () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date(tenAm).getTime());
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: { ...defaultJiraJSONFields, status: { name: 'Done' } },
+        changelog: {
+          histories: [
+            {
+              created: tenAm,
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'Backlog',
+                  toString: 'In Progress',
+                },
+              ],
+            },
+            {
+              created: elevenAm,
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'In Progress',
+                  toString: 'Done',
+                },
+              ],
+            },
+          ],
+        },
+      });
+      expect(jira.getStatusTimes()).toEqual([
+        { status: 'Backlog', time: 3600000 },
+        { status: 'Done', time: 0 },
+        { status: 'In Progress', time: 3600000 },
+      ]);
+    });
+
+    it('should include the time since the last status change if the jira is still in that status', () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date(elevenAm).getTime());
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: { ...defaultJiraJSONFields, status: { name: 'In Progress' } },
+        changelog: {
+          histories: [
+            {
+              created: tenAm,
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'Backlog',
+                  toString: 'In Progress',
+                },
+              ],
+            },
+          ],
+        },
+      });
+      expect(jira.getStatusTimes()).toEqual([
+        { status: 'Backlog', time: 3600000 },
+        { status: 'In Progress', time: 3600000 },
+      ]);
+    });
+
+    it('should add up the times if a status is repeated', () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date(twelvePm).getTime());
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: { ...defaultJiraJSONFields, status: { name: 'Done' } },
+        changelog: {
+          histories: [
+            {
+              created: tenAm,
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'Backlog',
+                  toString: 'In Progress',
+                },
+              ],
+            },
+            {
+              created: elevenAm,
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'In Progress',
+                  toString: 'Backlog',
+                },
+              ],
+            }
+          ],
+        },
+      });
+      expect(jira.getStatusTimes()).toEqual([
+        { status: 'Backlog', time: 2 * 3600000 },
+        { status: 'In Progress', time: 3600000 },
+      ]);
+    });
+  });
 
   describe('isDone', () => {
     it('should return true if status is Done', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
-        fields: {...defaultJiraJSONFields, status: { name: 'Done' }},
+        fields: { ...defaultJiraJSONFields, status: { name: 'Done' } },
       });
       expect(jira.isDone()).toEqual(true);
     });
@@ -198,7 +438,7 @@ describe('Jira', () => {
     it('should return false if status is not Done', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
-        fields: {...defaultJiraJSONFields, status: { name: 'In Progress' }},
+        fields: { ...defaultJiraJSONFields, status: { name: 'In Progress' } },
       });
       expect(jira.isDone()).toEqual(false);
     });
@@ -210,11 +450,23 @@ describe('Jira', () => {
           histories: [
             {
               created: nineThirtyAm,
-              items: [{ field: 'status', fromString: 'Backlog', toString: 'In Progress' }],
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'Backlog',
+                  toString: 'In Progress',
+                },
+              ],
             },
             {
               created: tenAm,
-              items: [{ field: 'status', fromString: 'In Progress', toString: 'Done' }],
+              items: [
+                {
+                  field: 'status',
+                  fromString: 'In Progress',
+                  toString: 'Done',
+                },
+              ],
             },
           ],
         },
@@ -227,7 +479,7 @@ describe('Jira', () => {
       it('should return true if status is not Cancelled', () => {
         let jira = new Jira({
           ...defaultJiraJSON,
-          fields: {...defaultJiraJSONFields, status: { name: 'Done' }},
+          fields: { ...defaultJiraJSONFields, status: { name: 'Done' } },
         });
         expect(jira.isInScope()).toEqual(true);
       });
@@ -235,7 +487,7 @@ describe('Jira', () => {
       it('should return false if status is Cancelled', () => {
         let jira = new Jira({
           ...defaultJiraJSON,
-          fields: {...defaultJiraJSONFields, status: { name: 'Cancelled' }},
+          fields: { ...defaultJiraJSONFields, status: { name: 'Cancelled' } },
         });
         expect(jira.isInScope()).toEqual(false);
       });
@@ -247,11 +499,23 @@ describe('Jira', () => {
             histories: [
               {
                 created: nineThirtyAm,
-                items: [{ field: 'status', fromString: 'Backlog', toString: 'In Progress' }],
+                items: [
+                  {
+                    field: 'status',
+                    fromString: 'Backlog',
+                    toString: 'In Progress',
+                  },
+                ],
               },
               {
                 created: tenAm,
-                items: [{ field: 'status', fromString: 'In Progress', toString: 'Cancelled' }],
+                items: [
+                  {
+                    field: 'status',
+                    fromString: 'In Progress',
+                    toString: 'Cancelled',
+                  },
+                ],
               },
             ],
           },
@@ -266,7 +530,7 @@ describe('Jira', () => {
     it('should return true if date is after creation date', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
-        fields: {...defaultJiraJSONFields, created: nineAm},
+        fields: { ...defaultJiraJSONFields, created: nineAm },
       });
       expect(jira.existsOn(new Date(nineThirtyAm))).toEqual(true);
     });
@@ -274,7 +538,7 @@ describe('Jira', () => {
     it('should return true if date is equal to creation date', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
-        fields: {...defaultJiraJSONFields, created: nineAm},
+        fields: { ...defaultJiraJSONFields, created: nineAm },
       });
       expect(jira.existsOn(new Date(nineAm))).toEqual(true);
     });
@@ -282,9 +546,11 @@ describe('Jira', () => {
     it('should return false if date is before creation date', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
-        fields: {...defaultJiraJSONFields, created: nineAm},
+        fields: { ...defaultJiraJSONFields, created: nineAm },
       });
-      expect(jira.existsOn(new Date("2024-10-21T08:59:59.999Z"))).toEqual(false);
+      expect(jira.existsOn(new Date('2024-10-21T08:59:59.999Z'))).toEqual(
+        false
+      );
     });
   });
 
@@ -292,7 +558,7 @@ describe('Jira', () => {
     it('should return the epic start date if exists', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
-        fields: {...defaultJiraJSONFields, customfield_10015: '2024-10-23'},
+        fields: { ...defaultJiraJSONFields, customfield_10015: '2024-10-23' },
       });
       expect(jira.getEpicStartDate()).toEqual(new Date('2024-10-23Z'));
     });
@@ -305,7 +571,7 @@ describe('Jira', () => {
     it('should retrn the epic due date', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
-        fields: {...defaultJiraJSONFields, duedate: '2024-12-18'},
+        fields: { ...defaultJiraJSONFields, duedate: '2024-12-18' },
       });
       expect(jira.getEpicDueDate()).toEqual(new Date('2024-12-18'));
     });
@@ -314,6 +580,5 @@ describe('Jira', () => {
       let jira = new Jira(defaultJiraJSON);
       expect(jira.getEpicDueDate()).toEqual(null);
     });
-  })
-  
+  });
 });
