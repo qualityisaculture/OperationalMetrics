@@ -13,23 +13,98 @@ describe('JiraRequester', () => {
   beforeEach(() => {
     fetchMock = jest.spyOn(global, 'fetch');
     jest.resetModules();
+    process.env.JIRA_DOMAIN = 'localhost:8080';
   });
 
-  it('should request jira from server', async () => {
-    fetchMock.mockResolvedValue(fetchResponseOk({key: 'KEY-1', fields: { created: '2024-10-21T09:00:00.000+0100', status: { name: 'Backlog' } }}));
-    let jr = new JiraRequester();
-    let jira = await jr.getJira('KEY-1');
-    expect(jira.getKey()).toEqual('KEY-1');
+  describe('getJira', () => {
+    it('should request jira from server with changelog expanded', async () => {
+      fetchMock.mockResolvedValue(
+        fetchResponseOk({
+          key: 'KEY-1',
+          fields: {
+            created: '2024-10-21T09:00:00.000+0100',
+            status: { name: 'Backlog' },
+          },
+        })
+      );
+      let jr = new JiraRequester();
+      let jira = await jr.getJira('KEY-1');
+      expect(fetchMock.mock.calls[0][0]).toEqual('localhost:8080/rest/api/3/issue/KEY-1?expand=changelog');
+      expect(jira.getKey()).toEqual('KEY-1');
+    });
+
+    it('should not request jira from server a second time', async () => {
+      fetchMock.mockResolvedValue(
+        fetchResponseOk({
+          key: 'KEY-1',
+          fields: {
+            created: '2024-10-21T09:00:00.000+0100',
+            status: { name: 'Backlog' },
+          },
+        })
+      );
+      let jr = new JiraRequester();
+      let jira = await jr.getJira('KEY-1');
+      expect(jira.getKey()).toEqual('KEY-1');
+      let jira2 = await jr.getJira('KEY-1');
+      expect(jira2.getKey()).toEqual('KEY-1');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('should not request jira from server a second time', async () => {
-    fetchMock.mockResolvedValue(fetchResponseOk({key: 'KEY-1', fields: { created: '2024-10-21T09:00:00.000+0100', status: { name: 'Backlog' } }}));
-    let jr = new JiraRequester();
-    let jira = await jr.getJira('KEY-1');
-    expect(jira.getKey()).toEqual('KEY-1');
-    let jira2 = await jr.getJira('KEY-1');
-    expect(jira2.getKey()).toEqual('KEY-1');
-    expect(fetchMock).toHaveBeenCalledTimes(1); 
-  });
+  describe('request query from server', () => {
+    beforeEach(() => {
+      fetchMock.mockResolvedValue(
+        fetchResponseOk({
+          issues: [],
+          maxResults: 50,
+          startAt: 0,
+          total: 0
+        })
+      );
+    });
+    it('should request a query from server with changelog expanded', async () => {
+      let jr = new JiraRequester();
+      let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
+      expect(fetchMock.mock.calls[0][0]).toEqual('localhost:8080/rest/api/3/search?jql=project="Project 1" AND resolved >= -1w&expand=changelog');
+    });
 
+    it('should not request a query from server a second time', async () => {
+      let jr = new JiraRequester();
+      let jira = await jr.getQuery('project="Project 1" AND resolved >= -1w');
+      let jira2 = await jr.getQuery('project="Project 1" AND resolved >= -1w');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should map issues to Jira objects', async () => {
+      fetchMock.mockResolvedValue(
+        fetchResponseOk({
+          issues: [
+            {
+              key: 'KEY-1',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+              },
+            },
+            {
+              key: 'KEY-2',
+              fields: {
+                created: '2024-10-22T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+              },
+            },
+          ],
+          maxResults: 50,
+          startAt: 0,
+          total: 2
+        })
+      );
+      let jr = new JiraRequester();
+      let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
+      expect(jiras[0].getKey()).toEqual('KEY-1');
+      expect(jiras[1].getKey()).toEqual('KEY-2');
+    });
+
+  });
 });

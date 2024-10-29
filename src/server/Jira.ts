@@ -1,8 +1,15 @@
-import { history, historyItem, omHistoryItem } from "./JiraAPITypes";
-import { getWorkHoursBetween } from "./Utils";
+import { history, historyItem, omHistoryItem } from './JiraAPITypes';
+import { getWorkHoursBetween } from './Utils';
 type JiraJson = {
   key: string;
-  fields: { created: string; status: { name: string }, customfield_10015?: string, duedate?: string };
+  fields: {
+    created: string;
+    status: { name: string };
+    customfield_10015?: string;
+    duedate?: string;
+    timeoriginalestimate?: number;
+    timespent?: number;
+  };
   changelog?: { histories: any[] };
 };
 export default class Jira {
@@ -24,6 +31,12 @@ export default class Jira {
   }
   getCreated() {
     return new Date(this.created);
+  }
+  getOriginalEstimate(): number | null {
+    return this.json.fields.timeoriginalestimate || null;
+  }
+  getTimeSpent(): number | null {
+    return this.json.fields.timespent || null;
   }
   getEpicStartDate(): Date | null {
     if (!this.json.fields.customfield_10015) {
@@ -60,8 +73,8 @@ export default class Jira {
   getHistoriesItems(field): omHistoryItem[] {
     let epicChildItems = this.histories
       .map((history) => {
-        
-        let items: (historyItem & {created?: Date})[] = this.filterHistoryItems(history, field);
+        let items: (historyItem & { created?: Date })[] =
+          this.filterHistoryItems(history, field);
         items.forEach((item) => {
           let date = new Date(history.created);
           item.created = date;
@@ -122,7 +135,7 @@ export default class Jira {
     return Array.from(statusSet).sort();
   }
 
-  getStatusTimes(): {status: string, time: number}[] {
+  getStatusTimes(): { status: string; time: number }[] {
     let statuses = this.getStatuses();
     let statusMap = new Map<string, number>();
     statuses.forEach((status) => {
@@ -130,7 +143,7 @@ export default class Jira {
     });
     let previousTime = this.statusChanges[0].date;
     for (let i = 1; i < this.statusChanges.length; i++) {
-      let status = this.statusChanges[i-1].status;
+      let status = this.statusChanges[i - 1].status;
       let time = this.statusChanges[i].date;
       let duration = getWorkHoursBetween(previousTime, time) * 60 * 60 * 1000;
       let previousDuration = statusMap.get(status) || 0;
@@ -138,16 +151,17 @@ export default class Jira {
       previousTime = time;
     }
     let finalTime = new Date();
-    let finalDuration = getWorkHoursBetween(previousTime,finalTime) * 60 * 60 * 1000;
+    let finalDuration =
+      getWorkHoursBetween(previousTime, finalTime) * 60 * 60 * 1000;
     let finalStatus = this.getStatus(finalTime);
     let finalPreviousDuration = statusMap.get(finalStatus) || 0;
     statusMap.set(finalStatus, finalPreviousDuration + finalDuration);
     return Array.from(statusMap).map(([status, time]) => {
-      return {status, time};
+      return { status, time };
     });
   }
 
-  isDone(date?: Date) {  
+  isDone(date?: Date) {
     return this.getStatus(date) === 'Done';
   }
 

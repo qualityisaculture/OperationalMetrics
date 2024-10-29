@@ -14,21 +14,51 @@ export const defaultJiraJSONFields = {
 export const defaultJiraJSON = { key: 'KEY-1', fields: defaultJiraJSONFields };
 
 describe('Jira', () => {
-  it('should return the key', () => {
-    let jira = new Jira({ ...defaultJiraJSON, key: 'KEY-2' });
-    expect(jira.getKey()).toEqual('KEY-2');
-  });
 
-  it('should return the created date', () => {
-    let jira = new Jira(defaultJiraJSON);
-    expect(jira.getCreated()).toEqual(new Date(nineAm));
-  });
-  it('you should be able to mutate the created date without altering the original', () => {
-    let jira = new Jira(defaultJiraJSON);
-    let created = jira.getCreated();
-    created.setFullYear(2023);
-    expect(jira.getCreated()).toEqual(new Date(nineAm));
-  });
+  describe('fields', () => {
+    it('should return the key', () => {
+      let jira = new Jira({ ...defaultJiraJSON, key: 'KEY-2' });
+      expect(jira.getKey()).toEqual('KEY-2');
+    });
+  
+    it('should return the created date', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getCreated()).toEqual(new Date(nineAm));
+    });
+    it('you should be able to mutate the created date without altering the original', () => {
+      let jira = new Jira(defaultJiraJSON);
+      let created = jira.getCreated();
+      created.setFullYear(2023);
+      expect(jira.getCreated()).toEqual(new Date(nineAm));
+    });
+
+    it('should return the original estimate', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: { ...defaultJiraJSONFields, timeoriginalestimate: 3600 },
+      });
+      expect(jira.getOriginalEstimate()).toEqual(3600);
+    });
+
+    it('should return null if no original estimate', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getOriginalEstimate()).toEqual(null);
+    });
+
+    it('should return the time spent', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: { ...defaultJiraJSONFields, timespent: 3600 },
+      });
+      expect(jira.getTimeSpent()).toEqual(3600);
+    });
+
+    it('should return null if no time spent', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getTimeSpent()).toEqual(null);
+    });
+  })
+  
 
   describe('getChildren', () => {
     it('should return nothing with no history', () => {

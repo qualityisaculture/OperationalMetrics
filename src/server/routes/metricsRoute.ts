@@ -3,6 +3,7 @@ const metricsRoute = express.Router();
 import Jira from '../../server/Jira';
 import JiraRequester from '../JiraRequester';
 import BurnupGraphManager from '../BurnupGraphManager';
+import EstimatesGraphManager from '../EstimatesGraphManager';
 import {
   TypedResponse as TR,
   TypedRequestQuery as TRQ,
@@ -16,6 +17,20 @@ async function getJiraData(issueKey: string) {
 
 const jiraRequester = new JiraRequester();
 const burnupGraphManager = new BurnupGraphManager(jiraRequester);
+const estimatesGraphManager = new EstimatesGraphManager(jiraRequester);
+
+metricsRoute.get(
+  '/estimates', 
+  (req: TRQ<{ query: string }>, res: TR<{ message: string; data: string }>) => {
+    const query = req.query.query;
+    estimatesGraphManager
+      .getEpicEstimatesData(query)
+      .then((data) => {
+        res.json({ message: 'Metrics route', data: JSON.stringify(data) });
+      })
+      .catch((error) => console.error('Error:', error));
+  }
+);
 
 metricsRoute.get(
   '/epicBurnup',

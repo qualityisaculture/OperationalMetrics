@@ -8,24 +8,26 @@ interface State {
 
 const google = globalThis.google;
 
-export default class EpicBurnup extends React.Component<Props, State> {
+export default class EstimatesAnalysis extends React.Component<Props, State> {
   state: { input: string }; //Remove when TS is fixed.
   setState: any; //Remove when TS is fixed.
   constructor(props) {
     super(props);
     this.onClick = this.onClick.bind(this);
+    let tempQuery = new URLSearchParams(window.location.search).get('estimatesQuery');
     this.state = {
-      input: 'AF-15921',
+      input: tempQuery ? tempQuery : 'AF-15921',
     };
   }
   onClick() {
     console.log('Button clicked');
     //Request to the server /api/metrics
-    fetch('/api/epicBurnup?epicIssueKey=' + this.state.input)
+    fetch('/api/estimates?query=' + this.state.input)
       .then((response) => response.json())
       .then((data) => {
-        let burnupDataArray: BurnupDataArray = JSON.parse(data.data);
-        this.drawChart(burnupDataArray);
+        console.log(JSON.parse(data.data));
+        // let burnupDataArray: BurnupDataArray = JSON.parse(data.data);
+        // this.drawChart(burnupDataArray);
       });
   }
   // Callback that creates and populates a data table,
