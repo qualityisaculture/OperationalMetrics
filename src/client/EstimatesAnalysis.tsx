@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   EstimatesData,
-} from '../server/EstimatesGraphManager';
+} from '../server/graphManagers/EstimatesGraphManager';
 import Select from './Select';
 import Chart from './Chart';
 

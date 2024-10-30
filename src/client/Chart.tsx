@@ -1,5 +1,5 @@
 import React from 'react';
-import { EstimateData } from '../server/EstimatesGraphManager';
+import { EstimateData } from '../server/graphManagers/EstimatesGraphManager';
 
 const google = globalThis.google;
 

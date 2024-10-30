@@ -1,4 +1,4 @@
-import Jira from '../../src/server/Jira';
+import Jira, { JiraJson, JiraJsonFields } from '../../src/server/Jira';
 
 let nineAm = '2024-10-21T09:00:00.000Z';
 let nineThirtyAm = '2024-10-21T09:30:00.000Z';
@@ -7,24 +7,86 @@ let tenThirtyAm = '2024-10-21T10:30:00.000Z';
 let elevenAm = '2024-10-21T11:00:00.000Z';
 let twelvePm = '2024-10-21T12:00:00.000Z';
 let midnight = '2024-10-22T00:00:00.000Z';
-export const defaultJiraJSONFields = {
+export const defaultJiraJSONFields: JiraJsonFields = {
   created: nineAm,
+  components: [{ name: 'Component' }],
+  fixVersions: [{ name: 'Version' }],
   issuetype: { name: 'Task' },
+  labels: [],
+  priority: { name: 'Medium' },
+  resolutiondate: '2024-10-24T10:00:00.000Z',
+  resolution: 'Done',
   status: { name: 'Backlog' },
+  summary: 'Summary',
 };
 export const defaultJiraJSON = { key: 'KEY-1', fields: defaultJiraJSONFields };
 
 describe('Jira', () => {
-
   describe('fields', () => {
     it('should return the key', () => {
       let jira = new Jira({ ...defaultJiraJSON, key: 'KEY-2' });
       expect(jira.getKey()).toEqual('KEY-2');
     });
 
+    it('should return the components', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getComponents()).toEqual(['Component']);
+    });
+
     it('should return the created date', () => {
       let jira = new Jira(defaultJiraJSON);
       expect(jira.getCreated()).toEqual(new Date(nineAm));
+    });
+
+    it('should return the epic', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: { ...defaultJiraJSONFields, customfield_10014: 'EPIC-1' },
+      });
+      expect(jira.getEpic()).toEqual('EPIC-1');
+    });
+
+    it('should return null if no epic', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getEpic()).toEqual(null);
+    });
+
+    it('should get the fix versions', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getFixVersions()).toEqual(['Version']);
+    });
+
+    it('should return the labels', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: { ...defaultJiraJSONFields, labels: ['label1', 'label2'] },
+      });
+      expect(jira.getLabels()).toEqual(['label1', 'label2']);
+    })
+
+    it('should return an empty array if no labels', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getLabels()).toEqual([]);
+    });
+
+    it('should return the summary', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getSummary()).toEqual('Summary');
+    });
+
+    it('should return the priority', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getPriority()).toEqual('Medium');
+    });
+
+    it('should return the resolution', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getResolution()).toEqual('Done');
+    })
+
+    it('should return the resolved date', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getResolved()).toEqual(new Date('2024-10-24T10:00:00.000Z'));
     });
 
     it('you should be able to mutate the created date without altering the original', () => {
@@ -67,8 +129,7 @@ describe('Jira', () => {
       });
       expect(jira.getType()).toEqual('Story');
     });
-  })
-  
+  });
 
   describe('getChildren', () => {
     it('should return nothing with no history', () => {
@@ -208,7 +269,7 @@ describe('Jira', () => {
         },
       });
       expect(jira.getStatus(new Date('2024-10-20T09:46:38.582+0100'))).toEqual(
-        "NOT_CREATED_YET"
+        'NOT_CREATED_YET'
       );
     });
 
@@ -286,7 +347,6 @@ describe('Jira', () => {
   });
 
   describe('getStatuses', () => {
-
     describe('work hours behaviour', () => {
       it('should return 8 hours, even at midnight', () => {
         jest.useFakeTimers();
@@ -301,9 +361,7 @@ describe('Jira', () => {
         jest.useFakeTimers();
         jest.setSystemTime(new Date(nineThirtyAm).getTime());
         let jira = new Jira(defaultJiraJSON);
-        expect(jira.getStatusTimes()).toEqual([
-          { status: 'Backlog', time: 0 },
-        ]);
+        expect(jira.getStatusTimes()).toEqual([{ status: 'Backlog', time: 0 }]);
       });
 
       it('should round up to the nearest hour', () => {
@@ -455,7 +513,7 @@ describe('Jira', () => {
                   toString: 'Backlog',
                 },
               ],
-            }
+            },
           ],
         },
       });

@@ -1,9 +1,9 @@
-import { defaultJiraJSON } from '../../test/server/Jira.test';
+import { defaultJiraJSON } from '../Jira.test';
 
-import BurnupGraphManager from '../../src/server/BurnupGraphManager';
-import JiraRequester from '../../src/server/JiraRequester';
-import Jira from '../../src/server/Jira';
-jest.mock('../../src/server/JiraRequester');
+import BurnupGraphManager from '../../../src/server/graphManagers/BurnupGraphManager';
+import JiraRequester from '../../../src/server/JiraRequester';
+import Jira from '../../../src/server/Jira';
+jest.mock('../../../src/server/JiraRequester');
 
 describe('BurnupGraphManager', () => {
   let mockJiraRequester: JiraRequester;

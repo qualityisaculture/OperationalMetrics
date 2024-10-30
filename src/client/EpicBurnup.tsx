@@ -1,5 +1,5 @@
 import React from 'react';
-import { BurnupDataArray } from '../server/BurnupGraphManager';
+import { BurnupDataArray } from '../server/graphManagers/BurnupGraphManager';
 
 interface Props {}
 interface State {

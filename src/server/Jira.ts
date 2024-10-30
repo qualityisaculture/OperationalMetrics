@@ -1,16 +1,25 @@
 import { history, historyItem, omHistoryItem } from './JiraAPITypes';
 import { getWorkHoursBetween } from './Utils';
-type JiraJson = {
+export type JiraJsonFields = {
+  created: string;
+  components: { name: string }[];
+  customfield_10014?: string; // Epic
+  customfield_10015?: string; // Epic Start Date
+  duedate?: string;
+  fixVersions: { name: string }[];
+  issuetype: { name: string };
+  labels: string[];
+  priority: { name: string };
+  resolution: string;
+  resolutiondate: string;
+  status: { name: string };
+  summary: string;
+  timeoriginalestimate?: number;
+  timespent?: number;
+};
+export type JiraJson = {
   key: string;
-  fields: {
-    created: string;
-    issuetype: { name: string };
-    status: { name: string };
-    customfield_10015?: string;
-    duedate?: string;
-    timeoriginalestimate?: number;
-    timespent?: number;
-  };
+  fields: JiraJsonFields;
   changelog?: { histories: any[] };
 };
 export default class Jira {
@@ -32,6 +41,34 @@ export default class Jira {
   }
   getCreated() {
     return new Date(this.created);
+  }
+  getComponents() {
+    return this.json.fields.components.map((component) => {
+      return component.name;
+    });
+  }
+  getEpic() {
+    return this.json.fields.customfield_10014 || null;
+  }
+  getFixVersions() {
+    return this.json.fields.fixVersions.map((version) => {
+      return version.name;
+    });
+  }
+  getLabels() {
+    return this.json.fields.labels || [];
+  }
+  getPriority() {
+    return this.json.fields.priority.name;
+  }
+  getResolution() {
+    return this.json.fields.resolution;
+  }
+  getResolved() {
+    return new Date(this.json.fields.resolutiondate);
+  }
+  getSummary() {
+    return this.json.fields.summary;
   }
   getType() {
     return this.json.fields.issuetype.name;

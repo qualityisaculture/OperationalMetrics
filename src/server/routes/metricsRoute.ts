@@ -2,8 +2,9 @@ const express = require('express');
 const metricsRoute = express.Router();
 import Jira from '../../server/Jira';
 import JiraRequester from '../JiraRequester';
-import BurnupGraphManager from '../BurnupGraphManager';
-import EstimatesGraphManager from '../EstimatesGraphManager';
+import BurnupGraphManager from '../graphManagers/BurnupGraphManager';
+import EstimatesGraphManager from '../graphManagers/EstimatesGraphManager';
+import ThroughputGraphManager from '../graphManagers/ThroughputGraphManager';
 import {
   TypedResponse as TR,
   TypedRequestQuery as TRQ,
@@ -18,6 +19,23 @@ async function getJiraData(issueKey: string) {
 const jiraRequester = new JiraRequester();
 const burnupGraphManager = new BurnupGraphManager(jiraRequester);
 const estimatesGraphManager = new EstimatesGraphManager(jiraRequester);
+const throughputGraphManager = new ThroughputGraphManager(jiraRequester);
+
+metricsRoute.get(
+  '/throughput',
+  (
+    req: TRQ<{ query: string, currentSprintStartDate: string }>,
+    res: TR<{ message: string; data: string }>
+  ) => {
+    const query = req.query.query;
+    const currentSprintStartDate = new Date(req.query.currentSprintStartDate);
+    throughputGraphManager
+      .getThroughputData(query, currentSprintStartDate)
+      .then((data) => {
+        res.json({ message: 'Metrics route', data: JSON.stringify(data) });
+      })
+      .catch((error) => console.error('Error:', error));
+  });
 
 metricsRoute.get(
   '/estimates', 

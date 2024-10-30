@@ -1,9 +1,9 @@
-import { defaultJiraJSON } from '../../test/server/Jira.test';
+import { defaultJiraJSON } from '../../../test/server/Jira.test';
 
-import EstimatesGraphManager from '../../src/server/EstimatesGraphManager';
-import JiraRequester from '../../src/server/JiraRequester';
-import Jira from '../../src/server/Jira';
-jest.mock('../../src/server/JiraRequester');
+import EstimatesGraphManager from '../../../src/server/graphManagers/EstimatesGraphManager';
+import JiraRequester from '../../../src/server/JiraRequester';
+import Jira from '../../../src/server/Jira';
+jest.mock('../../../src/server/JiraRequester');
 
 describe('EstimatesGraphManager', () => {
   let mockJiraRequester: JiraRequester;

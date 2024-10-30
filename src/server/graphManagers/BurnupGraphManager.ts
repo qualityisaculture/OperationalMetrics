@@ -1,5 +1,5 @@
-import Jira from './Jira';
-import JiraRequester from './JiraRequester';
+import Jira from '../Jira';
+import JiraRequester from '../JiraRequester';
 
 export type BurnupData = {
   date: Date;
