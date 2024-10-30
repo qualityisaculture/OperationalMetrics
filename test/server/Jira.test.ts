@@ -9,6 +9,7 @@ let twelvePm = '2024-10-21T12:00:00.000Z';
 let midnight = '2024-10-22T00:00:00.000Z';
 export const defaultJiraJSONFields = {
   created: nineAm,
+  issuetype: { name: 'Task' },
   status: { name: 'Backlog' },
 };
 export const defaultJiraJSON = { key: 'KEY-1', fields: defaultJiraJSONFields };
@@ -20,11 +21,12 @@ describe('Jira', () => {
       let jira = new Jira({ ...defaultJiraJSON, key: 'KEY-2' });
       expect(jira.getKey()).toEqual('KEY-2');
     });
-  
+
     it('should return the created date', () => {
       let jira = new Jira(defaultJiraJSON);
       expect(jira.getCreated()).toEqual(new Date(nineAm));
     });
+
     it('you should be able to mutate the created date without altering the original', () => {
       let jira = new Jira(defaultJiraJSON);
       let created = jira.getCreated();
@@ -56,6 +58,14 @@ describe('Jira', () => {
     it('should return null if no time spent', () => {
       let jira = new Jira(defaultJiraJSON);
       expect(jira.getTimeSpent()).toEqual(null);
+    });
+
+    it('should return the type', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: { ...defaultJiraJSONFields, issuetype: { name: 'Story' } },
+      });
+      expect(jira.getType()).toEqual('Story');
     });
   })
   

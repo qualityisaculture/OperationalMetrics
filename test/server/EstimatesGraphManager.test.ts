@@ -26,4 +26,54 @@ describe('EstimatesGraphManager', () => {
     await egm.getEpicEstimatesData('project="Project 1" AND resolved >= -1w');
     expect(mockJiraRequester.getQuery).toHaveBeenCalledWith('project="Project 1" AND resolved >= -1w');
   });
+
+  describe('getUniqueStatuses', () => {
+    it('should return statuses of a jira', () => {
+      let egm = new EstimatesGraphManager(mockJiraRequester);
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        changelog: {
+          histories: [
+            {
+              items: [
+                { field: 'status', fromString: 'Backlog', toString: 'In Progress' },
+                { field: 'status', fromString: 'In Progress', toString: 'Done' },
+              ],
+            },
+          ],
+        },
+      });
+      expect(egm.getUniqueStatuses([jira])).toEqual(['Backlog', 'Done', 'In Progress', ]);
+    })
+
+    it('should return unique statuses of multiple jiras', () => {
+      let egm = new EstimatesGraphManager(mockJiraRequester);
+      let jira1 = new Jira({
+        ...defaultJiraJSON,
+        changelog: {
+          histories: [
+            {
+              items: [
+                { field: 'status', fromString: 'Backlog', toString: 'In Progress' },
+                { field: 'status', fromString: 'In Progress', toString: 'Done' },
+              ],
+            },
+          ],
+        },
+      });
+      let jira2 = new Jira({
+        ...defaultJiraJSON,
+        changelog: {
+          histories: [
+            {
+              items: [
+                { field: 'status', fromString: 'In Progress', toString: 'Done' },
+              ],
+            },
+          ],
+        },
+      });
+      expect(egm.getUniqueStatuses([jira1, jira2])).toEqual(['Backlog', 'Done', 'In Progress', ]);
+    });
+  });
 });

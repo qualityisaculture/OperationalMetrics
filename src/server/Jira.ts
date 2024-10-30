@@ -4,6 +4,7 @@ type JiraJson = {
   key: string;
   fields: {
     created: string;
+    issuetype: { name: string };
     status: { name: string };
     customfield_10015?: string;
     duedate?: string;
@@ -31,6 +32,9 @@ export default class Jira {
   }
   getCreated() {
     return new Date(this.created);
+  }
+  getType() {
+    return this.json.fields.issuetype.name;
   }
   getOriginalEstimate(): number | null {
     return this.json.fields.timeoriginalestimate || null;

@@ -56,7 +56,15 @@ describe('JiraRequester', () => {
     beforeEach(() => {
       fetchMock.mockResolvedValue(
         fetchResponseOk({
-          issues: [],
+          issues: [
+            {
+              key: 'KEY-1',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+              },
+            }
+          ],
           maxResults: 50,
           startAt: 0,
           total: 0
@@ -67,6 +75,7 @@ describe('JiraRequester', () => {
       let jr = new JiraRequester();
       let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
       expect(fetchMock.mock.calls[0][0]).toEqual('localhost:8080/rest/api/3/search?jql=project="Project 1" AND resolved >= -1w&expand=changelog');
+      expect(jiras[0].getKey()).toEqual('KEY-1');
     });
 
     it('should not request a query from server a second time', async () => {
@@ -74,6 +83,7 @@ describe('JiraRequester', () => {
       let jira = await jr.getQuery('project="Project 1" AND resolved >= -1w');
       let jira2 = await jr.getQuery('project="Project 1" AND resolved >= -1w');
       expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(jira2[0].getKey()).toEqual('KEY-1');
     });
 
     it('should map issues to Jira objects', async () => {
@@ -104,6 +114,60 @@ describe('JiraRequester', () => {
       let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
       expect(jiras[0].getKey()).toEqual('KEY-1');
       expect(jiras[1].getKey()).toEqual('KEY-2');
+    });
+
+    describe('requestQueryFromServer', () => {
+      it('should return an error if more than 5000 issues are returned', async () => {
+        fetchMock.mockResolvedValue(
+          fetchResponseOk({
+            issues: [],
+            maxResults: 5001,
+            startAt: 0,
+            total: 5001
+          })
+        );
+        let jr = new JiraRequester();
+        await expect(jr.requestQueryFromServer('project="Project 1" AND resolved >= -1w')).rejects.toThrow('Query returned too many results');
+      });
+
+      it('should request multiple pages if more than 50 issues are returned', async () => {
+        fetchMock.mockResolvedValueOnce(
+          fetchResponseOk({
+            issues: [
+              {
+                key: 'KEY-1',
+                fields: {
+                  created: '2024-10-21T09:00:00.000+0100',
+                  status: { name: 'Backlog' },
+                },
+              }
+            ],
+            maxResults: 50,
+            startAt: 0,
+            total: 100
+          })
+        );
+        fetchMock.mockResolvedValueOnce(
+          fetchResponseOk({
+            issues: [
+              {
+                key: 'KEY-2',
+                fields: {
+                  created: '2024-10-22T09:00:00.000+0100',
+                  status: { name: 'Backlog' },
+                },
+              }
+            ],
+            maxResults: 50,
+            startAt: 50,
+            total: 100
+          })
+        );
+        let jr = new JiraRequester();
+        let jiras = await jr.requestQueryFromServer('project="Project 1" AND resolved >= -1w');
+        expect(jiras.issues[0].key).toEqual('KEY-1');
+        expect(jiras.issues[1].key).toEqual('KEY-2');
+      });
     });
 
   });

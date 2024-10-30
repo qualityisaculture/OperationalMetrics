@@ -1,22 +1,36 @@
 import React from 'react';
-import { BurnupDataArray } from '../server/BurnupGraphManager';
+import {
+  EstimatesData,
+} from '../server/EstimatesGraphManager';
+import Select from './Select';
+import Chart from './Chart';
 
 interface Props {}
 interface State {
   input: string;
+  allStates: string[];
+  allTypes: string[];
+  statesSelected: string[];
+  typesSelected: string[];
 }
 
-const google = globalThis.google;
-
 export default class EstimatesAnalysis extends React.Component<Props, State> {
-  state: { input: string }; //Remove when TS is fixed.
+  state: State; //Remove when TS is fixed.
   setState: any; //Remove when TS is fixed.
+  estimatesData: EstimatesData | null;
   constructor(props) {
     super(props);
+    this.estimatesData = null;
     this.onClick = this.onClick.bind(this);
-    let tempQuery = new URLSearchParams(window.location.search).get('estimatesQuery');
+    let tempQuery = new URLSearchParams(window.location.search).get(
+      'estimatesQuery'
+    );
     this.state = {
       input: tempQuery ? tempQuery : 'AF-15921',
+      allStates: [],
+      statesSelected: [],
+      allTypes: [],
+      typesSelected: [],
     };
   }
   onClick() {
@@ -26,51 +40,60 @@ export default class EstimatesAnalysis extends React.Component<Props, State> {
       .then((response) => response.json())
       .then((data) => {
         console.log(JSON.parse(data.data));
-        // let burnupDataArray: BurnupDataArray = JSON.parse(data.data);
-        // this.drawChart(burnupDataArray);
+        let estimatesData: EstimatesData = JSON.parse(data.data);
+        this.estimatesData = estimatesData;
+        let uniqueStatuses = estimatesData.uniqueStatuses;
+        let uniqueTypesSet = new Set<string>();
+        estimatesData.estimateData.forEach((item) => {
+          uniqueTypesSet.add(item.type);
+        });
+        this.setState({
+          allStates: uniqueStatuses,
+          allTypes: Array.from(uniqueTypesSet),
+          statesSelected: uniqueStatuses,
+          typesSelected: Array.from(uniqueTypesSet),
+        });
       });
   }
-  // Callback that creates and populates a data table,
-  // instantiates the pie chart, passes in the data and
-  // draws it.
-  drawChart(burnupDataArray: BurnupDataArray) {
-    let googleBurnupDataArray = burnupDataArray.map((item) => {
-      return [
-        new Date(item.date),
-        item.doneCount,
-        item.scopeCount,
-        item.idealTrend,
-        item.forecastTrend,
-      ];
-    });
 
-    var data = new google.visualization.DataTable();
-    data.addColumn('date', 'Date');
-    data.addColumn('number', 'Done');
-    data.addColumn('number', 'Scope');
-    data.addColumn('number', 'Ideal Trend');
-    data.addColumn('number', 'Forecast Trend');
-    data.addRows(googleBurnupDataArray);
-    console.log(googleBurnupDataArray);
-
-    var options = {
-      title: 'Issue Burnup',
-      curveType: 'function',
-      legend: { position: 'bottom' },
-      series: {
-        0: { color: 'blue' }, //done
-        1: { color: 'green' }, //scope
-        2: { color: 'red' }, //ideal
-        3: { color: 'orange', lineDashStyle: [4, 4] }, //forecast
+  createCSV(estimatesData: EstimatesData) {
+    var csv =
+      'key,type,originalEstimate,timeSpent,' +
+      estimatesData.uniqueStatuses.join(',') +
+      '\n';
+    estimatesData.estimateData.forEach((item) => {
+      if (item.originalEstimate) {
+        csv +=
+          item.key +
+          ',' +
+          item.type +
+          ',' +
+          item.originalEstimate +
+          ',' +
+          item.timeSpent +
+          ',';
+        estimatesData.uniqueStatuses.forEach((status) => {
+          let statusTime = item.statusTimes.find(
+            (statusTime) => statusTime.status === status
+          );
+          csv += statusTime ? statusTime.time : 0;
+          csv += ',';
+        });
+        csv += '\n';
       }
-    };
-
-    var chart = new google.visualization.LineChart(
-      document.getElementById('chart_div')
-    );
-
-    chart.draw(data, options);
+    });
+    var hiddenElement = document.createElement('a');
+    hiddenElement.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv);
+    hiddenElement.target = '_blank';
+    hiddenElement.download = 'estimates.csv';
+    hiddenElement.click();
   }
+  stateSelectedChange = (selected: string[]) => {
+    this.setState({ statesSelected: selected });
+  };
+  typeSelectedChange = (selected: string[]) => {
+    this.setState({ typesSelected: selected });
+  };
   render() {
     return (
       <div>
@@ -82,6 +105,15 @@ export default class EstimatesAnalysis extends React.Component<Props, State> {
           }}
         />
         <button onClick={this.onClick}>Click me</button>
+        <Select
+          options={this.state.allStates}
+          onChange={this.stateSelectedChange}
+        />
+        <Select
+          options={this.state.allTypes}
+          onChange={this.typeSelectedChange}
+        />
+        <Chart estimatesData={this.estimatesData} typesSelected={this.state.typesSelected} />
       </div>
     );
   }

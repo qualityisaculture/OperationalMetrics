@@ -30,16 +30,27 @@ export default class JiraRequester {
       return this.queryMap.get(query);
     }
     let jiraJSON = await this.requestQueryFromServer(query);
-    this.queryMap.set(query, jiraJSON);
-
     let jiras = jiraJSON.issues.map((jira: any) => new Jira(jira));
+    this.queryMap.set(query, jiras);
     return jiras;
   }
 
   async requestQueryFromServer(query: string) {
     const domain = process.env.JIRA_DOMAIN;
     const url = `${domain}/rest/api/3/search?jql=${query}&expand=changelog`;
-    return this.requestJiraDataFromServer(url);
+    let response = await this.requestJiraDataFromServer(url);
+    if (response.total > 5000) {
+      throw new Error('Query returned too many results');
+    }
+    if (response.total > 50) {
+      let startAt = 50;
+      while (startAt < response.total) {
+        let nextResponse = await this.requestJiraDataFromServer(`${url}&startAt=${startAt}`);
+        response.issues = response.issues.concat(nextResponse.issues);
+        startAt += 50;
+      }
+    }
+    return response;
   }
 
   async requestJiraDataFromServer(url: string) {
