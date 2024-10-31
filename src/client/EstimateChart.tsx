@@ -6,7 +6,7 @@ const google = globalThis.google;
 interface Props {estimateData: EstimateData, typesSelected: string[]}
 interface State {}
 
-export default class Chart extends React.Component<Props, State> {
+export default class EstimateChart extends React.Component<Props, State> {
   props: any;
   constructor(props) {
     super(props);

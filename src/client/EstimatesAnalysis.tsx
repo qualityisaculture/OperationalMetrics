@@ -3,7 +3,7 @@ import {
   EstimatesData,
 } from '../server/graphManagers/EstimatesGraphManager';
 import Select from './Select';
-import Chart from './Chart';
+import EstimateChart from './EstimateChart';
 
 interface Props {}
 interface State {
@@ -113,7 +113,7 @@ export default class EstimatesAnalysis extends React.Component<Props, State> {
           options={this.state.allTypes}
           onChange={this.typeSelectedChange}
         />
-        <Chart estimatesData={this.estimatesData} typesSelected={this.state.typesSelected} />
+        <EstimateChart estimatesData={this.estimatesData} typesSelected={this.state.typesSelected} />
       </div>
     );
   }
