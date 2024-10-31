@@ -20,7 +20,8 @@ export default class BurnupGraphManager {
   }
 
   async getEpicBurnupData(epicKey: string): Promise<BurnupDataArray> {
-    let epic = await this.jiraRequester.getJira(epicKey);
+    let epics = await this.jiraRequester.getJiras([epicKey]);
+    let epic = epics[0];
 
     let burnupArray: BurnupDataArray = await this.getBurnupArray(epic);
     this.addIdealTrend(burnupArray);
@@ -38,7 +39,10 @@ export default class BurnupGraphManager {
         item.forecastTrend = null;
       } else {
         let daysLeft = burnupArray.length - i;
-        let previousDone = i > 0 ? burnupArray[i - 1].forecastTrend || burnupArray[i - 1].doneCount : 0;
+        let previousDone =
+          i > 0
+            ? burnupArray[i - 1].forecastTrend || burnupArray[i - 1].doneCount
+            : 0;
         let increment = (finalScope - previousDone) / daysLeft;
         item.forecastTrend = previousDone + increment;
       }
@@ -85,11 +89,9 @@ export default class BurnupGraphManager {
     return burnupArray;
   }
 
-  async getAllChildrenJiras(jira: Jira, date?: Date) {
-    let children = jira.getChildrenKeys(date);
-    let childPromises = children.map((childKey) => {
-      return this.jiraRequester.getJira(childKey);
-    });
-    return await Promise.all(childPromises);
+  async getAllChildrenJiras(jira: Jira, date?: Date): Promise<Jira[]> {
+    let childrenKeys = jira.getChildrenKeys(date);
+    let jiras = await this.jiraRequester.getJiras(childrenKeys);
+    return jiras;
   }
 }

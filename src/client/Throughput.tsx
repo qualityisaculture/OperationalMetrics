@@ -42,7 +42,6 @@ export default class Throughput extends React.Component<Props, State> {
     )
       .then((response) => response.json())
       .then((data) => {
-        console.log(JSON.parse(data.data));
         let throughputData: ThroughputDataType[] = JSON.parse(data.data);
         this.setState({ throughputData });
         // this.estimatesData = estimatesData;

@@ -27,7 +27,6 @@ export default class Select extends React.Component<Props, State> {
     }
   }
   handleChange(value: string[]) {
-    console.log(`selected ${value} typeof ${typeof value}`);
     this.setState({ optionsSelected: value });
     this.props.onChange(value);
   }
