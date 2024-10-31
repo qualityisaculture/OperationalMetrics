@@ -20,13 +20,22 @@ describe('ThroughputGraphManager', () => {
 
     it('should request the query from the Jirarequest', async () => {
         let tgm = new ThroughputGraphManager(mockJiraRequester)
-        await tgm.getThroughputData('project="Project 1" AND resolved >= -1w', new Date())
-        expect(mockJiraRequester.getQuery).toHaveBeenCalledWith('project="Project 1" AND resolved >= -1w')
+        await tgm.getThroughputData('project="Project 1"', new Date('2024-10-31'), 0)
+        expect(mockJiraRequester.getQuery).toHaveBeenCalledWith('project="Project 1" AND status="Done" AND resolved >= 2024-10-31')
+    });
+
+    it('should request the data for all sprints', async () => {
+        let tgm = new ThroughputGraphManager(mockJiraRequester)
+        await tgm.getThroughputData('project="Project 1"', new Date('2024-10-31'), 1)
+        expect(mockJiraRequester.getQuery).toHaveBeenCalledWith('project="Project 1" AND status="Done" AND resolved >= 2024-10-17')
+
+        await tgm.getThroughputData('project="Project 1"', new Date('2024-10-31'), 2)
+        expect(mockJiraRequester.getQuery).toHaveBeenCalledWith('project="Project 1" AND status="Done" AND resolved >= 2024-10-03')
     });
 
     it('should return the data in two week intervals', async () => {
         let tgm = new ThroughputGraphManager(mockJiraRequester)
-        let result: ThroughputDataType[] = await tgm.getThroughputData('project="Project 1" AND resolved >= -1w', new Date('2024-10-21T09:00:00.000Z'));
+        let result: ThroughputDataType[] = await tgm.getThroughputData('project="Project 1"', new Date('2024-10-21T09:00:00.000Z'), 1);
         expect(result[0].sprintStartingDate).toEqual(new Date('2024-10-21T09:00:00.000Z'));
         expect(result[1].sprintStartingDate).toEqual(new Date('2024-10-07T09:00:00.000Z'));
     });

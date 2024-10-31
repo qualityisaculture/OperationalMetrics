@@ -24,13 +24,14 @@ const throughputGraphManager = new ThroughputGraphManager(jiraRequester);
 metricsRoute.get(
   '/throughput',
   (
-    req: TRQ<{ query: string, currentSprintStartDate: string }>,
+    req: TRQ<{ query: string, currentSprintStartDate: string, numberOfSprints: string }>,
     res: TR<{ message: string; data: string }>
   ) => {
     const query = req.query.query;
     const currentSprintStartDate = new Date(req.query.currentSprintStartDate);
+    const numberOfSprints = parseInt(req.query.numberOfSprints);
     throughputGraphManager
-      .getThroughputData(query, currentSprintStartDate)
+      .getThroughputData(query, currentSprintStartDate, numberOfSprints)
       .then((data) => {
         res.json({ message: 'Metrics route', data: JSON.stringify(data) });
       })

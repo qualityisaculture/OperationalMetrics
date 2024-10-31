@@ -1,6 +1,7 @@
 import Jira from '../Jira';
 import JiraRequester from '../JiraRequester';
 import { IssueInfo } from './GraphManagerTypes';
+import dayjs from 'dayjs';
 
 export type ThroughputDataType = {
   sprintStartingDate: Date;
@@ -14,32 +15,43 @@ export default class ThroughputGraphManager {
   }
 
   async getThroughputData(
-    query: string,
-    currentSprintStartDate: Date
+    filter: string,
+    currentSprintStartDate: Date,
+    numberOfSprints: number
   ): Promise<ThroughputDataType[]> {
+    let query = this.getQuery(filter, currentSprintStartDate, numberOfSprints);
     let jiras = await this.jiraRequester.getQuery(query);
+    let bucketedJiras = this.getJirasBySprint(jiras, currentSprintStartDate);
+    return bucketedJiras;
+  }
 
-    let bucketedJiras: ThroughputDataType[] = [];
+  getJirasBySprint(jiras, currentSprintStartDate) {
+    let sprints: ThroughputDataType[] = [];
     currentSprintStartDate.setDate(currentSprintStartDate.getDate() + 14);
-    //step backwards two weeks putting all jiras greater than that date into a bucket and then removing them from the list
-    while(jiras.length > 0) {
+    while (jiras.length > 0) {
       let twoWeeksAgo = new Date(currentSprintStartDate);
       twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-      let bucket = jiras.filter(jira => jira.getResolved() > twoWeeksAgo);
-      bucketedJiras.push({
+      let jirasInSprint = jiras.filter((jira) => jira.getResolved() > twoWeeksAgo);
+      sprints.push({
         sprintStartingDate: twoWeeksAgo,
-        issueList: bucket.map((jira) => this.getIssueInfoFromJira(jira)),
+        issueList: jirasInSprint.map((jira) => this.getIssueInfoFromJira(jira)),
       });
-      jiras = jiras.filter(jira => jira.getResolved() <= twoWeeksAgo);
+      jiras = jiras.filter((jira) => jira.getResolved() <= twoWeeksAgo);
       currentSprintStartDate = twoWeeksAgo;
-    };
-    return bucketedJiras;
+    }
+    return sprints;
+  }
 
-
-    // return {
-    //   sprintStartingDate: jiras[0].getCreated(),
-    //   issueList: jiras.map((jira) => this.getIssueInfoFromJira(jira)),
-    // };
+  getQuery(
+    filter: string,
+    currentSprintStartDate: Date,
+    numberOfSprints: number
+  ): string {
+    let resolvedDate = dayjs(currentSprintStartDate);
+    resolvedDate = resolvedDate.subtract(2 * numberOfSprints, 'week');
+    let query =
+      filter + ' AND status="Done" AND resolved >= ' + resolvedDate.format('YYYY-MM-DD');
+    return query;
   }
 
   getIssueInfoFromJira(jira: Jira): IssueInfo {

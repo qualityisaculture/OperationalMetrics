@@ -64,7 +64,7 @@ export default class JiraRequester {
       },
     });
     if (!response.ok) {
-      throw new Error('Failed to fetch  data');
+      throw new Error('Failed to fetch  data: ' + response.statusText);
     }
     return response.json();
   }

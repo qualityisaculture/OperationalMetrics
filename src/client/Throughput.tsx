@@ -1,7 +1,7 @@
 import React from 'react';
 import { EstimatesData } from '../server/graphManagers/EstimatesGraphManager';
-import type { DatePickerProps } from 'antd';
-import { DatePicker } from 'antd';
+import type { DatePickerProps, InputNumberProps } from 'antd';
+import { DatePicker, InputNumber } from 'antd';
 import dayjs from 'dayjs';
 import { ThroughputDataType } from '../server/graphManagers/ThroughputGraphManager';
 
@@ -9,6 +9,7 @@ interface Props {}
 interface State {
   input: string;
   currentSprintStartDate: string;
+  numberOfSprints: number;
   throughputData: ThroughputDataType[];
 }
 
@@ -24,18 +25,26 @@ export default class Throughput extends React.Component<Props, State> {
     this.state = {
       input: tempQuery ? tempQuery : '',
       currentSprintStartDate: '2024-10-23',
+      numberOfSprints: 4,
       throughputData: [],
     };
   }
   onClick() {
     console.log('Button clicked');
     //Request to the server /api/metrics
-    fetch('/api/throughput?query=' + this.state.input + '&currentSprintStartDate=' + this.state.currentSprintStartDate)
+    fetch(
+      '/api/throughput?query=' +
+        this.state.input +
+        '&currentSprintStartDate=' +
+        this.state.currentSprintStartDate + 
+        '&numberOfSprints=' +
+        this.state.numberOfSprints
+    )
       .then((response) => response.json())
       .then((data) => {
         console.log(JSON.parse(data.data));
         let throughputData: ThroughputDataType[] = JSON.parse(data.data);
-        this.setState({ throughputData  });
+        this.setState({ throughputData });
         // this.estimatesData = estimatesData;
         // let uniqueStatuses = estimatesData.uniqueStatuses;
         // let uniqueTypesSet = new Set<string>();
@@ -44,9 +53,12 @@ export default class Throughput extends React.Component<Props, State> {
         // });
       });
   }
-  onChange: DatePickerProps['onChange'] = (date, dateString) => {
-    console.log(date, dateString);
+  onSprintStartDateChange: DatePickerProps['onChange'] = (date, dateString) => {
+    this.setState({ currentSprintStartDate: date.toString() });
   };
+  onNumberOfSprintsChange= (value) => {
+    this.setState({ numberOfSprints: value });
+  }
   render() {
     return (
       <div>
@@ -57,12 +69,17 @@ export default class Throughput extends React.Component<Props, State> {
             this.setState({ input: e.target.value });
           }}
         />
-        <DatePicker onChange={this.onChange} defaultValue={dayjs('2024/10/23')} />
+        <DatePicker
+          onChange={this.onSprintStartDateChange}
+          defaultValue={dayjs('2024/10/23')}
+        />
+        <InputNumber
+          value={this.state.numberOfSprints}
+          onChange={this.onNumberOfSprintsChange}
+        />
 
         <button onClick={this.onClick}>Click me</button>
-        <Chart
-          throughputData={this.state.throughputData}
-        />
+        <Chart throughputData={this.state.throughputData} />
       </div>
     );
   }
@@ -70,7 +87,9 @@ export default class Throughput extends React.Component<Props, State> {
 
 const google = globalThis.google;
 
-interface ChartProps {throughputData: ThroughputDataType[]}
+interface ChartProps {
+  throughputData: ThroughputDataType[];
+}
 interface ChartState {}
 
 class Chart extends React.Component<ChartProps, ChartState> {
@@ -102,7 +121,7 @@ class Chart extends React.Component<ChartProps, ChartState> {
         legend: { position: 'bottom' },
         vAxis: {
           minValue: 0,
-        }
+        },
       };
 
       // var chart = new google.charts.Scatter(
@@ -119,4 +138,3 @@ class Chart extends React.Component<ChartProps, ChartState> {
     return <div>Chart</div>;
   }
 }
-
