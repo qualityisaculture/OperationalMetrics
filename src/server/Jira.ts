@@ -8,7 +8,7 @@ export type JiraJsonFields = {
   fixVersions: { name: string }[];
   issuetype: { name: string };
   labels: string[];
-  parent?: { key: string, fields: { summary: string } };
+  parent?: { key: string; fields: { summary: string } };
   priority: { name: string };
   resolution: string;
   resolutiondate: string;
@@ -22,14 +22,51 @@ export type JiraJson = {
   fields: JiraJsonFields;
   changelog?: { histories: any[] };
 };
+
 export default class Jira {
-  json: JiraJson;
+  fields: {
+    key: string;
+    created: string;
+    components: { name: string }[];
+    customfield_10015?: string; // Epic Start Date
+    duedate?: string;
+    fixVersions: { name: string }[];
+    issuetype: { name: string };
+    labels: string[];
+    parent?: { key: string; fields: { summary: string } };
+    priority: { name: string };
+    resolution: string;
+    resolutiondate: string;
+    status: { name: string };
+    summary: string;
+    timeoriginalestimate?: number;
+    timespent?: number;
+  };
+  changelog: { histories: any[] };
   created: Date;
   histories: any[];
   statusChanges: any[];
   constructor(json: JiraJson) {
-    this.json = json;
     this.created = new Date(json.fields.created);
+    this.fields = {
+      key: json.key,
+      created: json.fields.created,
+      components: json.fields.components,
+      customfield_10015: json.fields.customfield_10015,
+      duedate: json.fields.duedate,
+      fixVersions: json.fields.fixVersions,
+      issuetype: json.fields.issuetype,
+      labels: json.fields.labels,
+      parent: json.fields.parent,
+      priority: json.fields.priority,
+      resolution: json.fields.resolution,
+      resolutiondate: json.fields.resolutiondate,
+      status: json.fields.status,
+      summary: json.fields.summary,
+      timeoriginalestimate: json.fields.timeoriginalestimate,
+      timespent: json.fields.timespent,
+    };
+    this.changelog = json.changelog || { histories: [] };
     this.histories =
       json.changelog && json.changelog.histories
         ? this.getHistoriesInOrder(json.changelog.histories)
@@ -37,65 +74,65 @@ export default class Jira {
     this.statusChanges = this.loadStatusChanges();
   }
   getKey() {
-    return this.json.key;
+    return this.fields.key;
   }
   getCreated() {
     return new Date(this.created);
   }
   getComponents() {
-    return this.json.fields.components.map((component) => {
+    return this.fields.components.map((component) => {
       return component.name;
     });
   }
   getParent() {
-    return this.json.fields.parent ? this.json.fields.parent.key : null;
+    return this.fields.parent ? this.fields.parent.key : null;
   }
   getParentName() {
-    return this.json.fields.parent ? this.json.fields.parent.fields.summary : null;
+    return this.fields.parent ? this.fields.parent.fields.summary : null;
   }
   getFixVersions() {
-    return this.json.fields.fixVersions.map((version) => {
+    return this.fields.fixVersions.map((version) => {
       return version.name;
     });
   }
   getLabels() {
-    return this.json.fields.labels || [];
+    return this.fields.labels || [];
   }
   getPriority() {
-    return this.json.fields.priority.name;
+    return this.fields.priority.name;
   }
   getResolution() {
-    return this.json.fields.resolution;
+    return this.fields.resolution;
   }
   getResolved() {
-    return new Date(this.json.fields.resolutiondate);
+    return new Date(this.fields.resolutiondate);
   }
   getSummary() {
-    return this.json.fields.summary;
+    return this.fields.summary;
   }
   getType() {
-    return this.json.fields.issuetype.name;
+    return this.fields.issuetype.name;
   }
   getOriginalEstimate(): number | null {
-    return this.json.fields.timeoriginalestimate || null;
+    return this.fields.timeoriginalestimate || null;
   }
   getTimeSpent(): number | null {
-    return this.json.fields.timespent || null;
+    return this.fields.timespent || null;
   }
   getEpicStartDate(): Date | null {
-    if (!this.json.fields.customfield_10015) {
+    if (!this.fields.customfield_10015) {
       return null;
     }
-    return new Date(this.json.fields.customfield_10015);
+    return new Date(this.fields.customfield_10015);
   }
   getEpicDueDate(): Date | null {
-    if (!this.json.fields.duedate) {
+    if (!this.fields.duedate) {
       return null;
     }
-    return new Date(this.json.fields.duedate);
+    return new Date(this.fields.duedate);
   }
   getChildrenKeys(date?: Date): string[] {
-    if (!this.json.changelog || !this.json.changelog.histories) {
+    if (!this.changelog || !this.changelog.histories) {
       return [];
     }
     let children = new Set<string>();
@@ -144,7 +181,7 @@ export default class Jira {
   loadStatusChanges() {
     let statusItems = this.getHistoriesItems('status');
     if (statusItems.length === 0) {
-      return [{ date: this.created, status: this.json.fields.status.name }];
+      return [{ date: this.created, status: this.fields.status.name }];
     }
     let statusChanges = statusItems.map((item) => {
       return { date: new Date(item.created), status: item.toString };
@@ -158,7 +195,7 @@ export default class Jira {
 
   getStatus(date?: Date): string {
     if (!date) {
-      return this.json.fields.status.name;
+      return this.fields.status.name;
     }
     if (date < this.created) {
       return 'NOT_CREATED_YET';
