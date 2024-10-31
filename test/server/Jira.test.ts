@@ -41,14 +41,22 @@ describe('Jira', () => {
     it('should return the epic', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
-        fields: { ...defaultJiraJSONFields, customfield_10014: 'EPIC-1' },
+        fields: { ...defaultJiraJSONFields, parent: {key: 'EPIC-1', fields: {summary: "Epic Name"}} },
       });
-      expect(jira.getEpic()).toEqual('EPIC-1');
+      expect(jira.getParent()).toEqual('EPIC-1');
     });
 
     it('should return null if no epic', () => {
       let jira = new Jira(defaultJiraJSON);
-      expect(jira.getEpic()).toEqual(null);
+      expect(jira.getParent()).toEqual(null);
+    });
+
+    it('should return the epic name', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: { ...defaultJiraJSONFields, parent: {key: 'EPIC-1', fields: {summary: "Epic Name"}} },
+      });
+      expect(jira.getParentName()).toEqual('Epic Name');
     });
 
     it('should get the fix versions', () => {

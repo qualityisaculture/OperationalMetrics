@@ -3,12 +3,12 @@ import { getWorkHoursBetween } from './Utils';
 export type JiraJsonFields = {
   created: string;
   components: { name: string }[];
-  customfield_10014?: string; // Epic
   customfield_10015?: string; // Epic Start Date
   duedate?: string;
   fixVersions: { name: string }[];
   issuetype: { name: string };
   labels: string[];
+  parent?: { key: string, fields: { summary: string } };
   priority: { name: string };
   resolution: string;
   resolutiondate: string;
@@ -47,8 +47,11 @@ export default class Jira {
       return component.name;
     });
   }
-  getEpic() {
-    return this.json.fields.customfield_10014 || null;
+  getParent() {
+    return this.json.fields.parent ? this.json.fields.parent.key : null;
+  }
+  getParentName() {
+    return this.json.fields.parent ? this.json.fields.parent.fields.summary : null;
   }
   getFixVersions() {
     return this.json.fields.fixVersions.map((version) => {

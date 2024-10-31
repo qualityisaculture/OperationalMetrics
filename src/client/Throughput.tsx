@@ -4,6 +4,8 @@ import type { DatePickerProps, InputNumberProps } from 'antd';
 import { DatePicker, InputNumber } from 'antd';
 import dayjs from 'dayjs';
 import { ThroughputDataType } from '../server/graphManagers/ThroughputGraphManager';
+import Select from './Select';
+import type { SelectProps } from 'antd';
 
 interface Props {}
 interface State {
@@ -14,11 +16,8 @@ interface State {
 }
 
 export default class Throughput extends React.Component<Props, State> {
-  estimatesData: EstimatesData | null;
   constructor(props) {
     super(props);
-    this.estimatesData = null;
-    this.onClick = this.onClick.bind(this);
     let tempQuery = new URLSearchParams(window.location.search).get(
       'estimatesQuery'
     );
@@ -29,14 +28,14 @@ export default class Throughput extends React.Component<Props, State> {
       throughputData: [],
     };
   }
-  onClick() {
+  onClick = () => {
     console.log('Button clicked');
     //Request to the server /api/metrics
     fetch(
       '/api/throughput?query=' +
         this.state.input +
         '&currentSprintStartDate=' +
-        this.state.currentSprintStartDate + 
+        this.state.currentSprintStartDate +
         '&numberOfSprints=' +
         this.state.numberOfSprints
     )
@@ -44,20 +43,14 @@ export default class Throughput extends React.Component<Props, State> {
       .then((data) => {
         let throughputData: ThroughputDataType[] = JSON.parse(data.data);
         this.setState({ throughputData });
-        // this.estimatesData = estimatesData;
-        // let uniqueStatuses = estimatesData.uniqueStatuses;
-        // let uniqueTypesSet = new Set<string>();
-        // estimatesData.estimateData.forEach((item) => {
-        //   uniqueTypesSet.add(item.type);
-        // });
       });
-  }
+  };
   onSprintStartDateChange: DatePickerProps['onChange'] = (date, dateString) => {
     this.setState({ currentSprintStartDate: date.toString() });
   };
-  onNumberOfSprintsChange= (value) => {
+  onNumberOfSprintsChange = (value) => {
     this.setState({ numberOfSprints: value });
-  }
+  };
   render() {
     return (
       <div>
@@ -89,51 +82,79 @@ const google = globalThis.google;
 interface ChartProps {
   throughputData: ThroughputDataType[];
 }
-interface ChartState {}
+interface ChartState {
+  parents: { label: string; key: string }[];
+}
 
 class Chart extends React.Component<ChartProps, ChartState> {
   constructor(props) {
     super(props);
+    this.state = { parents: [] };
   }
-  //if props change
+
   componentDidUpdate(prevProps) {
     if (prevProps !== this.props) {
       if (!this.props.throughputData) {
         return;
       }
-
-      var data = new google.visualization.DataTable();
-      data.addColumn('date', 'Sprint Start Date');
-      data.addColumn('number', 'Issues Completed');
-      data.addColumn({ role: 'tooltip', p: { html: true } });
-      this.props.throughputData.forEach((item) => {
-        data.addRow([
-          new Date(item.sprintStartingDate),
-          item.issueList.length,
-          item.issueList.map((issue) => issue.key).join(', '),
-        ]);
-      });
-
-      var options = {
-        title: 'Estimates Analysis',
-        curveType: 'function',
-        legend: { position: 'bottom' },
-        vAxis: {
-          minValue: 0,
-        },
-      };
-
-      // var chart = new google.charts.Scatter(
-      //   document.getElementById('chart_div')
-      // );
-      var chart = new google.visualization.ColumnChart(
-        document.getElementById('chart_div')
-      );
-
-      chart.draw(data, options);
+      this.setParents();
+      this.drawChart();
     }
   }
+
+  setParents = () => {
+    let parentMap = new Map<string, {label: string, key: string}>();
+    this.props.throughputData.forEach((item) => {
+      item.issueList.forEach((issue) => {
+        if (issue.parentKey) parentMap.set(issue.parentKey, { label: issue.parentKey + ":" + issue.parentName, key: issue.parentKey });
+      });
+    });
+    let arrayOfAllParents = Array.from(parentMap.values());
+    this.setState({ parents: arrayOfAllParents });
+  };
+
+  epicsSelected = (selected: string[]) => {
+    console.log(selected);
+  };
+
+  drawChart() {
+    var data = new google.visualization.DataTable();
+    data.addColumn('date', 'Sprint Start Date');
+    data.addColumn('number', 'Issues Completed');
+    data.addColumn({ role: 'tooltip', p: { html: true } });
+    this.props.throughputData.forEach((item) => {
+      data.addRow([
+        new Date(item.sprintStartingDate),
+        item.issueList.length,
+        item.issueList.map((issue) => issue.key).join(', '),
+      ]);
+    });
+
+    var options = {
+      title: 'Estimates Analysis',
+      curveType: 'function',
+      legend: { position: 'bottom' },
+      vAxis: {
+        minValue: 0,
+      },
+    };
+    var chart = new google.visualization.ColumnChart(
+      document.getElementById('chart_div')
+    );
+
+    chart.draw(data, options);
+  }
+
   render() {
-    return <div>Chart</div>;
+    const options: SelectProps['options'] = [];
+    this.state.parents.forEach((state) => {
+      options.push({ label: state.label, value: state.key });
+    });
+    console.log(options);
+    return (
+      <div>
+        <Select onChange={this.epicsSelected} options={options} />
+      </div>
+    );
   }
 }

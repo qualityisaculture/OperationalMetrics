@@ -95,6 +95,12 @@ export default class EstimatesAnalysis extends React.Component<Props, State> {
     this.setState({ typesSelected: selected });
   };
   render() {
+    let typeOptions = this.state.allTypes.map((type) => {
+      return { value: type, label: type };
+    });
+    let stateOptions = this.state.allStates.map((state) => {
+      return { value: state, label: state };
+    });
     return (
       <div>
         <input
@@ -106,11 +112,11 @@ export default class EstimatesAnalysis extends React.Component<Props, State> {
         />
         <button onClick={this.onClick}>Click me</button>
         <Select
-          options={this.state.allStates}
+          options={stateOptions}
           onChange={this.stateSelectedChange}
         />
         <Select
-          options={this.state.allTypes}
+          options={typeOptions}
           onChange={this.typeSelectedChange}
         />
         <EstimateChart estimatesData={this.estimatesData} typesSelected={this.state.typesSelected} />

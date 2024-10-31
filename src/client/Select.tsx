@@ -3,11 +3,11 @@ import { Select as AntSelect, Space } from 'antd';
 import type { SelectProps } from 'antd';
 
 interface Props {
-  options: string[];
+  options: SelectProps['options'];
   onChange: (value: string[]) => void;
 }
 interface State {
-  optionsSelected: string[];
+  optionsSelected: SelectProps['options'];
 }
 
 export default class Select extends React.Component<Props, State> {
@@ -31,10 +31,6 @@ export default class Select extends React.Component<Props, State> {
     this.props.onChange(value);
   }
   render() {
-    const options: SelectProps['options'] = [];
-    this.props.options.forEach((state) => {
-      options.push({ label: state, value: state });
-    });
     return (
       <AntSelect
         mode="multiple"
@@ -44,7 +40,7 @@ export default class Select extends React.Component<Props, State> {
         value={this.state.optionsSelected}
         defaultValue={this.state.optionsSelected}
         onChange={this.handleChange.bind(this)}
-        options={options}
+        options={this.props.options}
       />
     );
   }
