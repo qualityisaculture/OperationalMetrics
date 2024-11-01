@@ -13,6 +13,8 @@ interface State {
   currentSprintStartDate: string;
   numberOfSprints: number;
   throughputData: ThroughputDataType[];
+  initiatitives: SelectProps['options'];
+  initiativesSelected: string[];
 }
 
 export default class Throughput extends React.Component<Props, State> {
@@ -26,6 +28,8 @@ export default class Throughput extends React.Component<Props, State> {
       currentSprintStartDate: '2024-10-23',
       numberOfSprints: 4,
       throughputData: [],
+      initiatitives: [],
+      initiativesSelected: [],
     };
   }
   onClick = () => {
@@ -42,7 +46,24 @@ export default class Throughput extends React.Component<Props, State> {
       .then((response) => response.json())
       .then((data) => {
         let throughputData: ThroughputDataType[] = JSON.parse(data.data);
-        this.setState({ throughputData });
+        let allInitiatives = new Map<string, { label: string; value: string }>();
+        throughputData.forEach((item) => {
+          item.issueList.forEach((issue) => {
+            if (issue.initiativeKey)
+              allInitiatives.set(issue.initiativeKey, {
+                label: issue.initiativeKey + ':' + issue.initiativeName,
+                value: issue.initiativeKey,
+              });
+          });
+        });
+        let arrayOfAllInitiatives: SelectProps['options'] = Array.from(
+          allInitiatives.values()
+        );
+        this.setState({
+          throughputData,
+          initiatitives: arrayOfAllInitiatives,
+          initiativesSelected: [],
+        });
       });
   };
   onSprintStartDateChange: DatePickerProps['onChange'] = (date, dateString) => {
@@ -50,6 +71,9 @@ export default class Throughput extends React.Component<Props, State> {
   };
   onNumberOfSprintsChange = (value) => {
     this.setState({ numberOfSprints: value });
+  };
+  initiatitivesSelected = (selected: string[]) => {
+    this.setState({ initiativesSelected: selected });
   };
   render() {
     return (
@@ -69,9 +93,16 @@ export default class Throughput extends React.Component<Props, State> {
           value={this.state.numberOfSprints}
           onChange={this.onNumberOfSprintsChange}
         />
+        <Select
+          onChange={this.initiatitivesSelected.bind(this)}
+          options={this.state.initiatitives}
+        />
 
         <button onClick={this.onClick}>Click me</button>
-        <Chart throughputData={this.state.throughputData} />
+        <Chart
+          throughputData={this.state.throughputData}
+          initiativesSelected={this.state.initiativesSelected}
+        />
       </div>
     );
   }
@@ -81,15 +112,13 @@ const google = globalThis.google;
 
 interface ChartProps {
   throughputData: ThroughputDataType[];
+  initiativesSelected: string[];
 }
-interface ChartState {
-  parents: { label: string; key: string }[];
-}
+interface ChartState {}
 
 class Chart extends React.Component<ChartProps, ChartState> {
   constructor(props) {
     super(props);
-    this.state = { parents: [] };
   }
 
   componentDidUpdate(prevProps) {
@@ -97,37 +126,51 @@ class Chart extends React.Component<ChartProps, ChartState> {
       if (!this.props.throughputData) {
         return;
       }
-      this.setParents();
       this.drawChart();
     }
   }
 
-  setParents = () => {
-    let parentMap = new Map<string, {label: string, key: string}>();
-    this.props.throughputData.forEach((item) => {
-      item.issueList.forEach((issue) => {
-        if (issue.initiativeKey) parentMap.set(issue.initiativeKey, { label: issue.initiativeKey + ":" + issue.initiativeName, key: issue.initiativeKey });
-      });
-    });
-    let arrayOfAllParents = Array.from(parentMap.values());
-    this.setState({ parents: arrayOfAllParents });
-  };
-
-  epicsSelected = (selected: string[]) => {
-    console.log(selected);
-  };
-
   drawChart() {
     var data = new google.visualization.DataTable();
     data.addColumn('date', 'Sprint Start Date');
-    data.addColumn('number', 'Issues Completed');
+
+    this.props.initiativesSelected.forEach((parent) => {
+      data.addColumn('number', parent);
+    });
+    data.addColumn('number', 'None');
+
     data.addColumn({ role: 'tooltip', p: { html: true } });
+
     this.props.throughputData.forEach((item) => {
-      data.addRow([
-        new Date(item.sprintStartingDate),
-        item.issueList.length,
-        item.issueList.map((issue) => issue.key).join(', '),
-      ]);
+      let issuesByParents = new Map<string, number>();
+      this.props.initiativesSelected.forEach((parent) => {
+        issuesByParents.set(parent, 0);
+      });
+      console.log(this.props.initiativesSelected);
+      issuesByParents.set('None', 0);
+      console.log(issuesByParents);
+
+      item.issueList.forEach((issue) => {
+        if (issue.initiativeKey) {
+          if (issuesByParents.has(issue.initiativeKey)) {
+            issuesByParents.set(
+              issue.initiativeKey,
+              issuesByParents.get(issue.initiativeKey) + 1
+            );
+          }
+        } else {
+          issuesByParents.set('None', issuesByParents.get('None') + 1);
+        }
+      });
+
+      let row: any[] = [new Date(item.sprintStartingDate)];
+      this.props.initiativesSelected.forEach((parent) => {
+        row.push(issuesByParents.get(parent) || 0);
+      });
+      row.push(issuesByParents.get('None'));
+      row.push(item.issueList.map((issue) => issue.key).join(', '));
+
+      data.addRow(row);
     });
 
     var options = {
@@ -137,6 +180,7 @@ class Chart extends React.Component<ChartProps, ChartState> {
       vAxis: {
         minValue: 0,
       },
+      isStacked: true,
     };
     var chart = new google.visualization.ColumnChart(
       document.getElementById('chart_div')
@@ -146,14 +190,9 @@ class Chart extends React.Component<ChartProps, ChartState> {
   }
 
   render() {
-    const options: SelectProps['options'] = [];
-    this.state.parents.forEach((state) => {
-      options.push({ label: state.label, value: state.key });
-    });
-    console.log(options);
     return (
       <div>
-        <Select onChange={this.epicsSelected} options={options} />
+        {/* <Select onChange={this.epicsSelected} options={options} /> */}
       </div>
     );
   }

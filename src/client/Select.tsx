@@ -7,27 +7,21 @@ interface Props {
   onChange: (value: string[]) => void;
 }
 interface State {
-  optionsSelected: SelectProps['options'];
+  optionsSelected: string[];
 }
 
 export default class Select extends React.Component<Props, State> {
-  props: Props; //Remove when TS is fixed.
-  state: State; //Remove when TS is fixed.
-  setState: any; //Remove when TS is fixed.
   constructor(props) {
     super(props);
-    this.props = props;
-    this.state = {
-      optionsSelected: this.props.options
-    };
+    // this.state = {
+    //   optionsSelected: props.options.map((item) => item.value)
+    // };
   }
   componentDidUpdate(prevProps: Props) {
     if (prevProps.options !== this.props.options) {
-      this.setState({ optionsSelected: this.props.options });
     }
   }
-  handleChange(value: string[]) {
-    this.setState({ optionsSelected: value });
+  handleChange = (value: string[]) => {
     this.props.onChange(value);
   }
   render() {
@@ -37,9 +31,9 @@ export default class Select extends React.Component<Props, State> {
         allowClear
         style={{ width: '100%' }}
         placeholder="Please select"
-        value={this.state.optionsSelected}
-        defaultValue={this.state.optionsSelected}
-        onChange={this.handleChange.bind(this)}
+        defaultValue={this.props.options ? this.props.options.map((item) => item.value) : []}
+        // value={this.state.optionsSelected}
+        onChange={this.handleChange}
         options={this.props.options}
       />
     );
