@@ -13,13 +13,30 @@ export default class JiraRequester {
       }
     });
 
+
     let jiraJSON = await this.requestIssueFromServer(uncachedKeys);
-    jiraJSON.issues.forEach((jira: any) => {
-      this.jiraMap.set(jira.key, new Jira(jira));
-    });
+    for (let jira of jiraJSON.issues) {
+      this.jiraMap.set(jira.key, await this.getJiraWithInitiative(jira));
+    }
     return issueKey.map((key) => {
       return this.jiraMap.get(key);
     });
+  }
+
+  async getJiraWithInitiative(json: any) {
+    let jira = new Jira(json);
+    let epicKey = jira.getEpicKey();
+    if (epicKey) {
+      let epics = await this.getJiras([epicKey]);
+      let epicjira = epics[0];
+      let initiativeKey = epicjira.getInitiativeKey();
+      let initiativeName = epicjira.getInitiativeName();
+        if (initiativeKey !== null && initiativeName !== null) {
+          jira.fields.initiativeKey = initiativeKey;
+          jira.fields.initiativeName = initiativeName
+        }
+    }
+    return jira;
   }
 
   async requestIssueFromServer(issueKeys: string[]) {
@@ -58,9 +75,7 @@ export default class JiraRequester {
       console.log('Fetching more data');
       let startAt = 50;
       while (startAt < response.total) {
-        let nextResponse = await this.fetchRequest(
-          `${url}&startAt=${startAt}`
-        );
+        let nextResponse = await this.fetchRequest(`${url}&startAt=${startAt}`);
         response.issues = response.issues.concat(nextResponse.issues);
         startAt += 50;
       }

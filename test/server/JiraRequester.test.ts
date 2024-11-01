@@ -19,29 +19,39 @@ describe('JiraRequester', () => {
   describe('getJiras', () => {
     it('should request jira from server with changelog expanded', async () => {
       fetchMock.mockResolvedValue(
-        fetchResponseOk({issues: [{
-          key: 'KEY-1',
-          fields: {
-            created: '2024-10-21T09:00:00.000+0100',
-            status: { name: 'Backlog' },
-          },
-        }]})
+        fetchResponseOk({
+          issues: [
+            {
+              key: 'KEY-1',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+              },
+            },
+          ],
+        })
       );
       let jr = new JiraRequester();
       let jira = await jr.getJiras(['KEY-1']);
-      expect(fetchMock.mock.calls[0][0]).toEqual('localhost:8080/rest/api/3/search?jql=key=KEY-1&expand=changelog');
+      expect(fetchMock.mock.calls[0][0]).toEqual(
+        'localhost:8080/rest/api/3/search?jql=key=KEY-1&expand=changelog'
+      );
       expect(jira[0].getKey()).toEqual('KEY-1');
     });
 
     it('should not request jira from server a second time', async () => {
       fetchMock.mockResolvedValue(
-        fetchResponseOk({issues: [{
-          key: 'KEY-1',
-          fields: {
-            created: '2024-10-21T09:00:00.000+0100',
-            status: { name: 'Backlog' },
-          },
-        }]})
+        fetchResponseOk({
+          issues: [
+            {
+              key: 'KEY-1',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+              },
+            },
+          ],
+        })
       );
       let jr = new JiraRequester();
       let jira = await jr.getJiras(['KEY-1']);
@@ -53,13 +63,17 @@ describe('JiraRequester', () => {
 
     it('should not return anything in the cache if empty array is passed', async () => {
       fetchMock.mockResolvedValue(
-        fetchResponseOk({issues: [{
-          key: 'KEY-1',
-          fields: {
-            created: '2024-10-21T09:00:00.000+0100',
-            status: { name: 'Backlog' },
-          },
-        }]})
+        fetchResponseOk({
+          issues: [
+            {
+              key: 'KEY-1',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+              },
+            },
+          ],
+        })
       );
       let jr = new JiraRequester();
       let jira = await jr.getJiras(['KEY-1']);
@@ -71,23 +85,30 @@ describe('JiraRequester', () => {
 
     it('should be able to request multiple jiras', async () => {
       fetchMock.mockResolvedValue(
-        fetchResponseOk({issues: [{
-          key: 'KEY-1',
-          fields: {
-            created: '2024-10-21T09:00:00.000+0100',
-            status: { name: 'Backlog' },
-          },
-        }, {
-          key: 'KEY-2',
-          fields: {
-            created: '2024-10-21T09:00:00.000+0100',
-            status: { name: 'Backlog' },
-          },
-        }]})
+        fetchResponseOk({
+          issues: [
+            {
+              key: 'KEY-1',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+              },
+            },
+            {
+              key: 'KEY-2',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+              },
+            },
+          ],
+        })
       );
       let jr = new JiraRequester();
       let jiras = await jr.getJiras(['KEY-1', 'KEY-2']);
-      expect(fetchMock.mock.calls[0][0]).toEqual('localhost:8080/rest/api/3/search?jql=key=KEY-1 OR key=KEY-2&expand=changelog');
+      expect(fetchMock.mock.calls[0][0]).toEqual(
+        'localhost:8080/rest/api/3/search?jql=key=KEY-1 OR key=KEY-2&expand=changelog'
+      );
     });
   });
 
@@ -102,11 +123,11 @@ describe('JiraRequester', () => {
                 created: '2024-10-21T09:00:00.000+0100',
                 status: { name: 'Backlog' },
               },
-            }
+            },
           ],
           maxResults: 50,
           startAt: 0,
-          total: 0
+          total: 0,
         })
       );
     });
@@ -115,26 +136,32 @@ describe('JiraRequester', () => {
         fetchResponseOk({
           issues: [
             {
-              key: 'KEY-1'
-            }
+              key: 'KEY-1',
+            },
           ],
           maxResults: 50,
           startAt: 0,
-          total: 0
+          total: 0,
         })
       );
       fetchMock.mockResolvedValueOnce(
-        fetchResponseOk({issues: [{
+        fetchResponseOk({
+          issues: [
+            {
               key: 'KEY-1',
               fields: {
                 created: '2024-10-21T09:00:00.000+0100',
                 status: { name: 'Backlog' },
               },
-            }]})
+            },
+          ],
+        })
       );
       let jr = new JiraRequester();
       let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
-      expect(fetchMock.mock.calls[0][0]).toEqual('localhost:8080/rest/api/3/search?jql=project="Project 1" AND resolved >= -1w&fields=key');
+      expect(fetchMock.mock.calls[0][0]).toEqual(
+        'localhost:8080/rest/api/3/search?jql=project="Project 1" AND resolved >= -1w&fields=key'
+      );
       // expect(jiras[0].getKey()).toEqual('KEY-1');
     });
 
@@ -143,27 +170,33 @@ describe('JiraRequester', () => {
         fetchResponseOk({
           issues: [
             {
-              key: 'KEY-1'
-            }
+              key: 'KEY-1',
+            },
           ],
           maxResults: 50,
           startAt: 0,
-          total: 0
+          total: 0,
         })
       );
       fetchMock.mockResolvedValueOnce(
-        fetchResponseOk({issues: [{
+        fetchResponseOk({
+          issues: [
+            {
               key: 'KEY-1',
               fields: {
                 created: '2024-10-21T09:00:00.000+0100',
                 status: { name: 'Backlog' },
               },
-            }]})
+            },
+          ],
+        })
       );
       let jr = new JiraRequester();
       let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(fetchMock.mock.calls[1][0]).toEqual('localhost:8080/rest/api/3/search?jql=key=KEY-1&expand=changelog');
+      expect(fetchMock.mock.calls[1][0]).toEqual(
+        'localhost:8080/rest/api/3/search?jql=key=KEY-1&expand=changelog'
+      );
     });
 
     it('should map issues to Jira objects', async () => {
@@ -171,31 +204,36 @@ describe('JiraRequester', () => {
         fetchResponseOk({
           issues: [
             {
-              key: 'KEY-1'
+              key: 'KEY-1',
             },
             {
-              key: 'KEY-2'
-            }
+              key: 'KEY-2',
+            },
           ],
           maxResults: 50,
           startAt: 0,
-          total: 0
+          total: 0,
         })
       );
       fetchMock.mockResolvedValueOnce(
-        fetchResponseOk({issues: [{
+        fetchResponseOk({
+          issues: [
+            {
               key: 'KEY-1',
               fields: {
                 created: '2024-10-21T09:00:00.000+0100',
                 status: { name: 'Backlog' },
               },
-            }, {
+            },
+            {
               key: 'KEY-2',
               fields: {
                 created: '2024-10-21T09:00:00.000+0100',
                 status: { name: 'Backlog' },
               },
-            }]})
+            },
+          ],
+        })
       );
       let jr = new JiraRequester();
       let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
@@ -210,11 +248,13 @@ describe('JiraRequester', () => {
             issues: [],
             maxResults: 5001,
             startAt: 0,
-            total: 5001
+            total: 5001,
           })
         );
         let jr = new JiraRequester();
-        await expect(jr.requestQueryFromServer('project="Project 1" AND resolved >= -1w')).rejects.toThrow('Query returned too many results');
+        await expect(
+          jr.requestQueryFromServer('project="Project 1" AND resolved >= -1w')
+        ).rejects.toThrow('Query returned too many results');
       });
 
       it('should request multiple pages if more than 50 issues are returned', async () => {
@@ -222,31 +262,81 @@ describe('JiraRequester', () => {
           fetchResponseOk({
             issues: [
               {
-                key: 'KEY-1'
-              }
+                key: 'KEY-1',
+              },
             ],
             maxResults: 50,
             startAt: 0,
-            total: 100
+            total: 100,
           })
         );
         fetchMock.mockResolvedValueOnce(
           fetchResponseOk({
             issues: [
               {
-                key: 'KEY-2'
-              }
+                key: 'KEY-2',
+              },
             ],
             maxResults: 50,
             startAt: 50,
-            total: 100
+            total: 100,
           })
         );
         let jr = new JiraRequester();
-        let jiras = await jr.requestQueryFromServer('project="Project 1" AND resolved >= -1w');
+        let jiras = await jr.requestQueryFromServer(
+          'project="Project 1" AND resolved >= -1w'
+        );
         expect(jiras).toEqual(['KEY-1', 'KEY-2']);
       });
     });
+  });
 
+  describe('getJiraWithInitiative', () => {
+    it('should return the jira with the initiative', async () => {
+      let jr = new JiraRequester();
+      fetchMock.mockResolvedValueOnce(
+        fetchResponseOk({
+          issues: [
+            {
+              key: 'KEY-1',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+                parent: {
+                  key: 'EPIC-1',
+                  fields: {
+                    issuetype: { name: 'Epic' },
+                    summary: 'Epic SUmmary',
+                  },
+                },
+              },
+            },
+          ],
+        })
+      );
+      fetchMock.mockResolvedValueOnce(
+        fetchResponseOk({
+          issues: [
+            {
+              key: 'EPIC-1',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+                parent: {
+                  key: 'INITIATIVE-1',
+                  fields: {
+                    issuetype: { name: 'Initiative' },
+                    summary: 'Initiative Summary',
+                  },
+                },
+              },
+            },
+          ],
+        })
+      );
+      let jiras = await jr.getJiras(['KEY-1']);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(jiras[0].fields.initiativeKey).toEqual('INITIATIVE-1');
+    });
   });
 });

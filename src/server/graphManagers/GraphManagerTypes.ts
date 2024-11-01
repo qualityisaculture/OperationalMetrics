@@ -6,8 +6,10 @@ export type IssueInfo = {
   created: string;
   resolved: string;
   resolution: string;
-  parentKey: string | null;
-  parentName: string | null;
+  epicKey: string | null;
+  epicName: string | null;
+  initiativeKey: string | null;
+  initiativeName: string | null;
   labels: string[];
   priority: string;
   components: string[];

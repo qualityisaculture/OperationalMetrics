@@ -41,22 +41,71 @@ describe('Jira', () => {
     it('should return the epic', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
-        fields: { ...defaultJiraJSONFields, parent: {key: 'EPIC-1', fields: {summary: "Epic Name"}} },
+        fields: {
+          ...defaultJiraJSONFields,
+          parent: { key: 'EPIC-1', fields: { issuetype: { name: 'Epic'}, summary: 'Epic Name' } },
+        },
       });
-      expect(jira.getParent()).toEqual('EPIC-1');
+      expect(jira.getEpicKey()).toEqual('EPIC-1');
     });
 
     it('should return null if no epic', () => {
       let jira = new Jira(defaultJiraJSON);
-      expect(jira.getParent()).toEqual(null);
+      expect(jira.getEpicKey()).toEqual(null);
+    });
+
+    it('should return null if parent is an initaitive', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: {
+          ...defaultJiraJSONFields,
+          parent: { key: 'EPIC-1', fields: { issuetype: { name: 'Initiative'}, summary: 'Epic Name' } },
+        },
+      });
+      expect(jira.getEpicKey()).toEqual(null);
     });
 
     it('should return the epic name', () => {
       let jira = new Jira({
         ...defaultJiraJSON,
-        fields: { ...defaultJiraJSONFields, parent: {key: 'EPIC-1', fields: {summary: "Epic Name"}} },
+        fields: {
+          ...defaultJiraJSONFields,
+          parent: { key: 'EPIC-1', fields: { issuetype: { name: 'Epic'}, summary: 'Epic Name' } },
+        },
       });
-      expect(jira.getParentName()).toEqual('Epic Name');
+      expect(jira.getEpicName()).toEqual('Epic Name');
+    });
+
+    it('should return the initiative key if exists', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: {
+          ...defaultJiraJSONFields,
+          parent: { key: 'INIT-1', fields: { issuetype: { name: 'Initiative'}, summary: 'Initiative Name' } },
+        },
+      });
+      expect(jira.getInitiativeKey()).toEqual('INIT-1');
+    });
+
+    it('should return null if no initiative key', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getInitiativeKey()).toEqual(null);
+    });
+
+    it('should return the initiative name if exists', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: {
+          ...defaultJiraJSONFields,
+          parent: { key: 'INIT-1', fields: { issuetype: { name: 'Initiative'}, summary: 'Initiative Name' } },
+        },
+      });
+      expect(jira.getInitiativeName()).toEqual('Initiative Name');
+    });
+
+    it('should return null if no initiative name', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getInitiativeName()).toEqual(null);
     });
 
     it('should get the fix versions', () => {
@@ -70,7 +119,7 @@ describe('Jira', () => {
         fields: { ...defaultJiraJSONFields, labels: ['label1', 'label2'] },
       });
       expect(jira.getLabels()).toEqual(['label1', 'label2']);
-    })
+    });
 
     it('should return an empty array if no labels', () => {
       let jira = new Jira(defaultJiraJSON);
@@ -90,7 +139,7 @@ describe('Jira', () => {
     it('should return the resolution', () => {
       let jira = new Jira(defaultJiraJSON);
       expect(jira.getResolution()).toEqual('Done');
-    })
+    });
 
     it('should return the resolved date', () => {
       let jira = new Jira(defaultJiraJSON);

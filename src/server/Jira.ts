@@ -8,7 +8,7 @@ export type JiraJsonFields = {
   fixVersions: { name: string }[];
   issuetype: { name: string };
   labels: string[];
-  parent?: { key: string; fields: { summary: string } };
+  parent?: { key: string; fields: { issuetype: {name: "Epic" | "Initiative"}, summary: string } };
   priority: { name: string };
   resolution: string;
   resolutiondate: string;
@@ -33,7 +33,10 @@ export default class Jira {
     fixVersions: { name: string }[];
     issuetype: { name: string };
     labels: string[];
-    parent?: { key: string; fields: { summary: string } };
+    epicKey?: string;
+    epicName?: string;
+    initiativeKey?: string;
+    initiativeName?: string;
     priority: { name: string };
     resolution: string;
     resolutiondate: string;
@@ -57,7 +60,6 @@ export default class Jira {
       fixVersions: json.fields.fixVersions,
       issuetype: json.fields.issuetype,
       labels: json.fields.labels,
-      parent: json.fields.parent,
       priority: json.fields.priority,
       resolution: json.fields.resolution,
       resolutiondate: json.fields.resolutiondate,
@@ -66,6 +68,14 @@ export default class Jira {
       timeoriginalestimate: json.fields.timeoriginalestimate,
       timespent: json.fields.timespent,
     };
+    if (json.fields.parent && json.fields.parent.fields.issuetype.name === 'Epic') {
+      this.fields.epicKey = json.fields.parent.key;
+      this.fields.epicName = json.fields.parent.fields.summary;
+    }
+    if (json.fields.parent && json.fields.parent.fields.issuetype.name === 'Initiative') {
+      this.fields.initiativeKey = json.fields.parent.key;
+      this.fields.initiativeName = json.fields.parent.fields.summary;
+    }
     this.changelog = json.changelog || { histories: [] };
     this.histories =
       json.changelog && json.changelog.histories
@@ -84,16 +94,22 @@ export default class Jira {
       return component.name;
     });
   }
-  getParent() {
-    return this.fields.parent ? this.fields.parent.key : null;
+  getEpicKey() {
+    return this.fields.epicKey ? this.fields.epicKey : null;
   }
-  getParentName() {
-    return this.fields.parent ? this.fields.parent.fields.summary : null;
+  getEpicName() {
+    return this.fields.epicName ? this.fields.epicName : null;
   }
   getFixVersions() {
     return this.fields.fixVersions.map((version) => {
       return version.name;
     });
+  }
+  getInitiativeKey() {
+    return this.fields.initiativeKey ? this.fields.initiativeKey : null;
+  }
+  getInitiativeName() {
+    return this.fields.initiativeName ? this.fields.initiativeName : null;
   }
   getLabels() {
     return this.fields.labels || [];

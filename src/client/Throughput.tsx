@@ -106,7 +106,7 @@ class Chart extends React.Component<ChartProps, ChartState> {
     let parentMap = new Map<string, {label: string, key: string}>();
     this.props.throughputData.forEach((item) => {
       item.issueList.forEach((issue) => {
-        if (issue.parentKey) parentMap.set(issue.parentKey, { label: issue.parentKey + ":" + issue.parentName, key: issue.parentKey });
+        if (issue.initiativeKey) parentMap.set(issue.initiativeKey, { label: issue.initiativeKey + ":" + issue.initiativeName, key: issue.initiativeKey });
       });
     });
     let arrayOfAllParents = Array.from(parentMap.values());
