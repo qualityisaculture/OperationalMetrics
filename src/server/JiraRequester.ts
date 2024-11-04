@@ -5,7 +5,7 @@ export default class JiraRequester {
     this.jiraMap = new Map();
   }
 
-  async getJiras(issueKey: string[]): Promise<Jira[]> {
+  async getFullJiraDataFromKeys(issueKey: string[]): Promise<Jira[]> {
     let uncachedKeys: string[] = [];
     issueKey.forEach((key) => {
       if (!this.jiraMap.has(key)) {
@@ -13,10 +13,18 @@ export default class JiraRequester {
       }
     });
 
-
-    let jiraJSON = await this.requestIssueFromServer(uncachedKeys);
+    let jiraJSON = await this.requestIssueFromServer(uncachedKeys).catch(
+      (error) => {
+        throw error;
+      }
+    );
     for (let jira of jiraJSON.issues) {
-      this.jiraMap.set(jira.key, await this.getJiraWithInitiative(jira));
+      this.jiraMap.set(
+        jira.key,
+        await this.getJiraWithInitiative(jira).catch((error) => {
+          throw error;
+        })
+      );
     }
     return issueKey.map((key) => {
       return this.jiraMap.get(key);
@@ -27,14 +35,14 @@ export default class JiraRequester {
     let jira = new Jira(json);
     let epicKey = jira.getEpicKey();
     if (epicKey) {
-      let epics = await this.getJiras([epicKey]);
+      let epics = await this.getFullJiraDataFromKeys([epicKey]);
       let epicjira = epics[0];
       let initiativeKey = epicjira.getInitiativeKey();
       let initiativeName = epicjira.getInitiativeName();
-        if (initiativeKey !== null && initiativeName !== null) {
-          jira.fields.initiativeKey = initiativeKey;
-          jira.fields.initiativeName = initiativeName
-        }
+      if (initiativeKey !== null && initiativeName !== null) {
+        jira.fields.initiativeKey = initiativeKey;
+        jira.fields.initiativeName = initiativeName;
+      }
     }
     return jira;
   }
@@ -43,20 +51,25 @@ export default class JiraRequester {
     if (issueKeys.length === 0) {
       return { issues: [] };
     }
-    const domain = process.env.JIRA_DOMAIN;
-    let jql = issueKeys.map((key) => `key=${key}`).join(' OR ');
-    const query = `${jql}&expand=changelog`;
-    let data = await this.requestDataFromServer(query);
-    return data;
+    let allIssues: { issues: any[] } = { issues: [] };
+    for (let i = 0; i < issueKeys.length; i += 50) {
+      let keys = issueKeys.slice(i, i + 50);
+      let jql = keys.map((key) => `key=${key}`).join(' OR ');
+      const query = `${jql}&expand=changelog`;
+      let data = await this.requestDataFromServer(query);
+      console.log('Fetched ' + data.issues.length + ' issues');
+      allIssues.issues = allIssues.issues.concat(data.issues);
+    }
+    return allIssues;
   }
 
   async getQuery(query: string): Promise<Jira[]> {
-    let jiraKeys = await this.requestQueryFromServer(query);
-    let jiras = await this.getJiras(jiraKeys);
+    let jiraKeys = await this.getJiraKeysInQuery(query);
+    let jiras = await this.getFullJiraDataFromKeys(jiraKeys);
     return jiras;
   }
 
-  async requestQueryFromServer(query: string) {
+  async getJiraKeysInQuery(query: string) {
     const url = `${query}&fields=key`;
     let data = await this.requestDataFromServer(url).catch((error) => {
       throw error;
@@ -67,14 +80,15 @@ export default class JiraRequester {
   async requestDataFromServer(query: string) {
     const domain = process.env.JIRA_DOMAIN;
     const url = `${domain}/rest/api/3/search?jql=${query}`;
+    console.log('Fetching ' + url);
     let response = await this.fetchRequest(url);
     if (response.total > 5000) {
       throw new Error('Query returned too many results');
     }
     if (response.total > 50) {
-      console.log('Fetching more data');
       let startAt = 50;
       while (startAt < response.total) {
+        console.log('Fetching ' + startAt + ' of ' + response.total);
         let nextResponse = await this.fetchRequest(`${url}&startAt=${startAt}`);
         response.issues = response.issues.concat(nextResponse.issues);
         startAt += 50;

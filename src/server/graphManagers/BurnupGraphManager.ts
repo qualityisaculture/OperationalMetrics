@@ -20,7 +20,7 @@ export default class BurnupGraphManager {
   }
 
   async getEpicBurnupData(epicKey: string): Promise<BurnupDataArray> {
-    let epics = await this.jiraRequester.getJiras([epicKey]);
+    let epics = await this.jiraRequester.getFullJiraDataFromKeys([epicKey]);
     let epic = epics[0];
 
     let burnupArray: BurnupDataArray = await this.getBurnupArray(epic);
@@ -91,7 +91,7 @@ export default class BurnupGraphManager {
 
   async getAllChildrenJiras(jira: Jira, date?: Date): Promise<Jira[]> {
     let childrenKeys = jira.getChildrenKeys(date);
-    let jiras = await this.jiraRequester.getJiras(childrenKeys);
+    let jiras = await this.jiraRequester.getFullJiraDataFromKeys(childrenKeys);
     return jiras;
   }
 }

@@ -136,39 +136,43 @@ class Chart extends React.Component<ChartProps, ChartState> {
 
     this.props.initiativesSelected.forEach((parent) => {
       data.addColumn('number', parent);
+      data.addColumn({ role: 'tooltip', p: { html: true } });
     });
     data.addColumn('number', 'None');
 
     data.addColumn({ role: 'tooltip', p: { html: true } });
 
+    console.log(this.props.initiativesSelected);
     this.props.throughputData.forEach((item) => {
-      let issuesByParents = new Map<string, number>();
+      let issuesByInitiative = new Map<string, string[]>();
       this.props.initiativesSelected.forEach((parent) => {
-        issuesByParents.set(parent, 0);
+        issuesByInitiative.set(parent, []);
       });
       console.log(this.props.initiativesSelected);
-      issuesByParents.set('None', 0);
-      console.log(issuesByParents);
+      issuesByInitiative.set('None', []);
 
       item.issueList.forEach((issue) => {
         if (issue.initiativeKey) {
-          if (issuesByParents.has(issue.initiativeKey)) {
-            issuesByParents.set(
+          if (issuesByInitiative.has(issue.initiativeKey)) {
+            issuesByInitiative.set(
               issue.initiativeKey,
-              issuesByParents.get(issue.initiativeKey) + 1
+              issuesByInitiative.get(issue.initiativeKey).concat(issue.key)
             );
           }
         } else {
-          issuesByParents.set('None', issuesByParents.get('None') + 1);
+          issuesByInitiative.set('None', issuesByInitiative.get('None').concat(issue.key));
         }
       });
 
       let row: any[] = [new Date(item.sprintStartingDate)];
       this.props.initiativesSelected.forEach((parent) => {
-        row.push(issuesByParents.get(parent) || 0);
+        let initiatives = issuesByInitiative.get(parent) || [];
+        row.push(initiatives.length);
+        row.push(initiatives.map((issue) => issue).join(', '));
       });
-      row.push(issuesByParents.get('None'));
-      row.push(item.issueList.map((issue) => issue.key).join(', '));
+      let initiatives = issuesByInitiative.get('None') || [];
+      row.push(initiatives.length);
+      row.push(initiatives.map((issue) => issue).join(', '));
 
       data.addRow(row);
     });

@@ -32,7 +32,7 @@ describe('JiraRequester', () => {
         })
       );
       let jr = new JiraRequester();
-      let jira = await jr.getJiras(['KEY-1']);
+      let jira = await jr.getFullJiraDataFromKeys(['KEY-1']);
       expect(fetchMock.mock.calls[0][0]).toEqual(
         'localhost:8080/rest/api/3/search?jql=key=KEY-1&expand=changelog'
       );
@@ -54,9 +54,9 @@ describe('JiraRequester', () => {
         })
       );
       let jr = new JiraRequester();
-      let jira = await jr.getJiras(['KEY-1']);
+      let jira = await jr.getFullJiraDataFromKeys(['KEY-1']);
       expect(jira[0].getKey()).toEqual('KEY-1');
-      let jira2 = await jr.getJiras(['KEY-1']);
+      let jira2 = await jr.getFullJiraDataFromKeys(['KEY-1']);
       expect(jira2[0].getKey()).toEqual('KEY-1');
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
@@ -76,9 +76,9 @@ describe('JiraRequester', () => {
         })
       );
       let jr = new JiraRequester();
-      let jira = await jr.getJiras(['KEY-1']);
+      let jira = await jr.getFullJiraDataFromKeys(['KEY-1']);
       expect(jira[0].getKey()).toEqual('KEY-1');
-      let jira2 = await jr.getJiras([]);
+      let jira2 = await jr.getFullJiraDataFromKeys([]);
       expect(jira2.length).toEqual(0);
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
@@ -105,7 +105,7 @@ describe('JiraRequester', () => {
         })
       );
       let jr = new JiraRequester();
-      let jiras = await jr.getJiras(['KEY-1', 'KEY-2']);
+      let jiras = await jr.getFullJiraDataFromKeys(['KEY-1', 'KEY-2']);
       expect(fetchMock.mock.calls[0][0]).toEqual(
         'localhost:8080/rest/api/3/search?jql=key=KEY-1 OR key=KEY-2&expand=changelog'
       );
@@ -253,7 +253,7 @@ describe('JiraRequester', () => {
         );
         let jr = new JiraRequester();
         await expect(
-          jr.requestQueryFromServer('project="Project 1" AND resolved >= -1w')
+          jr.getJiraKeysInQuery('project="Project 1" AND resolved >= -1w')
         ).rejects.toThrow('Query returned too many results');
       });
 
@@ -283,7 +283,7 @@ describe('JiraRequester', () => {
           })
         );
         let jr = new JiraRequester();
-        let jiras = await jr.requestQueryFromServer(
+        let jiras = await jr.getJiraKeysInQuery(
           'project="Project 1" AND resolved >= -1w'
         );
         expect(jiras).toEqual(['KEY-1', 'KEY-2']);
@@ -334,9 +334,102 @@ describe('JiraRequester', () => {
           ],
         })
       );
-      let jiras = await jr.getJiras(['KEY-1']);
+      let jiras = await jr.getFullJiraDataFromKeys(['KEY-1']);
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(jiras[0].fields.initiativeKey).toEqual('INITIATIVE-1');
+    });
+  });
+
+  describe('requestIssueFromServer', () => {
+    it('should return an empty array if no keys are passed', async () => {
+      let jr = new JiraRequester();
+      jr.requestDataFromServer = jest.fn();
+      let jiras = await jr.requestIssueFromServer([]);
+      expect(jiras.issues).toEqual([]);
+      expect(jr.requestDataFromServer).not.toHaveBeenCalled();
+    });
+    it('should be able to request just a single key', async () => {
+      let jr = new JiraRequester();
+      jr.requestDataFromServer = jest.fn().mockResolvedValue({
+        issues: [
+          {
+            key: 'KEY-1',
+            fields: {
+              created: '2024-10-21T09:00:00.000+0100',
+              status: { name: 'Backlog' },
+            },
+          },
+        ],
+      });
+      let jiras = await jr.requestIssueFromServer(['KEY-1']);
+      expect(jiras.issues[0].key).toEqual('KEY-1');
+      expect(jr.requestDataFromServer).toHaveBeenCalledWith(
+        'key=KEY-1&expand=changelog'
+      );
+    });
+
+    it('should be able to request multiple keys', async () => {
+      let jr = new JiraRequester();
+      jr.requestDataFromServer = jest.fn().mockResolvedValue({
+        issues: [
+          {
+            key: 'KEY-1',
+            fields: {
+              created: '2024-10-21T09:00:00.000+0100',
+              status: { name: 'Backlog' },
+            },
+          },
+          {
+            key: 'KEY-2',
+            fields: {
+              created: '2024-10-21T09:00:00.000+0100',
+              status: { name: 'Backlog' },
+            },
+          },
+        ],
+      });
+      let jiras = await jr.requestIssueFromServer(['KEY-1', 'KEY-2']);
+      expect(jiras.issues[0].key).toEqual('KEY-1');
+      expect(jiras.issues[1].key).toEqual('KEY-2');
+      expect(jr.requestDataFromServer).toHaveBeenCalledWith(
+        'key=KEY-1 OR key=KEY-2&expand=changelog'
+      );
+    });
+
+    it('should request keys in batches of 50 and concatenate the results', async () => {
+      let jr = new JiraRequester();
+      jr.requestDataFromServer = jest
+        .fn()
+        .mockResolvedValueOnce({
+          issues: [
+            {
+              key: 'KEY-1',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          issues: [
+            {
+              key: 'KEY-51',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+              },
+            },
+          ],
+        });
+      let keysArray: string[] = [];
+      for (let i = 1; i <= 100; i++) {
+        keysArray.push(`KEY-${i}`);
+      }
+      let jiras = await jr.requestIssueFromServer(keysArray);
+      expect(jr.requestDataFromServer).toHaveBeenCalledTimes(2);
+      expect(jr.requestDataFromServer).toHaveBeenCalledWith('key=KEY-1 OR key=KEY-2 OR key=KEY-3 OR key=KEY-4 OR key=KEY-5 OR key=KEY-6 OR key=KEY-7 OR key=KEY-8 OR key=KEY-9 OR key=KEY-10 OR key=KEY-11 OR key=KEY-12 OR key=KEY-13 OR key=KEY-14 OR key=KEY-15 OR key=KEY-16 OR key=KEY-17 OR key=KEY-18 OR key=KEY-19 OR key=KEY-20 OR key=KEY-21 OR key=KEY-22 OR key=KEY-23 OR key=KEY-24 OR key=KEY-25 OR key=KEY-26 OR key=KEY-27 OR key=KEY-28 OR key=KEY-29 OR key=KEY-30 OR key=KEY-31 OR key=KEY-32 OR key=KEY-33 OR key=KEY-34 OR key=KEY-35 OR key=KEY-36 OR key=KEY-37 OR key=KEY-38 OR key=KEY-39 OR key=KEY-40 OR key=KEY-41 OR key=KEY-42 OR key=KEY-43 OR key=KEY-44 OR key=KEY-45 OR key=KEY-46 OR key=KEY-47 OR key=KEY-48 OR key=KEY-49 OR key=KEY-50&expand=changelog');
+      expect(jr.requestDataFromServer).toHaveBeenCalledWith('key=KEY-51 OR key=KEY-52 OR key=KEY-53 OR key=KEY-54 OR key=KEY-55 OR key=KEY-56 OR key=KEY-57 OR key=KEY-58 OR key=KEY-59 OR key=KEY-60 OR key=KEY-61 OR key=KEY-62 OR key=KEY-63 OR key=KEY-64 OR key=KEY-65 OR key=KEY-66 OR key=KEY-67 OR key=KEY-68 OR key=KEY-69 OR key=KEY-70 OR key=KEY-71 OR key=KEY-72 OR key=KEY-73 OR key=KEY-74 OR key=KEY-75 OR key=KEY-76 OR key=KEY-77 OR key=KEY-78 OR key=KEY-79 OR key=KEY-80 OR key=KEY-81 OR key=KEY-82 OR key=KEY-83 OR key=KEY-84 OR key=KEY-85 OR key=KEY-86 OR key=KEY-87 OR key=KEY-88 OR key=KEY-89 OR key=KEY-90 OR key=KEY-91 OR key=KEY-92 OR key=KEY-93 OR key=KEY-94 OR key=KEY-95 OR key=KEY-96 OR key=KEY-97 OR key=KEY-98 OR key=KEY-99 OR key=KEY-100&expand=changelog');
     });
   });
 });

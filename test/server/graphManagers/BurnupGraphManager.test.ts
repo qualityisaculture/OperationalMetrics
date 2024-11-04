@@ -14,7 +14,7 @@ describe('BurnupGraphManager', () => {
     jest.resetAllMocks();
     mockJira = new Jira(defaultJiraJSON);
     mockJiraRequester = new JiraRequester();
-    mockJiraRequester.getJiras = jest.fn().mockResolvedValue([mockJira]);
+    mockJiraRequester.getFullJiraDataFromKeys = jest.fn().mockResolvedValue([mockJira]);
   });
 
   afterEach(() => {
@@ -24,14 +24,14 @@ describe('BurnupGraphManager', () => {
   it('should request the epic from the Jirarequest', async () => {
     let bgm = new BurnupGraphManager(mockJiraRequester);
     await bgm.getEpicBurnupData('KEY-1');
-    expect(mockJiraRequester.getJiras).toHaveBeenCalledWith(['KEY-1']);
+    expect(mockJiraRequester.getFullJiraDataFromKeys).toHaveBeenCalledWith(['KEY-1']);
   });
 
   it('should request the children', async () => {
     mockJira.getChildrenKeys = jest.fn().mockReturnValue(['KEY-2']);
     let bgm = new BurnupGraphManager(mockJiraRequester);
     await bgm.getEpicBurnupData('KEY-1');
-    expect(mockJiraRequester.getJiras).toHaveBeenCalledWith(['KEY-2']);
+    expect(mockJiraRequester.getFullJiraDataFromKeys).toHaveBeenCalledWith(['KEY-2']);
   });
 
   describe('Get the Start and End Date', () => {
@@ -41,7 +41,7 @@ describe('BurnupGraphManager', () => {
         ...defaultJiraJSON,
         fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-23'}
       });
-      mockJiraRequester.getJiras = jest.fn().mockResolvedValue([mockJira]);
+      mockJiraRequester.getFullJiraDataFromKeys = jest.fn().mockResolvedValue([mockJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
       let result = await bgm.getEpicBurnupData('KEY-1');
@@ -53,7 +53,7 @@ describe('BurnupGraphManager', () => {
         ...defaultJiraJSON,
         fields: {...defaultJiraJSON.fields}
       });
-      mockJiraRequester.getJiras = jest.fn().mockResolvedValue([mockJira]);
+      mockJiraRequester.getFullJiraDataFromKeys = jest.fn().mockResolvedValue([mockJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
       let result = await bgm.getEpicBurnupData('KEY-1');
@@ -65,7 +65,7 @@ describe('BurnupGraphManager', () => {
         ...defaultJiraJSON,
         fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-28', duedate: '2024-10-30'}
       });
-      mockJiraRequester.getJiras = jest.fn().mockResolvedValue([mockJira]);
+      mockJiraRequester.getFullJiraDataFromKeys = jest.fn().mockResolvedValue([mockJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
       let result = await bgm.getEpicBurnupData('KEY-1');
@@ -77,7 +77,7 @@ describe('BurnupGraphManager', () => {
         ...defaultJiraJSON,
         fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-28'}
       });
-      mockJiraRequester.getJiras = jest.fn().mockResolvedValue([mockJira]);
+      mockJiraRequester.getFullJiraDataFromKeys = jest.fn().mockResolvedValue([mockJira]);
 
       jest.setSystemTime(new Date('2024-10-30').getTime());
       let bgm = new BurnupGraphManager(mockJiraRequester);
@@ -90,7 +90,7 @@ describe('BurnupGraphManager', () => {
         ...defaultJiraJSON,
         fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-28', duedate: '2024-10-30'}
       });
-      mockJiraRequester.getJiras = jest.fn().mockResolvedValue([mockJira]);
+      mockJiraRequester.getFullJiraDataFromKeys = jest.fn().mockResolvedValue([mockJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
       let result = await bgm.getEpicBurnupData('KEY-1');
@@ -107,7 +107,7 @@ describe('BurnupGraphManager', () => {
 
       mockJira.getChildrenKeys = jest.fn().mockReturnValue(['KEY-2']);
       let childJira = getJiraCompletedOnDate('2024-10-21T00:00:00.000Z');
-      mockJiraRequester.getJiras = jest
+      mockJiraRequester.getFullJiraDataFromKeys = jest
         .fn()
         .mockResolvedValueOnce([mockJira])
         .mockResolvedValue([childJira]);
@@ -124,7 +124,7 @@ describe('BurnupGraphManager', () => {
 
       mockJira.getChildrenKeys = jest.fn().mockReturnValue(['KEY-2']);
       let childJira = getJiraCompletedOnDate('2024-10-22T00:00:00.000Z');
-      mockJiraRequester.getJiras = jest
+      mockJiraRequester.getFullJiraDataFromKeys = jest
         .fn()
         .mockResolvedValueOnce([mockJira])
         .mockResolvedValue([childJira]);
@@ -143,7 +143,7 @@ describe('BurnupGraphManager', () => {
 
       mockJira.getChildrenKeys = jest.fn().mockReturnValue(['KEY-2']);
       let childJira = getJiraCompletedOnDate('2024-10-21T00:00:00.000Z');
-      mockJiraRequester.getJiras = jest
+      mockJiraRequester.getFullJiraDataFromKeys = jest
         .fn()
         .mockResolvedValueOnce([mockJira])
         .mockResolvedValue([childJira]);
@@ -172,7 +172,7 @@ describe('BurnupGraphManager', () => {
       jest.setSystemTime(new Date('2024-10-24').getTime());
 
       let childJira = getJiraCancelledOnDate('2024-10-22T00:00:00.000Z');
-      mockJiraRequester.getJiras = jest
+      mockJiraRequester.getFullJiraDataFromKeys = jest
         .fn()
         .mockResolvedValueOnce([mockJira])
         .mockResolvedValue([childJira]);
@@ -202,7 +202,7 @@ describe('BurnupGraphManager', () => {
       jest.setSystemTime(new Date('2024-10-24').getTime());
 
       let childJira = getJiraCancelledOnDate('2024-10-24T00:00:00.000Z');
-      mockJiraRequester.getJiras = jest
+      mockJiraRequester.getFullJiraDataFromKeys = jest
         .fn()
         .mockResolvedValueOnce([mockJira])
         .mockResolvedValueOnce([])
