@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { ThroughputDataType } from '../server/graphManagers/ThroughputGraphManager';
 import Select from './Select';
 import type { SelectProps } from 'antd';
+import { IssueInfo } from '../server/graphManagers/GraphManagerTypes';
 
 interface Props {}
 interface State {
@@ -142,9 +143,9 @@ class Chart extends React.Component<ChartProps, ChartState> {
     data.addColumn({ role: 'tooltip', p: { html: true } });
 
     console.log(this.props.initiativesSelected);
-    let clickData: {initiativeKey: string, issues: string[]}[][] = [];
+    let clickData: {initiativeKey: string, issues: IssueInfo[]}[][] = [];
     this.props.throughputData.forEach((item) => {
-      let issuesByInitiative = new Map<string, string[]>();
+      let issuesByInitiative = new Map<string, IssueInfo[]>();
       this.props.initiativesSelected.forEach((parent) => {
         issuesByInitiative.set(parent, []);
       });
@@ -156,25 +157,25 @@ class Chart extends React.Component<ChartProps, ChartState> {
           if (issuesByInitiative.has(issue.initiativeKey)) {
             issuesByInitiative.set(
               issue.initiativeKey,
-              issuesByInitiative.get(issue.initiativeKey).concat(issue.key)
+              issuesByInitiative.get(issue.initiativeKey).concat(issue)
             );
           }
         } else {
-          issuesByInitiative.set('None', issuesByInitiative.get('None').concat(issue.key));
+          issuesByInitiative.set('None', issuesByInitiative.get('None').concat(issue));
         }
       });
 
-      let columnClickData: {initiativeKey: string, issues: string[]}[] = [];
+      let columnClickData: {initiativeKey: string, issues: IssueInfo[]}[] = [];
       let row: any[] = [new Date(item.sprintStartingDate)];
       this.props.initiativesSelected.forEach((parent) => {
         let initiatives = issuesByInitiative.get(parent) || [];
         row.push(initiatives.length);
-        row.push(initiatives.map((issue) => issue).join(', '));
+        row.push(initiatives.map((issue) => issue.key).join(', '));
         columnClickData.push({initiativeKey: parent, issues: initiatives});
       });
       let initiatives = issuesByInitiative.get('None') || [];
       row.push(initiatives.length);
-      row.push(initiatives.map((issue) => issue).join(', '));
+      row.push(initiatives.map((issue) => issue.key).join(', '));
       columnClickData.push({initiativeKey: 'None', issues: initiatives});
 
       data.addRow(row);
@@ -201,7 +202,7 @@ class Chart extends React.Component<ChartProps, ChartState> {
         if (data.issues.length === 0) return;
         logHTML += `<h3>${data.initiativeKey}</h3>`;
         data.issues.forEach((issue) => {
-          logHTML += `<p>${issue} </p>`;
+          logHTML += `<p>${issue.key} ${issue.summary} </p>`;
         });
 
       });
