@@ -139,10 +139,10 @@ class Chart extends React.Component<ChartProps, ChartState> {
       data.addColumn({ role: 'tooltip', p: { html: true } });
     });
     data.addColumn('number', 'None');
-
     data.addColumn({ role: 'tooltip', p: { html: true } });
 
     console.log(this.props.initiativesSelected);
+    let clickData: {initiativeKey: string, issues: string[]}[][] = [];
     this.props.throughputData.forEach((item) => {
       let issuesByInitiative = new Map<string, string[]>();
       this.props.initiativesSelected.forEach((parent) => {
@@ -164,17 +164,21 @@ class Chart extends React.Component<ChartProps, ChartState> {
         }
       });
 
+      let columnClickData: {initiativeKey: string, issues: string[]}[] = [];
       let row: any[] = [new Date(item.sprintStartingDate)];
       this.props.initiativesSelected.forEach((parent) => {
         let initiatives = issuesByInitiative.get(parent) || [];
         row.push(initiatives.length);
         row.push(initiatives.map((issue) => issue).join(', '));
+        columnClickData.push({initiativeKey: parent, issues: initiatives});
       });
       let initiatives = issuesByInitiative.get('None') || [];
       row.push(initiatives.length);
       row.push(initiatives.map((issue) => issue).join(', '));
+      columnClickData.push({initiativeKey: 'None', issues: initiatives});
 
       data.addRow(row);
+      clickData.push(columnClickData);
     });
 
     var options = {
@@ -189,6 +193,21 @@ class Chart extends React.Component<ChartProps, ChartState> {
     var chart = new google.visualization.ColumnChart(
       document.getElementById('chart_div')
     );
+    google.visualization.events.addListener(chart, 'select', function () {
+      var selection = chart.getSelection();
+      let jiraData = clickData[selection[0].row];
+      let logHTML = '';
+      jiraData.forEach((data) => {
+        if (data.issues.length === 0) return;
+        logHTML += `<h3>${data.initiativeKey}</h3>`;
+        data.issues.forEach((issue) => {
+          logHTML += `<p>${issue} </p>`;
+        });
+
+      });
+      let notesElement = document.getElementById('notes');
+      if (notesElement) notesElement.innerHTML = logHTML;
+    });
 
     chart.draw(data, options);
   }
