@@ -14,4 +14,5 @@ export type IssueInfo = {
   priority: string;
   components: string[];
   fixVersions: string[];
+  url: string;
 };

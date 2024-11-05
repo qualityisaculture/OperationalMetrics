@@ -8,6 +8,29 @@ import Select from './Select';
 import type { SelectProps } from 'antd';
 import { IssueInfo } from '../server/graphManagers/GraphManagerTypes';
 
+type GoogleDataTableType = {
+  addColumn: (type: string, label: string) => void;
+  addRow: (row: GoogleDataRowType) => void;
+};
+
+type GoogleDataRowType = {
+  push: (value: any) => void;
+};
+
+type ClickDataType = { initiativeKey: string; issues: IssueInfo[] }
+type ClickDataColumnType = ClickDataType[];
+
+class ConcatableMap extends Map {
+  concat(key, value) {
+    let array = this.get(key);
+    if (array) {
+      this.set(key, array.concat(value));
+    } else {
+      this.set(key, [value]);
+    }
+  }
+}
+
 interface Props {}
 interface State {
   input: string;
@@ -47,7 +70,10 @@ export default class Throughput extends React.Component<Props, State> {
       .then((response) => response.json())
       .then((data) => {
         let throughputData: ThroughputDataType[] = JSON.parse(data.data);
-        let allInitiatives = new Map<string, { label: string; value: string }>();
+        let allInitiatives = new Map<
+          string,
+          { label: string; value: string }
+        >();
         throughputData.forEach((item) => {
           item.issueList.forEach((issue) => {
             if (issue.initiativeKey)
@@ -131,56 +157,68 @@ class Chart extends React.Component<ChartProps, ChartState> {
     }
   }
 
-  drawChart() {
-    var data = new google.visualization.DataTable();
+  addColumns(data: any, initiativesSelected: string[]) {
     data.addColumn('date', 'Sprint Start Date');
-
+    // Add columns for each initiative
     this.props.initiativesSelected.forEach((parent) => {
       data.addColumn('number', parent);
       data.addColumn({ role: 'tooltip', p: { html: true } });
     });
     data.addColumn('number', 'None');
     data.addColumn({ role: 'tooltip', p: { html: true } });
+  }
 
-    console.log(this.props.initiativesSelected);
-    let clickData: {initiativeKey: string, issues: IssueInfo[]}[][] = [];
-    this.props.throughputData.forEach((item) => {
-      let issuesByInitiative = new Map<string, IssueInfo[]>();
-      this.props.initiativesSelected.forEach((parent) => {
-        issuesByInitiative.set(parent, []);
-      });
-      console.log(this.props.initiativesSelected);
-      issuesByInitiative.set('None', []);
+  getIssuesByInitiative(issues: IssueInfo[]) {
+    let issuesByInitiative = new ConcatableMap();
 
-      item.issueList.forEach((issue) => {
-        if (issue.initiativeKey) {
-          if (issuesByInitiative.has(issue.initiativeKey)) {
-            issuesByInitiative.set(
-              issue.initiativeKey,
-              issuesByInitiative.get(issue.initiativeKey).concat(issue)
-            );
-          }
-        } else {
-          issuesByInitiative.set('None', issuesByInitiative.get('None').concat(issue));
-        }
-      });
+    issues.forEach((issue) => {
+      if (issue.initiativeKey) {
+        issuesByInitiative.concat(issue.initiativeKey, issue);
+      } else {
+        issuesByInitiative.concat('None', issue);
+      }
+    });
+    return issuesByInitiative;
+  }
 
-      let columnClickData: {initiativeKey: string, issues: IssueInfo[]}[] = [];
-      let row: any[] = [new Date(item.sprintStartingDate)];
-      this.props.initiativesSelected.forEach((parent) => {
+  addDataToChart(data: any, clickData: ClickDataType[][]) {
+    this.props.throughputData.forEach((sprint) => {
+      let issuesByInitiative = this.getIssuesByInitiative(sprint.issueList);
+      let columnClickData: ClickDataType[] = [];
+
+      let row: GoogleDataRowType = [new Date(sprint.sprintStartingDate)];
+      [...this.props.initiativesSelected, 'None'].forEach((parent) => {
         let initiatives = issuesByInitiative.get(parent) || [];
         row.push(initiatives.length);
         row.push(initiatives.map((issue) => issue.key).join(', '));
-        columnClickData.push({initiativeKey: parent, issues: initiatives});
+        columnClickData.push({ initiativeKey: parent, issues: initiatives });
       });
-      let initiatives = issuesByInitiative.get('None') || [];
-      row.push(initiatives.length);
-      row.push(initiatives.map((issue) => issue.key).join(', '));
-      columnClickData.push({initiativeKey: 'None', issues: initiatives});
 
       data.addRow(row);
       clickData.push(columnClickData);
     });
+  }
+
+  handleColumnClick = (chart, clickData: ClickDataColumnType) => {
+    var selection = chart.getSelection();
+    let jiraData = clickData[selection[0].row];
+    let logHTML = '';
+    jiraData.forEach((data) => {
+      if (data.issues.length === 0) return;
+      logHTML += `<h3>${data.initiativeKey}</h3>`;
+      data.issues.forEach((issue) => {
+        logHTML += `<p><a target="_blank" href="${issue.url}">${issue.key} ${issue.summary} - ${issue.type}</a></p>`;
+      });
+    });
+    let notesElement = document.getElementById('notes');
+    if (notesElement) notesElement.innerHTML = logHTML;
+  }
+
+  drawChart() {
+    var data = new google.visualization.DataTable();
+    let clickData: ClickDataType[][] = [];
+    this.addColumns(data, this.props.initiativesSelected);
+    this.addDataToChart(data, clickData);
 
     var options = {
       title: 'Estimates Analysis',
@@ -195,20 +233,8 @@ class Chart extends React.Component<ChartProps, ChartState> {
       document.getElementById('chart_div')
     );
     google.visualization.events.addListener(chart, 'select', function () {
-      var selection = chart.getSelection();
-      let jiraData = clickData[selection[0].row];
-      let logHTML = '';
-      jiraData.forEach((data) => {
-        if (data.issues.length === 0) return;
-        logHTML += `<h3>${data.initiativeKey}</h3>`;
-        data.issues.forEach((issue) => {
-          logHTML += `<p>${issue.key} ${issue.summary} </p>`;
-        });
-
-      });
-      let notesElement = document.getElementById('notes');
-      if (notesElement) notesElement.innerHTML = logHTML;
-    });
+      this.handleColumnClick(chart, clickData);
+    }.bind(this));
 
     chart.draw(data, options);
   }

@@ -71,6 +71,7 @@ export default class ThroughputGraphManager {
       priority: jira.getPriority(),
       components: jira.getComponents(),
       fixVersions: jira.getFixVersions(),
+      url: jira.getUrl(),
     };
   }
 }

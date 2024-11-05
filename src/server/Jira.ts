@@ -44,12 +44,14 @@ export default class Jira {
     summary: string;
     timeoriginalestimate?: number;
     timespent?: number;
+    url: string;
   };
   changelog: { histories: any[] };
   created: Date;
   histories: any[];
   statusChanges: any[];
   constructor(json: JiraJson) {
+    const domain = process.env.JIRA_DOMAIN;
     this.created = new Date(json.fields.created);
     this.fields = {
       key: json.key,
@@ -67,6 +69,7 @@ export default class Jira {
       summary: json.fields.summary,
       timeoriginalestimate: json.fields.timeoriginalestimate,
       timespent: json.fields.timespent,
+      url: `${domain}/browse/${json.key}`,
     };
     if (json.fields.parent && json.fields.parent.fields.issuetype.name === 'Epic') {
       this.fields.epicKey = json.fields.parent.key;
@@ -134,6 +137,9 @@ export default class Jira {
   }
   getTimeSpent(): number | null {
     return this.fields.timespent || null;
+  }
+  getUrl() {
+    return this.fields.url;
   }
   getEpicStartDate(): Date | null {
     if (!this.fields.customfield_10015) {
