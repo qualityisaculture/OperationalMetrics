@@ -1,7 +1,7 @@
 import React from 'react';
 import { EstimatesData } from '../server/graphManagers/EstimatesGraphManager';
-import type { DatePickerProps, InputNumberProps } from 'antd';
-import { DatePicker, InputNumber } from 'antd';
+import type { RadioChangeEvent, DatePickerProps, InputNumberProps } from 'antd';
+import { Radio, DatePicker, InputNumber } from 'antd';
 import dayjs from 'dayjs';
 import { ThroughputDataType } from '../server/graphManagers/ThroughputGraphManager';
 import Select from './Select';
@@ -17,7 +17,7 @@ type GoogleDataRowType = {
   push: (value: any) => void;
 };
 
-type ClickDataType = { initiativeKey: string; issues: IssueInfo[] }
+type ClickDataType = { initiativeKey: string; issues: IssueInfo[] };
 type ClickDataColumnType = ClickDataType[];
 
 class ConcatableMap extends Map {
@@ -39,6 +39,7 @@ interface State {
   throughputData: ThroughputDataType[];
   initiatitives: SelectProps['options'];
   initiativesSelected: string[];
+  sizeMode: "count" | "time booked";
 }
 
 export default class Throughput extends React.Component<Props, State> {
@@ -54,6 +55,7 @@ export default class Throughput extends React.Component<Props, State> {
       throughputData: [],
       initiatitives: [],
       initiativesSelected: [],
+      sizeMode: 'count',
     };
   }
   onClick = () => {
@@ -102,6 +104,9 @@ export default class Throughput extends React.Component<Props, State> {
   initiatitivesSelected = (selected: string[]) => {
     this.setState({ initiativesSelected: selected });
   };
+  handleSizeChange = (e: RadioChangeEvent) => {
+    this.setState({ sizeMode: e.target.value });
+  }
   render() {
     return (
       <div>
@@ -124,11 +129,16 @@ export default class Throughput extends React.Component<Props, State> {
           onChange={this.initiatitivesSelected.bind(this)}
           options={this.state.initiatitives}
         />
+        <Radio.Group value={this.state.sizeMode} onChange={this.handleSizeChange}>
+          <Radio.Button value="count">Count</Radio.Button>
+          <Radio.Button value="time booked">Time Booked</Radio.Button>
+        </Radio.Group>
 
         <button onClick={this.onClick}>Click me</button>
         <Chart
           throughputData={this.state.throughputData}
           initiativesSelected={this.state.initiativesSelected}
+          sizeMode={this.state.sizeMode}
         />
       </div>
     );
@@ -140,6 +150,7 @@ const google = globalThis.google;
 interface ChartProps {
   throughputData: ThroughputDataType[];
   initiativesSelected: string[];
+  sizeMode: "count" | "time booked";
 }
 interface ChartState {}
 
@@ -181,6 +192,16 @@ class Chart extends React.Component<ChartProps, ChartState> {
     return issuesByInitiative;
   }
 
+  getSize(issues: IssueInfo[]) {
+    console.log('issues', this.props.sizeMode);
+    if (this.props.sizeMode === 'count') {
+      return issues.length;
+    } else {
+      return issues.reduce((sum, issue) => sum + (issue.timespent || 0), 0);
+    }
+  }
+
+
   addDataToChart(data: any, clickData: ClickDataType[][]) {
     this.props.throughputData.forEach((sprint) => {
       let issuesByInitiative = this.getIssuesByInitiative(sprint.issueList);
@@ -189,7 +210,7 @@ class Chart extends React.Component<ChartProps, ChartState> {
       let row: GoogleDataRowType = [new Date(sprint.sprintStartingDate)];
       [...this.props.initiativesSelected, 'None'].forEach((parent) => {
         let initiatives = issuesByInitiative.get(parent) || [];
-        row.push(initiatives.length);
+        row.push(this.getSize(initiatives));
         row.push(initiatives.map((issue) => issue.key).join(', '));
         columnClickData.push({ initiativeKey: parent, issues: initiatives });
       });
@@ -212,7 +233,7 @@ class Chart extends React.Component<ChartProps, ChartState> {
     });
     let notesElement = document.getElementById('notes');
     if (notesElement) notesElement.innerHTML = logHTML;
-  }
+  };
 
   drawChart() {
     var data = new google.visualization.DataTable();
@@ -221,7 +242,7 @@ class Chart extends React.Component<ChartProps, ChartState> {
     this.addDataToChart(data, clickData);
 
     var options = {
-      title: 'Estimates Analysis',
+      title: 'Throughput',
       curveType: 'function',
       legend: { position: 'bottom' },
       vAxis: {
@@ -232,9 +253,13 @@ class Chart extends React.Component<ChartProps, ChartState> {
     var chart = new google.visualization.ColumnChart(
       document.getElementById('chart_div')
     );
-    google.visualization.events.addListener(chart, 'select', function () {
-      this.handleColumnClick(chart, clickData);
-    }.bind(this));
+    google.visualization.events.addListener(
+      chart,
+      'select',
+      function () {
+        this.handleColumnClick(chart, clickData);
+      }.bind(this)
+    );
 
     chart.draw(data, options);
   }

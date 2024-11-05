@@ -72,6 +72,8 @@ export default class ThroughputGraphManager {
       components: jira.getComponents(),
       fixVersions: jira.getFixVersions(),
       url: jira.getUrl(),
+      timeoriginalestimate: jira.getOriginalEstimate(),
+      timespent: jira.getTimeSpent(),
     };
   }
 }

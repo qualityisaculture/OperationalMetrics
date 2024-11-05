@@ -15,4 +15,6 @@ export type IssueInfo = {
   components: string[];
   fixVersions: string[];
   url: string;
+  timeoriginalestimate: number | null;
+  timespent: number | null;
 };
