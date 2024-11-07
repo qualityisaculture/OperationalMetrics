@@ -46,7 +46,8 @@ describe('BurnupGraphManager', () => {
       mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('key=KEY-1');
+      let results = await bgm.getEpicBurnupData('key=KEY-1');
+      let result = results[0];
       expect(result[0].date).toEqual(new Date('2024-10-23Z'));
     });
 
@@ -58,7 +59,8 @@ describe('BurnupGraphManager', () => {
       mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('key=KEY-1');
+      let results = await bgm.getEpicBurnupData('key=KEY-1');
+      let result = results[0];
       expect(result[0].date).toEqual(new Date('2024-10-21T09:00:00.000Z'));
     });
 
@@ -70,7 +72,8 @@ describe('BurnupGraphManager', () => {
       mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('key=KEY-1');
+      let results = await bgm.getEpicBurnupData('key=KEY-1');
+      let result = results[0];
       expect(result[result.length - 1].date).toEqual(new Date('2024-10-30Z'));
     });
 
@@ -83,7 +86,8 @@ describe('BurnupGraphManager', () => {
 
       jest.setSystemTime(new Date('2024-10-30').getTime());
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('key=KEY-1');
+      let results = await bgm.getEpicBurnupData('key=KEY-1');
+      let result = results[0];
       expect(result[result.length - 1].date).toEqual(new Date('2024-10-30Z'));
     });
 
@@ -95,7 +99,8 @@ describe('BurnupGraphManager', () => {
       mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('key=KEY-1');
+      let results = await bgm.getEpicBurnupData('key=KEY-1');
+      let result = results[0];
       expect(result.length).toEqual(3);
       expect(result[0].date).toEqual(new Date('2024-10-28Z'));
       expect(result[1].date).toEqual(new Date('2024-10-29Z'));
@@ -115,7 +120,8 @@ describe('BurnupGraphManager', () => {
         .fn().mockResolvedValue([childJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('key=KEY-1');
+      let results = await bgm.getEpicBurnupData('key=KEY-1');
+      let result = results[0];
       expect(result.length).toEqual(4);
       expect(result[0].doneKeys).toEqual(['KEY-2']);
       expect(result[1].doneKeys).toEqual(['KEY-2']);
@@ -132,7 +138,8 @@ describe('BurnupGraphManager', () => {
         .mockResolvedValue([childJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('key=KEY-1');
+      let results = await bgm.getEpicBurnupData('key=KEY-1');
+      let result = results[0];
       expect(result.length).toEqual(4);
       expect(result[0].doneKeys).toEqual([]);
       expect(result[1].doneKeys).toEqual(['KEY-2']);
@@ -151,7 +158,8 @@ describe('BurnupGraphManager', () => {
         .mockResolvedValue([childJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('key=KEY-1');
+      let results = await bgm.getEpicBurnupData('key=KEY-1');
+      let result = results[0];
       expect(result.length).toEqual(4);
       expect(result[0].scopeKeys).toEqual(['KEY-2']);
       expect(result[1].scopeKeys).toEqual(['KEY-2']);
@@ -180,7 +188,8 @@ describe('BurnupGraphManager', () => {
         .mockResolvedValue([childJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('key=KEY-1');
+      let results = await bgm.getEpicBurnupData('key=KEY-1');
+      let result = results[0];
       expect(result.length).toEqual(4);
       expect(result[0].scopeKeys).toEqual(['KEY-2']);
       expect(result[1].scopeKeys).toEqual([]);
@@ -214,7 +223,8 @@ describe('BurnupGraphManager', () => {
         .mockResolvedValue([]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('key=KEY-1');
+      let results = await bgm.getEpicBurnupData('key=KEY-1');
+      let result = results[0];
       expect(result.length).toEqual(4);
       expect(result[0].scopeKeys).toEqual([]);
       expect(result[1].scopeKeys).toEqual(['KEY-2']);

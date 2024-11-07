@@ -2,6 +2,8 @@ import Jira from '../Jira';
 import JiraRequester from '../JiraRequester';
 
 export type BurnupData = {
+  epicKey: string;
+  epicSummary: string;
   date: Date;
   doneCount: number;
   doneKeys: string[];
@@ -19,16 +21,23 @@ export default class BurnupGraphManager {
     this.jiraRequester = jiraRequester;
   }
 
-  async getEpicBurnupData(query: string): Promise<BurnupDataArray> {
+  async getEpicBurnupData(query: string): Promise<BurnupDataArray[]> {
     let jiras = await this.jiraRequester.getQuery(query);
     // let epics = await this.jiraRequester.getFullJiraDataFromKeys(jiraKeys);
-    let epic = jiras[0];
+    let burnupArrays = await Promise.all(
+      jiras.map((jira) => this.getBurnupArray(jira))
+    );
 
-    let burnupArray: BurnupDataArray = await this.getBurnupArray(epic);
-    this.addIdealTrend(burnupArray);
-    this.addForecastTrend(burnupArray);
+    for (let burnupArray of burnupArrays) {
+      this.addIdealTrend(burnupArray);
+      this.addForecastTrend(burnupArray);
+    }
 
-    return burnupArray;
+    // let burnupArray: BurnupDataArray = await this.getBurnupArray(epic);
+    // this.addIdealTrend(burnupArray);
+    // this.addForecastTrend(burnupArray);
+
+    return burnupArrays;
   }
 
   addForecastTrend(burnupArray: BurnupDataArray) {
@@ -78,6 +87,8 @@ export default class BurnupGraphManager {
         child.isInScope(date)
       );
       burnupArray.push({
+        epicKey: epic.getKey(),
+        epicSummary: epic.getSummary(),
         date: new Date(date),
         doneCount: doneChildren.length,
         doneKeys: doneChildren.map((child) => child.getKey()),

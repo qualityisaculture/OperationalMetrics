@@ -23,8 +23,8 @@ export default class EpicBurnup extends React.Component<Props, State> {
     fetch('/api/epicBurnup?query=' + this.state.input)
       .then((response) => response.json())
       .then((data) => {
-        let burnupDataArray: BurnupDataArray = JSON.parse(data.data);
-        this.drawChart(burnupDataArray);
+        let burnupDataArrays: BurnupDataArray[] = JSON.parse(data.data);
+        this.drawChart(burnupDataArrays[0]);
       });
   }
   // Callback that creates and populates a data table,
