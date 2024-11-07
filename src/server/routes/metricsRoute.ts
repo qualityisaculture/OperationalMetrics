@@ -54,12 +54,12 @@ metricsRoute.get(
 metricsRoute.get(
   '/epicBurnup',
   (
-    req: TRQ<{ epicIssueKey: string }>,
+    req: TRQ<{ query: string }>,
     res: TR<{ message: string; data: string }>
   ) => {
-    const issueKey = req.query.epicIssueKey;
+    const query = req.query.query;
     burnupGraphManager
-      .getEpicBurnupData(issueKey)
+      .getEpicBurnupData(query)
       .then((data) => {
         res.json({ message: 'Metrics route', data: JSON.stringify(data) });
       })

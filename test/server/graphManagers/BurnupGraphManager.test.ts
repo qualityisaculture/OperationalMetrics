@@ -22,15 +22,17 @@ describe('BurnupGraphManager', () => {
   });
 
   it('should request the epic from the Jirarequest', async () => {
+    mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
     let bgm = new BurnupGraphManager(mockJiraRequester);
-    await bgm.getEpicBurnupData('KEY-1');
-    expect(mockJiraRequester.getFullJiraDataFromKeys).toHaveBeenCalledWith(['KEY-1']);
+    await bgm.getEpicBurnupData('key=KEY-1');
+    expect(mockJiraRequester.getQuery).toHaveBeenCalledWith('key=KEY-1');
   });
 
   it('should request the children', async () => {
+    mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
     mockJira.getChildrenKeys = jest.fn().mockReturnValue(['KEY-2']);
     let bgm = new BurnupGraphManager(mockJiraRequester);
-    await bgm.getEpicBurnupData('KEY-1');
+    await bgm.getEpicBurnupData('key=KEY-1');
     expect(mockJiraRequester.getFullJiraDataFromKeys).toHaveBeenCalledWith(['KEY-2']);
   });
 
@@ -41,10 +43,10 @@ describe('BurnupGraphManager', () => {
         ...defaultJiraJSON,
         fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-23'}
       });
-      mockJiraRequester.getFullJiraDataFromKeys = jest.fn().mockResolvedValue([mockJira]);
+      mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('KEY-1');
+      let result = await bgm.getEpicBurnupData('key=KEY-1');
       expect(result[0].date).toEqual(new Date('2024-10-23Z'));
     });
 
@@ -53,10 +55,10 @@ describe('BurnupGraphManager', () => {
         ...defaultJiraJSON,
         fields: {...defaultJiraJSON.fields}
       });
-      mockJiraRequester.getFullJiraDataFromKeys = jest.fn().mockResolvedValue([mockJira]);
+      mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('KEY-1');
+      let result = await bgm.getEpicBurnupData('key=KEY-1');
       expect(result[0].date).toEqual(new Date('2024-10-21T09:00:00.000Z'));
     });
 
@@ -65,10 +67,10 @@ describe('BurnupGraphManager', () => {
         ...defaultJiraJSON,
         fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-28', duedate: '2024-10-30'}
       });
-      mockJiraRequester.getFullJiraDataFromKeys = jest.fn().mockResolvedValue([mockJira]);
+      mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('KEY-1');
+      let result = await bgm.getEpicBurnupData('key=KEY-1');
       expect(result[result.length - 1].date).toEqual(new Date('2024-10-30Z'));
     });
 
@@ -77,11 +79,11 @@ describe('BurnupGraphManager', () => {
         ...defaultJiraJSON,
         fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-28'}
       });
-      mockJiraRequester.getFullJiraDataFromKeys = jest.fn().mockResolvedValue([mockJira]);
+      mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
 
       jest.setSystemTime(new Date('2024-10-30').getTime());
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('KEY-1');
+      let result = await bgm.getEpicBurnupData('key=KEY-1');
       expect(result[result.length - 1].date).toEqual(new Date('2024-10-30Z'));
     });
 
@@ -90,10 +92,10 @@ describe('BurnupGraphManager', () => {
         ...defaultJiraJSON,
         fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-28', duedate: '2024-10-30'}
       });
-      mockJiraRequester.getFullJiraDataFromKeys = jest.fn().mockResolvedValue([mockJira]);
+      mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('KEY-1');
+      let result = await bgm.getEpicBurnupData('key=KEY-1');
       expect(result.length).toEqual(3);
       expect(result[0].date).toEqual(new Date('2024-10-28Z'));
       expect(result[1].date).toEqual(new Date('2024-10-29Z'));
@@ -107,13 +109,13 @@ describe('BurnupGraphManager', () => {
 
       mockJira.getChildrenKeys = jest.fn().mockReturnValue(['KEY-2']);
       let childJira = getJiraCompletedOnDate('2024-10-21T00:00:00.000Z');
+
+      mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
       mockJiraRequester.getFullJiraDataFromKeys = jest
-        .fn()
-        .mockResolvedValueOnce([mockJira])
-        .mockResolvedValue([childJira]);
+        .fn().mockResolvedValue([childJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('KEY-1');
+      let result = await bgm.getEpicBurnupData('key=KEY-1');
       expect(result.length).toEqual(4);
       expect(result[0].doneKeys).toEqual(['KEY-2']);
       expect(result[1].doneKeys).toEqual(['KEY-2']);
@@ -124,13 +126,13 @@ describe('BurnupGraphManager', () => {
 
       mockJira.getChildrenKeys = jest.fn().mockReturnValue(['KEY-2']);
       let childJira = getJiraCompletedOnDate('2024-10-22T00:00:00.000Z');
+      mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
       mockJiraRequester.getFullJiraDataFromKeys = jest
         .fn()
-        .mockResolvedValueOnce([mockJira])
         .mockResolvedValue([childJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('KEY-1');
+      let result = await bgm.getEpicBurnupData('key=KEY-1');
       expect(result.length).toEqual(4);
       expect(result[0].doneKeys).toEqual([]);
       expect(result[1].doneKeys).toEqual(['KEY-2']);
@@ -143,13 +145,13 @@ describe('BurnupGraphManager', () => {
 
       mockJira.getChildrenKeys = jest.fn().mockReturnValue(['KEY-2']);
       let childJira = getJiraCompletedOnDate('2024-10-21T00:00:00.000Z');
+      mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
       mockJiraRequester.getFullJiraDataFromKeys = jest
         .fn()
-        .mockResolvedValueOnce([mockJira])
         .mockResolvedValue([childJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('KEY-1');
+      let result = await bgm.getEpicBurnupData('key=KEY-1');
       expect(result.length).toEqual(4);
       expect(result[0].scopeKeys).toEqual(['KEY-2']);
       expect(result[1].scopeKeys).toEqual(['KEY-2']);
@@ -172,13 +174,13 @@ describe('BurnupGraphManager', () => {
       jest.setSystemTime(new Date('2024-10-24').getTime());
 
       let childJira = getJiraCancelledOnDate('2024-10-22T00:00:00.000Z');
+      mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
       mockJiraRequester.getFullJiraDataFromKeys = jest
         .fn()
-        .mockResolvedValueOnce([mockJira])
         .mockResolvedValue([childJira]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('KEY-1');
+      let result = await bgm.getEpicBurnupData('key=KEY-1');
       expect(result.length).toEqual(4);
       expect(result[0].scopeKeys).toEqual(['KEY-2']);
       expect(result[1].scopeKeys).toEqual([]);
@@ -202,9 +204,9 @@ describe('BurnupGraphManager', () => {
       jest.setSystemTime(new Date('2024-10-24').getTime());
 
       let childJira = getJiraCancelledOnDate('2024-10-24T00:00:00.000Z');
+      mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
       mockJiraRequester.getFullJiraDataFromKeys = jest
         .fn()
-        .mockResolvedValueOnce([mockJira])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([childJira])
@@ -212,7 +214,7 @@ describe('BurnupGraphManager', () => {
         .mockResolvedValue([]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
-      let result = await bgm.getEpicBurnupData('KEY-1');
+      let result = await bgm.getEpicBurnupData('key=KEY-1');
       expect(result.length).toEqual(4);
       expect(result[0].scopeKeys).toEqual([]);
       expect(result[1].scopeKeys).toEqual(['KEY-2']);

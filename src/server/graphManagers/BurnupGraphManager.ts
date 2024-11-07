@@ -19,9 +19,10 @@ export default class BurnupGraphManager {
     this.jiraRequester = jiraRequester;
   }
 
-  async getEpicBurnupData(epicKey: string): Promise<BurnupDataArray> {
-    let epics = await this.jiraRequester.getFullJiraDataFromKeys([epicKey]);
-    let epic = epics[0];
+  async getEpicBurnupData(query: string): Promise<BurnupDataArray> {
+    let jiras = await this.jiraRequester.getQuery(query);
+    // let epics = await this.jiraRequester.getFullJiraDataFromKeys(jiraKeys);
+    let epic = jiras[0];
 
     let burnupArray: BurnupDataArray = await this.getBurnupArray(epic);
     this.addIdealTrend(burnupArray);

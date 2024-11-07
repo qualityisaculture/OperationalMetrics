@@ -20,7 +20,7 @@ export default class EpicBurnup extends React.Component<Props, State> {
     console.log('Button clicked');
     localStorage.setItem('epicIssueKey', this.state.input);
     //Request to the server /api/metrics
-    fetch('/api/epicBurnup?epicIssueKey=' + this.state.input)
+    fetch('/api/epicBurnup?query=' + this.state.input)
       .then((response) => response.json())
       .then((data) => {
         let burnupDataArray: BurnupDataArray = JSON.parse(data.data);
