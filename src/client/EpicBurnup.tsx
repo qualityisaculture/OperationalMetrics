@@ -9,17 +9,16 @@ interface State {
 const google = globalThis.google;
 
 export default class EpicBurnup extends React.Component<Props, State> {
-  state: { input: string }; //Remove when TS is fixed.
-  setState: any; //Remove when TS is fixed.
   constructor(props) {
     super(props);
     this.onClick = this.onClick.bind(this);
     this.state = {
-      input: 'AF-15921',
+      input: localStorage.getItem('epicIssueKey') || '',
     };
   }
   onClick() {
     console.log('Button clicked');
+    localStorage.setItem('epicIssueKey', this.state.input);
     //Request to the server /api/metrics
     fetch('/api/epicBurnup?epicIssueKey=' + this.state.input)
       .then((response) => response.json())
@@ -53,7 +52,6 @@ export default class EpicBurnup extends React.Component<Props, State> {
 
     var options = {
       title: 'Issue Burnup',
-      curveType: 'function',
       legend: { position: 'bottom' },
       series: {
         0: { color: 'blue' }, //done

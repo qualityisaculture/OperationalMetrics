@@ -243,7 +243,7 @@ class Chart extends React.Component<ChartProps, ChartState> {
 
     var options = {
       title: 'Throughput',
-      curveType: 'function',
+      // curveType: 'function',
       legend: { position: 'bottom' },
       vAxis: {
         minValue: 0,
