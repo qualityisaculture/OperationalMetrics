@@ -2,8 +2,6 @@ import Jira from '../Jira';
 import JiraRequester from '../JiraRequester';
 
 export type BurnupData = {
-  epicKey: string;
-  epicSummary: string;
   date: Date;
   doneCount: number;
   doneKeys: string[];
@@ -13,7 +11,11 @@ export type BurnupData = {
   forecastTrend: number | null;
 };
 
-export type BurnupDataArray = BurnupData[];
+export type BurnupDataArray = {
+  key: string;
+  summary: string;
+  data: BurnupData[];
+};
 
 export default class BurnupGraphManager {
   jiraRequester: JiraRequester;
@@ -24,13 +26,21 @@ export default class BurnupGraphManager {
   async getEpicBurnupData(query: string): Promise<BurnupDataArray[]> {
     let jiras = await this.jiraRequester.getQuery(query);
     // let epics = await this.jiraRequester.getFullJiraDataFromKeys(jiraKeys);
-    let burnupArrays = await Promise.all(
-      jiras.map((jira) => this.getBurnupArray(jira))
+    let burnupArrays: BurnupDataArray[] = await Promise.all(
+      jiras.map((jira) => {
+        return this.getBurnupArray(jira).then((burnupArray) => {
+          return {
+            key: jira.getKey(),
+            summary: jira.getSummary(),
+            data: burnupArray,
+          };
+        });
+      })
     );
 
     for (let burnupArray of burnupArrays) {
-      this.addIdealTrend(burnupArray);
-      this.addForecastTrend(burnupArray);
+      this.addIdealTrend(burnupArray.data);
+      this.addForecastTrend(burnupArray.data);
     }
 
     // let burnupArray: BurnupDataArray = await this.getBurnupArray(epic);
@@ -40,7 +50,7 @@ export default class BurnupGraphManager {
     return burnupArrays;
   }
 
-  addForecastTrend(burnupArray: BurnupDataArray) {
+  addForecastTrend(burnupArray: BurnupData[]) {
     let finalScope = burnupArray[burnupArray.length - 1].scopeCount;
     let today = new Date();
     for (let i = 0; i < burnupArray.length; i++) {
@@ -59,7 +69,7 @@ export default class BurnupGraphManager {
     }
   }
 
-  addIdealTrend(burnupArray: BurnupDataArray) {
+  addIdealTrend(burnupArray: BurnupData[]) {
     let finalScope = burnupArray[burnupArray.length - 1].scopeCount;
     let startDone = burnupArray[0].doneCount;
     let increment = (finalScope - startDone) / (burnupArray.length - 1);
@@ -69,13 +79,13 @@ export default class BurnupGraphManager {
     }
   }
 
-  async getBurnupArray(epic: Jira): Promise<BurnupDataArray> {
+  async getBurnupArray(epic: Jira): Promise<BurnupData[]> {
     let startDate = epic.getEpicStartDate() || epic.getCreated();
     let endDate = epic.getEpicDueDate() || new Date();
     endDate.setDate(endDate.getDate() + 1);
     let childJiras = await this.getAllChildrenJiras(epic);
 
-    let burnupArray: BurnupDataArray = [];
+    let burnupArray: BurnupData[] = [];
     for (
       let date = startDate;
       date < endDate;
@@ -87,8 +97,6 @@ export default class BurnupGraphManager {
         child.isInScope(date)
       );
       burnupArray.push({
-        epicKey: epic.getKey(),
-        epicSummary: epic.getSummary(),
         date: new Date(date),
         doneCount: doneChildren.length,
         doneKeys: doneChildren.map((child) => child.getKey()),

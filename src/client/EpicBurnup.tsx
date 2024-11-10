@@ -1,9 +1,13 @@
 import React from 'react';
-import { BurnupDataArray } from '../server/graphManagers/BurnupGraphManager';
+import { BurnupDataArray, BurnupData } from '../server/graphManagers/BurnupGraphManager';
+import Select from './Select';
+import type { SelectProps } from 'antd';
 
 interface Props {}
 interface State {
   input: string;
+  epics: SelectProps['options'];
+  selectedEpics: string[];
 }
 
 const google = globalThis.google;
@@ -14,6 +18,8 @@ export default class EpicBurnup extends React.Component<Props, State> {
     this.onClick = this.onClick.bind(this);
     this.state = {
       input: localStorage.getItem('epicIssueKey') || '',
+      epics: [],
+      selectedEpics: [],
     };
   }
   onClick() {
@@ -24,13 +30,18 @@ export default class EpicBurnup extends React.Component<Props, State> {
       .then((response) => response.json())
       .then((data) => {
         let burnupDataArrays: BurnupDataArray[] = JSON.parse(data.data);
-        this.drawChart(burnupDataArrays[0]);
+        this.setState({
+          epics: burnupDataArrays.map((item) => {
+            return { label: item.key + ' - ' + item.summary, value: item.key };
+          }),
+        });
+        this.drawChart(burnupDataArrays[0].data);
       });
   }
   // Callback that creates and populates a data table,
   // instantiates the pie chart, passes in the data and
   // draws it.
-  drawChart(burnupDataArray: BurnupDataArray) {
+  drawChart(burnupDataArray: BurnupData[]) {
     let googleBurnupDataArray = burnupDataArray.map((item) => {
       return [
         new Date(item.date),
@@ -67,6 +78,9 @@ export default class EpicBurnup extends React.Component<Props, State> {
 
     chart.draw(data, options);
   }
+  onSelectedEpicsChanged = (selected: string[]) => {
+    this.setState({ selectedEpics: selected });
+  };
   render() {
     return (
       <div>
@@ -78,6 +92,7 @@ export default class EpicBurnup extends React.Component<Props, State> {
           }}
         />
         <button onClick={this.onClick}>Click me</button>
+        <Select options={this.state.epics} onChange={this.onSelectedEpicsChanged} />
       </div>
     );
   }
