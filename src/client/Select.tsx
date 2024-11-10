@@ -28,6 +28,9 @@ export default class Select extends React.Component<Props, State> {
   }
   handleChange = (value: (string | number | null | undefined)[]) => {
     this.props.onChange(value);
+    this.setState({
+      optionsSelected: value
+    });
   }
   render() {
     return (
