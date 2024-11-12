@@ -10,6 +10,8 @@ import {
   TypedRequestQuery as TRQ,
   TypedRequestBody as TRB,
 } from '../../Types';
+import BambooRequester from '../BambooRequester';
+import BambooGraphManager from '../graphManagers/BambooGraphManager';
 
 
 async function getJiraData(issueKey: string) {
@@ -17,9 +19,23 @@ async function getJiraData(issueKey: string) {
 }
 
 const jiraRequester = new JiraRequester();
+const bambooRequester = new BambooRequester();
 const burnupGraphManager = new BurnupGraphManager(jiraRequester);
 const estimatesGraphManager = new EstimatesGraphManager(jiraRequester);
 const throughputGraphManager = new ThroughputGraphManager(jiraRequester);
+const bambooGraphManager = new BambooGraphManager(bambooRequester);
+
+
+metricsRoute.get('/bamboo',
+  (req: TRQ<{ projectBuildKey: string }>, res: TR<{ message: string; data: string }>) => {
+    const projectBuildKey = req.query.projectBuildKey;
+    bambooGraphManager
+      .getBuildDataByMonth(projectBuildKey)
+      .then((data) => {
+        res.json({ message: 'Metrics route', data: JSON.stringify(data) });
+      })
+      .catch((error) => console.error('Error:', error));
+  });
 
 metricsRoute.get(
   '/throughput',
