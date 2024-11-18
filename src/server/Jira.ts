@@ -8,7 +8,7 @@ export type JiraJsonFields = {
   fixVersions: { name: string }[];
   issuetype: { name: string };
   labels: string[];
-  parent?: { key: string; fields: { issuetype: {name: "Epic" | "Initiative"}, summary: string } };
+  parent?: { key: string; fields: { issuetype: {name: string}, summary: string } };
   priority: { name: string };
   resolution: string;
   resolutiondate: string;
@@ -37,6 +37,8 @@ export default class Jira {
     epicName?: string;
     initiativeKey?: string;
     initiativeName?: string;
+    parentKey?: string; //for subtasks
+    parentName?: string; //for subtasks
     priority: { name: string };
     resolution: string;
     resolutiondate: string;
@@ -74,10 +76,12 @@ export default class Jira {
     if (json.fields.parent && json.fields.parent.fields.issuetype.name === 'Epic') {
       this.fields.epicKey = json.fields.parent.key;
       this.fields.epicName = json.fields.parent.fields.summary;
-    }
-    if (json.fields.parent && json.fields.parent.fields.issuetype.name === 'Initiative') {
+    } else if (json.fields.parent && json.fields.parent.fields.issuetype.name === 'Initiative') {
       this.fields.initiativeKey = json.fields.parent.key;
       this.fields.initiativeName = json.fields.parent.fields.summary;
+    } else if (json.fields.parent) {
+      this.fields.parentKey = json.fields.parent.key;
+      this.fields.parentName = json.fields.parent.fields.summary;
     }
     this.changelog = json.changelog || { histories: [] };
     this.histories =
@@ -116,6 +120,12 @@ export default class Jira {
   }
   getLabels() {
     return this.fields.labels || [];
+  }
+  getParentKey() {
+    return this.fields.parentKey ? this.fields.parentKey : null;
+  }
+  getParentName() {
+    return this.fields.parentName ? this.fields.parentName : null;
   }
   getPriority() {
     return this.fields.priority.name;

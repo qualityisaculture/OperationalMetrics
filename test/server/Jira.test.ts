@@ -108,6 +108,38 @@ describe('Jira', () => {
       expect(jira.getInitiativeName()).toEqual(null);
     });
 
+    it('should return parent key if is a subtask', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: {
+          ...defaultJiraJSONFields,
+          parent: { key: 'PARENT-1', fields: { issuetype: { name: 'Task' }, summary: 'Parent' } },
+        },
+      });
+      expect(jira.getParentKey()).toEqual('PARENT-1');
+    });
+
+    it('should return null if no parent', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getParentKey()).toEqual(null);
+    });
+
+    it('should return parent name if is a subtask', () => {
+      let jira = new Jira({
+        ...defaultJiraJSON,
+        fields: {
+          ...defaultJiraJSONFields,
+          parent: { key: 'PARENT-1', fields: { issuetype: { name: 'Task' }, summary: 'Parent' } },
+        },
+      });
+      expect(jira.getParentName()).toEqual('Parent');
+    });
+
+    it('should return null if no parent', () => {
+      let jira = new Jira(defaultJiraJSON);
+      expect(jira.getParentName()).toEqual(null);
+    });
+
     it('should get the fix versions', () => {
       let jira = new Jira(defaultJiraJSON);
       expect(jira.getFixVersions()).toEqual(['Version']);

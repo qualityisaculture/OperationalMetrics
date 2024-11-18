@@ -292,7 +292,7 @@ describe('JiraRequester', () => {
   });
 
   describe('getJiraWithInitiative', () => {
-    it('should return the jira with the initiative', async () => {
+    it('should return the jira with the initiative when tasks', async () => {
       let jr = new JiraRequester();
       fetchMock.mockResolvedValueOnce(
         fetchResponseOk({
@@ -336,6 +336,73 @@ describe('JiraRequester', () => {
       );
       let jiras = await jr.getFullJiraDataFromKeys(['KEY-1']);
       expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(jiras[0].fields.initiativeKey).toEqual('INITIATIVE-1');
+    });
+
+    it('should return the jira with the initiative when sub-tasks', async () => {
+      let jr = new JiraRequester();
+      fetchMock.mockResolvedValueOnce(
+        fetchResponseOk({
+          issues: [
+            {
+              key: 'SUB-1',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+                parent: {
+                  key: 'KEY-1',
+                  fields: {
+                    issuetype: { name: 'Task' },
+                    summary: 'Epic Summary',
+                  },
+                },
+              },
+            },
+          ],
+        })
+      );
+      fetchMock.mockResolvedValueOnce(
+        fetchResponseOk({
+          issues: [
+            {
+              key: 'KEY-1',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+                parent: {
+                  key: 'EPIC-1',
+                  fields: {
+                    issuetype: { name: 'Epic' },
+                    summary: 'Epic SUmmary',
+                  },
+                },
+              },
+            },
+          ],
+        })
+      );
+      fetchMock.mockResolvedValueOnce(
+        fetchResponseOk({
+          issues: [
+            {
+              key: 'EPIC-1',
+              fields: {
+                created: '2024-10-21T09:00:00.000+0100',
+                status: { name: 'Backlog' },
+                parent: {
+                  key: 'INITIATIVE-1',
+                  fields: {
+                    issuetype: { name: 'Initiative' },
+                    summary: 'Initiative Summary',
+                  },
+                },
+              },
+            },
+          ],
+        })
+      );
+      let jiras = await jr.getFullJiraDataFromKeys(['SUB-1']);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
       expect(jiras[0].fields.initiativeKey).toEqual('INITIATIVE-1');
     });
   });

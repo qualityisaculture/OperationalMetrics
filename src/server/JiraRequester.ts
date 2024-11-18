@@ -34,6 +34,14 @@ export default class JiraRequester {
   async getJiraWithInitiative(json: any) {
     let jira = new Jira(json);
     let epicKey = jira.getEpicKey();
+
+    let parentKey = jira.getParentKey();
+    if (parentKey) {
+      let parents = await this.getFullJiraDataFromKeys([parentKey]);
+      let parentjira = parents[0];
+      epicKey = parentjira.getEpicKey();
+    }
+
     if (epicKey) {
       let epics = await this.getFullJiraDataFromKeys([epicKey]);
       let epicjira = epics[0];
@@ -44,6 +52,7 @@ export default class JiraRequester {
         jira.fields.initiativeName = initiativeName;
       }
     }
+
     return jira;
   }
 
