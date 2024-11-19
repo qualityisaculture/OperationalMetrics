@@ -4,8 +4,10 @@ import JiraRequester from '../JiraRequester';
 export type BurnupDateData = {
   date: Date;
   doneCount: number;
+  doneEstimate: number;
   doneKeys: string[];
   scopeCount: number;
+  scopeEstimate: number;
   scopeKeys: string[];
   idealTrend: number;
   forecastTrend: number | null;
@@ -99,8 +101,16 @@ export default class BurnupGraphManager {
       burnupArray.push({
         date: new Date(date),
         doneCount: doneChildren.length,
+        doneEstimate: doneChildren.reduce(
+          (sum, child) => sum + (child.getOriginalEstimate() || 0), 
+          0
+        ),
         doneKeys: doneChildren.map((child) => child.getKey()),
         scopeCount: scopeChildren.length,
+        scopeEstimate: scopeChildren.reduce(
+          (sum, child) => sum + (child.getOriginalEstimate() || 0),
+          0
+        ),
         scopeKeys: scopeChildren.map((child) => child.getKey()),
         idealTrend: 0,
         forecastTrend: 0,

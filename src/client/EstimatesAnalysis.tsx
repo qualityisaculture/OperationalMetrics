@@ -12,6 +12,8 @@ interface State {
   allTypes: string[];
   statesSelected: string[];
   typesSelected: string[];
+  typeOptions: { value: string; label: string }[];
+  stateOptions: { value: string; label: string }[];
 }
 
 export default class EstimatesAnalysis extends React.Component<Props, State> {
@@ -26,15 +28,18 @@ export default class EstimatesAnalysis extends React.Component<Props, State> {
       'estimatesQuery'
     );
     this.state = {
-      input: tempQuery ? tempQuery : 'AF-15921',
+      input: localStorage.getItem('estimatesQuery') || tempQuery || '',
       allStates: [],
       statesSelected: [],
       allTypes: [],
       typesSelected: [],
+      typeOptions: [],
+      stateOptions: [],
     };
   }
   onClick() {
     console.log('Button clicked');
+    localStorage.setItem('estimatesQuery', this.state.input);
     //Request to the server /api/metrics
     fetch('/api/estimates?query=' + this.state.input)
       .then((response) => response.json())
@@ -47,11 +52,19 @@ export default class EstimatesAnalysis extends React.Component<Props, State> {
         estimatesData.estimateData.forEach((item) => {
           uniqueTypesSet.add(item.type);
         });
+        let typeOptions = Array.from(uniqueTypesSet).map((type) => {
+          return { value: type, label: type };
+        });
+        let stateOptions = uniqueStatuses.map((state) => {
+          return { value: state, label: state };
+        });
         this.setState({
           allStates: uniqueStatuses,
           allTypes: Array.from(uniqueTypesSet),
           statesSelected: uniqueStatuses,
           typesSelected: Array.from(uniqueTypesSet),
+          typeOptions: typeOptions,
+          stateOptions: stateOptions,
         });
       });
   }
@@ -95,12 +108,6 @@ export default class EstimatesAnalysis extends React.Component<Props, State> {
     this.setState({ typesSelected: selected });
   };
   render() {
-    let typeOptions = this.state.allTypes.map((type) => {
-      return { value: type, label: type };
-    });
-    let stateOptions = this.state.allStates.map((state) => {
-      return { value: state, label: state };
-    });
     return (
       <div>
         <input
@@ -112,11 +119,11 @@ export default class EstimatesAnalysis extends React.Component<Props, State> {
         />
         <button onClick={this.onClick}>Click me</button>
         <Select
-          options={stateOptions}
+          options={this.state.stateOptions}
           onChange={this.stateSelectedChange}
         />
         <Select
-          options={typeOptions}
+          options={this.state.typeOptions}
           onChange={this.typeSelectedChange}
         />
         <EstimateChart estimatesData={this.estimatesData} typesSelected={this.state.typesSelected} />

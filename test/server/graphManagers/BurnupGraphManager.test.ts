@@ -7,12 +7,14 @@ jest.mock('../../../src/server/JiraRequester');
 
 describe('BurnupGraphManager', () => {
   let mockJiraRequester: JiraRequester;
-  let mockJira: Jira;
+  let mockJira, mockJira2: Jira;
+  
 
   beforeEach(() => {
     jest.useFakeTimers();
     jest.resetAllMocks();
     mockJira = new Jira(defaultJiraJSON);
+    mockJira2 = new Jira({...defaultJiraJSON, key: 'KEY-2'});
     mockJiraRequester = new JiraRequester();
     mockJiraRequester.getFullJiraDataFromKeys = jest.fn().mockResolvedValue([mockJira]);
   });
@@ -114,17 +116,22 @@ describe('BurnupGraphManager', () => {
 
       mockJira.getChildrenKeys = jest.fn().mockReturnValue(['KEY-2']);
       let childJira = getJiraCompletedOnDate('2024-10-21T00:00:00.000Z');
+      let childJira2 = getJiraCompletedOnDate('2024-10-22T00:00:00.000Z');
 
       mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
       mockJiraRequester.getFullJiraDataFromKeys = jest
-        .fn().mockResolvedValue([childJira]);
+        .fn().mockResolvedValue([childJira, childJira2]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
       let results = await bgm.getEpicBurnupData('key=KEY-1');
       let result = results[0].dateData;
       expect(result.length).toEqual(4);
       expect(result[0].doneKeys).toEqual(['KEY-2']);
-      expect(result[1].doneKeys).toEqual(['KEY-2']);
+      expect(result[0].doneCount).toEqual(1);
+      expect(result[0].doneEstimate).toEqual(5);
+      expect(result[1].doneKeys).toEqual(['KEY-2', 'KEY-2']);
+      expect(result[1].doneCount).toEqual(2);
+      expect(result[1].doneEstimate).toEqual(10);
     });
 
     it('should not return a child key if it is not done yet', async () => {
@@ -142,7 +149,9 @@ describe('BurnupGraphManager', () => {
       let result = results[0].dateData;
       expect(result.length).toEqual(4);
       expect(result[0].doneKeys).toEqual([]);
+      expect(result[0].doneCount).toEqual(0);
       expect(result[1].doneKeys).toEqual(['KEY-2']);
+      expect(result[1].doneCount).toEqual(1);
     });
   });
 
@@ -152,17 +161,22 @@ describe('BurnupGraphManager', () => {
 
       mockJira.getChildrenKeys = jest.fn().mockReturnValue(['KEY-2']);
       let childJira = getJiraCompletedOnDate('2024-10-21T00:00:00.000Z');
+      let childJira2 = getJiraCompletedOnDate('2024-10-22T00:00:00.000Z');
       mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
       mockJiraRequester.getFullJiraDataFromKeys = jest
         .fn()
-        .mockResolvedValue([childJira]);
+        .mockResolvedValue([childJira, childJira2]);
 
       let bgm = new BurnupGraphManager(mockJiraRequester);
       let results = await bgm.getEpicBurnupData('key=KEY-1');
       let result = results[0].dateData;
       expect(result.length).toEqual(4);
-      expect(result[0].scopeKeys).toEqual(['KEY-2']);
-      expect(result[1].scopeKeys).toEqual(['KEY-2']);
+      expect(result[0].scopeKeys).toEqual(['KEY-2', 'KEY-2']);
+      expect(result[1].scopeCount).toEqual(2);
+      expect(result[1].scopeEstimate).toEqual(10);
+      expect(result[1].scopeKeys).toEqual(['KEY-2', 'KEY-2']);
+      expect(result[2].scopeCount).toEqual(2);
+      expect(result[2].scopeEstimate).toEqual(10);
     });
 
     it('should not return a child key if it is not in scope yet', async () => {
@@ -246,6 +260,7 @@ function getJiraTransitedOnDate(date: string, from: string, to: string) {
   return new Jira({
     ...defaultJiraJSON,
     key: 'KEY-2',
+    fields: {...defaultJiraJSON.fields, timeoriginalestimate: 5},
     changelog: {
       histories: [
         {

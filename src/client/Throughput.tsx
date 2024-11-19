@@ -1,5 +1,4 @@
 import React from 'react';
-import { EstimatesData } from '../server/graphManagers/EstimatesGraphManager';
 import type { RadioChangeEvent, DatePickerProps, InputNumberProps } from 'antd';
 import { Radio, DatePicker, InputNumber } from 'antd';
 import dayjs from 'dayjs';
@@ -7,6 +6,7 @@ import { ThroughputDataType } from '../server/graphManagers/ThroughputGraphManag
 import Select from './Select';
 import type { SelectProps } from 'antd';
 import { IssueInfo } from '../server/graphManagers/GraphManagerTypes';
+import { getSize } from './Utils';
 
 type GoogleDataTableType = {
   addColumn: (type: string, label: string) => void;
@@ -20,8 +20,8 @@ type GoogleDataRowType = {
 type ClickDataType = { initiativeKey: string; issues: IssueInfo[] };
 type ClickDataColumnType = ClickDataType[];
 
-class ConcatableMap extends Map {
-  concat(key, value) {
+class ConcatableMap<K,V> extends Map<K,V[]> {
+  concat(key: K, value: V) {
     let array = this.get(key);
     if (array) {
       this.set(key, array.concat(value));
@@ -46,10 +46,10 @@ export default class Throughput extends React.Component<Props, State> {
   constructor(props) {
     super(props);
     let tempQuery = new URLSearchParams(window.location.search).get(
-      'estimatesQuery'
+      'throughputQuery'
     );
     this.state = {
-      input: tempQuery ? tempQuery : '',
+      input: localStorage.getItem('throughputQuery') || tempQuery || '',
       currentSprintStartDate: '2024-10-23',
       numberOfSprints: 4,
       throughputData: [],
@@ -59,6 +59,7 @@ export default class Throughput extends React.Component<Props, State> {
     };
   }
   onClick = () => {
+    localStorage.setItem('throughputQuery', this.state.input);
     console.log('Button clicked');
     //Request to the server /api/metrics
     fetch(
@@ -179,8 +180,8 @@ class Chart extends React.Component<ChartProps, ChartState> {
     data.addColumn({ role: 'tooltip', p: { html: true } });
   }
 
-  getIssuesByInitiative(issues: IssueInfo[]) {
-    let issuesByInitiative = new ConcatableMap();
+  getIssuesByInitiative(issues: IssueInfo[]): ConcatableMap<string, IssueInfo> {
+    let issuesByInitiative = new ConcatableMap<string, IssueInfo>();
 
     issues.forEach((issue) => {
       if (issue.initiativeKey) {
@@ -192,15 +193,6 @@ class Chart extends React.Component<ChartProps, ChartState> {
     return issuesByInitiative;
   }
 
-  getSize(issues: IssueInfo[]) {
-    console.log('issues', this.props.sizeMode);
-    if (this.props.sizeMode === 'count') {
-      return issues.length;
-    } else {
-      return issues.reduce((sum, issue) => sum + (issue.timespent || 0), 0);
-    }
-  }
-
 
   addDataToChart(data: any, clickData: ClickDataType[][]) {
     this.props.throughputData.forEach((sprint) => {
@@ -210,7 +202,7 @@ class Chart extends React.Component<ChartProps, ChartState> {
       let row: GoogleDataRowType = [new Date(sprint.sprintStartingDate)];
       [...this.props.initiativesSelected, 'None'].forEach((parent) => {
         let initiatives = issuesByInitiative.get(parent) || [];
-        row.push(this.getSize(initiatives));
+        row.push(getSize(initiatives, this.props.sizeMode));
         row.push(initiatives.map((issue) => issue.key).join(', '));
         columnClickData.push({ initiativeKey: parent, issues: initiatives });
       });
@@ -220,7 +212,7 @@ class Chart extends React.Component<ChartProps, ChartState> {
     });
   }
 
-  handleColumnClick = (chart, clickData: ClickDataColumnType) => {
+  handleColumnClick = (chart, clickData: ClickDataType[][]) => {
     var selection = chart.getSelection();
     let jiraData = clickData[selection[0].row];
     let logHTML = '';
@@ -228,7 +220,10 @@ class Chart extends React.Component<ChartProps, ChartState> {
       if (data.issues.length === 0) return;
       logHTML += `<h3>${data.initiativeKey}</h3>`;
       data.issues.forEach((issue) => {
-        logHTML += `<p><a target="_blank" href="${issue.url}">${issue.key} ${issue.summary} - ${issue.type}</a></p>`;
+        let hoursFloored = Math.floor((issue.timespent || 0) / 3600);
+        let minutes = Math.floor(((issue.timespent || 0) % 3600) / 60);
+        let hoursAndMinutes = `${hoursFloored}h ${minutes}m`;
+        logHTML += `<p><a target="_blank" href="${issue.url}">${issue.key} ${issue.summary} - ${issue.type} - ${hoursAndMinutes}</a></p>`;
       });
     });
     let notesElement = document.getElementById('notes');

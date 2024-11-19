@@ -4,7 +4,9 @@ import {
   BurnupDateData,
 } from '../server/graphManagers/BurnupGraphManager';
 import Select from './Select';
-import type { SelectProps } from 'antd';
+import type { SelectProps, RadioChangeEvent } from 'antd';
+import { Radio } from 'antd';
+import { getSize } from './Utils';
 
 interface Props {}
 interface State {
@@ -13,6 +15,7 @@ interface State {
   selectedEpics: string[];
   selectedEpicsData: GoogleDataTableType[];
   allEpicsData: BurnupEpicData[];
+  sizeMode: 'count' | 'estimate';
 }
 
 type GoogleDataTableType = [Date, number, number, number, number];
@@ -29,6 +32,7 @@ export default class EpicBurnup extends React.Component<Props, State> {
       selectedEpics: [],
       selectedEpicsData: [],
       allEpicsData: [],
+      sizeMode: 'count',
     };
   }
   onClick() {
@@ -45,7 +49,7 @@ export default class EpicBurnup extends React.Component<Props, State> {
             return { label: item.key + ' - ' + item.summary, value: i };
           }),
         });
-        let selectedEpicsData = this.getGoogleDataTableFromMultipleBurnupData(burnupDataArrays);
+        let selectedEpicsData = this.getGoogleDataTableFromMultipleBurnupData(burnupDataArrays, false);
         this.setState({ selectedEpicsData });
         
         // this.drawChart(burnupDataArrays[0].data);
@@ -55,10 +59,10 @@ export default class EpicBurnup extends React.Component<Props, State> {
   // instantiates the pie chart, passes in the data and
   // draws it.
 
-  getGoogleDataTableFromMultipleBurnupData(allEpicsData: BurnupEpicData[], selectedEpics?: number[]) {
+  getGoogleDataTableFromMultipleBurnupData(allEpicsData: BurnupEpicData[], estimate: boolean, selectedEpics?: number[], ) {
     let filteredData = selectedEpics ? allEpicsData.filter((item, index) => selectedEpics.includes(index)) : allEpicsData;
     let googleBurnupDataArray = filteredData.map((item) => {
-      return this.getGoogleDataTableFromBurnupDateData(item.dateData);
+      return this.getGoogleDataTableFromBurnupDateData(item.dateData, estimate);
     });
     let earliestDate = googleBurnupDataArray.reduce((acc, val) => {
       return acc < val[0][0] ? acc : val[0][0]; 
@@ -79,17 +83,16 @@ export default class EpicBurnup extends React.Component<Props, State> {
       let sumIdeal = dataBetweenDates.reduce((acc, val) => acc + val[3], 0);
       let sumForecast = dataBetweenDates.reduce((acc, val) => acc + val[4], 0);
       allDates.push([new Date(d), sumDone, sumScope, sumIdeal, sumForecast]);
-      debugger;
     }
     return allDates;
   }
 
-  getGoogleDataTableFromBurnupDateData(burnupDataArray: BurnupDateData[]) {
+  getGoogleDataTableFromBurnupDateData(burnupDataArray: BurnupDateData[], estimate: boolean) {
     let googleBurnupDataArray = burnupDataArray.map((item) => {
       return [
         new Date(item.date),
-        item.doneCount,
-        item.scopeCount,
+        estimate ? item.doneEstimate/3600/8 : item.doneCount,
+        estimate ? item.scopeEstimate/3600/8 : item.scopeCount,
         item.idealTrend,
         item.forecastTrend,
       ];
@@ -99,12 +102,19 @@ export default class EpicBurnup extends React.Component<Props, State> {
 
   onSelectedEpicsChanged = (selected: string[]) => {
 
-    let x= this.getGoogleDataTableFromMultipleBurnupData(this.state.allEpicsData, selected.map((item) => parseInt(item)));
+    let x= this.getGoogleDataTableFromMultipleBurnupData(this.state.allEpicsData, this.state.sizeMode === 'estimate', selected.map((item) => parseInt(item)));
     this.setState({
       selectedEpics: selected,
       selectedEpicsData: x
     });
   };
+  handleSizeChange = (e: RadioChangeEvent) => {
+    this.setState({ sizeMode: e.target.value });
+    let x = this.getGoogleDataTableFromMultipleBurnupData(this.state.allEpicsData, e.target.value === 'estimate', this.state.selectedEpics.map((item) => parseInt(item)));
+    this.setState({
+      selectedEpicsData: x
+    });
+  }
   render() {
     return (
       <div>
@@ -116,6 +126,10 @@ export default class EpicBurnup extends React.Component<Props, State> {
           }}
         />
         <button onClick={this.onClick}>Click me</button>
+        <Radio.Group value={this.state.sizeMode} onChange={this.handleSizeChange}>
+          <Radio.Button value="count">Count</Radio.Button>
+          <Radio.Button value="estimate">Estimate</Radio.Button>
+        </Radio.Group>
         <Select
           options={this.state.epicSelectList}
           onChange={this.onSelectedEpicsChanged}
