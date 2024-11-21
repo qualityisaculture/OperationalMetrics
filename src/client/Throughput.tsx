@@ -39,7 +39,7 @@ interface State {
   throughputData: ThroughputDataType[];
   initiatitives: SelectProps['options'];
   initiativesSelected: string[];
-  sizeMode: "count" | "time booked";
+  sizeMode: "count" | "time booked" | "estimate";
 }
 
 export default class Throughput extends React.Component<Props, State> {
@@ -133,6 +133,7 @@ export default class Throughput extends React.Component<Props, State> {
         <Radio.Group value={this.state.sizeMode} onChange={this.handleSizeChange}>
           <Radio.Button value="count">Count</Radio.Button>
           <Radio.Button value="time booked">Time Booked</Radio.Button>
+          <Radio.Button value="estimate">Estimate</Radio.Button>
         </Radio.Group>
 
         <button onClick={this.onClick}>Click me</button>
@@ -151,7 +152,7 @@ const google = globalThis.google;
 interface ChartProps {
   throughputData: ThroughputDataType[];
   initiativesSelected: string[];
-  sizeMode: "count" | "time booked";
+  sizeMode: "count" | "time booked" | "estimate";
 }
 interface ChartState {}
 
@@ -212,18 +213,33 @@ class Chart extends React.Component<ChartProps, ChartState> {
     });
   }
 
+  getHoursAndMinutes(time: number) {
+    let hours = Math.floor(time / 3600);
+    let minutes = Math.floor((time % 3600) / 60);
+    return `${hours}h ${minutes}m`;
+  }
+  getDaysAndHours(time: number) {
+    let totalHours = time / 3600;
+    let days = Math.floor(totalHours / 8);
+    let hours = Math.floor(totalHours % 8);
+    return `${days}d ${hours}h`;
+  }
+
   handleColumnClick = (chart, clickData: ClickDataType[][]) => {
     var selection = chart.getSelection();
     let jiraData = clickData[selection[0].row];
     let logHTML = '';
     jiraData.forEach((data) => {
       if (data.issues.length === 0) return;
-      logHTML += `<h3>${data.initiativeKey}</h3>`;
+      let allTimeSpent = data.issues.reduce((sum, issue) => sum + (issue.timespent || 0), 0);
+      let allEstimate = data.issues.reduce((sum, issue) => sum + (issue.timeoriginalestimate || 0), 0);
+      let allTimeDays = this.getDaysAndHours(allTimeSpent);
+      let allEstimateDays = this.getDaysAndHours(allEstimate);
+      logHTML += `<h3>${data.initiativeKey} e: ${allEstimateDays} a: ${allTimeDays}</h3>`;
       data.issues.forEach((issue) => {
-        let hoursFloored = Math.floor((issue.timespent || 0) / 3600);
-        let minutes = Math.floor(((issue.timespent || 0) % 3600) / 60);
-        let hoursAndMinutes = `${hoursFloored}h ${minutes}m`;
-        logHTML += `<p><a target="_blank" href="${issue.url}">${issue.key} ${issue.summary} - ${issue.type} - ${hoursAndMinutes}</a></p>`;
+        let timespentDays = this.getDaysAndHours(issue.timespent || 0);
+        let estimateDays = this.getDaysAndHours(issue.timeoriginalestimate || 0);
+        logHTML += `<p><a target="_blank" href="${issue.url}">${issue.key} ${issue.summary} - ${issue.type} - e: ${estimateDays} a: ${timespentDays}</a></p>`;
       });
     });
     let notesElement = document.getElementById('notes');

@@ -5,7 +5,9 @@ export function getSize(issues: IssueInfo[], sizeMode: 'count' | 'estimate' | 't
     return issues.length;
   } else if (sizeMode === 'estimate') {
     return issues.reduce((sum, issue) => sum + (issue.timeoriginalestimate || 0)/3600/8, 0);
-  } else {
+  } else if (sizeMode === 'time booked') {
     return issues.reduce((sum, issue) => sum + (issue.timespent || 0)/3600/8, 0);
+  } else {
+    throw new Error('Invalid size mode');
   }
 }
