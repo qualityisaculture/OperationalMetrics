@@ -39,4 +39,22 @@ describe('ThroughputGraphManager', () => {
         expect(result[0].sprintStartingDate).toEqual(new Date('2024-10-21T09:00:00.000Z'));
         expect(result[1].sprintStartingDate).toEqual(new Date('2024-10-07T09:00:00.000Z'));
     });
+
+    it('should return the initiativeKey and initiativeName as "Bug" if no initiative', async () => {
+        let mockBugJira = new Jira({...defaultJiraJSON, fields: {...defaultJiraJSON.fields, issuetype: {name: 'Bug'}}});
+        mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockBugJira])
+        let tgm = new ThroughputGraphManager(mockJiraRequester)
+        let result: ThroughputDataType[] = await tgm.getThroughputData('project="Project 1"', new Date('2024-10-31'), 0);
+        expect(result[1].issueList[0].initiativeKey).toEqual('Bug');
+        expect(result[1].issueList[0].initiativeName).toEqual('Bug');
+    });
+
+    it('should return the initiativeKey as EPIC:NOINITIATIVE when task has epic but not have initiative', async () => {
+        let mockEpicJira = new Jira({...defaultJiraJSON, fields: {...defaultJiraJSON.fields, parent: {key: 'EPIC-1', fields: {issuetype: {name: 'Epic'}, summary: 'Epic Name'}}}});
+        mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockEpicJira])
+        let tgm = new ThroughputGraphManager(mockJiraRequester)
+        let result: ThroughputDataType[] = await tgm.getThroughputData('project="Project 1"', new Date('2024-10-31'), 0);
+        expect(result[1].issueList[0].initiativeKey).toEqual('EPIC');
+        expect(result[1].issueList[0].initiativeName).toEqual('NOINITIATIVE');
+    });
 });

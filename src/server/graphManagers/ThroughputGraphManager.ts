@@ -21,7 +21,8 @@ export default class ThroughputGraphManager {
   ): Promise<ThroughputDataType[]> {
     let query = this.getQuery(filter, currentSprintStartDate, numberOfSprints);
     let jiras = await this.jiraRequester.getQuery(query);
-    let bucketedJiras = this.getJirasBySprint(jiras, currentSprintStartDate);
+    let jirasWithoutPlaceHolders = jiras.filter((jira) => jira.getSummary().indexOf('Placeholder') === -1);
+    let bucketedJiras = this.getJirasBySprint(jirasWithoutPlaceHolders, currentSprintStartDate);
     return bucketedJiras;
   }
 
@@ -55,6 +56,17 @@ export default class ThroughputGraphManager {
   }
 
   getIssueInfoFromJira(jira: Jira): IssueInfo {
+    let initiativeKey = jira.getInitiativeKey();
+    let initiativeName = jira.getInitiativeName();
+    if (!initiativeKey) {
+      if (jira.getType() === 'Bug') {
+        initiativeKey = 'Bug';
+        initiativeName = 'Bug';
+      } else if (jira.getEpicKey()) {
+        initiativeKey = 'EPIC';
+        initiativeName = 'NOINITIATIVE'
+      }
+    }
     return {
       key: jira.getKey(),
       summary: jira.getSummary(),
@@ -65,8 +77,8 @@ export default class ThroughputGraphManager {
       resolution: jira.getResolution(),
       epicKey: jira.getEpicKey(),
       epicName: jira.getEpicName(),
-      initiativeKey: jira.getInitiativeKey(),
-      initiativeName: jira.getInitiativeName(),
+      initiativeKey: initiativeKey,
+      initiativeName: initiativeName,
       labels: jira.getLabels(),
       priority: jira.getPriority(),
       components: jira.getComponents(),

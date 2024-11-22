@@ -88,7 +88,7 @@ export default class Throughput extends React.Component<Props, State> {
         });
         let arrayOfAllInitiatives: SelectProps['options'] = Array.from(
           allInitiatives.values()
-        );
+        ).sort((a, b) => a.label.localeCompare(b.label));
         this.setState({
           throughputData,
           initiatitives: arrayOfAllInitiatives,
