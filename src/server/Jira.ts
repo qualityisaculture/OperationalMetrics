@@ -1,5 +1,6 @@
-import { history, historyItem, omHistoryItem } from './JiraAPITypes';
-import { getWorkHoursBetween } from './Utils';
+import { history, historyItem, omHistoryItem } from "./JiraAPITypes";
+import { lastUpdatedKey } from "./JiraRequester";
+import { getWorkHoursBetween } from "./Utils";
 export type JiraJsonFields = {
   created: string;
   components: { name: string }[];
@@ -8,7 +9,10 @@ export type JiraJsonFields = {
   fixVersions: { name: string }[];
   issuetype: { name: string };
   labels: string[];
-  parent?: { key: string; fields: { issuetype: {name: string}, summary: string } };
+  parent?: {
+    key: string;
+    fields: { issuetype: { name: string }; summary: string };
+  };
   priority: { name: string };
   resolution: string;
   resolutiondate: string;
@@ -73,10 +77,16 @@ export default class Jira {
       timespent: json.fields.timespent,
       url: `${domain}/browse/${json.key}`,
     };
-    if (json.fields.parent && json.fields.parent.fields.issuetype.name === 'Epic') {
+    if (
+      json.fields.parent &&
+      json.fields.parent.fields.issuetype.name === "Epic"
+    ) {
       this.fields.epicKey = json.fields.parent.key;
       this.fields.epicName = json.fields.parent.fields.summary;
-    } else if (json.fields.parent && json.fields.parent.fields.issuetype.name === 'Initiative') {
+    } else if (
+      json.fields.parent &&
+      json.fields.parent.fields.issuetype.name === "Initiative"
+    ) {
       this.fields.initiativeKey = json.fields.parent.key;
       this.fields.initiativeName = json.fields.parent.fields.summary;
     } else if (json.fields.parent) {
@@ -163,13 +173,13 @@ export default class Jira {
     }
     return new Date(this.fields.duedate);
   }
-  getChildrenKeys(date?: Date): string[] {
+  getChildrenKeys(date?: Date): lastUpdatedKey[] {
     if (!this.changelog || !this.changelog.histories) {
       return [];
     }
     let children = new Set<string>();
 
-    let chronologicalEpicChildItems = this.getHistoriesItems('Epic Child');
+    let chronologicalEpicChildItems = this.getHistoriesItems("Epic Child");
     chronologicalEpicChildItems.forEach((item) => {
       if (item.created && date && item.created > date) {
         return Array.from(children);
@@ -180,7 +190,9 @@ export default class Jira {
         children.delete(item.fromString);
       }
     });
-    return Array.from(children);
+    return Array.from(children).map((key) => {
+      return { key }
+    });
   }
 
   getHistoriesItems(field): omHistoryItem[] {
@@ -211,7 +223,7 @@ export default class Jira {
   }
 
   loadStatusChanges() {
-    let statusItems = this.getHistoriesItems('status');
+    let statusItems = this.getHistoriesItems("status");
     if (statusItems.length === 0) {
       return [{ date: this.created, status: this.fields.status.name }];
     }
@@ -230,7 +242,7 @@ export default class Jira {
       return this.fields.status.name;
     }
     if (date < this.created) {
-      return 'NOT_CREATED_YET';
+      return "NOT_CREATED_YET";
     }
     for (let i = 0; i < this.statusChanges.length; i++) {
       if (this.statusChanges[i].date > date) {
@@ -275,11 +287,11 @@ export default class Jira {
   }
 
   isDone(date?: Date) {
-    return this.getStatus(date) === 'Done';
+    return this.getStatus(date) === "Done";
   }
 
   isInScope(date?: Date) {
-    let descopedStatuses = ['Cancelled'];
+    let descopedStatuses = ["Cancelled"];
     return !descopedStatuses.includes(this.getStatus(date));
   }
 
