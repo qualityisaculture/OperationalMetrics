@@ -3,7 +3,7 @@ import JiraRequester from '../JiraRequester';
 import { IssueInfo } from './GraphManagerTypes';
 import dayjs from 'dayjs';
 
-export type ThroughputDataType = {
+export type ThroughputSprintType = {
   sprintStartingDate: Date;
   issueList: IssueInfo[];
 };
@@ -18,7 +18,7 @@ export default class ThroughputGraphManager {
     filter: string,
     currentSprintStartDate: Date,
     numberOfSprints: number
-  ): Promise<ThroughputDataType[]> {
+  ): Promise<ThroughputSprintType[]> {
     let query = this.getQuery(filter, currentSprintStartDate, numberOfSprints);
     let jiras = await this.jiraRequester.getQuery(query);
     let jirasWithoutPlaceHolders = jiras.filter((jira) => jira.getSummary().indexOf('Placeholder') === -1);
@@ -27,7 +27,7 @@ export default class ThroughputGraphManager {
   }
 
   getJirasBySprint(jiras, currentSprintStartDate) {
-    let sprints: ThroughputDataType[] = [];
+    let sprints: ThroughputSprintType[] = [];
     currentSprintStartDate.setDate(currentSprintStartDate.getDate() + 14);
     while (jiras.length > 0) {
       let twoWeeksAgo = new Date(currentSprintStartDate);

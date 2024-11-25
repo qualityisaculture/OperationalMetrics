@@ -1,5 +1,5 @@
 import { defaultJiraJSON } from "../Jira.test";
-import ThroughputGraphManager, { ThroughputDataType } from "../../../src/server/graphManagers/ThroughputGraphManager";
+import ThroughputGraphManager, { ThroughputSprintType } from "../../../src/server/graphManagers/ThroughputGraphManager";
 import JiraRequester from "../../../src/server/JiraRequester";
 import Jira from "../../../src/server/Jira";
 jest.mock('../../../src/server/JiraRequester');
@@ -35,7 +35,7 @@ describe('ThroughputGraphManager', () => {
 
     it('should return the data in two week intervals', async () => {
         let tgm = new ThroughputGraphManager(mockJiraRequester)
-        let result: ThroughputDataType[] = await tgm.getThroughputData('project="Project 1"', new Date('2024-10-21T09:00:00.000Z'), 1);
+        let result: ThroughputSprintType[] = await tgm.getThroughputData('project="Project 1"', new Date('2024-10-21T09:00:00.000Z'), 1);
         expect(result[0].sprintStartingDate).toEqual(new Date('2024-10-21T09:00:00.000Z'));
         expect(result[1].sprintStartingDate).toEqual(new Date('2024-10-07T09:00:00.000Z'));
     });
@@ -44,7 +44,7 @@ describe('ThroughputGraphManager', () => {
         let mockBugJira = new Jira({...defaultJiraJSON, fields: {...defaultJiraJSON.fields, issuetype: {name: 'Bug'}}});
         mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockBugJira])
         let tgm = new ThroughputGraphManager(mockJiraRequester)
-        let result: ThroughputDataType[] = await tgm.getThroughputData('project="Project 1"', new Date('2024-10-31'), 0);
+        let result: ThroughputSprintType[] = await tgm.getThroughputData('project="Project 1"', new Date('2024-10-31'), 0);
         expect(result[1].issueList[0].initiativeKey).toEqual('Bug');
         expect(result[1].issueList[0].initiativeName).toEqual('Bug');
     });
@@ -53,7 +53,7 @@ describe('ThroughputGraphManager', () => {
         let mockEpicJira = new Jira({...defaultJiraJSON, fields: {...defaultJiraJSON.fields, parent: {key: 'EPIC-1', fields: {issuetype: {name: 'Epic'}, summary: 'Epic Name'}}}});
         mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockEpicJira])
         let tgm = new ThroughputGraphManager(mockJiraRequester)
-        let result: ThroughputDataType[] = await tgm.getThroughputData('project="Project 1"', new Date('2024-10-31'), 0);
+        let result: ThroughputSprintType[] = await tgm.getThroughputData('project="Project 1"', new Date('2024-10-31'), 0);
         expect(result[1].issueList[0].initiativeKey).toEqual('EPIC');
         expect(result[1].issueList[0].initiativeName).toEqual('NOINITIATIVE');
     });

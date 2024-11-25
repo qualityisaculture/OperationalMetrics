@@ -1,12 +1,13 @@
-import React from 'react';
-import type { RadioChangeEvent, DatePickerProps, InputNumberProps } from 'antd';
-import { Radio, DatePicker, InputNumber } from 'antd';
-import dayjs from 'dayjs';
-import { ThroughputDataType } from '../server/graphManagers/ThroughputGraphManager';
-import Select from './Select';
-import type { SelectProps } from 'antd';
-import { IssueInfo } from '../server/graphManagers/GraphManagerTypes';
-import { getSize } from './Utils';
+import React from "react";
+import type { RadioChangeEvent, DatePickerProps, InputNumberProps } from "antd";
+import { Radio, DatePicker, InputNumber } from "antd";
+import dayjs from "dayjs";
+import { ThroughputSprintType } from "../server/graphManagers/ThroughputGraphManager";
+import Select from "./Select";
+import type { SelectProps } from "antd";
+import { IssueInfo } from "../server/graphManagers/GraphManagerTypes";
+import { getSize } from "./Utils";
+import { DefaultOptionType } from "antd/es/select";
 
 type GoogleDataTableType = {
   addColumn: (type: string, label: string) => void;
@@ -20,7 +21,7 @@ type GoogleDataRowType = {
 type ClickDataType = { initiativeKey: string; issues: IssueInfo[] };
 type ClickDataColumnType = ClickDataType[];
 
-class ConcatableMap<K,V> extends Map<K,V[]> {
+class ConcatableMap<K, V> extends Map<K, V[]> {
   concat(key: K, value: V) {
     let array = this.get(key);
     if (array) {
@@ -30,14 +31,18 @@ class ConcatableMap<K,V> extends Map<K,V[]> {
     }
   }
 }
+type SelectPropsType = {
+  label: string;
+  value: string;
+};
 
 interface Props {}
 interface State {
   input: string;
   currentSprintStartDate: string;
   numberOfSprints: number;
-  throughputData: ThroughputDataType[];
-  initiatitives: SelectProps['options'];
+  throughputData: ThroughputSprintType[];
+  initiatitives: SelectProps["options"];
   initiativesSelected: string[];
   sizeMode: "count" | "time booked" | "estimate";
 }
@@ -46,49 +51,80 @@ export default class Throughput extends React.Component<Props, State> {
   constructor(props) {
     super(props);
     let tempQuery = new URLSearchParams(window.location.search).get(
-      'throughputQuery'
+      "throughputQuery"
     );
     this.state = {
-      input: localStorage.getItem('throughputQuery') || tempQuery || '',
-      currentSprintStartDate: '2024-10-23',
+      input: localStorage.getItem("throughputQuery") || tempQuery || "",
+      currentSprintStartDate: "2024-10-23",
       numberOfSprints: 4,
       throughputData: [],
       initiatitives: [],
       initiativesSelected: [],
-      sizeMode: 'count',
+      sizeMode: "count",
     };
   }
+  getValuesInSprint = (
+    sprint: ThroughputSprintType,
+    func: (IssueInfo) => { key: string; value: SelectPropsType }[]
+  ): SelectPropsType[] => {
+    let allFields = new Map<string, SelectPropsType>();
+    sprint.issueList.forEach((issue) => {
+      let fields = func(issue);
+      fields.forEach((field) => {
+        allFields.set(field.key, field.value);
+      });
+    });
+    let arrayOfAllFields: SelectPropsType[] = Array.from(allFields.values());
+    return arrayOfAllFields;
+  };
+  arrayOfAllFieldsAsSelectProps = (
+    sprints: ThroughputSprintType[],
+    func: (IssueInfo) => { key: string; value: SelectPropsType }[]
+  ) => {
+    let allFieldValues = new Map<string, { label: string; value: string }>();
+    sprints.forEach((sprint) => {
+      this.getValuesInSprint(sprint, func).forEach((fieldValues) => {
+        allFieldValues.set(fieldValues.value, fieldValues);
+      });
+    });
+    let arrayOfAllInitiatives: SelectProps["options"] = Array.from(
+      allFieldValues.values()
+    ).sort((a, b) => a.label.localeCompare(b.label));
+    return arrayOfAllInitiatives;
+  };
+  getInitiativesAsSelectProps = (
+    throughputData: ThroughputSprintType[]
+  ): DefaultOptionType[] => {
+    return this.arrayOfAllFieldsAsSelectProps(throughputData, (issue) => {
+      if (!issue.initiativeKey) return [];
+      return [
+        {
+          key: issue.initiativeKey,
+          value: {
+            label: issue.initiativeKey + ":" + issue.initiativeName,
+            value: issue.initiativeKey,
+          },
+        },
+      ];
+    });
+  };
   onClick = () => {
-    localStorage.setItem('throughputQuery', this.state.input);
-    console.log('Button clicked');
+    localStorage.setItem("throughputQuery", this.state.input);
+    console.log("Button clicked");
     //Request to the server /api/metrics
     fetch(
-      '/api/throughput?query=' +
+      "/api/throughput?query=" +
         this.state.input +
-        '&currentSprintStartDate=' +
+        "&currentSprintStartDate=" +
         this.state.currentSprintStartDate +
-        '&numberOfSprints=' +
+        "&numberOfSprints=" +
         this.state.numberOfSprints
     )
       .then((response) => response.json())
       .then((data) => {
-        let throughputData: ThroughputDataType[] = JSON.parse(data.data);
-        let allInitiatives = new Map<
-          string,
-          { label: string; value: string }
-        >();
-        throughputData.forEach((item) => {
-          item.issueList.forEach((issue) => {
-            if (issue.initiativeKey)
-              allInitiatives.set(issue.initiativeKey, {
-                label: issue.initiativeKey + ':' + issue.initiativeName,
-                value: issue.initiativeKey,
-              });
-          });
-        });
-        let arrayOfAllInitiatives: SelectProps['options'] = Array.from(
-          allInitiatives.values()
-        ).sort((a, b) => a.label.localeCompare(b.label));
+        let throughputData: ThroughputSprintType[] = JSON.parse(data.data);
+        let arrayOfAllInitiatives =
+          this.getInitiativesAsSelectProps(throughputData);
         this.setState({
           throughputData,
           initiatitives: arrayOfAllInitiatives,
@@ -96,7 +132,7 @@ export default class Throughput extends React.Component<Props, State> {
         });
       });
   };
-  onSprintStartDateChange: DatePickerProps['onChange'] = (date, dateString) => {
+  onSprintStartDateChange: DatePickerProps["onChange"] = (date, dateString) => {
     this.setState({ currentSprintStartDate: date.toString() });
   };
   onNumberOfSprintsChange = (value) => {
@@ -107,7 +143,7 @@ export default class Throughput extends React.Component<Props, State> {
   };
   handleSizeChange = (e: RadioChangeEvent) => {
     this.setState({ sizeMode: e.target.value });
-  }
+  };
   render() {
     return (
       <div>
@@ -120,7 +156,7 @@ export default class Throughput extends React.Component<Props, State> {
         />
         <DatePicker
           onChange={this.onSprintStartDateChange}
-          defaultValue={dayjs('2024/10/23')}
+          defaultValue={dayjs("2024/10/23")}
         />
         <InputNumber
           value={this.state.numberOfSprints}
@@ -130,7 +166,10 @@ export default class Throughput extends React.Component<Props, State> {
           onChange={this.initiatitivesSelected.bind(this)}
           options={this.state.initiatitives}
         />
-        <Radio.Group value={this.state.sizeMode} onChange={this.handleSizeChange}>
+        <Radio.Group
+          value={this.state.sizeMode}
+          onChange={this.handleSizeChange}
+        >
           <Radio.Button value="count">Count</Radio.Button>
           <Radio.Button value="time booked">Time Booked</Radio.Button>
           <Radio.Button value="estimate">Estimate</Radio.Button>
@@ -150,7 +189,7 @@ export default class Throughput extends React.Component<Props, State> {
 const google = globalThis.google;
 
 interface ChartProps {
-  throughputData: ThroughputDataType[];
+  throughputData: ThroughputSprintType[];
   initiativesSelected: string[];
   sizeMode: "count" | "time booked" | "estimate";
 }
@@ -171,14 +210,14 @@ class Chart extends React.Component<ChartProps, ChartState> {
   }
 
   addColumns(data: any, initiativesSelected: string[]) {
-    data.addColumn('date', 'Sprint Start Date');
+    data.addColumn("date", "Sprint Start Date");
     // Add columns for each initiative
     this.props.initiativesSelected.forEach((parent) => {
-      data.addColumn('number', parent);
-      data.addColumn({ role: 'tooltip', p: { html: true } });
+      data.addColumn("number", parent);
+      data.addColumn({ role: "tooltip", p: { html: true } });
     });
-    data.addColumn('number', 'None');
-    data.addColumn({ role: 'tooltip', p: { html: true } });
+    data.addColumn("number", "None");
+    data.addColumn({ role: "tooltip", p: { html: true } });
   }
 
   getIssuesByInitiative(issues: IssueInfo[]): ConcatableMap<string, IssueInfo> {
@@ -188,12 +227,11 @@ class Chart extends React.Component<ChartProps, ChartState> {
       if (issue.initiativeKey) {
         issuesByInitiative.concat(issue.initiativeKey, issue);
       } else {
-        issuesByInitiative.concat('None', issue);
+        issuesByInitiative.concat("None", issue);
       }
     });
     return issuesByInitiative;
   }
-
 
   addDataToChart(data: any, clickData: ClickDataType[][]) {
     this.props.throughputData.forEach((sprint) => {
@@ -201,10 +239,10 @@ class Chart extends React.Component<ChartProps, ChartState> {
       let columnClickData: ClickDataType[] = [];
 
       let row: GoogleDataRowType = [new Date(sprint.sprintStartingDate)];
-      [...this.props.initiativesSelected, 'None'].forEach((parent) => {
+      [...this.props.initiativesSelected, "None"].forEach((parent) => {
         let initiatives = issuesByInitiative.get(parent) || [];
         row.push(getSize(initiatives, this.props.sizeMode));
-        row.push(initiatives.map((issue) => issue.key).join(', '));
+        row.push(initiatives.map((issue) => issue.key).join(", "));
         columnClickData.push({ initiativeKey: parent, issues: initiatives });
       });
 
@@ -228,21 +266,29 @@ class Chart extends React.Component<ChartProps, ChartState> {
   handleColumnClick = (chart, clickData: ClickDataType[][]) => {
     var selection = chart.getSelection();
     let jiraData = clickData[selection[0].row];
-    let logHTML = '';
+    let logHTML = "";
     jiraData.forEach((data) => {
       if (data.issues.length === 0) return;
-      let allTimeSpent = data.issues.reduce((sum, issue) => sum + (issue.timespent || 0), 0);
-      let allEstimate = data.issues.reduce((sum, issue) => sum + (issue.timeoriginalestimate || 0), 0);
+      let allTimeSpent = data.issues.reduce(
+        (sum, issue) => sum + (issue.timespent || 0),
+        0
+      );
+      let allEstimate = data.issues.reduce(
+        (sum, issue) => sum + (issue.timeoriginalestimate || 0),
+        0
+      );
       let allTimeDays = this.getDaysAndHours(allTimeSpent);
       let allEstimateDays = this.getDaysAndHours(allEstimate);
       logHTML += `<h3>${data.initiativeKey} e: ${allEstimateDays} a: ${allTimeDays}</h3>`;
       data.issues.forEach((issue) => {
         let timespentDays = this.getDaysAndHours(issue.timespent || 0);
-        let estimateDays = this.getDaysAndHours(issue.timeoriginalestimate || 0);
+        let estimateDays = this.getDaysAndHours(
+          issue.timeoriginalestimate || 0
+        );
         logHTML += `<p><a target="_blank" href="${issue.url}">${issue.key} ${issue.summary} - ${issue.type} - e: ${estimateDays} a: ${timespentDays}</a></p>`;
       });
     });
-    let notesElement = document.getElementById('notes');
+    let notesElement = document.getElementById("notes");
     if (notesElement) notesElement.innerHTML = logHTML;
   };
 
@@ -253,20 +299,20 @@ class Chart extends React.Component<ChartProps, ChartState> {
     this.addDataToChart(data, clickData);
 
     var options = {
-      title: 'Throughput',
+      title: "Throughput",
       // curveType: 'function',
-      legend: { position: 'bottom' },
+      legend: { position: "bottom" },
       vAxis: {
         minValue: 0,
       },
       isStacked: true,
     };
     var chart = new google.visualization.ColumnChart(
-      document.getElementById('chart_div')
+      document.getElementById("chart_div")
     );
     google.visualization.events.addListener(
       chart,
-      'select',
+      "select",
       function () {
         this.handleColumnClick(chart, clickData);
       }.bind(this)
