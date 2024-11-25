@@ -20,6 +20,7 @@ export type JiraJsonFields = {
   summary: string;
   timeoriginalestimate?: number;
   timespent?: number;
+  updated: string;
 };
 export type JiraJson = {
   key: string;
@@ -50,6 +51,7 @@ export default class Jira {
     summary: string;
     timeoriginalestimate?: number;
     timespent?: number;
+    updated: string;
     url: string;
   };
   changelog: { histories: any[] };
@@ -75,6 +77,7 @@ export default class Jira {
       summary: json.fields.summary,
       timeoriginalestimate: json.fields.timeoriginalestimate,
       timespent: json.fields.timespent,
+      updated: json.fields.updated,
       url: `${domain}/browse/${json.key}`,
     };
     if (
@@ -191,7 +194,7 @@ export default class Jira {
       }
     });
     return Array.from(children).map((key) => {
-      return { key }
+      return { key };
     });
   }
 

@@ -18,6 +18,7 @@ export const defaultJiraJSONFields: JiraJsonFields = {
   resolution: "Done",
   status: { name: "Backlog" },
   summary: "Summary",
+  updated: "2024-10-21T09:00:00.000Z",
 };
 export const defaultJiraJSON = { key: "KEY-1", fields: defaultJiraJSONFields };
 

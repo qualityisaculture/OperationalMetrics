@@ -4,7 +4,7 @@ export type lastUpdatedKey = {
   updated?: string;
 };
 export default class JiraRequester {
-  jiraMap: Map<string, any>;
+  jiraMap: Map<string, Jira>;
   constructor() {
     this.jiraMap = new Map();
   }
@@ -14,7 +14,13 @@ export default class JiraRequester {
   ): Promise<Jira[]> {
     let uncachedKeys: string[] = [];
     lastUpdatedKeys.forEach((issueRequest) => {
-      if (!this.jiraMap.has(issueRequest.key)) {
+      if (
+        this.jiraMap.has(issueRequest.key) &&
+        this.jiraMap.get(issueRequest.key)?.fields.updated ===
+          issueRequest.updated
+      ) {
+        //do nothing
+      } else {
         uncachedKeys.push(issueRequest.key);
       }
     });
@@ -32,9 +38,11 @@ export default class JiraRequester {
         })
       );
     }
-    return lastUpdatedKeys.map((issueRequest) => {
-      return this.jiraMap.get(issueRequest.key);
-    });
+    return lastUpdatedKeys
+      .map((issueRequest) => {
+        return this.jiraMap.get(issueRequest.key);
+      })
+      .filter((jira): jira is Jira => jira !== undefined);
   }
 
   async getJiraWithInitiative(json: any) {

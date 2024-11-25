@@ -29,6 +29,7 @@ describe("JiraRequester", () => {
         fields: {
           created: "2024-10-21T09:00:00.000+0100",
           status: { name: "Backlog" },
+          updated: "2024-10-21T09:00:00.000+0100",
         },
       },
     ],
@@ -44,14 +45,42 @@ describe("JiraRequester", () => {
       );
     });
 
-    it("should not request jira from server a second time", async () => {
+    it("should not request jira from server a second time if updated is the same", async () => {
       fetchMock.mockResolvedValue(defaultResponse);
       expect(fetchMock).toHaveBeenCalledTimes(0);
+      let jira = await jr.getFullJiraDataFromKeys([
+        { key: "KEY-1", updated: "2024-10-21T09:00:00.000+0100" },
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(jira[0].getKey()).toEqual("KEY-1");
+      let jira2 = await jr.getFullJiraDataFromKeys([
+        { key: "KEY-1", updated: "2024-10-21T09:00:00.000+0100" },
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(jira2[0].getKey()).toEqual("KEY-1");
+    });
+
+    it("should request jira from server if updated is different", async () => {
+      fetchMock.mockResolvedValueOnce(defaultResponse);
       let jira = await jr.getFullJiraDataFromKeys([{ key: "KEY-1" }]);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(jira[0].getKey()).toEqual("KEY-1");
+      fetchMock.mockResolvedValueOnce(
+        fetchResponseOk({
+          issues: [
+            {
+              key: "KEY-1",
+              fields: {
+                created: "2024-10-21T09:00:00.000+0100",
+                status: { name: "Backlog" },
+                updated: "2024-10-21T09:00:01.000+0100",
+              },
+            },
+          ],
+        })
+      );
       let jira2 = await jr.getFullJiraDataFromKeys([{ key: "KEY-1" }]);
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(jira2[0].getKey()).toEqual("KEY-1");
     });
 
