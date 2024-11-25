@@ -14,12 +14,16 @@ export default class JiraRequester {
   ): Promise<Jira[]> {
     let uncachedKeys: string[] = [];
     lastUpdatedKeys.forEach((issueRequest) => {
-      if (
-        this.jiraMap.has(issueRequest.key) &&
-        this.jiraMap.get(issueRequest.key)?.fields.updated ===
-          issueRequest.updated
-      ) {
-        //do nothing
+      if (this.jiraMap.has(issueRequest.key)) {
+        let lastUpdated = this.jiraMap.get(issueRequest.key)?.fields.updated;
+        if (issueRequest.updated && issueRequest.updated !== lastUpdated) {
+          console.log("Jira " + issueRequest.key + " is out of date");
+          console.log(
+            "Last updated: " + lastUpdated,
+            "Requested: " + issueRequest.updated
+          );
+          uncachedKeys.push(issueRequest.key);
+        }
       } else {
         uncachedKeys.push(issueRequest.key);
       }

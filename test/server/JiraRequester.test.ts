@@ -79,7 +79,9 @@ describe("JiraRequester", () => {
           ],
         })
       );
-      let jira2 = await jr.getFullJiraDataFromKeys([{ key: "KEY-1" }]);
+      let jira2 = await jr.getFullJiraDataFromKeys([
+        { key: "KEY-1", updated: "2024-10-21T09:00:01.000+0100" },
+      ]);
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(jira2[0].getKey()).toEqual("KEY-1");
     });
