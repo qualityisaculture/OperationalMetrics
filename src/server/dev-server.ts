@@ -1,5 +1,7 @@
 import express from 'express';
 import webpack from 'webpack';
+import dotenv from 'dotenv'
+dotenv.config();
 const webpackDevMiddleware = require('webpack-dev-middleware');
 const config = require('../../webpack.config');
 const compiler = webpack(config);
@@ -13,6 +15,7 @@ app.use(
     publicPath: '/',
   })
 );
+
 Server(mode, app);
 app.listen(8080, '127.0.0.1', () => {
   console.log('Starting in dev mode...');
