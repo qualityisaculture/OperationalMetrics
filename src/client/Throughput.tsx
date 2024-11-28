@@ -55,7 +55,7 @@ export default class Throughput extends React.Component<Props, State> {
     );
     this.state = {
       input: localStorage.getItem("throughputQuery") || tempQuery || "",
-      currentSprintStartDate: "2024-10-23",
+      currentSprintStartDate: dayjs().toString(),
       numberOfSprints: 4,
       throughputData: [],
       initiatitives: [],
@@ -154,10 +154,12 @@ export default class Throughput extends React.Component<Props, State> {
             this.setState({ input: e.target.value });
           }}
         />
+        Start Date of Current Sprint:
         <DatePicker
           onChange={this.onSprintStartDateChange}
-          defaultValue={dayjs("2024/10/23")}
+          value={dayjs(this.state.currentSprintStartDate)}
         />
+        Number of Sprints to show:
         <InputNumber
           value={this.state.numberOfSprints}
           onChange={this.onNumberOfSprintsChange}
@@ -174,7 +176,6 @@ export default class Throughput extends React.Component<Props, State> {
           <Radio.Button value="time booked">Time Booked</Radio.Button>
           <Radio.Button value="estimate">Estimate</Radio.Button>
         </Radio.Group>
-
         <button onClick={this.onClick}>Click me</button>
         <Chart
           throughputData={this.state.throughputData}
