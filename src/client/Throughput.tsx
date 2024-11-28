@@ -196,8 +196,10 @@ interface ChartProps {
 interface ChartState {}
 
 class Chart extends React.Component<ChartProps, ChartState> {
+  randomId: string;
   constructor(props) {
     super(props);
+    this.randomId = Math.random().toString(36).substring(7);
   }
 
   componentDidUpdate(prevProps) {
@@ -308,7 +310,7 @@ class Chart extends React.Component<ChartProps, ChartState> {
       isStacked: true,
     };
     var chart = new google.visualization.ColumnChart(
-      document.getElementById("chart_div")
+      document.getElementById(this.randomId)
     );
     google.visualization.events.addListener(
       chart,
@@ -324,7 +326,7 @@ class Chart extends React.Component<ChartProps, ChartState> {
   render() {
     return (
       <div>
-        {/* <Select onChange={this.epicsSelected} options={options} /> */}
+        <div id={this.randomId}></div>
       </div>
     );
   }

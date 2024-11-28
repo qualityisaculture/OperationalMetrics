@@ -1,14 +1,17 @@
 const google = globalThis.google;
-import React from 'react';
+import React from "react";
 
 interface ChartProps {
   title: string;
-  columns: {type: string, identifier: string, label: string}[];
+  columns: { type: string; identifier: string; label: string }[];
   data: any[];
 }
 interface ChartState {}
 
-export default class ColumnChart extends React.Component<ChartProps, ChartState> {
+export default class ColumnChart extends React.Component<
+  ChartProps,
+  ChartState
+> {
   randomId: string;
   constructor(props) {
     super(props);
@@ -47,10 +50,10 @@ export default class ColumnChart extends React.Component<ChartProps, ChartState>
 
     var options = {
       title: this.props.title,
-      legend: { position: 'bottom' },
+      legend: { position: "bottom" },
       vAxis: {
         minValue: 0,
-      }
+      },
     };
     var chart = new google.visualization.ColumnChart(
       document.getElementById(this.randomId)

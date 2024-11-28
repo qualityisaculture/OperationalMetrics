@@ -1,22 +1,22 @@
-import React from 'react';
-import { Radio } from 'antd';
-import type { RadioChangeEvent } from 'antd';
-import Throughput from './Throughput';
-import EstimatesAnalysis from './EstimatesAnalysis';
-import EpicBurnup from './EpicBurnup';
-import BambooBuilds from './BambooBuilds';
+import React from "react";
+import { Radio } from "antd";
+import type { RadioChangeEvent } from "antd";
+import Throughput from "./Throughput";
+import EstimatesAnalysis from "./EstimatesAnalysis";
+import EpicBurnup from "./EpicBurnup";
+import BambooBuilds from "./BambooBuilds";
 
 interface Props {}
 
 interface State {
-  chart: 'burnup' | 'estimate' | 'throughput' | 'bamboo'
+  chart: "burnup" | "estimate" | "throughput" | "bamboo";
 }
 
 export default class ChartSelector extends React.Component<Props, State> {
   constructor(props) {
     super(props);
     this.state = {
-      chart: 'bamboo',
+      chart: "bamboo",
     };
   }
   handleChartChange = (e: RadioChangeEvent) => {
@@ -25,6 +25,18 @@ export default class ChartSelector extends React.Component<Props, State> {
     });
   };
   render() {
+    let epicBurnupStyle = {
+      display: this.state.chart === "burnup" ? "block" : "none",
+    };
+    let estimateStyle = {
+      display: this.state.chart === "estimate" ? "block" : "none",
+    };
+    let throughputStyle = {
+      display: this.state.chart === "throughput" ? "block" : "none",
+    };
+    let bambooStyle = {
+      display: this.state.chart === "bamboo" ? "block" : "none",
+    };
     return (
       <div>
         <div>
@@ -39,10 +51,18 @@ export default class ChartSelector extends React.Component<Props, State> {
           </Radio.Group>
         </div>
         <div>
-          {this.state.chart === 'burnup' && <EpicBurnup />}
-          {this.state.chart === 'estimate' && <EstimatesAnalysis />}
-          {this.state.chart === 'throughput' && <Throughput />}
-          {this.state.chart === 'bamboo' && <BambooBuilds />}
+          <div style={epicBurnupStyle}>
+            <EpicBurnup />
+          </div>
+          <span style={estimateStyle}>
+            <EstimatesAnalysis />
+          </span>
+          <div style={throughputStyle}>
+            <Throughput />
+          </div>
+          <div style={bambooStyle}>
+            <BambooBuilds />
+          </div>
         </div>
       </div>
     );

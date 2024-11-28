@@ -1,15 +1,19 @@
-import React from 'react';
-import { EstimateData } from '../server/graphManagers/EstimatesGraphManager';
+import React from "react";
+import { EstimateData } from "../server/graphManagers/EstimatesGraphManager";
 
 const google = globalThis.google;
 
-interface Props {estimateData: EstimateData, typesSelected: string[]}
+interface Props {
+  estimatesData: { estimateData: EstimateData[] };
+  typesSelected: string[];
+}
 interface State {}
 
 export default class EstimateChart extends React.Component<Props, State> {
-  props: any;
+  randomId: string;
   constructor(props) {
     super(props);
+    this.randomId = Math.random().toString(36).substring(7);
   }
 
   getPearsonCorrelation(x: number[], y: number[]) {
@@ -34,16 +38,17 @@ export default class EstimateChart extends React.Component<Props, State> {
   //if props change
   componentDidUpdate(prevProps) {
     if (prevProps !== this.props) {
-      console.log('props changed');
-      console.log('Drawing chart');
+      console.log("props changed");
+      console.log("Drawing chart");
       if (!this.props.estimatesData) {
         return;
       }
       let estimatesData = this.props.estimatesData;
-      let dataWithEstimates = estimatesData.estimateData.filter((item) =>
-        item.originalEstimate != null &&
-        item.timeSpent != null &&
-        this.props.typesSelected.includes(item.type)
+      let dataWithEstimates = estimatesData.estimateData.filter(
+        (item) =>
+          item.originalEstimate != null &&
+          item.timeSpent != null &&
+          this.props.typesSelected.includes(item.type)
       );
       let pearsonCorrelation = this.getPearsonCorrelation(
         //@ts-ignore
@@ -51,9 +56,9 @@ export default class EstimateChart extends React.Component<Props, State> {
         //@ts-ignore
         dataWithEstimates.map((item) => item.timeSpent)
       );
-      let notesElement = document.getElementById('notes');
+      let notesElement = document.getElementById("notes");
       if (notesElement)
-        notesElement.innerText = 'Correlation: ' + pearsonCorrelation;
+        notesElement.innerText = "Correlation: " + pearsonCorrelation;
       let googleBurnupDataArray = dataWithEstimates.map((item) => {
         //@ts-ignore
         let originalEstimateInHours = item.originalEstimate / 3600;
@@ -63,29 +68,29 @@ export default class EstimateChart extends React.Component<Props, State> {
           originalEstimateInHours,
           timeSpentInHours,
           item.key +
-            ' oe: ' +
+            " oe: " +
             originalEstimateInHours +
-            'h ts: ' +
+            "h ts: " +
             timeSpentInHours +
-            'h',
+            "h",
         ];
       });
 
       var data = new google.visualization.DataTable();
-      data.addColumn('number', 'Original Estimate');
-      data.addColumn('number', 'Time Spent');
-      data.addColumn({ role: 'tooltip', p: { html: true } });
+      data.addColumn("number", "Original Estimate");
+      data.addColumn("number", "Time Spent");
+      data.addColumn({ role: "tooltip", p: { html: true } });
       data.addRows(googleBurnupDataArray);
       console.log(googleBurnupDataArray);
 
       var options = {
-        title: 'Estimates Analysis',
-        curveType: 'function',
-        legend: { position: 'bottom' },
+        title: "Estimates Analysis",
+        curveType: "function",
+        legend: { position: "bottom" },
         trendlines: {
           0: {
-            type: 'linear',
-            color: 'green',
+            type: "linear",
+            color: "green",
             lineWidth: 3,
             opacity: 0.3,
             showR2: true,
@@ -94,17 +99,18 @@ export default class EstimateChart extends React.Component<Props, State> {
         },
       };
 
-      // var chart = new google.charts.Scatter(
-      //   document.getElementById('chart_div')
-      // );
       var chart = new google.visualization.ScatterChart(
-        document.getElementById('chart_div')
+        document.getElementById(this.randomId)
       );
 
       chart.draw(data, options);
     }
   }
   render() {
-    return <div>Chart</div>;
+    return (
+      <div>
+        <div id={this.randomId}></div>
+      </div>
+    );
   }
 }
