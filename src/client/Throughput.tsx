@@ -8,18 +8,8 @@ import type { SelectProps } from "antd";
 import { IssueInfo } from "../server/graphManagers/GraphManagerTypes";
 import { getSize } from "./Utils";
 import { DefaultOptionType } from "antd/es/select";
-
-type GoogleDataTableType = {
-  addColumn: (type: string, label: string) => void;
-  addRow: (row: GoogleDataRowType) => void;
-};
-
-type GoogleDataRowType = {
-  push: (value: any) => void;
-};
-
-type ClickDataType = { initiativeKey: string; issues: IssueInfo[] };
-type ClickDataColumnType = ClickDataType[];
+import ColumnChart, { ColumnType } from "./ColumnChart";
+import { WithWildcards } from "../Types";
 
 class ConcatableMap<K, V> extends Map<K, V[]> {
   concat(key: K, value: V) {
@@ -172,7 +162,134 @@ export default class Throughput extends React.Component<Props, State> {
   handleSplitModeChange = (e: RadioChangeEvent) => {
     this.setState({ splitMode: e.target.value });
   };
+  getClickData = (data: { initiativeKey: string; issues: any[] }) => {
+    let logHTML = "";
+    function getDaysAndHours(time: number) {
+      let totalHours = time / 3600;
+      let days = Math.floor(totalHours / 8);
+      let hours = Math.floor(totalHours % 8);
+      return `${days}d ${hours}h`;
+    }
+    if (data.issues.length === 0) return;
+    let allTimeSpent = data.issues.reduce(
+      (sum, issue) => sum + (issue.timespent || 0),
+      0
+    );
+    let allEstimate = data.issues.reduce(
+      (sum, issue) => sum + (issue.timeoriginalestimate || 0),
+      0
+    );
+    let allTimeDays = getDaysAndHours(allTimeSpent);
+    let allEstimateDays = getDaysAndHours(allEstimate);
+    logHTML += `<h3>${data.initiativeKey} e: ${allEstimateDays} a: ${allTimeDays}</h3>`;
+    data.issues.forEach((issue) => {
+      let timespentDays = getDaysAndHours(issue.timespent || 0);
+      let estimateDays = getDaysAndHours(issue.timeoriginalestimate || 0);
+      logHTML += `<p><a target="_blank" href="${issue.url}">${issue.key} ${issue.summary} - ${issue.type} - e: ${estimateDays} a: ${timespentDays}</a></p>`;
+    });
+    return logHTML;
+  };
+  getThroughputByInitiative = (throughputData: ThroughputSprintType[]) => {
+    let columns: ColumnType[] = [
+      { type: "date", label: "Sprint Start Date", identifier: "date" },
+    ];
+    this.state.initiativesSelected.forEach((initiative) => {
+      columns.push({
+        type: "number",
+        label: initiative,
+        identifier: initiative,
+      });
+    });
+    columns.push({ type: "number", label: "None", identifier: "None" });
+
+    let data: WithWildcards<{}>[] = [];
+
+    function getIssuesByInitiative(
+      issues: IssueInfo[]
+    ): ConcatableMap<string, IssueInfo> {
+      let issuesByInitiative = new ConcatableMap<string, IssueInfo>();
+
+      issues.forEach((issue) => {
+        if (issue.initiativeKey) {
+          issuesByInitiative.concat(issue.initiativeKey, issue);
+        } else {
+          issuesByInitiative.concat("None", issue);
+        }
+      });
+      return issuesByInitiative;
+    }
+
+    this.state.throughputData.forEach((sprint) => {
+      let issuesByInitiative = getIssuesByInitiative(sprint.issueList);
+      let row: WithWildcards<{}> = {
+        date: new Date(sprint.sprintStartingDate),
+      };
+
+      let clickData = "";
+      [...this.state.initiativesSelected, "None"].forEach((parent) => {
+        let issues = issuesByInitiative.get(parent) || [];
+        row[parent] = getSize(issues, this.state.sizeMode);
+        clickData += this.getClickData({ initiativeKey: parent, issues });
+      });
+      row["clickData"] = clickData;
+      data.push(row);
+    });
+    return { data, columns };
+  };
+
+  getThroughputByLabel(throughputData: ThroughputSprintType[]) {
+    let columns: ColumnType[] = [
+      { type: "date", label: "Sprint Start Date", identifier: "date" },
+    ];
+    this.state.labelsSelected.forEach((label) => {
+      columns.push({
+        type: "number",
+        label: label,
+        identifier: label,
+      });
+    });
+    columns.push({ type: "number", label: "None", identifier: "None" });
+
+    let data: WithWildcards<{}>[] = [];
+
+    function getIssuesByLabel(issues: IssueInfo[]) {
+      let issuesByLabel = new ConcatableMap<string, IssueInfo>();
+
+      issues.forEach((issue) => {
+        issue.labels.forEach((label) => {
+          issuesByLabel.concat(label, issue);
+        });
+        if (issue.labels.length === 0) {
+          issuesByLabel.concat("None", issue);
+        }
+      });
+      return issuesByLabel;
+    }
+
+    this.state.throughputData.forEach((sprint) => {
+      let issuesByLabel = getIssuesByLabel(sprint.issueList);
+      let row: WithWildcards<{}> = {
+        date: new Date(sprint.sprintStartingDate),
+      };
+
+      let clickData = "";
+      [...this.state.labelsSelected, "None"].forEach((parent) => {
+        let issues = issuesByLabel.get(parent) || [];
+        row[parent] = getSize(issues, this.state.sizeMode);
+        clickData += this.getClickData({ initiativeKey: parent, issues });
+      });
+      row["clickData"] = clickData;
+      data.push(row);
+    });
+    return { data, columns };
+  }
+
   render() {
+    let { data, columns } =
+      this.state.splitMode === "initiatives"
+        ? this.getThroughputByInitiative(this.state.throughputData)
+        : this.getThroughputByLabel(this.state.throughputData);
+
     return (
       <div>
         <input
@@ -228,157 +345,12 @@ export default class Throughput extends React.Component<Props, State> {
           <Radio.Button value="estimate">Estimate</Radio.Button>
         </Radio.Group>
         <button onClick={this.onClick}>Click me</button>
-        <Chart
-          throughputData={this.state.throughputData}
-          initiativesSelected={this.state.initiativesSelected}
-          sizeMode={this.state.sizeMode}
+        <ColumnChart
+          data={data}
+          columns={columns}
+          title="Throughput"
+          extraOptions={{ isStacked: true }}
         />
-      </div>
-    );
-  }
-}
-
-const google = globalThis.google;
-
-interface ChartProps {
-  throughputData: ThroughputSprintType[];
-  initiativesSelected: string[];
-  sizeMode: "count" | "time booked" | "estimate";
-}
-interface ChartState {}
-
-class Chart extends React.Component<ChartProps, ChartState> {
-  randomId: string;
-  constructor(props) {
-    super(props);
-    this.randomId = Math.random().toString(36).substring(7);
-  }
-
-  componentDidUpdate(prevProps) {
-    if (prevProps !== this.props) {
-      if (!this.props.throughputData) {
-        return;
-      }
-      this.drawChart();
-    }
-  }
-
-  addColumns(data: any, initiativesSelected: string[]) {
-    data.addColumn("date", "Sprint Start Date");
-    // Add columns for each initiative
-    this.props.initiativesSelected.forEach((parent) => {
-      data.addColumn("number", parent);
-      data.addColumn({ role: "tooltip", p: { html: true } });
-    });
-    data.addColumn("number", "None");
-    data.addColumn({ role: "tooltip", p: { html: true } });
-  }
-
-  getIssuesByInitiative(issues: IssueInfo[]): ConcatableMap<string, IssueInfo> {
-    let issuesByInitiative = new ConcatableMap<string, IssueInfo>();
-
-    issues.forEach((issue) => {
-      if (issue.initiativeKey) {
-        issuesByInitiative.concat(issue.initiativeKey, issue);
-      } else {
-        issuesByInitiative.concat("None", issue);
-      }
-    });
-    return issuesByInitiative;
-  }
-
-  addDataToChart(data: any, clickData: ClickDataType[][]) {
-    this.props.throughputData.forEach((sprint) => {
-      let issuesByInitiative = this.getIssuesByInitiative(sprint.issueList);
-      let columnClickData: ClickDataType[] = [];
-
-      let row: GoogleDataRowType = [new Date(sprint.sprintStartingDate)];
-      [...this.props.initiativesSelected, "None"].forEach((parent) => {
-        let initiatives = issuesByInitiative.get(parent) || [];
-        row.push(getSize(initiatives, this.props.sizeMode));
-        row.push(initiatives.map((issue) => issue.key).join(", "));
-        columnClickData.push({ initiativeKey: parent, issues: initiatives });
-      });
-
-      data.addRow(row);
-      clickData.push(columnClickData);
-    });
-  }
-
-  getHoursAndMinutes(time: number) {
-    let hours = Math.floor(time / 3600);
-    let minutes = Math.floor((time % 3600) / 60);
-    return `${hours}h ${minutes}m`;
-  }
-  getDaysAndHours(time: number) {
-    let totalHours = time / 3600;
-    let days = Math.floor(totalHours / 8);
-    let hours = Math.floor(totalHours % 8);
-    return `${days}d ${hours}h`;
-  }
-
-  handleColumnClick = (chart, clickData: ClickDataType[][]) => {
-    var selection = chart.getSelection();
-    let jiraData = clickData[selection[0].row];
-    let logHTML = "";
-    jiraData.forEach((data) => {
-      if (data.issues.length === 0) return;
-      let allTimeSpent = data.issues.reduce(
-        (sum, issue) => sum + (issue.timespent || 0),
-        0
-      );
-      let allEstimate = data.issues.reduce(
-        (sum, issue) => sum + (issue.timeoriginalestimate || 0),
-        0
-      );
-      let allTimeDays = this.getDaysAndHours(allTimeSpent);
-      let allEstimateDays = this.getDaysAndHours(allEstimate);
-      logHTML += `<h3>${data.initiativeKey} e: ${allEstimateDays} a: ${allTimeDays}</h3>`;
-      data.issues.forEach((issue) => {
-        let timespentDays = this.getDaysAndHours(issue.timespent || 0);
-        let estimateDays = this.getDaysAndHours(
-          issue.timeoriginalestimate || 0
-        );
-        logHTML += `<p><a target="_blank" href="${issue.url}">${issue.key} ${issue.summary} - ${issue.type} - e: ${estimateDays} a: ${timespentDays}</a></p>`;
-      });
-    });
-    let notesElement = document.getElementById("notes");
-    if (notesElement) notesElement.innerHTML = logHTML;
-  };
-
-  drawChart() {
-    var data = new google.visualization.DataTable();
-    let clickData: ClickDataType[][] = [];
-    this.addColumns(data, this.props.initiativesSelected);
-    this.addDataToChart(data, clickData);
-
-    var options = {
-      title: "Throughput",
-      // curveType: 'function',
-      legend: { position: "bottom" },
-      vAxis: {
-        minValue: 0,
-      },
-      isStacked: true,
-    };
-    var chart = new google.visualization.ColumnChart(
-      document.getElementById(this.randomId)
-    );
-    google.visualization.events.addListener(
-      chart,
-      "select",
-      function () {
-        this.handleColumnClick(chart, clickData);
-      }.bind(this)
-    );
-
-    chart.draw(data, options);
-  }
-
-  render() {
-    return (
-      <div>
-        <div id={this.randomId}></div>
       </div>
     );
   }

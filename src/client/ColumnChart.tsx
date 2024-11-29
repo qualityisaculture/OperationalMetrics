@@ -1,10 +1,14 @@
 const google = globalThis.google;
 import React from "react";
+import { WithWildcards } from "../Types";
+
+export type ColumnType = { type: string; identifier: string; label: string };
 
 interface ChartProps {
   title: string;
-  columns: { type: string; identifier: string; label: string }[];
-  data: any[];
+  columns: ColumnType[];
+  data: WithWildcards<{}>[];
+  extraOptions?: any;
 }
 interface ChartState {}
 
@@ -43,6 +47,14 @@ export default class ColumnChart extends React.Component<
     });
   }
 
+  handleColumnClick = (chart) => {
+    var selection = chart.getSelection();
+    let clickData: string = this.props.data[selection[0].row]
+      .clickData as string;
+    let notesElement = document.getElementById("notes");
+    if (notesElement) notesElement.innerHTML = clickData;
+  };
+
   drawChart() {
     var data = new google.visualization.DataTable();
     this.addColumns(data);
@@ -55,8 +67,18 @@ export default class ColumnChart extends React.Component<
         minValue: 0,
       },
     };
+    if (this.props.extraOptions) {
+      options = { ...options, ...this.props.extraOptions };
+    }
     var chart = new google.visualization.ColumnChart(
       document.getElementById(this.randomId)
+    );
+    google.visualization.events.addListener(
+      chart,
+      "select",
+      function () {
+        this.handleColumnClick(chart);
+      }.bind(this)
     );
 
     chart.draw(data, options);
