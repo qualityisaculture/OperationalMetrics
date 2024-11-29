@@ -44,6 +44,9 @@ interface State {
   throughputData: ThroughputSprintType[];
   initiatitives: SelectProps["options"];
   initiativesSelected: string[];
+  labels: SelectProps["options"];
+  labelsSelected: string[];
+  splitMode: "labels" | "initiatives";
   sizeMode: "count" | "time booked" | "estimate";
 }
 
@@ -60,7 +63,10 @@ export default class Throughput extends React.Component<Props, State> {
       throughputData: [],
       initiatitives: [],
       initiativesSelected: [],
+      labels: [],
+      labelsSelected: [],
       sizeMode: "count",
+      splitMode: "initiatives",
     };
   }
   getValuesInSprint = (
@@ -108,6 +114,19 @@ export default class Throughput extends React.Component<Props, State> {
       ];
     });
   };
+  getLabelsAsSelectProps = (throughputData: ThroughputSprintType[]) => {
+    return this.arrayOfAllFieldsAsSelectProps(throughputData, (issue) => {
+      return issue.labels.map((label) => {
+        return {
+          key: label,
+          value: {
+            label: label,
+            value: label,
+          },
+        };
+      });
+    });
+  };
   onClick = () => {
     localStorage.setItem("throughputQuery", this.state.input);
     console.log("Button clicked");
@@ -125,10 +144,13 @@ export default class Throughput extends React.Component<Props, State> {
         let throughputData: ThroughputSprintType[] = JSON.parse(data.data);
         let arrayOfAllInitiatives =
           this.getInitiativesAsSelectProps(throughputData);
+        let arrayOfAllLabels = this.getLabelsAsSelectProps(throughputData);
         this.setState({
           throughputData,
           initiatitives: arrayOfAllInitiatives,
           initiativesSelected: [],
+          labels: arrayOfAllLabels,
+          labelsSelected: [],
         });
       });
   };
@@ -141,8 +163,14 @@ export default class Throughput extends React.Component<Props, State> {
   initiatitivesSelected = (selected: string[]) => {
     this.setState({ initiativesSelected: selected });
   };
+  labelsSelected = (selected: string[]) => {
+    this.setState({ labelsSelected: selected });
+  };
   handleSizeChange = (e: RadioChangeEvent) => {
     this.setState({ sizeMode: e.target.value });
+  };
+  handleSplitModeChange = (e: RadioChangeEvent) => {
+    this.setState({ splitMode: e.target.value });
   };
   render() {
     return (
@@ -164,10 +192,33 @@ export default class Throughput extends React.Component<Props, State> {
           value={this.state.numberOfSprints}
           onChange={this.onNumberOfSprintsChange}
         />
-        <Select
-          onChange={this.initiatitivesSelected.bind(this)}
-          options={this.state.initiatitives}
-        />
+        <Radio.Group
+          value={this.state.splitMode}
+          onChange={this.handleSplitModeChange}
+        >
+          <Radio.Button value="initiatives">Initiatives</Radio.Button>
+          <Radio.Button value="labels">Labels</Radio.Button>
+        </Radio.Group>
+        <span
+          style={{
+            display: this.state.splitMode === "initiatives" ? "" : "none",
+          }}
+        >
+          <Select
+            onChange={this.initiatitivesSelected.bind(this)}
+            options={this.state.initiatitives}
+          />
+        </span>
+        <span
+          style={{
+            display: this.state.splitMode === "labels" ? "" : "none",
+          }}
+        >
+          <Select
+            onChange={this.labelsSelected.bind(this)}
+            options={this.state.labels}
+          />
+        </span>
         <Radio.Group
           value={this.state.sizeMode}
           onChange={this.handleSizeChange}
