@@ -1,12 +1,14 @@
 import React from "react";
 import {
-  BurnupEpicData,
-  BurnupDateData,
+  EpicBurnups,
+  EpicBurnupData,
+  ExtendedEpicBurnupData,
 } from "../server/graphManagers/BurnupGraphManager";
 import Select from "./Select";
 import type { SelectProps, RadioChangeEvent } from "antd";
 import { Radio } from "antd";
 import { getSize } from "./Utils";
+import { TDateISODate } from "../Types";
 
 interface Props {}
 interface State {
@@ -14,7 +16,7 @@ interface State {
   epicSelectList: SelectProps["options"];
   selectedEpics: string[];
   selectedEpicsData: GoogleDataTableType[];
-  allEpicsData: BurnupEpicData[];
+  allEpicsData: EpicBurnups[];
   sizeMode: "count" | "estimate";
 }
 
@@ -22,43 +24,131 @@ type GoogleDataTableType = [Date, number, number, number, number];
 
 const google = globalThis.google;
 
+export function getDataBetweenDates(
+  burnupDateDataArray: (number | Date)[][],
+  today: Date,
+  tomorrow: Date
+): (number | Date)[] {
+  let dataOnDate = burnupDateDataArray.find(
+    (item) => item[0] >= today && item[0] < tomorrow
+  );
+  if (dataOnDate) {
+    return dataOnDate;
+  }
+  let lastData = burnupDateDataArray[burnupDateDataArray.length - 1];
+  if (today > lastData[0]) {
+    return [today, lastData[1], lastData[2], lastData[3], lastData[4]];
+  }
+  return [today, 0, 0, 0, 0];
+}
+
+export function getSelectedEpics(
+  allEpicsData: EpicBurnups[],
+  selectedEpics?: number[]
+) {
+  return selectedEpics
+    ? allEpicsData.filter((item, index) => selectedEpics.includes(index))
+    : allEpicsData;
+}
+export function getEarliestDate(allEpicsData: EpicBurnups[]) {
+  return allEpicsData.reduce((acc, val) => {
+    return acc < val.startDate ? acc : val.startDate;
+  }, new Date());
+}
+
+export function getLastDate(allEpicsData: EpicBurnups[]) {
+  return allEpicsData.reduce((acc, val) => {
+    return acc > val.endDate ? acc : val.endDate;
+  }, new Date());
+}
+
+export function extendEpicBurnup(
+  epicBurnups: EpicBurnups,
+  earliestDate: Date,
+  lastDate: Date
+): ExtendedEpicBurnupData[] {
+  if (earliestDate > epicBurnups.startDate) {
+    throw new Error("Earliest date is after start date");
+  }
+  if (lastDate < epicBurnups.endDate) {
+    throw new Error("Last date is before end date");
+  }
+  let extendedBurnupDataArray: ExtendedEpicBurnupData[] = [];
+  let currentDate = new Date(earliestDate);
+  let doneCount = 0;
+  while (currentDate <= lastDate) {
+    let burnupData: EpicBurnupData | undefined = epicBurnups.dateData.find(
+      (item) => item.date === currentDate.toISOString().split("T")[0]
+    );
+    if (burnupData) {
+      let extendedBurnupData: ExtendedEpicBurnupData = {
+        ...burnupData,
+        futureDoneCount: null,
+        futureDoneEstimate: null,
+        futureDoneKeys: [],
+      };
+      doneCount += epicBurnups.doneCountIncrement;
+      extendedBurnupDataArray.push(extendedBurnupData);
+    } else {
+      if (currentDate < epicBurnups.startDate) {
+        extendedBurnupDataArray.push({
+          date: currentDate.toISOString().split("T")[0] as TDateISODate,
+          doneCount: null,
+          doneEstimate: null,
+          doneKeys: [],
+          scopeCount: null,
+          scopeEstimate: null,
+          scopeKeys: [],
+          futureDoneCount: null,
+          futureDoneEstimate: null,
+          futureDoneKeys: [],
+        });
+      } else if (currentDate > epicBurnups.endDate) {
+        console.log(doneCount);
+        extendedBurnupDataArray.push({
+          ...epicBurnups.dateData[epicBurnups.dateData.length - 1],
+          date: currentDate.toISOString().split("T")[0] as TDateISODate,
+          futureDoneCount: doneCount,
+          futureDoneEstimate: null,
+          futureDoneKeys: [],
+        });
+        doneCount += epicBurnups.doneCountIncrement;
+      }
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  // console.log(extendedBurnupDataArray);
+  return extendedBurnupDataArray;
+}
+
 export function getGoogleDataTableFromMultipleBurnupData(
-  allEpicsData: BurnupEpicData[],
+  allEpicsData: EpicBurnups[],
   estimate: boolean,
   selectedEpics?: number[]
 ): GoogleDataTableType[] {
-  let filteredData = selectedEpics
-    ? allEpicsData.filter((item, index) => selectedEpics.includes(index))
-    : allEpicsData;
-  let googleBurnupDataArray = filteredData.map((item) => {
-    return getGoogleDataTableFromBurnupDateData(item.dateData, estimate);
+  let filteredEpics = getSelectedEpics(allEpicsData, selectedEpics);
+  let earliestDate = new Date(getEarliestDate(filteredEpics));
+  let lastDate = new Date(getLastDate(filteredEpics));
+  let extendedBurnupDataArray = filteredEpics.map((item) => {
+    return extendEpicBurnup(item, earliestDate, lastDate);
   });
-  let earliestDate = googleBurnupDataArray.reduce((acc, val) => {
-    return acc < val[0][0] ? acc : val[0][0];
-  }, new Date());
-  let lastDate = googleBurnupDataArray.reduce((acc, val) => {
-    return acc > val[val.length - 1][0] ? acc : val[val.length - 1][0];
-  }, new Date());
+  // let googleBurnupDataArray = filteredEpics.map((item) => {
+  //   return getGoogleDataTableFromBurnupDateData(item.dateData, estimate);
+  // });
+  let googleBurnupDataArray = extendedBurnupDataArray.map((item) => {
+    return getGoogleDataTableFromBurnupDateData(item, estimate);
+  });
   let allDates: GoogleDataTableType[] = [];
   for (
     let d = new Date(earliestDate);
-    d <= lastDate;
+    d <= new Date(lastDate);
     d.setDate(d.getDate() + 1)
   ) {
     let tomorrow = new Date(d);
     tomorrow.setDate(tomorrow.getDate() + 1);
     let dataBetweenDates = googleBurnupDataArray.map((burnupDateDataArray) => {
-      let dataOnDate = burnupDateDataArray.find(
-        (item) => item[0] >= d && item[0] < tomorrow
-      );
-      if (dataOnDate) {
-        return dataOnDate;
-      }
-      let lastData = burnupDateDataArray[burnupDateDataArray.length - 1];
-      if (d > lastData[0]) {
-        return [d, lastData[1], lastData[2], lastData[3], lastData[4]];
-      }
-      return [d, 0, 0, 0, 0];
+      return getDataBetweenDates(burnupDateDataArray, d, tomorrow);
     });
     let sumDone = dataBetweenDates.reduce((acc, val) => acc + val[1], 0);
     let sumScope = dataBetweenDates.reduce((acc, val) => acc + val[2], 0);
@@ -70,7 +160,7 @@ export function getGoogleDataTableFromMultipleBurnupData(
 }
 
 export function getGoogleDataTableFromBurnupDateData(
-  burnupDataArray: BurnupDateData[],
+  burnupDataArray: ExtendedEpicBurnupData[],
   estimate: boolean
 ) {
   let googleBurnupDataArray = burnupDataArray.map((item) => {
@@ -78,8 +168,8 @@ export function getGoogleDataTableFromBurnupDateData(
       new Date(item.date),
       estimate ? item.doneEstimate / 3600 / 8 : item.doneCount,
       estimate ? item.scopeEstimate / 3600 / 8 : item.scopeCount,
-      item.idealTrend,
-      item.forecastTrend,
+      item.futureDoneCount,
+      0,
     ];
   });
   return googleBurnupDataArray;
@@ -105,7 +195,7 @@ export default class EpicBurnup extends React.Component<Props, State> {
     fetch("/api/epicBurnup?query=" + this.state.input)
       .then((response) => response.json())
       .then((data) => {
-        let burnupDataArrays: BurnupEpicData[] = JSON.parse(data.data);
+        let burnupDataArrays: EpicBurnups[] = JSON.parse(data.data);
         this.setState({ allEpicsData: burnupDataArrays });
         this.setState({
           epicSelectList: burnupDataArrays.map((item, i) => {
