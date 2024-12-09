@@ -75,7 +75,8 @@ export function extendEpicBurnup(
   }
   let extendedBurnupDataArray: ExtendedEpicBurnupData[] = [];
   let currentDate = new Date(earliestDate);
-  let doneCount = 0;
+  let doneCountForecast = 0;
+  let doneEstimateForecast = 0;
   while (currentDate <= lastDate) {
     let burnupData: EpicBurnupData | undefined = epicBurnups.dateData.find(
       (item) => item.date === currentDate.toISOString().split("T")[0]
@@ -87,7 +88,8 @@ export function extendEpicBurnup(
         futureDoneEstimate: null,
         futureDoneKeys: [],
       };
-      doneCount += epicBurnups.doneCountIncrement;
+      doneCountForecast += epicBurnups.doneCountIncrement;
+      doneEstimateForecast += epicBurnups.doneEstimateIncrement;
       extendedBurnupDataArray.push(extendedBurnupData);
     } else {
       if (currentDate < epicBurnups.startDate) {
@@ -103,16 +105,18 @@ export function extendEpicBurnup(
           futureDoneEstimate: null,
           futureDoneKeys: [],
         });
-      } else if (currentDate > epicBurnups.endDate) {
-        console.log(doneCount);
+      } else if (currentDate > new Date()) {
         extendedBurnupDataArray.push({
           ...epicBurnups.dateData[epicBurnups.dateData.length - 1],
           date: currentDate.toISOString().split("T")[0] as TDateISODate,
-          futureDoneCount: doneCount,
-          futureDoneEstimate: null,
+          doneCount: null,
+          doneEstimate: null,
+          futureDoneCount: doneCountForecast,
+          futureDoneEstimate: doneEstimateForecast,
           futureDoneKeys: [],
         });
-        doneCount += epicBurnups.doneCountIncrement;
+        doneCountForecast += epicBurnups.doneCountIncrement;
+        doneEstimateForecast += epicBurnups.doneEstimateIncrement;
       }
     }
     currentDate.setDate(currentDate.getDate() + 1);
@@ -154,6 +158,12 @@ export function getGoogleDataTableFromMultipleBurnupData(
     let sumScope = dataBetweenDates.reduce((acc, val) => acc + val[2], 0);
     let sumIdeal = dataBetweenDates.reduce((acc, val) => acc + val[3], 0);
     let sumForecast = dataBetweenDates.reduce((acc, val) => acc + val[4], 0);
+    if (sumForecast === 0) {
+      sumForecast = null;
+    }
+    if (sumDone === 0) {
+      sumDone = null;
+    }
     allDates.push([new Date(d), sumDone, sumScope, sumIdeal, sumForecast]);
   }
   return allDates;
@@ -168,8 +178,8 @@ export function getGoogleDataTableFromBurnupDateData(
       new Date(item.date),
       estimate ? item.doneEstimate / 3600 / 8 : item.doneCount,
       estimate ? item.scopeEstimate / 3600 / 8 : item.scopeCount,
-      item.futureDoneCount,
       0,
+      estimate ? item.futureDoneEstimate / 3600 / 8 : item.futureDoneCount,
     ];
   });
   return googleBurnupDataArray;

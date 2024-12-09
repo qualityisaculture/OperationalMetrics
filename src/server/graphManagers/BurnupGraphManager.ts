@@ -42,12 +42,13 @@ export default class BurnupGraphManager {
       jiras.map((jira) => {
         return this.getBurnupArrayToDate(jira).then((burnupArrayData) => {
           let burnupArray = burnupArrayData.data;
+
           let doneCountIncrement =
-            burnupArray[burnupArray.length - 1].doneCount ||
-            0 / burnupArray.length;
+            (burnupArray[burnupArray.length - 1].doneCount || 0) /
+            burnupArray.length;
           let doneEstimateIncrement =
-            burnupArray[burnupArray.length - 1].doneEstimate ||
-            0 / burnupArray.length;
+            (burnupArray[burnupArray.length - 1].doneEstimate || 0) /
+            burnupArray.length;
 
           return {
             key: jira.getKey(),
