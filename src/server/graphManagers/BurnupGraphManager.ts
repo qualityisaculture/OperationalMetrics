@@ -14,8 +14,10 @@ export type EpicBurnupData = {
 };
 
 export type ExtendedEpicBurnupData = EpicBurnupData & {
-  futureDoneCount: number | null;
-  futureDoneEstimate: number | null;
+  doneCountForecast: number | null;
+  doneEstimateForecast: number | null;
+  doneCountRequired: number | null;
+  doneEstimateRequired: number | null;
   futureDoneKeys: string[];
 };
 
@@ -24,10 +26,14 @@ export type EpicBurnups = {
   summary: string;
   startDate: Date;
   endDate: Date;
-  doneCountIncrement: number;
-  doneCountLimit: number;
-  doneEstimateIncrement: number;
-  doneEstimateLimit: number;
+  doneCountIncrement: number; //How many items are completed each day on average
+  doneCountLimit: number; //The maximum number of items that can be completed
+  doneEstimateIncrement: number; //How many points are completed each day on average
+  doneEstimateLimit: number; //The maximum number of points that can be completed
+  doneCountRequiredIncrement: number; //How many items are required to be completed each day to finish on time
+  doneCountRequiredLimit: number; //How many items are required to finish //TODO: Remove
+  doneEstimateRequiredIncrement: number; //How many points are required to be completed each day to finish on time
+  doneEstimateRequiredLimit: number; //How many points are required to finish //TODO: Remove
   dateData: EpicBurnupData[];
 };
 
@@ -42,6 +48,11 @@ export default class BurnupGraphManager {
       jiras.map((jira) => {
         return this.getBurnupArrayToDate(jira).then((burnupArrayData) => {
           let burnupArray = burnupArrayData.data;
+          let dueDate = jira.getEpicDueDate() || new Date();
+          let startDate = jira.getEpicStartDate() || jira.getCreated();
+          let daysBetween = Math.floor(
+            (dueDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+          );
 
           let doneCountIncrement =
             (burnupArray[burnupArray.length - 1].doneCount || 0) /
@@ -49,6 +60,11 @@ export default class BurnupGraphManager {
           let doneEstimateIncrement =
             (burnupArray[burnupArray.length - 1].doneEstimate || 0) /
             burnupArray.length;
+          let doneCountRequiredIncrement =
+            (burnupArray[burnupArray.length - 1].scopeCount || 0) / daysBetween;
+          let doneEstimateRequiredIncrement =
+            (burnupArray[burnupArray.length - 1].scopeEstimate || 0) /
+            daysBetween;
 
           return {
             key: jira.getKey(),
@@ -56,9 +72,15 @@ export default class BurnupGraphManager {
             startDate: jira.getEpicStartDate() || jira.getCreated(),
             endDate: jira.getEpicDueDate() || new Date(),
             doneCountIncrement,
-            doneCountLimit: burnupArrayData.totalCount,
+            doneCountLimit: burnupArrayData.totalCount, //this seems wrong
             doneEstimateIncrement,
-            doneEstimateLimit: burnupArrayData.totalEstimate,
+            doneEstimateLimit: burnupArrayData.totalEstimate, // this seems wrong
+            doneCountRequiredIncrement,
+            doneCountRequiredLimit:
+              burnupArray[burnupArray.length - 1].scopeCount || 0,
+            doneEstimateRequiredIncrement,
+            doneEstimateRequiredLimit:
+              burnupArray[burnupArray.length - 1].scopeEstimate || 0,
             dateData: burnupArray,
           };
         });
@@ -82,6 +104,24 @@ export default class BurnupGraphManager {
     let endDate = new Date();
     endDate.setDate(endDate.getDate() + 1);
     let childJiras = await this.getAllChildrenJiras(epic);
+    let childJiraTotalEstimate = childJiras.reduce(
+      (sum, child) => sum + (child.getOriginalEstimate() || 0),
+      0
+    );
+    let epicDueDate: Date = epic.getEpicDueDate() || new Date();
+    console.log(
+      epic.getKey(),
+      childJiras.length,
+      childJiras.map((jira) => jira.getKey())
+    );
+    let daysBetween = Math.floor(
+      (epicDueDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    let requiredCountPerDay = childJiras.length / daysBetween;
+    let requiredEstimatePerDay = childJiraTotalEstimate / daysBetween;
+    let requiredCountToday = 0;
+    let requiredEstimateToday = 0;
 
     let burnupArray: EpicBurnupData[] = [];
     for (
@@ -111,16 +151,14 @@ export default class BurnupGraphManager {
         scopeEstimate,
         scopeKeys: scopeChildren.map((child) => child.getKey()),
       });
+      requiredCountToday += requiredCountPerDay;
+      requiredEstimateToday += requiredEstimatePerDay;
     }
-    let finalChildrenInScope = await this.getAllChildrenJiras(epic);
-    console.log(finalChildrenInScope);
+
     return {
       data: burnupArray,
-      totalCount: finalChildrenInScope.length,
-      totalEstimate: finalChildrenInScope.reduce(
-        (sum, child) => sum + (child.getOriginalEstimate() || 0),
-        0
-      ),
+      totalCount: childJiras.length,
+      totalEstimate: childJiraTotalEstimate,
     };
   }
 

@@ -77,6 +77,8 @@ export function extendEpicBurnup(
   let currentDate = new Date(earliestDate);
   let doneCountForecast = 0;
   let doneEstimateForecast = 0;
+  let doneCountRequired = 0;
+  let doneEstimateRequired = 0;
   while (currentDate <= lastDate) {
     let burnupData: EpicBurnupData | undefined = epicBurnups.dateData.find(
       (item) => item.date === currentDate.toISOString().split("T")[0]
@@ -84,12 +86,22 @@ export function extendEpicBurnup(
     if (burnupData) {
       let extendedBurnupData: ExtendedEpicBurnupData = {
         ...burnupData,
-        futureDoneCount: null,
-        futureDoneEstimate: null,
+        doneCountForecast: null,
+        doneEstimateForecast: null,
         futureDoneKeys: [],
+        doneCountRequired: null,
+        doneEstimateRequired: null,
       };
       doneCountForecast += epicBurnups.doneCountIncrement;
       doneEstimateForecast += epicBurnups.doneEstimateIncrement;
+      doneCountRequired = Math.min(
+        doneCountRequired + epicBurnups.doneCountRequiredIncrement,
+        epicBurnups.doneCountLimit
+      );
+      doneEstimateRequired = Math.min(
+        doneEstimateRequired + epicBurnups.doneEstimateRequiredIncrement,
+        epicBurnups.doneEstimateLimit
+      );
       extendedBurnupDataArray.push(extendedBurnupData);
     } else {
       if (currentDate < epicBurnups.startDate) {
@@ -101,9 +113,11 @@ export function extendEpicBurnup(
           scopeCount: null,
           scopeEstimate: null,
           scopeKeys: [],
-          futureDoneCount: null,
-          futureDoneEstimate: null,
+          doneCountForecast: null,
+          doneEstimateForecast: null,
           futureDoneKeys: [],
+          doneCountRequired: null,
+          doneEstimateRequired: null,
         });
       } else if (currentDate > new Date()) {
         extendedBurnupDataArray.push({
@@ -111,12 +125,22 @@ export function extendEpicBurnup(
           date: currentDate.toISOString().split("T")[0] as TDateISODate,
           doneCount: null,
           doneEstimate: null,
-          futureDoneCount: doneCountForecast,
-          futureDoneEstimate: doneEstimateForecast,
+          doneCountForecast: doneCountForecast,
+          doneEstimateForecast: doneEstimateForecast,
           futureDoneKeys: [],
+          doneCountRequired: doneCountRequired,
+          doneEstimateRequired: doneEstimateRequired,
         });
         doneCountForecast += epicBurnups.doneCountIncrement;
         doneEstimateForecast += epicBurnups.doneEstimateIncrement;
+        doneCountRequired = Math.min(
+          doneCountRequired + epicBurnups.doneCountRequiredIncrement,
+          epicBurnups.doneCountLimit
+        );
+        doneEstimateRequired = Math.min(
+          doneEstimateRequired + epicBurnups.doneEstimateRequiredIncrement,
+          epicBurnups.doneEstimateLimit
+        );
       }
     }
     currentDate.setDate(currentDate.getDate() + 1);
@@ -178,8 +202,8 @@ export function getGoogleDataTableFromBurnupDateData(
       new Date(item.date),
       estimate ? item.doneEstimate / 3600 / 8 : item.doneCount,
       estimate ? item.scopeEstimate / 3600 / 8 : item.scopeCount,
-      0,
-      estimate ? item.futureDoneEstimate / 3600 / 8 : item.futureDoneCount,
+      estimate ? item.doneEstimateRequired / 3600 / 8 : item.doneCountRequired,
+      estimate ? item.doneEstimateForecast / 3600 / 8 : item.doneCountForecast,
     ];
   });
   return googleBurnupDataArray;
@@ -314,7 +338,7 @@ class LineChart extends React.Component<ChartProps, ChartState> {
       series: {
         0: { color: "blue" }, //done
         1: { color: "green" }, //scope
-        2: { color: "red" }, //ideal
+        2: { color: "red", lineDashStyle: [4, 4] }, //ideal
         3: { color: "orange", lineDashStyle: [4, 4] }, //forecast
       },
     };
