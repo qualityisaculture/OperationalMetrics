@@ -176,6 +176,11 @@ export default class Jira {
     }
     return new Date(this.fields.duedate);
   }
+  /**
+   *
+   * @param date: If passed, you will receive the children which were linked to that epic on that date/
+   * @returns
+   */
   getChildrenKeys(date?: Date): lastUpdatedKey[] {
     if (!this.changelog || !this.changelog.histories) {
       return [];
@@ -185,7 +190,7 @@ export default class Jira {
     let chronologicalEpicChildItems = this.getHistoriesItems("Epic Child");
     chronologicalEpicChildItems.forEach((item) => {
       if (item.created && date && item.created > date) {
-        return Array.from(children);
+        return; //break out of for each
       }
       if (item.toString) {
         children.add(item.toString);

@@ -248,13 +248,13 @@ describe("Jira", () => {
     });
   });
 
-  describe("getChildren", () => {
+  describe("getChildrenKeys", () => {
     it("should return nothing with no history", () => {
       let jira = new Jira(defaultJiraJSON);
       expect(jira.getChildrenKeys()).toEqual([]);
     });
 
-    it("should return when setting Epic Child is only history item", () => {
+    it("should return child when there is only a single Epic Child history item", () => {
       let jira = new Jira({
         ...defaultJiraJSON,
         changelog: {
@@ -270,7 +270,7 @@ describe("Jira", () => {
       expect(jira.getChildrenKeys()).toEqual([{ key: "KEY-1" }]);
     });
 
-    it("should return when setting Epic Child has multiple items in a history", () => {
+    it("should return multiple children when multiple Epic Child items in a single history", () => {
       let jira = new Jira({
         ...defaultJiraJSON,
         changelog: {
@@ -295,7 +295,7 @@ describe("Jira", () => {
       ]);
     });
 
-    it("should return when setting Epic Child has multiple histories", () => {
+    it("should return multiple children when there are multiple Epic Child history items", () => {
       let jira = new Jira({
         ...defaultJiraJSON,
         changelog: {
@@ -342,7 +342,7 @@ describe("Jira", () => {
       expect(jira.getChildrenKeys()).toEqual([]);
     });
 
-    it("should return only the children that exist to that point when data is passed", () => {
+    it("should return only the children that exist to that point when date is passed", () => {
       let jira = new Jira({
         ...defaultJiraJSON,
         changelog: {

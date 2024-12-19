@@ -23,7 +23,7 @@ describe('BurnupGraphManager', () => {
     jest.useRealTimers();
   });
 
-  it('should request the epic from the Jirarequest', async () => {
+  it('should request the epic from the JiraRequest', async () => {
     mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
     let bgm = new BurnupGraphManager(mockJiraRequester);
     await bgm.getEpicBurnupData('key=KEY-1');
@@ -38,7 +38,7 @@ describe('BurnupGraphManager', () => {
     expect(mockJiraRequester.getFullJiraDataFromKeys).toHaveBeenCalledWith(['KEY-2']);
   });
 
-  describe('Get the Start and End Date', () => {
+  describe('Get the Start and End Date of the Epic from appropriate fields', () => {
 
     it('should use the epic start date if it exists', async () => {
       mockJira = new Jira({
@@ -66,19 +66,18 @@ describe('BurnupGraphManager', () => {
       expect(result[0].date).toEqual('2024-10-21');
     });
 
-    // it('should use the epic due date if it exists', async () => {
-    //   jest.setSystemTime(new Date('2024-12-31').getTime());
-    //   mockJira = new Jira({
-    //     ...defaultJiraJSON,
-    //     fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-28', duedate: '2024-10-30'}
-    //   });
-    //   mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
+    it('should use the epic due date if it exists', async () => {
+      jest.setSystemTime(new Date('2024-12-31').getTime());
+      mockJira = new Jira({
+        ...defaultJiraJSON,
+        fields: {...defaultJiraJSON.fields, customfield_10015: '2024-10-28', duedate: '2024-10-30'}
+      });
+      mockJiraRequester.getQuery = jest.fn().mockResolvedValue([mockJira]);
 
-    //   let bgm = new BurnupGraphManager(mockJiraRequester);
-    //   let results = await bgm.getEpicBurnupData('key=KEY-1');
-    //   let result = results[0].dateData;
-    //   expect(result[result.length - 1].date).toEqual(new Date('2024-10-30Z'));
-    // });
+      let bgm = new BurnupGraphManager(mockJiraRequester);
+      let results = await bgm.getEpicBurnupData('key=KEY-1');
+      expect(results[0].endDate).toEqual(new Date('2024-10-30'));
+    });
 
     it('should use the current date if the epic due date does not exist', async () => {
       mockJira = new Jira({
