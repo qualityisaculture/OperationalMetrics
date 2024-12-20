@@ -248,10 +248,10 @@ describe("Jira", () => {
     });
   });
 
-  describe("getChildrenKeys", () => {
+  describe("getChildrenKeysFromHistories", () => {
     it("should return nothing with no history", () => {
       let jira = new Jira(defaultJiraJSON);
-      expect(jira.getChildrenKeys()).toEqual([]);
+      expect(jira.getChildrenKeysFromHistories()).toEqual([]);
     });
 
     it("should return child when there is only a single Epic Child history item", () => {
@@ -267,7 +267,7 @@ describe("Jira", () => {
           ],
         },
       });
-      expect(jira.getChildrenKeys()).toEqual([{ key: "KEY-1" }]);
+      expect(jira.getChildrenKeysFromHistories()).toEqual([{ key: "KEY-1" }]);
     });
 
     it("should return multiple children when multiple Epic Child items in a single history", () => {
@@ -289,7 +289,7 @@ describe("Jira", () => {
           ],
         },
       });
-      expect(jira.getChildrenKeys()).toEqual([
+      expect(jira.getChildrenKeysFromHistories()).toEqual([
         { key: "KEY-1" },
         { key: "KEY-2" },
       ]);
@@ -313,7 +313,7 @@ describe("Jira", () => {
           ],
         },
       });
-      expect(jira.getChildrenKeys()).toEqual([
+      expect(jira.getChildrenKeysFromHistories()).toEqual([
         { key: "KEY-1" },
         { key: "KEY-2" },
       ]);
@@ -339,7 +339,7 @@ describe("Jira", () => {
           ],
         },
       });
-      expect(jira.getChildrenKeys()).toEqual([]);
+      expect(jira.getChildrenKeysFromHistories()).toEqual([]);
     });
 
     it("should return only the children that exist to that point when date is passed", () => {
@@ -363,16 +363,28 @@ describe("Jira", () => {
         },
       });
       expect(
-        jira.getChildrenKeys(new Date("2024-10-21T09:00:00.000Z"))
+        jira.getChildrenKeysFromHistories(new Date("2024-10-21T09:00:00.000Z"))
       ).toEqual([]);
       expect(
-        jira.getChildrenKeys(new Date("2024-10-22T09:00:00.000Z"))
+        jira.getChildrenKeysFromHistories(new Date("2024-10-22T09:00:00.000Z"))
       ).toEqual([{ key: "KEY-1" }]);
       expect(
-        jira.getChildrenKeys(new Date("2024-10-23T09:00:00.000Z"))
+        jira.getChildrenKeysFromHistories(new Date("2024-10-23T09:00:00.000Z"))
       ).toEqual([]);
     });
   });
+
+  // describe("getChildrenKeys", () => {
+  //   it("returns current children if no date passed", () => {
+  //     let jira = new Jira({
+  //       ...defaultJiraJSON,
+  //       fields: { ...defaultJiraJSONFields, issuetype: { name: "Epic" } },
+  //     });
+  //     jira.getChildrenKeys = jest.fn();
+  //     jira.getChildrenKeys();
+  //     expect(jira.getChildrenKeys).toHaveBeenCalledWith(new Date());
+  //   });
+  // });
 
   describe("getStatus", () => {
     it("should return the current state when no date passed", () => {

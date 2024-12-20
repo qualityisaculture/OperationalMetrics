@@ -17,11 +17,6 @@ export default class JiraRequester {
       if (this.jiraMap.has(issueRequest.key)) {
         let lastUpdated = this.jiraMap.get(issueRequest.key)?.fields.updated;
         if (issueRequest.updated && issueRequest.updated !== lastUpdated) {
-          console.log("Jira " + issueRequest.key + " is out of date");
-          console.log(
-            "Last updated: " + lastUpdated,
-            "Requested: " + issueRequest.updated
-          );
           uncachedKeys.push(issueRequest.key);
         }
       } else {

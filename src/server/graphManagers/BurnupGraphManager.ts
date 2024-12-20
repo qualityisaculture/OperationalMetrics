@@ -1,8 +1,8 @@
 import { TDateISODate } from "../../Types";
 import Jira from "../Jira";
-import JiraRequester from "../JiraRequester";
+import JiraRequester, { lastUpdatedKey } from "../JiraRequester";
 
-export type EpicBurnupData = {
+export type DoneAndScopeCount = {
   //datestring
   date: TDateISODate;
   doneCount: number | null;
@@ -13,7 +13,7 @@ export type EpicBurnupData = {
   scopeKeys: string[];
 };
 
-export type ExtendedEpicBurnupData = EpicBurnupData & {
+export type DoneAndScopeCountWithForecast = DoneAndScopeCount & {
   doneCountForecast: number | null;
   doneEstimateForecast: number | null;
   doneCountRequired: number | null;
@@ -21,7 +21,7 @@ export type ExtendedEpicBurnupData = EpicBurnupData & {
   futureDoneKeys: string[];
 };
 
-export type EpicBurnups = {
+export type EpicBurnup = {
   key: string;
   summary: string;
   startDate: Date;
@@ -34,7 +34,7 @@ export type EpicBurnups = {
   doneCountRequiredLimit: number; //How many items are required to finish //TODO: Remove
   doneEstimateRequiredIncrement: number; //How many points are required to be completed each day to finish on time
   doneEstimateRequiredLimit: number; //How many points are required to finish //TODO: Remove
-  dateData: EpicBurnupData[];
+  dateData: DoneAndScopeCount[];
 };
 
 export default class BurnupGraphManager {
@@ -43,60 +43,72 @@ export default class BurnupGraphManager {
     this.jiraRequester = jiraRequester;
   }
 
-  async getEpicBurnupsToDate(jiras: Jira[]): Promise<EpicBurnups[]> {
-    let burnupArrays: EpicBurnups[] = await Promise.all(
-      jiras.map((jira) => {
-        return this.getBurnupArrayToDate(jira).then((burnupArrayData) => {
-          let burnupArray = burnupArrayData.data;
-          let dueDate = jira.getEpicDueDate() || new Date();
-          let startDate = jira.getEpicStartDate() || jira.getCreated();
-          let daysBetween = Math.floor(
-            (dueDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-          );
+  async getEpicBurnupsToDate(epics: Jira[]): Promise<EpicBurnup[]> {
+    return await Promise.all(epics.map((jira) => this.getBurnupChart(jira)));
+  }
 
-          let doneCountIncrement =
-            (burnupArray[burnupArray.length - 1].doneCount || 0) /
-            burnupArray.length;
-          let doneEstimateIncrement =
-            (burnupArray[burnupArray.length - 1].doneEstimate || 0) /
-            burnupArray.length;
-          let doneCountRequiredIncrement =
-            (burnupArray[burnupArray.length - 1].scopeCount || 0) / daysBetween;
-          let doneEstimateRequiredIncrement =
-            (burnupArray[burnupArray.length - 1].scopeEstimate || 0) /
-            daysBetween;
+  async getBurnupChart(epic: Jira): Promise<EpicBurnup> {
+    let burnupArrayData = await this.getBurnupArrayToDate(epic);
 
-          return {
-            key: jira.getKey(),
-            summary: jira.getSummary(),
-            startDate: jira.getEpicStartDate() || jira.getCreated(),
-            endDate: jira.getEpicDueDate() || new Date(),
-            doneCountIncrement,
-            doneCountLimit: burnupArrayData.totalCount, //this seems wrong
-            doneEstimateIncrement,
-            doneEstimateLimit: burnupArrayData.totalEstimate, // this seems wrong
-            doneCountRequiredIncrement,
-            doneCountRequiredLimit:
-              burnupArray[burnupArray.length - 1].scopeCount || 0,
-            doneEstimateRequiredIncrement,
-            doneEstimateRequiredLimit:
-              burnupArray[burnupArray.length - 1].scopeEstimate || 0,
-            dateData: burnupArray,
-          };
-        });
-      })
+    let burnupArray = burnupArrayData.data;
+    let dueDate = epic.getEpicDueDate() || new Date();
+    let startDate = epic.getEpicStartDate() || epic.getCreated();
+    let daysBetween = Math.floor(
+      (dueDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
     );
+
+    let finalDoneCount = burnupArray[burnupArray.length - 1].doneCount || 0;
+    let finalDoneEstimate =
+      burnupArray[burnupArray.length - 1].doneEstimate || 0;
+    let finalScopeCount = burnupArray[burnupArray.length - 1].scopeCount || 0;
+    let finalScopeEstimate =
+      burnupArray[burnupArray.length - 1].scopeEstimate || 0;
+
+    let doneCountIncrement = finalDoneCount / daysBetween;
+    let doneEstimateIncrement = finalDoneEstimate / daysBetween;
+    let doneCountRequiredIncrement = finalScopeCount / daysBetween;
+    let doneEstimateRequiredIncrement = finalScopeEstimate / daysBetween;
+
+    return {
+      key: epic.getKey(),
+      summary: epic.getSummary(),
+      startDate: epic.getEpicStartDate() || epic.getCreated(),
+      endDate: epic.getEpicDueDate() || new Date(),
+      doneCountIncrement,
+      doneCountLimit: burnupArrayData.totalCount, //this seems wrong
+      doneEstimateIncrement,
+      doneEstimateLimit: burnupArrayData.totalEstimate, // this seems wrong
+      doneCountRequiredIncrement,
+      doneCountRequiredLimit: finalScopeCount,
+      doneEstimateRequiredIncrement,
+      doneEstimateRequiredLimit: finalDoneEstimate,
+      dateData: burnupArray,
+    };
+  }
+
+  async getEpicBurnupData(query: string): Promise<EpicBurnup[]> {
+    let epics = await this.jiraRequester.getQuery(query);
+    epics = await Promise.all(
+      epics.map((jira) => this.addChildKeysToJira(jira))
+    );
+    let burnupArrays = await this.getEpicBurnupsToDate(epics);
     return burnupArrays;
   }
 
-  async getEpicBurnupData(query: string): Promise<EpicBurnups[]> {
-    let jiras = await this.jiraRequester.getQuery(query);
-    let burnupArrays = await this.getEpicBurnupsToDate(jiras);
-    return burnupArrays;
+  async addChildKeysToJira(jira: Jira): Promise<Jira> {
+    let childJiras = await this.jiraRequester.getQuery(
+      `parent=${jira.getKey()}`
+    );
+    let childKeys = childJiras.map((child) => {
+      return { key: child.getKey(), created: child.getCreated() };
+    });
+    jira.fields.childKeys = childKeys;
+    console.log("Added child keys to jira", jira.getKey(), childKeys);
+    return jira;
   }
 
   async getBurnupArrayToDate(epic: Jira): Promise<{
-    data: EpicBurnupData[];
+    data: DoneAndScopeCount[];
     totalCount: number;
     totalEstimate: number;
   }> {
@@ -109,11 +121,6 @@ export default class BurnupGraphManager {
       0
     );
     let epicDueDate: Date = epic.getEpicDueDate() || new Date();
-    console.log(
-      epic.getKey(),
-      childJiras.length,
-      childJiras.map((jira) => jira.getKey())
-    );
     let daysBetween = Math.floor(
       (epicDueDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -123,7 +130,7 @@ export default class BurnupGraphManager {
     let requiredCountToday = 0;
     let requiredEstimateToday = 0;
 
-    let burnupArray: EpicBurnupData[] = [];
+    let burnupArray: DoneAndScopeCount[] = [];
     for (
       let date = startDate;
       date < endDate;
@@ -163,8 +170,23 @@ export default class BurnupGraphManager {
   }
 
   async getAllChildrenJiras(jira: Jira, date?: Date): Promise<Jira[]> {
-    let childrenKeys = jira.getChildrenKeys(date);
-    let jiras = await this.jiraRequester.getFullJiraDataFromKeys(childrenKeys);
+    let keysSet = new Set<lastUpdatedKey>();
+    let childrenKeys = jira.getChildrenKeysFromHistories(date);
+    childrenKeys.forEach((key) => keysSet.add(key));
+    let otherKeys = jira.fields.childKeys;
+    otherKeys.forEach((keyCreatedPair) => {
+      if (date) {
+        let created = new Date(keyCreatedPair.created);
+        if (created < date) {
+          keysSet.add(keyCreatedPair);
+        }
+      } else {
+        keysSet.add(keyCreatedPair);
+      }
+    });
+    let jiras = await this.jiraRequester.getFullJiraDataFromKeys(
+      Array.from(keysSet)
+    );
     return jiras;
   }
 }

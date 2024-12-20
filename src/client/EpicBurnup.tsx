@@ -1,8 +1,8 @@
 import React from "react";
 import {
-  EpicBurnups,
-  EpicBurnupData,
-  ExtendedEpicBurnupData,
+  EpicBurnup,
+  DoneAndScopeCount,
+  DoneAndScopeCountWithForecast,
 } from "../server/graphManagers/BurnupGraphManager";
 import Select from "./Select";
 import type { SelectProps, RadioChangeEvent } from "antd";
@@ -16,7 +16,7 @@ interface State {
   epicSelectList: SelectProps["options"];
   selectedEpics: string[];
   selectedEpicsData: GoogleDataTableType[];
-  allEpicsData: EpicBurnups[];
+  allEpicsData: EpicBurnup[];
   sizeMode: "count" | "estimate";
 }
 
@@ -43,48 +43,48 @@ export function getDataBetweenDates(
 }
 
 export function getSelectedEpics(
-  allEpicsData: EpicBurnups[],
+  allEpicsData: EpicBurnup[],
   selectedEpics?: number[]
 ) {
   return selectedEpics
     ? allEpicsData.filter((item, index) => selectedEpics.includes(index))
     : allEpicsData;
 }
-export function getEarliestDate(allEpicsData: EpicBurnups[]) {
+export function getEarliestDate(allEpicsData: EpicBurnup[]) {
   return allEpicsData.reduce((acc, val) => {
     return acc < val.startDate ? acc : val.startDate;
   }, new Date());
 }
 
-export function getLastDate(allEpicsData: EpicBurnups[]) {
+export function getLastDate(allEpicsData: EpicBurnup[]) {
   return allEpicsData.reduce((acc, val) => {
     return acc > val.endDate ? acc : val.endDate;
   }, new Date());
 }
 
 export function extendEpicBurnup(
-  epicBurnups: EpicBurnups,
+  epicBurnups: EpicBurnup,
   earliestDate: Date,
   lastDate: Date
-): ExtendedEpicBurnupData[] {
+): DoneAndScopeCountWithForecast[] {
   if (earliestDate > epicBurnups.startDate) {
     throw new Error("Earliest date is after start date");
   }
   if (lastDate < epicBurnups.endDate) {
     throw new Error("Last date is before end date");
   }
-  let extendedBurnupDataArray: ExtendedEpicBurnupData[] = [];
+  let extendedBurnupDataArray: DoneAndScopeCountWithForecast[] = [];
   let currentDate = new Date(earliestDate);
   let doneCountForecast = 0;
   let doneEstimateForecast = 0;
   let doneCountRequired = 0;
   let doneEstimateRequired = 0;
   while (currentDate <= lastDate) {
-    let burnupData: EpicBurnupData | undefined = epicBurnups.dateData.find(
+    let burnupData: DoneAndScopeCount | undefined = epicBurnups.dateData.find(
       (item) => item.date === currentDate.toISOString().split("T")[0]
     );
     if (burnupData) {
-      let extendedBurnupData: ExtendedEpicBurnupData = {
+      let extendedBurnupData: DoneAndScopeCountWithForecast = {
         ...burnupData,
         doneCountForecast: null,
         doneEstimateForecast: null,
@@ -151,7 +151,7 @@ export function extendEpicBurnup(
 }
 
 export function getGoogleDataTableFromMultipleBurnupData(
-  allEpicsData: EpicBurnups[],
+  allEpicsData: EpicBurnup[],
   estimate: boolean,
   selectedEpics?: number[]
 ): GoogleDataTableType[] {
@@ -194,7 +194,7 @@ export function getGoogleDataTableFromMultipleBurnupData(
 }
 
 export function getGoogleDataTableFromBurnupDateData(
-  burnupDataArray: ExtendedEpicBurnupData[],
+  burnupDataArray: DoneAndScopeCountWithForecast[],
   estimate: boolean
 ) {
   let googleBurnupDataArray = burnupDataArray.map((item) => {
@@ -209,7 +209,7 @@ export function getGoogleDataTableFromBurnupDateData(
   return googleBurnupDataArray;
 }
 
-export default class EpicBurnup extends React.Component<Props, State> {
+export default class EpicBurnupClass extends React.Component<Props, State> {
   constructor(props) {
     super(props);
     this.onClick = this.onClick.bind(this);
@@ -229,7 +229,7 @@ export default class EpicBurnup extends React.Component<Props, State> {
     fetch("/api/epicBurnup?query=" + this.state.input)
       .then((response) => response.json())
       .then((data) => {
-        let burnupDataArrays: EpicBurnups[] = JSON.parse(data.data);
+        let burnupDataArrays: EpicBurnup[] = JSON.parse(data.data);
         this.setState({ allEpicsData: burnupDataArrays });
         this.setState({
           epicSelectList: burnupDataArrays.map((item, i) => {

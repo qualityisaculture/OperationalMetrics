@@ -31,6 +31,7 @@ export type JiraJson = {
 export default class Jira {
   fields: {
     key: string;
+    childKeys: { key: string; created: Date }[];
     created: string;
     components: { name: string }[];
     customfield_10015?: string; // Epic Start Date
@@ -63,6 +64,7 @@ export default class Jira {
     this.created = new Date(json.fields.created);
     this.fields = {
       key: json.key,
+      childKeys: [],
       created: json.fields.created,
       components: json.fields.components,
       customfield_10015: json.fields.customfield_10015,
@@ -181,13 +183,14 @@ export default class Jira {
    * @param date: If passed, you will receive the children which were linked to that epic on that date/
    * @returns
    */
-  getChildrenKeys(date?: Date): lastUpdatedKey[] {
+  getChildrenKeysFromHistories(date?: Date): lastUpdatedKey[] {
     if (!this.changelog || !this.changelog.histories) {
       return [];
     }
-    let children = new Set<string>();
 
+    let children = new Set<string>();
     let chronologicalEpicChildItems = this.getHistoriesItems("Epic Child");
+
     chronologicalEpicChildItems.forEach((item) => {
       if (item.created && date && item.created > date) {
         return; //break out of for each

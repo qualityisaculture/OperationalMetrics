@@ -3,15 +3,15 @@ import {
   getGoogleDataTableFromMultipleBurnupData,
 } from "../../src/client/EpicBurnup";
 import {
-  EpicBurnupData,
-  EpicBurnups,
+  DoneAndScopeCount,
+  EpicBurnup,
 } from "../../src/server/graphManagers/BurnupGraphManager";
 
 function get1EpicPerDayData(
   numberOfDays: number,
   startDate: number = 0
-): EpicBurnupData[] {
-  let data: EpicBurnupData[] = [];
+): DoneAndScopeCount[] {
+  let data: DoneAndScopeCount[] = [];
   let date = new Date("2021-01-01");
   date.setDate(date.getDate() + startDate);
   for (let i = startDate; i < startDate + numberOfDays; i++) {
@@ -34,7 +34,7 @@ function get1EpicPerDayData(
   return data;
 }
 
-let defaultEpicBurnups: EpicBurnups = {
+let defaultEpicBurnups: EpicBurnup = {
   dateData: get1EpicPerDayData(10),
   summary: "Epic 1",
   key: "EPIC-1",
@@ -50,7 +50,7 @@ let defaultEpicBurnups: EpicBurnups = {
   doneEstimateRequiredLimit: 80,
 };
 
-let first5DaysEpicBurnups: EpicBurnups = {
+let first5DaysEpicBurnups: EpicBurnup = {
   dateData: get1EpicPerDayData(5),
   summary: "Epic 2",
   key: "EPIC-2",
@@ -65,7 +65,7 @@ let first5DaysEpicBurnups: EpicBurnups = {
   doneEstimateRequiredIncrement: 2,
   doneEstimateRequiredLimit: 80,
 };
-let second5DaysEpicBurnups: EpicBurnups = {
+let second5DaysEpicBurnups: EpicBurnup = {
   dateData: get1EpicPerDayData(5, 5),
   summary: "Epic 2",
   key: "EPIC-2",
@@ -230,7 +230,7 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
 });
 
 describe("extendEpicBurnup", () => {
-  let epicBurnUpData: EpicBurnupData[] = get1EpicPerDayData(10);
+  let epicBurnUpData: DoneAndScopeCount[] = get1EpicPerDayData(10);
   // let defaultEpicBurnups: EpicBurnups = {
   //   dateData: epicBurnUpData,
   //   summary: "Epic 1",
