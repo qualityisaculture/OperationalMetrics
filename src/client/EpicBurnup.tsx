@@ -20,26 +20,58 @@ interface State {
   sizeMode: "count" | "estimate";
 }
 
-type GoogleDataTableType = [Date, number, number, number, number];
+type GoogleDataTableType = [
+  Date,
+  number | null,
+  number | null,
+  number | null,
+  number | null,
+];
 
 const google = globalThis.google;
 
 export function getDataBetweenDates(
-  burnupDateDataArray: (number | Date)[][],
+  doneAndScopeArray: DoneAndScopeCountWithForecast[],
   today: Date,
   tomorrow: Date
-): (number | Date)[] {
-  let dataOnDate = burnupDateDataArray.find(
-    (item) => item[0] >= today && item[0] < tomorrow
+): DoneAndScopeCountWithForecast {
+  let dataOnDate = doneAndScopeArray.find(
+    (item) => new Date(item.date) >= today && new Date(item.date) < tomorrow
   );
   if (dataOnDate) {
     return dataOnDate;
   }
-  let lastData = burnupDateDataArray[burnupDateDataArray.length - 1];
-  if (today > lastData[0]) {
-    return [today, lastData[1], lastData[2], lastData[3], lastData[4]];
+  let lastData = doneAndScopeArray[doneAndScopeArray.length - 1];
+  if (today > new Date(lastData.date)) {
+    return {
+      date: today.toISOString().split("T")[0] as TDateISODate,
+      doneCount: lastData.doneCount,
+      doneEstimate: lastData.doneEstimate,
+      doneKeys: lastData.doneKeys,
+      scopeCount: lastData.scopeCount,
+      scopeEstimate: lastData.scopeEstimate,
+      scopeKeys: lastData.scopeKeys,
+      doneCountForecast: lastData.doneCountForecast,
+      doneEstimateForecast: lastData.doneEstimateForecast,
+      futureDoneKeys: lastData.futureDoneKeys,
+      doneCountRequired: lastData.doneCountRequired,
+      doneEstimateRequired: lastData.doneEstimateRequired,
+    };
   }
-  return [today, 0, 0, 0, 0];
+  return {
+    date: today.toISOString().split("T")[0] as TDateISODate,
+    doneCount: null,
+    doneEstimate: null,
+    doneKeys: [],
+    scopeCount: null,
+    scopeEstimate: null,
+    scopeKeys: [],
+    doneCountForecast: null,
+    doneEstimateForecast: null,
+    futureDoneKeys: [],
+    doneCountRequired: null,
+    doneEstimateRequired: null,
+  };
 }
 
 export function getSelectedEpics(
@@ -150,6 +182,15 @@ export function extendEpicBurnup(
   return extendedBurnupDataArray;
 }
 
+export function reduceDSAField(
+  array: DoneAndScopeCount[],
+  field: string
+): number | null {
+  return array.reduce((acc, val) => {
+    return acc + val[field];
+  }, 0);
+}
+
 export function getGoogleDataTableFromMultipleBurnupData(
   allEpicsData: EpicBurnup[],
   estimate: boolean,
@@ -164,9 +205,9 @@ export function getGoogleDataTableFromMultipleBurnupData(
   // let googleBurnupDataArray = filteredEpics.map((item) => {
   //   return getGoogleDataTableFromBurnupDateData(item.dateData, estimate);
   // });
-  let googleBurnupDataArray = extendedBurnupDataArray.map((item) => {
-    return getGoogleDataTableFromBurnupDateData(item, estimate);
-  });
+  // let googleBurnupDataArray = extendedBurnupDataArray.map((item) => {
+  //   return getGoogleDataTableFromBurnupDateData(item, estimate);
+  // });
   let allDates: GoogleDataTableType[] = [];
   for (
     let d = new Date(earliestDate);
@@ -175,38 +216,36 @@ export function getGoogleDataTableFromMultipleBurnupData(
   ) {
     let tomorrow = new Date(d);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    let dataBetweenDates = googleBurnupDataArray.map((burnupDateDataArray) => {
-      return getDataBetweenDates(burnupDateDataArray, d, tomorrow);
-    });
-    let sumDone = dataBetweenDates.reduce((acc, val) => acc + val[1], 0);
-    let sumScope = dataBetweenDates.reduce((acc, val) => acc + val[2], 0);
-    let sumIdeal = dataBetweenDates.reduce((acc, val) => acc + val[3], 0);
-    let sumForecast = dataBetweenDates.reduce((acc, val) => acc + val[4], 0);
+    let dataBetweenDates = extendedBurnupDataArray.map(
+      (doneAndScopeCountArray) => {
+        return getDataBetweenDates(doneAndScopeCountArray, d, tomorrow);
+      }
+    );
+    let sumDone = reduceDSAField(
+      dataBetweenDates,
+      estimate ? "doneEstimate" : "doneCount"
+    );
+    let sumScope = reduceDSAField(
+      dataBetweenDates,
+      estimate ? "scopeEstimate" : "scopeCount"
+    );
+    let sumRequired = reduceDSAField(
+      dataBetweenDates,
+      estimate ? "doneEstimateRequired" : "doneCountRequired"
+    );
+    let sumForecast = reduceDSAField(
+      dataBetweenDates,
+      estimate ? "doneEstimateForecast" : "doneCountForecast"
+    );
     if (sumForecast === 0) {
       sumForecast = null;
     }
     if (sumDone === 0) {
       sumDone = null;
     }
-    allDates.push([new Date(d), sumDone, sumScope, sumIdeal, sumForecast]);
+    allDates.push([new Date(d), sumDone, sumScope, sumRequired, sumForecast]);
   }
   return allDates;
-}
-
-export function getGoogleDataTableFromBurnupDateData(
-  burnupDataArray: DoneAndScopeCountWithForecast[],
-  estimate: boolean
-) {
-  let googleBurnupDataArray = burnupDataArray.map((item) => {
-    return [
-      new Date(item.date),
-      estimate ? item.doneEstimate / 3600 / 8 : item.doneCount,
-      estimate ? item.scopeEstimate / 3600 / 8 : item.scopeCount,
-      estimate ? item.doneEstimateRequired / 3600 / 8 : item.doneCountRequired,
-      estimate ? item.doneEstimateForecast / 3600 / 8 : item.doneCountForecast,
-    ];
-  });
-  return googleBurnupDataArray;
 }
 
 export default class EpicBurnupClass extends React.Component<Props, State> {

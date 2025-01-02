@@ -1,5 +1,5 @@
-import Jira from '../Jira';
-import JiraRequester from '../JiraRequester';
+import Jira from "../Jira";
+import JiraRequester from "../JiraRequester";
 
 export type EstimateData = {
   date: Date;
@@ -13,9 +13,9 @@ export type EstimateData = {
 export type EstimateDataArray = EstimateData[];
 
 export type EstimatesData = {
-  uniqueStatuses: string[],
-  estimateData: EstimateDataArray;
-}
+  uniqueStatuses: string[];
+  estimateData: EstimateData[];
+};
 
 export default class EstimatesGraphManager {
   jiraRequester: JiraRequester;

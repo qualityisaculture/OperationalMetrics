@@ -50,8 +50,8 @@ export default class Jira {
     resolutiondate: string;
     status: { name: string };
     summary: string;
-    timeoriginalestimate?: number;
-    timespent?: number;
+    timeoriginalestimateInDays: number | null;
+    timespent: number | null;
     updated: string;
     url: string;
   };
@@ -77,8 +77,12 @@ export default class Jira {
       resolutiondate: json.fields.resolutiondate,
       status: json.fields.status,
       summary: json.fields.summary,
-      timeoriginalestimate: json.fields.timeoriginalestimate,
-      timespent: json.fields.timespent,
+      timeoriginalestimateInDays: json.fields.timeoriginalestimate
+        ? json.fields.timeoriginalestimate / 3600 / 8
+        : null,
+      timespent: json.fields.timespent
+        ? json.fields.timespent / 3600 / 8
+        : null,
       updated: json.fields.updated,
       url: `${domain}/browse/${json.key}`,
     };
@@ -158,7 +162,7 @@ export default class Jira {
     return this.fields.issuetype.name;
   }
   getOriginalEstimate(): number | null {
-    return this.fields.timeoriginalestimate || null;
+    return this.fields.timeoriginalestimateInDays || null;
   }
   getTimeSpent(): number | null {
     return this.fields.timespent || null;

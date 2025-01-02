@@ -105,15 +105,15 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
     expect(allDates[0]).toEqual([new Date("2021-01-01"), null, 0, 0, null]);
     expect(allDates[1]).toEqual([
       new Date("2021-01-02"),
-      1,
-      1,
+      28800,
+      28800,
       expect.any(Number),
       null,
     ]);
     expect(allDates[9]).toEqual([
       new Date("2021-01-10"),
-      9,
-      9,
+      259200,
+      259200,
       expect.any(Number),
       null,
     ]);
@@ -129,22 +129,22 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
     expect(allDates[0]).toEqual([new Date("2021-01-01"), null, 0, 0, null]);
     expect(allDates[9]).toEqual([
       new Date("2021-01-10"),
-      9,
-      9,
+      259200,
+      259200,
       expect.any(Number),
       null,
     ]);
     expect(allDates[10]).toEqual([
       new Date("2021-01-11"),
-      9,
-      9,
+      259200,
+      259200,
       expect.any(Number),
       null,
     ]);
     expect(allDates[14]).toEqual([
       new Date("2021-01-15"),
-      9,
-      9,
+      259200,
+      259200,
       expect.any(Number),
       null,
     ]);
@@ -161,29 +161,29 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
     expect(allDates[0]).toEqual([new Date("2021-01-01"), null, 0, 0, null]);
     expect(allDates[1]).toEqual([
       new Date("2021-01-02"),
-      2,
-      2,
+      57600,
+      57600,
       expect.any(Number),
       null,
     ]);
     expect(allDates[4]).toEqual([
       new Date("2021-01-05"),
-      8,
-      8,
+      230400,
+      230400,
       expect.any(Number),
       null,
     ]);
     expect(allDates[5]).toEqual([
       new Date("2021-01-06"),
-      9,
-      9,
+      259200,
+      259200,
       expect.any(Number),
       null,
     ]);
     expect(allDates[9]).toEqual([
       new Date("2021-01-10"),
-      13,
-      13,
+      374400,
+      374400,
       expect.any(Number),
       null,
     ]);
@@ -200,29 +200,29 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
     expect(allDates[0]).toEqual([new Date("2021-01-01"), null, 0, 0, null]);
     expect(allDates[1]).toEqual([
       new Date("2021-01-02"),
-      1,
-      1,
+      28800,
+      28800,
       expect.any(Number),
       null,
     ]);
     expect(allDates[4]).toEqual([
       new Date("2021-01-05"),
-      4,
-      4,
+      115200,
+      115200,
       expect.any(Number),
       null,
     ]);
     expect(allDates[5]).toEqual([
       new Date("2021-01-06"),
-      10,
-      10,
+      288000,
+      288000,
       expect.any(Number),
       null,
     ]);
     expect(allDates[9]).toEqual([
       new Date("2021-01-10"),
-      18,
-      18,
+      518400,
+      518400,
       expect.any(Number),
       null,
     ]);

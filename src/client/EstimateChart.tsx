@@ -1,10 +1,13 @@
 import React from "react";
-import { EstimateData } from "../server/graphManagers/EstimatesGraphManager";
+import {
+  EstimateData,
+  EstimatesData,
+} from "../server/graphManagers/EstimatesGraphManager";
 
 const google = globalThis.google;
 
 interface Props {
-  estimatesData: { estimateData: EstimateData[] };
+  estimatesData?: EstimatesData | null;
   typesSelected: string[];
 }
 interface State {}
