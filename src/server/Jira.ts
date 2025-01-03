@@ -1,6 +1,6 @@
 import { history, historyItem, omHistoryItem } from "./JiraAPITypes";
 import { lastUpdatedKey } from "./JiraRequester";
-import { getWorkHoursBetween } from "./Utils";
+import { getWorkDaysBetween } from "./Utils";
 export type JiraJsonFields = {
   created: string;
   components: { name: string }[];
@@ -285,14 +285,13 @@ export default class Jira {
     for (let i = 1; i < this.statusChanges.length; i++) {
       let status = this.statusChanges[i - 1].status;
       let time = this.statusChanges[i].date;
-      let duration = getWorkHoursBetween(previousTime, time) * 60 * 60 * 1000;
+      let duration = getWorkDaysBetween(previousTime, time);
       let previousDuration = statusMap.get(status) || 0;
       statusMap.set(status, previousDuration + duration);
       previousTime = time;
     }
     let finalTime = new Date();
-    let finalDuration =
-      getWorkHoursBetween(previousTime, finalTime) * 60 * 60 * 1000;
+    let finalDuration = getWorkDaysBetween(previousTime, finalTime);
     let finalStatus = this.getStatus(finalTime);
     let finalPreviousDuration = statusMap.get(finalStatus) || 0;
     statusMap.set(finalStatus, finalPreviousDuration + finalDuration);

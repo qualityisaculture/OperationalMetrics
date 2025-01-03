@@ -1,6 +1,6 @@
 import React from "react";
 import { EstimatesData } from "../server/graphManagers/EstimatesGraphManager";
-import Select from "./Select";
+  import Select from "./Select";
 import EstimateChart from "./EstimateChart";
 
 interface Props {}

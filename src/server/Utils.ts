@@ -12,7 +12,7 @@ export function inWorkDay(date: Date): boolean {
 }
 
 //Not accurate to the minute, but good enough for this use case
-export function getWorkHoursBetween(date1: Date, date2: Date): number {
+export function getWorkDaysBetween(date1: Date, date2: Date): number {
   if (date2.getTime() - date1.getTime() < 60 * 60 * 1000) {
     return 0;
   }
@@ -24,5 +24,5 @@ export function getWorkHoursBetween(date1: Date, date2: Date): number {
     }
     currentDate.setUTCHours(currentDate.getUTCHours() + 1);
   }
-  return workHours;
+  return workHours / 8;
 }

@@ -12,6 +12,7 @@ import {
 } from "../../Types";
 import BambooRequester from "../BambooRequester";
 import BambooGraphManager from "../graphManagers/BambooGraphManager";
+import TimeInDevManager from "../graphManagers/TimeInDevManager";
 
 async function getJiraData(issueKey: string) {}
 
@@ -21,6 +22,20 @@ const burnupGraphManager = new BurnupGraphManager(jiraRequester);
 const estimatesGraphManager = new EstimatesGraphManager(jiraRequester);
 const throughputGraphManager = new ThroughputGraphManager(jiraRequester);
 const bambooGraphManager = new BambooGraphManager(bambooRequester);
+const timeInDevManager = new TimeInDevManager(jiraRequester);
+
+metricsRoute.get(
+  "/timeInDev",
+  (req: TRQ<{ query: string }>, res: TR<{ message: string; data: string }>) => {
+    const query = req.query.query;
+    timeInDevManager
+      .getTimeInDevData(query)
+      .then((data) => {
+        res.json({ message: "Metrics route", data: JSON.stringify(data) });
+      })
+      .catch((error) => console.error("Error:", error));
+  }
+);
 
 metricsRoute.get(
   "/bamboo",
