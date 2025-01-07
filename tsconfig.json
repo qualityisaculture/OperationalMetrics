@@ -4,7 +4,7 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "jsx": "react",
-    "outDir": "./dist/",
+    "outDir": "./tsCompile/",
     // "noImplicitAny": true,
     // "module": "es6",
     "target": "es6",
@@ -19,6 +19,7 @@
     //other exclusions that may help https://github.com/cypress-io/cypress/issues/22059#issuecomment-1428298264
     "node_modules",
     "cypress",
-    "**/*.cy.tsx"
+    "**/*.cy.tsx",
+    "./tsCompile/"
   ]
 }
