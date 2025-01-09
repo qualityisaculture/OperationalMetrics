@@ -64,17 +64,17 @@ export default class EstimateChart extends React.Component<Props, State> {
         notesElement.innerText = "Correlation: " + pearsonCorrelation;
       let googleBurnupDataArray = dataWithEstimates.map((item) => {
         //@ts-ignore
-        let originalEstimateInHours = item.originalEstimate / 3600;
+        let originalEstimateInDays = item.originalEstimate;
         //@ts-ignore
-        let timeSpentInHours = item.timeSpent / 3600;
+        let timeSpentInDays = item.timeSpent;
         return [
-          originalEstimateInHours,
-          timeSpentInHours,
+          originalEstimateInDays,
+          timeSpentInDays,
           item.key +
             " oe: " +
-            originalEstimateInHours +
+            originalEstimateInDays +
             "h ts: " +
-            timeSpentInHours +
+            timeSpentInDays +
             "h",
         ];
       });

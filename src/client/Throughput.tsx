@@ -164,11 +164,10 @@ export default class Throughput extends React.Component<Props, State> {
   };
   getClickData = (data: { initiativeKey: string; issues: any[] }) => {
     let logHTML = "";
-    function getDaysAndHours(time: number) {
-      let totalHours = time / 3600;
-      let days = Math.floor(totalHours / 8);
-      let hours = Math.floor(totalHours % 8);
-      return `${days}d ${hours}h`;
+    function getDaysAndHours(days: number) {
+      let wholeDays = Math.floor(days);
+      let hours = Math.round((days - wholeDays) * 8);
+      return `${wholeDays}d ${hours}h`;
     }
     if (data.issues.length === 0) return;
     let allTimeSpent = data.issues.reduce(
