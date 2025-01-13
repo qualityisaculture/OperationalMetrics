@@ -2,13 +2,13 @@ import React from "react";
 import type { RadioChangeEvent, DatePickerProps, InputNumberProps } from "antd";
 import { Radio, DatePicker, InputNumber } from "antd";
 import dayjs from "dayjs";
-import { ThroughputSprintType } from "../server/graphManagers/ThroughputGraphManager";
+import { SprintIssueList } from "../server/graphManagers/GraphManagerTypes";
 import Select from "./Select";
 import type { SelectProps } from "antd";
 import { IssueInfo } from "../server/graphManagers/GraphManagerTypes";
 import { getSize } from "./Utils";
 import { DefaultOptionType } from "antd/es/select";
-import ColumnChart, { ColumnType } from "./ColumnChart";
+import ColumnChart, { CategoryData, ColumnType } from "./ColumnChart";
 import { WithWildcards } from "../Types";
 
 class ConcatableMap<K, V> extends Map<K, V[]> {
@@ -31,7 +31,7 @@ interface State {
   input: string;
   currentSprintStartDate: string;
   numberOfSprints: number;
-  throughputData: ThroughputSprintType[];
+  throughputData: SprintIssueList[];
   initiatitives: SelectProps["options"];
   initiativesSelected: string[];
   labels: SelectProps["options"];
@@ -60,7 +60,7 @@ export default class Throughput extends React.Component<Props, State> {
     };
   }
   getValuesInSprint = (
-    sprint: ThroughputSprintType,
+    sprint: SprintIssueList,
     func: (IssueInfo) => { key: string; value: SelectPropsType }[]
   ): SelectPropsType[] => {
     let allFields = new Map<string, SelectPropsType>();
@@ -74,7 +74,7 @@ export default class Throughput extends React.Component<Props, State> {
     return arrayOfAllFields;
   };
   arrayOfAllFieldsAsSelectProps = (
-    sprints: ThroughputSprintType[],
+    sprints: SprintIssueList[],
     func: (IssueInfo) => { key: string; value: SelectPropsType }[]
   ) => {
     let allFieldValues = new Map<string, { label: string; value: string }>();
@@ -89,7 +89,7 @@ export default class Throughput extends React.Component<Props, State> {
     return arrayOfAllInitiatives;
   };
   getInitiativesAsSelectProps = (
-    throughputData: ThroughputSprintType[]
+    throughputData: SprintIssueList[]
   ): DefaultOptionType[] => {
     return this.arrayOfAllFieldsAsSelectProps(throughputData, (issue) => {
       if (!issue.initiativeKey) return [];
@@ -104,7 +104,7 @@ export default class Throughput extends React.Component<Props, State> {
       ];
     });
   };
-  getLabelsAsSelectProps = (throughputData: ThroughputSprintType[]) => {
+  getLabelsAsSelectProps = (throughputData: SprintIssueList[]) => {
     return this.arrayOfAllFieldsAsSelectProps(throughputData, (issue) => {
       return issue.labels.map((label) => {
         return {
@@ -131,7 +131,7 @@ export default class Throughput extends React.Component<Props, State> {
     )
       .then((response) => response.json())
       .then((data) => {
-        let throughputData: ThroughputSprintType[] = JSON.parse(data.data);
+        let throughputData: SprintIssueList[] = JSON.parse(data.data);
         let arrayOfAllInitiatives =
           this.getInitiativesAsSelectProps(throughputData);
         let arrayOfAllLabels = this.getLabelsAsSelectProps(throughputData);
@@ -188,7 +188,7 @@ export default class Throughput extends React.Component<Props, State> {
     });
     return logHTML;
   };
-  getThroughputByInitiative = (throughputData: ThroughputSprintType[]) => {
+  getThroughputByInitiative = (throughputData: SprintIssueList[]): {data: CategoryData, columns: ColumnType[]} => {
     let columns: ColumnType[] = [
       { type: "date", label: "Sprint Start Date", identifier: "date" },
     ];
@@ -236,7 +236,7 @@ export default class Throughput extends React.Component<Props, State> {
     return { data, columns };
   };
 
-  getThroughputByLabel(throughputData: ThroughputSprintType[]) {
+  getThroughputByLabel(throughputData: SprintIssueList[]) {
     let columns: ColumnType[] = [
       { type: "date", label: "Sprint Start Date", identifier: "date" },
     ];

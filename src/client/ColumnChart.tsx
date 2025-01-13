@@ -2,12 +2,20 @@ const google = globalThis.google;
 import React from "react";
 import { WithWildcards } from "../Types";
 
-export type ColumnType = { type: string; identifier: string; label: string };
+export type ColumnType = {
+  type: string;
+  identifier: string | number;
+  label: string;
+};
+type GoogleDataType = { addRow: (arg0: any[]) => void };
+
+export type ColumnData = WithWildcards<{}>;
+export type CategoryData = ColumnData[];
 
 interface ChartProps {
   title: string;
   columns: ColumnType[];
-  data: WithWildcards<{}>[];
+  data: CategoryData;
   extraOptions?: any;
 }
 interface ChartState {}
@@ -37,11 +45,11 @@ export default class ColumnChart extends React.Component<
     });
   }
 
-  addDataToChart(data: any) {
-    this.props.data.forEach((columnData) => {
+  addDataToChart(data: GoogleDataType) {
+    this.props.data.forEach((categoryData) => {
       let row: any[] = [];
       this.props.columns.forEach((column) => {
-        row.push(columnData[column.identifier]);
+        row.push(categoryData[column.identifier]);
       });
       data.addRow(row);
     });

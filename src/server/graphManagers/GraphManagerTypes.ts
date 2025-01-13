@@ -18,3 +18,8 @@ export type IssueInfo = {
   timeoriginalestimate: number | null;
   timespent: number | null;
 };
+
+export type SprintIssueList = {
+  sprintStartingDate: Date;
+  issueList: IssueInfo[];
+};

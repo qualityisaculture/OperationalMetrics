@@ -13,6 +13,7 @@ import {
 import BambooRequester from "../BambooRequester";
 import BambooGraphManager from "../graphManagers/BambooGraphManager";
 import TimeInDevManager from "../graphManagers/TimeInDevManager";
+import LeadTimeGraphManager from "../graphManagers/LeadTimeGraphManager";
 
 async function getJiraData(issueKey: string) {}
 
@@ -23,6 +24,29 @@ const estimatesGraphManager = new EstimatesGraphManager(jiraRequester);
 const throughputGraphManager = new ThroughputGraphManager(jiraRequester);
 const bambooGraphManager = new BambooGraphManager(bambooRequester);
 const timeInDevManager = new TimeInDevManager(jiraRequester);
+const leadTimeGraphManager = new LeadTimeGraphManager(jiraRequester);
+
+metricsRoute.get(
+  "/leadTime",
+  (
+    req: TRQ<{
+      query: string;
+      currentSprintStartDate: string;
+      numberOfSprints: string;
+    }>,
+    res: TR<{ message: string; data: string }>
+  ) => {
+    const query = req.query.query;
+    const currentSprintStartDate = new Date(req.query.currentSprintStartDate);
+    const numberOfSprints = parseInt(req.query.numberOfSprints);
+    leadTimeGraphManager
+      .getLeadTimeData(query, currentSprintStartDate, numberOfSprints)
+      .then((data) => {
+        res.json({ message: "Metrics route", data: JSON.stringify(data) });
+      })
+      .catch((error) => console.error("Error:", error));
+  }
+);
 
 metricsRoute.get(
   "/timeInDev",

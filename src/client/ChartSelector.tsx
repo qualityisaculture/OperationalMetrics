@@ -6,11 +6,18 @@ import EstimatesAnalysis from "./EstimatesAnalysis";
 import EpicBurnup from "./EpicBurnup";
 import BambooBuilds from "./BambooBuilds";
 import TimeInDev from "./TimeInDev";
+import LeadTime from "./LeadTime";
 
 interface Props {}
 
 interface State {
-  chart: "burnup" | "estimate" | "throughput" | "bamboo" | "timeInDev";
+  chart:
+    | "burnup"
+    | "estimate"
+    | "throughput"
+    | "bamboo"
+    | "timeInDev"
+    | "leadTime";
 }
 
 export default class ChartSelector extends React.Component<Props, State> {
@@ -41,6 +48,9 @@ export default class ChartSelector extends React.Component<Props, State> {
     let timeInDevStyle = {
       display: this.state.chart === "timeInDev" ? "block" : "none",
     };
+    let leadTimeStyle = {
+      display: this.state.chart === "leadTime" ? "block" : "none",
+    };
 
     return (
       <div>
@@ -54,6 +64,7 @@ export default class ChartSelector extends React.Component<Props, State> {
             <Radio.Button value="throughput">Throughput</Radio.Button>
             <Radio.Button value="bamboo">Bamboo Builds</Radio.Button>
             <Radio.Button value="timeInDev">Time In Dev</Radio.Button>
+            <Radio.Button value="leadTime">Lead Time</Radio.Button>
           </Radio.Group>
         </div>
         <div>
@@ -71,6 +82,9 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={timeInDevStyle}>
             <TimeInDev />
+          </div>
+          <div style={leadTimeStyle}>
+            <LeadTime />
           </div>
         </div>
       </div>

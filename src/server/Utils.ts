@@ -1,3 +1,6 @@
+import { IssueInfo, SprintIssueList } from "./graphManagers/GraphManagerTypes";
+import Jira from "./Jira";
+
 export function inWorkDay(date: Date): boolean {
   if (date.getDay() == 6 || date.getDay() == 0) {
     return false;
@@ -25,4 +28,61 @@ export function getWorkDaysBetween(date1: Date, date2: Date): number {
     currentDate.setUTCHours(currentDate.getUTCHours() + 1);
   }
   return workHours / 8;
+}
+
+export function getSprintIssueListsBySprint(
+  jiras: Jira[],
+  startDate: Date
+): SprintIssueList[] {
+  let sprints: SprintIssueList[] = [];
+  let currentSprintStartDate = new Date(startDate);
+  currentSprintStartDate.setDate(currentSprintStartDate.getDate() + 14);
+  while (jiras.length > 0) {
+    let twoWeeksAgo = new Date(currentSprintStartDate);
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    let jirasInSprint = jiras.filter(
+      (jira) => jira.getResolved() > twoWeeksAgo
+    );
+    sprints.push({
+      sprintStartingDate: twoWeeksAgo,
+      issueList: jirasInSprint.map((jira) => getIssueInfoFromJira(jira)),
+    });
+    jiras = jiras.filter((jira) => jira.getResolved() <= twoWeeksAgo);
+    currentSprintStartDate = twoWeeksAgo;
+  }
+  return sprints;
+}
+
+function getIssueInfoFromJira(jira: Jira): IssueInfo {
+  let initiativeKey = jira.getInitiativeKey();
+  let initiativeName = jira.getInitiativeName();
+  if (!initiativeKey) {
+    if (jira.getType() === "Bug") {
+      initiativeKey = "Bug";
+      initiativeName = "Bug";
+    } else if (jira.getEpicKey()) {
+      initiativeKey = "EPIC";
+      initiativeName = "NOINITIATIVE";
+    }
+  }
+  return {
+    key: jira.getKey(),
+    summary: jira.getSummary(),
+    status: jira.getStatus(),
+    type: jira.getType(),
+    created: jira.getCreated().toISOString(),
+    resolved: jira.getResolved().toISOString(),
+    resolution: jira.getResolution(),
+    epicKey: jira.getEpicKey(),
+    epicName: jira.getEpicName(),
+    initiativeKey: initiativeKey,
+    initiativeName: initiativeName,
+    labels: jira.getLabels(),
+    priority: jira.getPriority(),
+    components: jira.getComponents(),
+    fixVersions: jira.getFixVersions(),
+    url: jira.getUrl(),
+    timeoriginalestimate: jira.getOriginalEstimate(),
+    timespent: jira.getTimeSpent(),
+  };
 }
