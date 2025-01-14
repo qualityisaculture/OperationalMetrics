@@ -1,3 +1,4 @@
+import { MinimumIssueInfo } from "../../Types";
 import Jira from "../Jira";
 import JiraRequester from "../JiraRequester";
 import { getSprintIssueListsBySprint } from "../Utils";
@@ -6,11 +7,7 @@ import { IssueInfo, SprintIssueList } from "./GraphManagerTypes";
 export type SizeBucket = {
   days: number;
   label: string;
-  issues: {
-    key: string;
-    summary: string;
-    url: string;
-  }[];
+  issues: MinimumIssueInfo[];
 };
 
 export type LeadTimeSprintData = {

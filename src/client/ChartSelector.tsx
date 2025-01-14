@@ -7,6 +7,7 @@ import EpicBurnup from "./EpicBurnup";
 import BambooBuilds from "./BambooBuilds";
 import TimeInDev from "./TimeInDev";
 import LeadTime from "./LeadTime";
+import CumulativeFlowDiagram from "./CumulativeFlowDiagram";
 
 interface Props {}
 
@@ -17,7 +18,8 @@ interface State {
     | "throughput"
     | "bamboo"
     | "timeInDev"
-    | "leadTime";
+    | "leadTime"
+    | "cumulativeFlow";
 }
 
 export default class ChartSelector extends React.Component<Props, State> {
@@ -51,6 +53,9 @@ export default class ChartSelector extends React.Component<Props, State> {
     let leadTimeStyle = {
       display: this.state.chart === "leadTime" ? "block" : "none",
     };
+    let cumulativeFlowStyle = {
+      display: this.state.chart === "cumulativeFlow" ? "block" : "none",
+    };
 
     return (
       <div>
@@ -65,6 +70,7 @@ export default class ChartSelector extends React.Component<Props, State> {
             <Radio.Button value="bamboo">Bamboo Builds</Radio.Button>
             <Radio.Button value="timeInDev">Time In Dev</Radio.Button>
             <Radio.Button value="leadTime">Lead Time</Radio.Button>
+            <Radio.Button value="cumulativeFlow">Cumulative Flow</Radio.Button>
           </Radio.Group>
         </div>
         <div>
@@ -85,6 +91,9 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={leadTimeStyle}>
             <LeadTime />
+          </div>
+          <div style={cumulativeFlowStyle}>
+            <CumulativeFlowDiagram />
           </div>
         </div>
       </div>

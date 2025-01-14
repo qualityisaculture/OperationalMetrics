@@ -33,3 +33,9 @@ type TMilliseconds = `${number}${number}${number}`;
 export type TDateISODate = `${TYear}-${TMonth}-${TDay}`;
 type TDateISOTime = `${THours}:${TMinutes}:${TSeconds}.${TMilliseconds}`;
 type TDateISO = `${TDateISODate}T${TDateISOTime}Z`;
+
+export type MinimumIssueInfo = {
+  key: string;
+  summary: string;
+  url: string;
+};

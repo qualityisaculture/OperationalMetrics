@@ -14,6 +14,7 @@ import BambooRequester from "../BambooRequester";
 import BambooGraphManager from "../graphManagers/BambooGraphManager";
 import TimeInDevManager from "../graphManagers/TimeInDevManager";
 import LeadTimeGraphManager from "../graphManagers/LeadTimeGraphManager";
+import CumulativeFlowDiagramManager from "../graphManagers/CumulativeFlowDiagramManager";
 
 async function getJiraData(issueKey: string) {}
 
@@ -25,6 +26,25 @@ const throughputGraphManager = new ThroughputGraphManager(jiraRequester);
 const bambooGraphManager = new BambooGraphManager(bambooRequester);
 const timeInDevManager = new TimeInDevManager(jiraRequester);
 const leadTimeGraphManager = new LeadTimeGraphManager(jiraRequester);
+const cfdm = new CumulativeFlowDiagramManager(jiraRequester);
+
+metricsRoute.get(
+  "/cumulativeFlowDiagram",
+  (
+    req: TRQ<{ query: string; startDate: string; endDate: string }>,
+    res: TR<{ message: string; data: string }>
+  ) => {
+    const query = req.query.query;
+    const startDate = new Date(req.query.startDate);
+    const endDate = new Date(req.query.endDate);
+    cfdm
+      .getCumulativeFlowDiagramData(query, startDate, endDate)
+      .then((data) => {
+        res.json({ message: "Metrics route", data: JSON.stringify(data) });
+      })
+      .catch((error) => console.error("Error:", error));
+  }
+);
 
 metricsRoute.get(
   "/leadTime",

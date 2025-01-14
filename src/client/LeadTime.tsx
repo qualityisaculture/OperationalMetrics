@@ -27,7 +27,7 @@ export default class LeadTime extends React.Component<Props, State> {
   constructor(props) {
     super(props);
     this.state = {
-      input: "",
+      input: localStorage.getItem("throughputQuery") || "",
       currentSprintStartDate: dayjs().toString(),
       numberOfSprints: 5,
       splitMode: "initiatives",
@@ -100,7 +100,6 @@ export default class LeadTime extends React.Component<Props, State> {
       ? this.state.leadTimeData.sprints
       : [];
     let { data, columns } = this.getLeadTimeData(sprintData);
-    debugger;
     return (
       <div>
         <input
