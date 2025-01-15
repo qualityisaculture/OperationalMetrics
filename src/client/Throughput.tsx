@@ -91,18 +91,26 @@ export default class Throughput extends React.Component<Props, State> {
   getInitiativesAsSelectProps = (
     throughputData: SprintIssueList[]
   ): DefaultOptionType[] => {
-    return this.arrayOfAllFieldsAsSelectProps(throughputData, (issue) => {
-      if (!issue.initiativeKey) return [];
-      return [
-        {
-          key: issue.initiativeKey,
-          value: {
-            label: issue.initiativeKey + ":" + issue.initiativeName,
-            value: issue.initiativeKey,
+    let allLabels = this.arrayOfAllFieldsAsSelectProps(
+      throughputData,
+      (issue) => {
+        if (!issue.initiativeKey) return [];
+        return [
+          {
+            key: issue.initiativeKey,
+            value: {
+              label: issue.initiativeKey + ":" + issue.initiativeName,
+              value: issue.initiativeKey,
+            },
           },
-        },
-      ];
+        ];
+      }
+    );
+    allLabels.push({
+      label: "None",
+      value: "None",
     });
+    return allLabels;
   };
   getLabelsAsSelectProps = (throughputData: SprintIssueList[]) => {
     let allLabels = this.arrayOfAllFieldsAsSelectProps(
