@@ -105,17 +105,25 @@ export default class Throughput extends React.Component<Props, State> {
     });
   };
   getLabelsAsSelectProps = (throughputData: SprintIssueList[]) => {
-    return this.arrayOfAllFieldsAsSelectProps(throughputData, (issue) => {
-      return issue.labels.map((label) => {
-        return {
-          key: label,
-          value: {
-            label: label,
-            value: label,
-          },
-        };
-      });
+    let allLabels = this.arrayOfAllFieldsAsSelectProps(
+      throughputData,
+      (issue) => {
+        return issue.labels.map((label) => {
+          return {
+            key: label,
+            value: {
+              label: label,
+              value: label,
+            },
+          };
+        });
+      }
+    );
+    allLabels.push({
+      label: "None",
+      value: "None",
     });
+    return allLabels;
   };
   onClick = () => {
     localStorage.setItem("throughputQuery", this.state.input);
@@ -188,7 +196,9 @@ export default class Throughput extends React.Component<Props, State> {
     });
     return logHTML;
   };
-  getThroughputByInitiative = (throughputData: SprintIssueList[]): {data: CategoryData, columns: ColumnType[]} => {
+  getThroughputByInitiative = (
+    throughputData: SprintIssueList[]
+  ): { data: CategoryData; columns: ColumnType[] } => {
     let columns: ColumnType[] = [
       { type: "date", label: "Sprint Start Date", identifier: "date" },
     ];
@@ -199,7 +209,8 @@ export default class Throughput extends React.Component<Props, State> {
         identifier: initiative,
       });
     });
-    columns.push({ type: "number", label: "None", identifier: "None" });
+    columns.push({ type: "number", label: "Other", identifier: "Other" });
+    // columns.push({ type: "number", label: "None", identifier: "None" });
 
     let data: WithWildcards<{}>[] = [];
 
@@ -225,11 +236,23 @@ export default class Throughput extends React.Component<Props, State> {
       };
 
       let clickData = "";
-      [...this.state.initiativesSelected, "None"].forEach((parent) => {
+      this.state.initiativesSelected.forEach((parent) => {
         let issues = issuesByInitiative.get(parent) || [];
         row[parent] = getSize(issues, this.state.sizeMode);
         clickData += this.getClickData({ initiativeKey: parent, issues });
       });
+      let otherInitiatives = Array.from(issuesByInitiative.keys()).filter(
+        (initiative) => !this.state.initiativesSelected.includes(initiative)
+      );
+      let x: IssueInfo[] = [];
+      let otherIssues = otherInitiatives.reduce((acc, initiative) => {
+        return acc.concat(issuesByInitiative.get(initiative) || []);
+      }, x);
+      clickData += this.getClickData({
+        initiativeKey: "Other",
+        issues: otherIssues,
+      });
+      row["Other"] = getSize(otherIssues, this.state.sizeMode);
       row["clickData"] = clickData;
       data.push(row);
     });
@@ -247,7 +270,7 @@ export default class Throughput extends React.Component<Props, State> {
         identifier: label,
       });
     });
-    columns.push({ type: "number", label: "None", identifier: "None" });
+    columns.push({ type: "number", label: "Other", identifier: "Other" });
 
     let data: WithWildcards<{}>[] = [];
 
@@ -272,11 +295,23 @@ export default class Throughput extends React.Component<Props, State> {
       };
 
       let clickData = "";
-      [...this.state.labelsSelected, "None"].forEach((parent) => {
+      this.state.labelsSelected.forEach((parent) => {
         let issues = issuesByLabel.get(parent) || [];
         row[parent] = getSize(issues, this.state.sizeMode);
         clickData += this.getClickData({ initiativeKey: parent, issues });
       });
+      let otherLabels = Array.from(issuesByLabel.keys()).filter(
+        (label) => !this.state.labelsSelected.includes(label)
+      );
+      let x: IssueInfo[] = [];
+      let otherIssues = otherLabels.reduce((acc, label) => {
+        return acc.concat(issuesByLabel.get(label) || []);
+      }, x);
+      clickData += this.getClickData({
+        initiativeKey: "Other",
+        issues: otherIssues,
+      });
+      row["Other"] = getSize(otherIssues, this.state.sizeMode);
       row["clickData"] = clickData;
       data.push(row);
     });
