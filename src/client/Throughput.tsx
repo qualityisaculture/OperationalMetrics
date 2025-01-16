@@ -207,6 +207,7 @@ export default class Throughput extends React.Component<Props, State> {
   getThroughputByInitiative = (
     throughputData: SprintIssueList[]
   ): { data: CategoryData; columns: ColumnType[] } => {
+    console.log("getThroughputByInitiative", throughputData);
     let columns: ColumnType[] = [
       { type: "date", label: "Sprint Start Date", identifier: "date" },
     ];
@@ -264,10 +265,12 @@ export default class Throughput extends React.Component<Props, State> {
       row["clickData"] = clickData;
       data.push(row);
     });
+    console.log("data", data);
     return { data, columns };
   };
 
   getThroughputByLabel(throughputData: SprintIssueList[]) {
+    console.log("getThroughputByLabel", throughputData);
     let columns: ColumnType[] = [
       { type: "date", label: "Sprint Start Date", identifier: "date" },
     ];
@@ -282,22 +285,34 @@ export default class Throughput extends React.Component<Props, State> {
 
     let data: WithWildcards<{}>[] = [];
 
-    function getIssuesByLabel(issues: IssueInfo[]) {
+    function getIssuesByLabel(issues: IssueInfo[], filteredLabels: string[]) {
       let issuesByLabel = new ConcatableMap<string, IssueInfo>();
 
       issues.forEach((issue) => {
-        issue.labels.forEach((label) => {
-          issuesByLabel.concat(label, issue);
-        });
-        if (issue.labels.length === 0) {
+        let labels = issue.labels.filter((label) =>
+          filteredLabels.includes(label)
+        );
+        if (labels.length === 0) {
           issuesByLabel.concat("None", issue);
+        } else {
+          let firstLabel = labels[0];
+          issuesByLabel.concat(firstLabel, issue);
         }
+        // issue.labels.forEach((label) => {
+        //   issuesByLabel.concat(label, issue);
+        // });
+        // if (issue.labels.length === 0) {
+        //   issuesByLabel.concat("None", issue);
+        // }
       });
       return issuesByLabel;
     }
 
     this.state.throughputData.forEach((sprint) => {
-      let issuesByLabel = getIssuesByLabel(sprint.issueList);
+      let issuesByLabel = getIssuesByLabel(
+        sprint.issueList,
+        this.state.labelsSelected
+      );
       let row: WithWildcards<{}> = {
         date: new Date(sprint.sprintStartingDate),
       };
@@ -323,6 +338,7 @@ export default class Throughput extends React.Component<Props, State> {
       row["clickData"] = clickData;
       data.push(row);
     });
+    console.log("data", data);
     return { data, columns };
   }
 
