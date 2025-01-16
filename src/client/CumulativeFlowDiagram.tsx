@@ -2,7 +2,10 @@ import React from "react";
 import AreaChart, { AreaType, CategoryData, XAxisData } from "./AreaChart";
 import { DatePicker } from "antd";
 import dayjs from "dayjs";
-import { CumulativeFlowDiagramData } from "../server/graphManagers/CumulativeFlowDiagramManager";
+import {
+  CumulativeFlowDiagramData,
+  CumulativeFlowDiagramDateStatus,
+} from "../server/graphManagers/CumulativeFlowDiagramManager";
 import Select from "./Select";
 import { DefaultOptionType, SelectProps } from "antd/es/select";
 import { cli } from "webpack";
@@ -69,9 +72,19 @@ export default class CumulativeFlowDiagram extends React.Component<
     this.setState({ selectedStates: value });
   }
 
-  getClickData(timeline) {
+  getClickData(
+    timeline: CumulativeFlowDiagramDateStatus,
+    activeStatuses: string[]
+  ) {
     let clickData = "";
+    let totalIssues = timeline.statuses.reduce((acc, status) => {
+      if (activeStatuses.includes(status.status)) {
+        return acc + status.issues.length;
+      }
+      return acc;
+    }, 0);
     clickData += "Date: " + timeline.date + "<br>";
+    clickData += "Total issues: " + totalIssues + "<br>";
     timeline.statuses.forEach((status) => {
       clickData += status.status + ": " + status.issues.length + "<br>";
       status.issues.forEach((issue: MinimumIssueInfo) => {
@@ -126,7 +139,10 @@ export default class CumulativeFlowDiagram extends React.Component<
                 ?.issues.length || 0;
             row[statusIndex] = issuesLength;
           }
-          row.clickData = this.getClickData(timeline);
+          row.clickData = this.getClickData(
+            timeline,
+            this.state.selectedStates
+          );
           return row;
         })
       : [];

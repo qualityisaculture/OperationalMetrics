@@ -6,10 +6,12 @@ export type CumulativeFlowDiagramData = {
   timeline: CumulativeFlowDiagramTimeline;
 };
 
-export type CumulativeFlowDiagramTimeline = {
+export type CumulativeFlowDiagramDateStatus = {
   date: Date;
   statuses: { status: string; issues: MinimumIssueInfo[] }[];
-}[];
+}
+
+export type CumulativeFlowDiagramTimeline = CumulativeFlowDiagramDateStatus[];
 
 export default class CumulativeFlowDiagramManager {
   jiraRequester: JiraRequester;
