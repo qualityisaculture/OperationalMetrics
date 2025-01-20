@@ -192,11 +192,11 @@ export function getGoogleDataTableFromMultipleBurnupData(
     d <= new Date(lastDate);
     d.setDate(d.getDate() + 1)
   ) {
-    let tomorrow = new Date(d);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    let dayAfterDate = new Date(d);
+    dayAfterDate.setDate(dayAfterDate.getDate() + 1);
     let dataBetweenDates = extendedBurnupDataArray.map(
       (doneAndScopeCountArray) => {
-        return getDataBetweenDates(doneAndScopeCountArray, d, tomorrow);
+        return getDataBetweenDates(doneAndScopeCountArray, d, dayAfterDate);
       }
     );
     let sumDone = reduceDSAField(
@@ -219,6 +219,11 @@ export function getGoogleDataTableFromMultipleBurnupData(
       sumForecast = null;
     }
     if (sumDone === 0) {
+      sumDone = null;
+    }
+    let tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (new Date(d) > tomorrow) {
       sumDone = null;
     }
     allDates.push([new Date(d), sumDone, sumScope, sumRequired, sumForecast]);
