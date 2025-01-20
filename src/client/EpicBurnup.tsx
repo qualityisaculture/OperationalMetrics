@@ -116,8 +116,8 @@ export function extendEpicBurnup(
     if (burnupData) {
       let extendedBurnupData: DoneAndScopeCountWithForecast = {
         ...burnupData,
-        doneCountForecast: null,
-        doneEstimateForecast: null,
+        doneCountForecast: doneCountForecast,
+        doneEstimateForecast: doneEstimateForecast,
         futureDoneKeys: [],
       };
       doneCountForecast += epicBurnups.doneCountIncrement;
