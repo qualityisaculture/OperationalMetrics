@@ -109,8 +109,6 @@ export function extendEpicBurnup(
   let currentDate = new Date(earliestDate);
   let doneCountForecast = 0;
   let doneEstimateForecast = 0;
-  let doneCountRequired = 0;
-  let doneEstimateRequired = 0;
   while (currentDate <= lastDate) {
     let burnupData: DoneAndScopeCount | undefined = epicBurnups.dateData.find(
       (item) => item.date === currentDate.toISOString().split("T")[0]
@@ -121,19 +119,9 @@ export function extendEpicBurnup(
         doneCountForecast: null,
         doneEstimateForecast: null,
         futureDoneKeys: [],
-        doneCountRequired: null,
-        doneEstimateRequired: null,
       };
       doneCountForecast += epicBurnups.doneCountIncrement;
       doneEstimateForecast += epicBurnups.doneEstimateIncrement;
-      doneCountRequired = Math.min(
-        doneCountRequired + epicBurnups.doneCountRequiredIncrement,
-        epicBurnups.doneCountLimit
-      );
-      doneEstimateRequired = Math.min(
-        doneEstimateRequired + epicBurnups.doneEstimateRequiredIncrement,
-        epicBurnups.doneEstimateLimit
-      );
       extendedBurnupDataArray.push(extendedBurnupData);
     } else {
       if (currentDate < epicBurnups.startDate) {
@@ -160,19 +148,9 @@ export function extendEpicBurnup(
           doneCountForecast: doneCountForecast,
           doneEstimateForecast: doneEstimateForecast,
           futureDoneKeys: [],
-          doneCountRequired: doneCountRequired,
-          doneEstimateRequired: doneEstimateRequired,
         });
         doneCountForecast += epicBurnups.doneCountIncrement;
         doneEstimateForecast += epicBurnups.doneEstimateIncrement;
-        doneCountRequired = Math.min(
-          doneCountRequired + epicBurnups.doneCountRequiredIncrement,
-          epicBurnups.doneCountLimit
-        );
-        doneEstimateRequired = Math.min(
-          doneEstimateRequired + epicBurnups.doneEstimateRequiredIncrement,
-          epicBurnups.doneEstimateLimit
-        );
       }
     }
     currentDate.setDate(currentDate.getDate() + 1);
