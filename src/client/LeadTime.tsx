@@ -63,11 +63,26 @@ export default class LeadTime extends React.Component<Props, State> {
         this.setState({ leadTimeData });
       });
   };
+  getClickData = (leadTimeData: LeadTimeSprintData) => {
+    let logHTML = "";
+    leadTimeData.sizeBuckets.forEach((bucket, index) => {
+      logHTML += `<h3>${index} days</h3>`;
+      bucket.issues.forEach((issue) => {
+        logHTML += `<a href="${issue.url}" target="_blank">${issue.key} ${issue.summary}</a><br>`;
+      });
+    });
+    return logHTML;
+  };
   getLeadTimeData(leadTimeData: LeadTimeSprintData[]): {
     data: CategoryData;
     columns: ColumnType[];
   } {
     let columns: ColumnType[] = [];
+    columns.push({
+      type: "date",
+      identifier: "sprintDate",
+      label: "Start Date",
+    });
     columns.push({
       type: "number",
       identifier: 0,
@@ -77,20 +92,23 @@ export default class LeadTime extends React.Component<Props, State> {
       columns.push({
         type: "number",
         identifier: i,
-        label: `Sprint ${i}`,
+        label: `${i} days`,
       });
     }
     columns.push({
       type: "number",
       identifier: 9,
-      label: "10+",
+      label: "10+ days",
     });
     let data: CategoryData = [];
     leadTimeData.forEach((sprint) => {
       let row = {};
+      row["sprintDate"] = new Date(sprint.sprintStartingDate);
       sprint.sizeBuckets.forEach((bucket, index) => {
         row[index] = bucket.issues.length;
       });
+      let clickData = this.getClickData(sprint);
+      row["clickData"] = clickData;
       data.push(row);
     });
     return { data, columns };
