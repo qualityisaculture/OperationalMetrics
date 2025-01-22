@@ -20,13 +20,10 @@ interface State {
   sizeMode: "count" | "estimate";
 }
 
-type GoogleDataTableType = [
-  Date,
-  number | null,
-  number | null,
-  number | null,
-  number | null,
-];
+type GoogleDataTableType = {
+  data: [Date, number | null, number | null, number | null, number | null];
+  clickData?: string;
+};
 
 const google = globalThis.google;
 
@@ -186,6 +183,7 @@ export function getGoogleDataTableFromMultipleBurnupData(
   // let googleBurnupDataArray = extendedBurnupDataArray.map((item) => {
   //   return getGoogleDataTableFromBurnupDateData(item, estimate);
   // });
+  let previousIssues: DoneAndScopeCountWithForecast[] = [];
   let allDates: GoogleDataTableType[] = [];
   for (
     let d = new Date(earliestDate);
@@ -226,7 +224,33 @@ export function getGoogleDataTableFromMultipleBurnupData(
     if (new Date(d) > tomorrow) {
       sumDone = null;
     }
-    allDates.push([new Date(d), sumDone, sumScope, sumRequired, sumForecast]);
+    let allNewIssuesToday = new Set<string>();
+    dataBetweenDates.forEach((item) => {
+      item.doneKeys.forEach((key) => {
+        allNewIssuesToday.add(key);
+      });
+    });
+    previousIssues.forEach((item) => {
+      item.doneKeys.forEach((key) => {
+        allNewIssuesToday.delete(key);
+      });
+    });
+    let clickData = "<h3>Issues done today</h3>";
+    allNewIssuesToday.forEach((key) => {
+      clickData += `${key}<br>`;
+    });
+    clickData += "<h3>Issues done previously</h3>";
+    previousIssues.forEach((item) => {
+      item.doneKeys.forEach((key) => {
+        clickData += `${key}<br>`;
+      });
+    });
+    previousIssues = dataBetweenDates;
+
+    allDates.push({
+      data: [new Date(d), sumDone, sumScope, sumRequired, sumForecast],
+      clickData,
+    });
   }
   return allDates;
 }
@@ -344,6 +368,14 @@ class LineChart extends React.Component<ChartProps, ChartState> {
     }
   }
 
+  handleColumnClick = (chart) => {
+    var selection = chart.getSelection();
+    let clickData: string = this.props.burnupDataArray[selection[0].row]
+      .clickData as string;
+    let notesElement = document.getElementById("notes");
+    if (notesElement) notesElement.innerHTML = clickData;
+  };
+
   drawChart() {
     var data = new google.visualization.DataTable();
     data.addColumn("date", "Date");
@@ -351,8 +383,7 @@ class LineChart extends React.Component<ChartProps, ChartState> {
     data.addColumn("number", "Scope");
     data.addColumn("number", "Ideal Trend");
     data.addColumn("number", "Forecast Trend");
-    data.addRows(this.props.burnupDataArray);
-    console.log(this.props.burnupDataArray);
+    data.addRows(this.props.burnupDataArray.map((item) => item.data));
 
     var options = {
       title: "Issue Burnup",
@@ -367,6 +398,13 @@ class LineChart extends React.Component<ChartProps, ChartState> {
 
     var chart = new google.visualization.LineChart(
       document.getElementById(this.randomId)
+    );
+    google.visualization.events.addListener(
+      chart,
+      "select",
+      function () {
+        this.handleColumnClick(chart);
+      }.bind(this)
     );
 
     chart.draw(data, options);
