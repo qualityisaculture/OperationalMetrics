@@ -169,7 +169,7 @@ export default class Throughput extends React.Component<Props, State> {
   initiatitivesSelected = (selected: string[]) => {
     this.setState({ initiativesSelected: selected });
   };
-  labelsSelected = (selected: string[]) => {
+    labelsSelected = (selected: string[]) => {
     this.setState({ labelsSelected: selected });
   };
   handleSizeChange = (e: RadioChangeEvent) => {

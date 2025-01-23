@@ -1,3 +1,4 @@
+import { StatusTime } from "../Types";
 import { history, historyItem, omHistoryItem } from "./JiraAPITypes";
 import { lastUpdatedKey } from "./JiraRequester";
 import { getWorkDaysBetween } from "./Utils";
@@ -275,7 +276,7 @@ export default class Jira {
     return Array.from(statusSet).sort();
   }
 
-  getStatusTimes(): { status: string; time: number }[] {
+  getStatusTimes(): StatusTime[] {
     let statuses = this.getStatuses();
     let statusMap = new Map<string, number>();
     statuses.forEach((status) => {

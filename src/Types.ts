@@ -39,3 +39,8 @@ export type MinimumIssueInfo = {
   summary: string;
   url: string;
 };
+
+export type StatusTime = {
+  status: string;
+  time: number;
+};

@@ -1,21 +1,26 @@
-import { MinimumIssueInfo } from "../../Types";
+import { MinimumIssueInfo, StatusTime } from "../../Types";
 import Jira from "../Jira";
 import JiraRequester from "../JiraRequester";
-import { getSprintIssueListsBySprint } from "../Utils";
-import { IssueInfo, SprintIssueList } from "./GraphManagerTypes";
+import { getIssuesBySprint, getSprintIssueListsBySprint } from "../Utils";
+import {
+  IssueInfo,
+  LeadTimeIssueInfo,
+  SprintIssueList,
+} from "./GraphManagerTypes";
 
-export type SizeBucket = {
-  days: number;
+export type LeadTimeData = {
+  timeSpentInDays: number;
   label: string;
   issues: MinimumIssueInfo[];
 };
 
 export type LeadTimeSprintData = {
   sprintStartingDate: Date;
-  sizeBuckets: SizeBucket[];
+  issues: LeadTimeIssueInfo[];
+  // sizeBuckets: SizeBucket[];
 };
 
-export type LeadTimeData = {
+export type LeadTimeSprints = {
   sprints: LeadTimeSprintData[];
 };
 
@@ -25,72 +30,45 @@ export default class LeadTimeGraphManager {
     this.jiraRequester = jiraRequester;
   }
 
-  getIssueInfoBySizeBucket(issueInfos: IssueInfo[]): SizeBucket[] {
-    const maxBucketSize = 10;
-    let sizeBuckets: SizeBucket[] = [];
-    sizeBuckets.push({
-      days: 0,
-      label: "null",
-      issues: issueInfos
-        .filter((issueInfo) => issueInfo.timespent === null)
-        .map((issueInfo) => {
-          return {
-            key: issueInfo.key,
-            summary: issueInfo.summary,
-            url: issueInfo.url,
-          };
-        }),
-    });
-    for (let bucketSize = 1; bucketSize < maxBucketSize; bucketSize++) {
-      let issues = issueInfos.filter((issueInfo) => {
-        const timeSpent = issueInfo.timespent;
-        return timeSpent !== null && timeSpent <= bucketSize;
-      });
-      issueInfos = issueInfos.filter((issueInfo) => {
-        const timeSpent = issueInfo.timespent;
-        return timeSpent !== null && timeSpent > bucketSize;
-      });
-      sizeBuckets.push({
-        days: bucketSize,
-        label: `${bucketSize} day${bucketSize > 1 ? "s" : ""}`,
-        issues: issues.map((issueInfo) => {
-          return {
-            key: issueInfo.key,
-            summary: issueInfo.summary,
-            url: issueInfo.url,
-          };
-        }),
-      });
-    }
-    sizeBuckets.push({
-      days: maxBucketSize,
-      label: `${maxBucketSize}+ days`,
-      issues: issueInfos.map((issueInfo) => {
-        return {
-          key: issueInfo.key,
-          summary: issueInfo.summary,
-          url: issueInfo.url,
-        };
-      }),
-    });
-    return sizeBuckets;
+  getLeadTimeIssueInfo(jira: Jira): LeadTimeIssueInfo {
+    return {
+      key: jira.getKey(),
+      summary: jira.getSummary(),
+      status: jira.getStatus(),
+      type: jira.getType(),
+      created: jira.getCreated().toISOString(),
+      resolved: jira.getResolved().toISOString(),
+      resolution: jira.getResolution(),
+      epicKey: jira.getEpicKey(),
+      epicName: jira.getEpicName(),
+      initiativeKey: jira.getInitiativeKey(),
+      initiativeName: jira.getInitiativeName(),
+      labels: jira.getLabels(),
+      priority: jira.getPriority(),
+      components: jira.getComponents(),
+      fixVersions: jira.getFixVersions(),
+      url: jira.getUrl(),
+      timeoriginalestimate: jira.getOriginalEstimate(),
+      timespent: jira.getTimeSpent(),
+      statusTimes: jira.getStatusTimes(),
+    };
   }
 
   async getLeadTimeData(
     filter: string,
     currentSprintStartDate: Date,
     numberOfSprints: number
-  ): Promise<LeadTimeData> {
+  ): Promise<LeadTimeSprints> {
     let jiras = await this.jiraRequester.getQuery(filter);
-    let jirasBySprint: SprintIssueList[] = getSprintIssueListsBySprint(
-      jiras,
-      currentSprintStartDate
-    );
+    let jirasBySprint: { sprintStartingDate: Date; issues: Jira[] }[] =
+      getIssuesBySprint(jiras, currentSprintStartDate);
     return {
       sprints: jirasBySprint.map((sprintIssueList) => {
         return {
           sprintStartingDate: sprintIssueList.sprintStartingDate,
-          sizeBuckets: this.getIssueInfoBySizeBucket(sprintIssueList.issueList),
+          issues: sprintIssueList.issues.map((jira) =>
+            this.getLeadTimeIssueInfo(jira)
+          ),
         };
       }),
     };

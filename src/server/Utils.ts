@@ -34,7 +34,21 @@ export function getSprintIssueListsBySprint(
   jiras: Jira[],
   startDate: Date
 ): SprintIssueList[] {
-  let sprints: SprintIssueList[] = [];
+  let issuesBySprint = getIssuesBySprint(jiras, startDate);
+  let sprintIssueLists = issuesBySprint.map((sprint) => {
+    return {
+      sprintStartingDate: sprint.sprintStartingDate,
+      issueList: sprint.issues.map((jira) => getIssueInfoFromJira(jira)),
+    };
+  });
+  return sprintIssueLists;
+}
+
+export function getIssuesBySprint(
+  jiras: Jira[],
+  startDate: Date
+): { sprintStartingDate: Date; issues: Jira[] }[] {
+  let sprints: { sprintStartingDate: Date; issues: Jira[] }[] = [];
   let currentSprintStartDate = new Date(startDate);
   currentSprintStartDate.setDate(currentSprintStartDate.getDate() + 14);
   while (jiras.length > 0) {
@@ -45,7 +59,7 @@ export function getSprintIssueListsBySprint(
     );
     sprints.push({
       sprintStartingDate: twoWeeksAgo,
-      issueList: jirasInSprint.map((jira) => getIssueInfoFromJira(jira)),
+      issues: jirasInSprint,
     });
     jiras = jiras.filter((jira) => jira.getResolved() <= twoWeeksAgo);
     currentSprintStartDate = twoWeeksAgo;

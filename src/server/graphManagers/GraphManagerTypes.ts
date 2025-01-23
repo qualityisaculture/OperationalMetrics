@@ -1,3 +1,5 @@
+import { StatusTime } from "../../Types";
+
 export type IssueInfo = {
   key: string;
   summary: string;
@@ -17,6 +19,10 @@ export type IssueInfo = {
   url: string;
   timeoriginalestimate: number | null;
   timespent: number | null;
+};
+
+export type LeadTimeIssueInfo = IssueInfo & {
+  statusTimes: StatusTime[];
 };
 
 export type SprintIssueList = {

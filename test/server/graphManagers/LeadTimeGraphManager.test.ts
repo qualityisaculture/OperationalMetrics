@@ -106,16 +106,16 @@ describe("LeadTimeGraphManager", () => {
       let ltm = new LeadTimeGraphManager(mockJiraRequester);
       let result = ltm.getIssueInfoBySizeBucket([]);
       expect(result.length).toEqual(11);
-      expect(result[0].days).toEqual(0);
+      expect(result[0].timeSpentInDays).toEqual(0);
       expect(result[0].label).toEqual("null");
       expect(result[0].issues).toEqual([]);
-      expect(result[1].days).toEqual(1);
+      expect(result[1].timeSpentInDays).toEqual(1);
       expect(result[1].label).toEqual("1 day");
       expect(result[1].issues).toEqual([]);
-      expect(result[9].days).toEqual(9);
+      expect(result[9].timeSpentInDays).toEqual(9);
       expect(result[9].label).toEqual("9 days");
       expect(result[9].issues).toEqual([]);
-      expect(result[10].days).toEqual(10);
+      expect(result[10].timeSpentInDays).toEqual(10);
       expect(result[10].label).toEqual("10+ days");
       expect(result[10].issues).toEqual([]);
     });
@@ -125,7 +125,7 @@ describe("LeadTimeGraphManager", () => {
       mockIssueInfo.timespent = null;
       let result = ltm.getIssueInfoBySizeBucket([mockIssueInfo]);
       expect(result.length).toEqual(11);
-      expect(result[0].days).toEqual(0);
+      expect(result[0].timeSpentInDays).toEqual(0);
       expect(result[0].label).toEqual("null");
       expect(result[0].issues).toEqual([
         {
@@ -141,7 +141,7 @@ describe("LeadTimeGraphManager", () => {
       mockIssueInfo.timespent = 0.5;
       let result = ltm.getIssueInfoBySizeBucket([mockIssueInfo]);
       expect(result.length).toEqual(11);
-      expect(result[1].days).toEqual(1);
+      expect(result[1].timeSpentInDays).toEqual(1);
       expect(result[1].label).toEqual("1 day");
       expect(result[1].issues).toEqual([
         {
@@ -150,7 +150,7 @@ describe("LeadTimeGraphManager", () => {
           url: "localhost:8080/browse/KEY-1",
         },
       ]);
-      expect(result[10].days).toEqual(10);
+      expect(result[10].timeSpentInDays).toEqual(10);
       expect(result[10].label).toEqual("10+ days");
       expect(result[10].issues).toEqual([]);
     });
@@ -164,10 +164,10 @@ describe("LeadTimeGraphManager", () => {
         mockIssueInfo2,
       ]);
       expect(result.length).toEqual(11);
-      expect(result[1].days).toEqual(1);
+      expect(result[1].timeSpentInDays).toEqual(1);
       expect(result[1].label).toEqual("1 day");
       expect(result[1].issues).toEqual([]);
-      expect(result[10].days).toEqual(10);
+      expect(result[10].timeSpentInDays).toEqual(10);
       expect(result[10].label).toEqual("10+ days");
       expect(result[10].issues).toEqual([
         {
