@@ -93,6 +93,14 @@ export default class LeadTime extends React.Component<Props, State> {
       logHTML += `<h3>${index} days</h3>`;
       bucket.issues.forEach((issue) => {
         logHTML += `<a href="${issue.url}" target="_blank">${issue.key} ${issue.summary}</a><br>`;
+        //@ts-ignore
+        logHTML += `Time spent: ${issue.timespent} days<br>`;
+        //@ts-ignore
+        issue.statuses.forEach((status) => {
+          if (this.state.statusesSelected.includes(status.status)) {
+            logHTML += `${status.status} ${status.time} days<br>`;
+          }
+        });
       });
     });
     return logHTML;
@@ -112,22 +120,28 @@ export default class LeadTime extends React.Component<Props, State> {
   ): LeadTimeData[] {
     const maxBucketSize = 10;
     let sizeBuckets: LeadTimeData[] = [];
+    let issues = leadTimeIssueInfos.filter((issueInfo) =>
+      byStatus
+        ? this.getTimeInSelectedStatuses(issueInfo) == 0
+        : issueInfo.timespent === null
+    );
+    leadTimeIssueInfos = leadTimeIssueInfos.filter((issueInfo) =>
+      byStatus
+        ? this.getTimeInSelectedStatuses(issueInfo) !== 0
+        : issueInfo.timespent !== null
+    );
     sizeBuckets.push({
       timeSpentInDays: 0,
       label: "null",
-      issues: leadTimeIssueInfos
-        .filter((issueInfo) =>
-          byStatus
-            ? this.getTimeInSelectedStatuses(issueInfo) === 0
-            : issueInfo.timespent === null
-        )
-        .map((issueInfo) => {
-          return {
-            key: issueInfo.key,
-            summary: issueInfo.summary,
-            url: issueInfo.url,
-          };
-        }),
+      issues: issues.map((issueInfo) => {
+        return {
+          key: issueInfo.key,
+          summary: issueInfo.summary,
+          url: issueInfo.url,
+          statuses: issueInfo.statusTimes,
+          timespent: issueInfo.timespent,
+        };
+      }),
     });
     for (let bucketSize = 1; bucketSize < maxBucketSize; bucketSize++) {
       let issues = leadTimeIssueInfos.filter((issueInfo) => {
@@ -150,6 +164,8 @@ export default class LeadTime extends React.Component<Props, State> {
             key: issueInfo.key,
             summary: issueInfo.summary,
             url: issueInfo.url,
+            statuses: issueInfo.statusTimes,
+            timespent: issueInfo.timespent,
           };
         }),
       });
@@ -162,6 +178,8 @@ export default class LeadTime extends React.Component<Props, State> {
           key: issueInfo.key,
           summary: issueInfo.summary,
           url: issueInfo.url,
+          statuses: issueInfo.statusTimes,
+          timespent: issueInfo.timespent,
         };
       }),
     });
