@@ -1,6 +1,6 @@
 import React from "react";
 import { ElapsedTime } from "../server/graphManagers/TimeInDevManager";
-import { List } from "antd";
+import { List, Radio, RadioChangeEvent } from "antd";
 import Select from "./Select";
 const timeInDevQueryString = "timeInDevQuery";
 type Props = {};
@@ -9,6 +9,7 @@ type State = {
   stateOptions: { value: string; label: string }[];
   statesSelected: string[];
   issues: ElapsedTime[];
+  sortBy: "timespent" | "status";
 };
 
 export default class TimeInDev extends React.Component<Props, State> {
@@ -19,6 +20,7 @@ export default class TimeInDev extends React.Component<Props, State> {
       stateOptions: [],
       statesSelected: [],
       issues: [],
+      sortBy: "timespent",
     };
   }
 
@@ -49,14 +51,31 @@ export default class TimeInDev extends React.Component<Props, State> {
   stateSelectedChange = (selected: string[]) => {
     this.setState({ statesSelected: selected });
   };
-
+  handleSortByChange = (e: RadioChangeEvent) => {
+    this.setState({ sortBy: e.target.value });
+  };
+  timeInSelectedStatus = (issue: ElapsedTime) => {
+    let time = 0;
+    issue.statuses.forEach((status) => {
+      if (this.state.statesSelected.includes(status.status)) {
+        time += status.time;
+      }
+    });
+    return time;
+  };
+  getSortedIssues = () => {
+    if (this.state.sortBy === "timespent") {
+      return this.state.issues.sort((a, b) => {
+        return b.timespent - a.timespent;
+      });
+    } else {
+      return this.state.issues.sort((a, b) => {
+        return this.timeInSelectedStatus(b) - this.timeInSelectedStatus(a);
+      });
+    }
+  };
   render() {
-    let sortedIssues = this.state.issues.sort((a, b) => {
-      return b.timespent - a.timespent;
-    });
-    let filteredIssues = sortedIssues.filter((issue) => {
-      return this.state.statesSelected.includes(issue.currentStatus);
-    });
+    let filteredIssues = this.getSortedIssues();
     return (
       <div>
         <input
@@ -67,10 +86,23 @@ export default class TimeInDev extends React.Component<Props, State> {
           }}
         />
         <button onClick={this.onClick}>Click me</button>
-        <Select
-          options={this.state.stateOptions}
-          onChange={this.stateSelectedChange}
-        />
+        <Radio.Group
+          onChange={this.handleSortByChange}
+          value={this.state.sortBy}
+        >
+          <Radio.Button value="timespent">Time Spent</Radio.Button>
+          <Radio.Button value="status">Status</Radio.Button>
+        </Radio.Group>
+        <span
+          style={{
+            display: this.state.sortBy === "status" ? "block" : "none",
+          }}
+        >
+          <Select
+            options={this.state.stateOptions}
+            onChange={this.stateSelectedChange}
+          />
+        </span>
         <List
           header="Issues"
           bordered
@@ -92,7 +124,11 @@ export default class TimeInDev extends React.Component<Props, State> {
                 }
               />
               <List
-                header="Statuses"
+                header={
+                  "Statuses total: " +
+                  this.timeInSelectedStatus(issue) +
+                  " days"
+                }
                 bordered
                 dataSource={issue.statuses}
                 style={{ width: "80%" }}
