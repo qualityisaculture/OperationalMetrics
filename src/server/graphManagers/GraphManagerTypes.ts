@@ -1,4 +1,4 @@
-import { StatusTime } from "../../Types";
+import { StatusDays } from "../../Types";
 
 export type IssueInfo = {
   key: string;
@@ -22,7 +22,7 @@ export type IssueInfo = {
 };
 
 export type LeadTimeIssueInfo = IssueInfo & {
-  statusTimes: StatusTime[];
+  statusTimes: StatusDays[];
 };
 
 export type SprintIssueList = {

@@ -1,11 +1,13 @@
+import { StatusDays } from "../../Types";
 import JiraRequester from "../JiraRequester";
 
 export interface ElapsedTime {
   key: string;
+  summary: string;
   currentStatus: string;
   timespent: number;
   url: string;
-  statuses: { status: string; time: number }[];
+  statuses: StatusDays[];
 }
 
 export default class TimeInDevManager {
@@ -18,11 +20,12 @@ export default class TimeInDevManager {
     let jiras = await this.jiraRequester.getQuery(query);
     return jiras.map((jira) => {
       let key = jira.fields.key;
+      let summary = jira.fields.summary;
       let url = jira.fields.url;
       let timespent = jira.fields.timespent || 0;
       let currentStatus = jira.fields.status.name;
-      let statuses = jira.getStatusTimes();
-      return { key, currentStatus, timespent, url, statuses };
+      let statuses = jira.getStatusDays();
+      return { key, summary, currentStatus, timespent, url, statuses };
     });
   }
 }

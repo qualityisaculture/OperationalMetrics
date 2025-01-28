@@ -42,15 +42,15 @@ describe("TimeInDevManager", () => {
   });
 
   it("should return the time spent in each status", async () => {
-    mockJira.getStatusTimes = jest.fn().mockReturnValue([
-      { status: "status1", time: 100 },
-      { status: "status2", time: 200 },
+    mockJira.getStatusDays = jest.fn().mockReturnValue([
+      { status: "status1", days: 100 },
+      { status: "status2", days: 200 },
     ]);
     const result = await timeInDevManager.getTimeInDevData("query");
     expect(result[0].statuses.length).toBe(2);
     expect(result[0].statuses[0].status).toBe("status1");
-    expect(result[0].statuses[0].time).toBe(100);
+    expect(result[0].statuses[0].days).toBe(100);
     expect(result[0].statuses[1].status).toBe("status2");
-    expect(result[0].statuses[1].time).toBe(200);
+    expect(result[0].statuses[1].days).toBe(200);
   });
 });

@@ -1,4 +1,4 @@
-import { StatusTime } from "../Types";
+import { StatusDays } from "../Types";
 import { history, historyItem, omHistoryItem } from "./JiraAPITypes";
 import { lastUpdatedKey } from "./JiraRequester";
 import { getWorkDaysBetween } from "./Utils";
@@ -211,7 +211,7 @@ export default class Jira {
     });
   }
 
-  getHistoriesItems(field): omHistoryItem[] {
+  getHistoriesItems(field: string): omHistoryItem[] {
     let epicChildItems = this.histories
       .map((history) => {
         let items: (historyItem & { created?: Date })[] =
@@ -276,7 +276,7 @@ export default class Jira {
     return Array.from(statusSet).sort();
   }
 
-  getStatusTimes(): StatusTime[] {
+  getStatusDays(): StatusDays[] {
     let statuses = this.getStatuses();
     let statusMap = new Map<string, number>();
     statuses.forEach((status) => {
@@ -296,8 +296,8 @@ export default class Jira {
     let finalStatus = this.getStatus(finalTime);
     let finalPreviousDuration = statusMap.get(finalStatus) || 0;
     statusMap.set(finalStatus, finalPreviousDuration + finalDuration);
-    return Array.from(statusMap).map(([status, time]) => {
-      return { status, time };
+    return Array.from(statusMap).map(([status, days]) => {
+      return { status, days };
     });
   }
 

@@ -109,7 +109,7 @@ export default class LeadTime extends React.Component<Props, State> {
     let timeInSelectedStatuses = 0;
     issue.statusTimes.forEach((statusTime) => {
       if (this.state.statusesSelected.includes(statusTime.status)) {
-        timeInSelectedStatuses += statusTime.time;
+        timeInSelectedStatuses += statusTime.days;
       }
     });
     return timeInSelectedStatuses;

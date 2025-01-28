@@ -9,6 +9,18 @@ export default class JiraRequester {
     this.jiraMap = new Map();
   }
 
+  async getAdditionalHistory(key: string) {
+    let values: any[] = [];
+    while (true) {
+      let changelog = await this.requestChangelogFromServer(key, values.length);
+      values = values.concat(changelog.values);
+      if (changelog.values.length !== 100) {
+        break;
+      }
+    }
+    return values;
+  }
+
   async getFullJiraDataFromKeys(
     lastUpdatedKeys: lastUpdatedKey[]
   ): Promise<Jira[]> {
@@ -30,6 +42,14 @@ export default class JiraRequester {
       }
     );
     for (let jira of jiraJSON.issues) {
+      let histories = jira.changelog?.histories;
+      if (histories) {
+        if (histories.length === 100) {
+          let historyValues = await this.getAdditionalHistory(jira.key);
+          jira.changelog.histories = historyValues;
+        }
+      }
+
       this.jiraMap.set(
         jira.key,
         await this.getJiraWithInitiative(jira).catch((error) => {
@@ -67,6 +87,13 @@ export default class JiraRequester {
     }
 
     return jira;
+  }
+
+  async requestChangelogFromServer(key: string, startAt = 0) {
+    const domain = process.env.JIRA_DOMAIN;
+    const url = `${domain}/rest/api/3/issue/${key}/changelog?startAt=${startAt}`;
+    let response = await this.fetchRequest(url);
+    return response;
   }
 
   async requestIssueFromServer(issueKeys: string[]) {

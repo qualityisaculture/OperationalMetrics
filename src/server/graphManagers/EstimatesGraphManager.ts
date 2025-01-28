@@ -1,3 +1,4 @@
+import { StatusDays } from "../../Types";
 import Jira from "../Jira";
 import JiraRequester from "../JiraRequester";
 
@@ -5,7 +6,7 @@ export type EstimateData = {
   date: Date;
   key: string;
   type: string;
-  statusTimes: { status: string; time: number }[];
+  statusTimes: StatusDays[];
   originalEstimate: number | null;
   timeSpent: number | null;
 };
@@ -33,7 +34,7 @@ export default class EstimatesGraphManager {
           date: jira.getCreated(),
           key: jira.getKey(),
           type: jira.getType(),
-          statusTimes: jira.getStatusTimes(),
+          statusTimes: jira.getStatusDays(),
           originalEstimate: jira.getOriginalEstimate(),
           timeSpent: jira.getTimeSpent(),
         };
@@ -44,7 +45,7 @@ export default class EstimatesGraphManager {
   getUniqueStatuses(jiras: Jira[]): string[] {
     let uniqueStatuses = new Set<string>();
     jiras.forEach((jira) => {
-      jira.getStatusTimes().forEach((statusTime) => {
+      jira.getStatusDays().forEach((statusTime) => {
         uniqueStatuses.add(statusTime.status);
       });
     });

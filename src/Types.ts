@@ -40,7 +40,7 @@ export type MinimumIssueInfo = {
   url: string;
 };
 
-export type StatusTime = {
+export type StatusDays = {
   status: string;
-  time: number;
+  days: number;
 };

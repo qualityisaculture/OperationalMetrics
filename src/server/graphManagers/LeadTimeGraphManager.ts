@@ -1,4 +1,4 @@
-import { MinimumIssueInfo, StatusTime } from "../../Types";
+import { MinimumIssueInfo, StatusDays } from "../../Types";
 import Jira from "../Jira";
 import JiraRequester from "../JiraRequester";
 import { getIssuesBySprint, getSprintIssueListsBySprint } from "../Utils";
@@ -50,7 +50,7 @@ export default class LeadTimeGraphManager {
       url: jira.getUrl(),
       timeoriginalestimate: jira.getOriginalEstimate(),
       timespent: jira.getTimeSpent(),
-      statusTimes: jira.getStatusTimes(),
+      statusTimes: jira.getStatusDays(),
     };
   }
 

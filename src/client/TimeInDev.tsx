@@ -58,7 +58,7 @@ export default class TimeInDev extends React.Component<Props, State> {
     let time = 0;
     issue.statuses.forEach((status) => {
       if (this.state.statesSelected.includes(status.status)) {
-        time += status.time;
+        time += status.days;
       }
     });
     return time;
@@ -112,7 +112,7 @@ export default class TimeInDev extends React.Component<Props, State> {
               <List.Item.Meta
                 title={
                   <a href={issue.url} target="_blank">
-                    {issue.key}
+                    {issue.key + " - " + issue.summary}
                   </a>
                 }
                 description={
@@ -136,7 +136,7 @@ export default class TimeInDev extends React.Component<Props, State> {
                   <List.Item>
                     <List.Item.Meta
                       title={status.status}
-                      description={status.time.toString() + " days"}
+                      description={status.days.toString() + " days"}
                     />
                   </List.Item>
                 )}

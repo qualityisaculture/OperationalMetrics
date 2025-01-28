@@ -487,22 +487,22 @@ describe("Jira", () => {
         jest.useFakeTimers();
         jest.setSystemTime(new Date(midnight).getTime());
         let jira = new Jira(defaultJiraJSON);
-        expect(jira.getStatusTimes()).toEqual([{ status: "Backlog", time: 1 }]);
+        expect(jira.getStatusDays()).toEqual([{ status: "Backlog", days: 1 }]);
       });
 
       it("should return 0 if status is Jira has existed less than hour", () => {
         jest.useFakeTimers();
         jest.setSystemTime(new Date(nineThirtyAm).getTime());
         let jira = new Jira(defaultJiraJSON);
-        expect(jira.getStatusTimes()).toEqual([{ status: "Backlog", time: 0 }]);
+        expect(jira.getStatusDays()).toEqual([{ status: "Backlog", days: 0 }]);
       });
 
       it("should round up to the eigth of a day", () => {
         jest.useFakeTimers();
         jest.setSystemTime(new Date(tenThirtyAm).getTime());
         let jira = new Jira(defaultJiraJSON);
-        expect(jira.getStatusTimes()).toEqual([
-          { status: "Backlog", time: 0.25 },
+        expect(jira.getStatusDays()).toEqual([
+          { status: "Backlog", days: 0.25 },
         ]);
       });
     });
@@ -549,8 +549,8 @@ describe("Jira", () => {
       jest.useFakeTimers();
       jest.setSystemTime(new Date(tenAm).getTime());
       let jira = new Jira(defaultJiraJSON);
-      expect(jira.getStatusTimes()).toEqual([
-        { status: "Backlog", time: 0.125 },
+      expect(jira.getStatusDays()).toEqual([
+        { status: "Backlog", days: 0.125 },
       ]);
     });
 
@@ -585,10 +585,10 @@ describe("Jira", () => {
           ],
         },
       });
-      expect(jira.getStatusTimes()).toEqual([
-        { status: "Backlog", time: 0.125 },
-        { status: "Done", time: 0 },
-        { status: "In Progress", time: 0.125 },
+      expect(jira.getStatusDays()).toEqual([
+        { status: "Backlog", days: 0.125 },
+        { status: "Done", days: 0 },
+        { status: "In Progress", days: 0.125 },
       ]);
     });
 
@@ -613,9 +613,9 @@ describe("Jira", () => {
           ],
         },
       });
-      expect(jira.getStatusTimes()).toEqual([
-        { status: "Backlog", time: 0.125 },
-        { status: "In Progress", time: 0.125 },
+      expect(jira.getStatusDays()).toEqual([
+        { status: "Backlog", days: 0.125 },
+        { status: "In Progress", days: 0.125 },
       ]);
     });
 
@@ -650,9 +650,9 @@ describe("Jira", () => {
           ],
         },
       });
-      expect(jira.getStatusTimes()).toEqual([
-        { status: "Backlog", time: 0.25 },
-        { status: "In Progress", time: 0.125 },
+      expect(jira.getStatusDays()).toEqual([
+        { status: "Backlog", days: 0.25 },
+        { status: "In Progress", days: 0.125 },
       ]);
     });
   });

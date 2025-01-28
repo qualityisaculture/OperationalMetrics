@@ -126,93 +126,6 @@ describe("JiraRequester", () => {
     });
   });
 
-  describe("request query from server", () => {
-    beforeEach(() => {
-      fetchMock.mockResolvedValue(
-        fetchResponseOk({
-          issues: [
-            {
-              key: "KEY-1",
-              fields: {
-                created: "2024-10-21T09:00:00.000+0100",
-                status: { name: "Backlog" },
-              },
-            },
-          ],
-          maxResults: 50,
-          startAt: 0,
-          total: 0,
-        })
-      );
-    });
-    it("should request a query from server for just the keys", async () => {
-      let jr = new JiraRequester();
-      let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
-      expect(fetchMock.mock.calls[0][0]).toEqual(
-        'localhost:8080/rest/api/3/search?jql=project="Project 1" AND resolved >= -1w&fields=key,updated'
-      );
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(jiras[0].getKey()).toEqual("KEY-1");
-    });
-
-    it("should request the jira from the server for each key", async () => {
-      let jr = new JiraRequester();
-      let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(fetchMock.mock.calls[1][0]).toEqual(
-        "localhost:8080/rest/api/3/search?jql=key=KEY-1&expand=changelog"
-      );
-    });
-
-    it("should map issues to Jira objects", async () => {
-      fetchMock.mockResolvedValueOnce(
-        fetchResponseOk({
-          issues: [
-            {
-              key: "KEY-1",
-              fields: {
-                updated: "2024-10-21T09:00:00.000+0100",
-              },
-            },
-            {
-              key: "KEY-2",
-              fields: {
-                updated: "2024-10-21T09:00:00.000+0100",
-              },
-            },
-          ],
-          maxResults: 50,
-          startAt: 0,
-          total: 0,
-        })
-      );
-      fetchMock.mockResolvedValueOnce(
-        fetchResponseOk({
-          issues: [
-            {
-              key: "KEY-1",
-              fields: {
-                created: "2024-10-21T09:00:00.000+0100",
-                status: { name: "Backlog" },
-              },
-            },
-            {
-              key: "KEY-2",
-              fields: {
-                created: "2024-10-21T09:00:00.000+0100",
-                status: { name: "Backlog" },
-              },
-            },
-          ],
-        })
-      );
-      let jr = new JiraRequester();
-      let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
-      expect(jiras[0].getKey()).toEqual("KEY-1");
-      expect(jiras[1].getKey()).toEqual("KEY-2");
-    });
-  });
-
   describe("getJiraKeysInQuery", () => {
     let defaultResponse = fetchResponseOk({
       issues: [
@@ -377,6 +290,208 @@ describe("JiraRequester", () => {
       let jiras = await jr.getFullJiraDataFromKeys([{ key: "SUB-1" }]);
       expect(fetchMock).toHaveBeenCalledTimes(3);
       expect(jiras[0].fields.initiativeKey).toEqual("INITIATIVE-1");
+    });
+  });
+
+  describe("getAdditionalHistory", () => {
+    function getXValues(x) {
+      let values: any[] = [];
+      for (let i = 1; i <= x; i++) {
+        values.push(i);
+      }
+      return values;
+    }
+    beforeEach(() => {
+      fetchMock.mockResolvedValue(
+        fetchResponseOk({
+          issues: [
+            {
+              key: "KEY-1",
+              fields: {
+                created: "2024-10-21T09:00:00.000+0100",
+                status: { name: "Backlog" },
+              },
+            },
+          ],
+        })
+      );
+    });
+    it("should request the changelog from the server", async () => {
+      let jr = new JiraRequester();
+      jr.requestChangelogFromServer = jest.fn().mockResolvedValue({
+        maxResults: 50,
+        values: [],
+      });
+      let jira = await jr.getAdditionalHistory("KEY-1");
+      expect(jr.requestChangelogFromServer).toHaveBeenCalledWith("KEY-1", 0);
+    });
+
+    it("should request the next 100 results if 100 are returned", async () => {
+      let jr = new JiraRequester();
+      jr.requestChangelogFromServer = jest.fn().mockResolvedValueOnce({
+        maxResults: 100,
+        values: getXValues(100),
+      });
+      //@ts-ignore
+      jr.requestChangelogFromServer.mockResolvedValueOnce({
+        maxResults: 50,
+        values: getXValues(50),
+      });
+      let values = await jr.getAdditionalHistory("KEY-1");
+      expect(jr.requestChangelogFromServer).toHaveBeenCalledTimes(2);
+      expect(jr.requestChangelogFromServer).toHaveBeenCalledWith("KEY-1", 0);
+      expect(jr.requestChangelogFromServer).toHaveBeenCalledWith("KEY-1", 100);
+      expect(values.length).toEqual(150);
+    });
+
+    it("should keep requesting until maxResults isn't 100", async () => {
+      let jr = new JiraRequester();
+      jr.requestChangelogFromServer = jest.fn().mockResolvedValueOnce({
+        maxResults: 100,
+        values: getXValues(100),
+      });
+      //@ts-ignore
+      jr.requestChangelogFromServer.mockResolvedValueOnce({
+        maxResults: 100,
+        values: getXValues(100),
+      });
+      //@ts-ignore
+      jr.requestChangelogFromServer.mockResolvedValueOnce({
+        maxResults: 50,
+        values: getXValues(50),
+      });
+      let values = await jr.getAdditionalHistory("KEY-1");
+      expect(jr.requestChangelogFromServer).toHaveBeenCalledTimes(3);
+      expect(jr.requestChangelogFromServer).toHaveBeenCalledWith("KEY-1", 0);
+      expect(jr.requestChangelogFromServer).toHaveBeenCalledWith("KEY-1", 100);
+      expect(jr.requestChangelogFromServer).toHaveBeenCalledWith("KEY-1", 200);
+      expect(values.length).toEqual(250);
+    });
+  });
+
+  describe("requestChangelogFromServer", () => {
+    beforeEach(() => {
+      fetchMock.mockResolvedValue(
+        fetchResponseOk({
+          issues: [
+            {
+              key: "KEY-1",
+              fields: {
+                created: "2024-10-21T09:00:00.000+0100",
+                status: { name: "Backlog" },
+              },
+            },
+          ],
+        })
+      );
+    });
+    it("should request the changelog from the server defaulting to startAt 0", async () => {
+      let jr = new JiraRequester();
+      let jira = await jr.requestChangelogFromServer("KEY-1");
+      expect(fetchMock.mock.calls[0][0]).toEqual(
+        "localhost:8080/rest/api/3/issue/KEY-1/changelog?startAt=0"
+      );
+    });
+
+    it("should request the changelog from the server with a startAt when passed", async () => {
+      let jr = new JiraRequester();
+      let jira = await jr.requestChangelogFromServer("KEY-1", 100);
+      expect(fetchMock.mock.calls[0][0]).toEqual(
+        "localhost:8080/rest/api/3/issue/KEY-1/changelog?startAt=100"
+      );
+    });
+
+    it("should return the changelog from the server", async () => {
+      let jr = new JiraRequester();
+      let jira = await jr.requestChangelogFromServer("KEY-1");
+      expect(jira.issues[0].key).toEqual("KEY-1");
+    });
+  });
+
+  describe("request query from server", () => {
+    beforeEach(() => {
+      fetchMock.mockResolvedValue(
+        fetchResponseOk({
+          issues: [
+            {
+              key: "KEY-1",
+              fields: {
+                created: "2024-10-21T09:00:00.000+0100",
+                status: { name: "Backlog" },
+              },
+            },
+          ],
+          maxResults: 50,
+          startAt: 0,
+          total: 0,
+        })
+      );
+    });
+    it("should request a query from server for just the keys", async () => {
+      let jr = new JiraRequester();
+      let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
+      expect(fetchMock.mock.calls[0][0]).toEqual(
+        'localhost:8080/rest/api/3/search?jql=project="Project 1" AND resolved >= -1w&fields=key,updated'
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(jiras[0].getKey()).toEqual("KEY-1");
+    });
+
+    it("should request the jira from the server for each key", async () => {
+      let jr = new JiraRequester();
+      let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[1][0]).toEqual(
+        "localhost:8080/rest/api/3/search?jql=key=KEY-1&expand=changelog"
+      );
+    });
+
+    it("should map issues to Jira objects", async () => {
+      fetchMock.mockResolvedValueOnce(
+        fetchResponseOk({
+          issues: [
+            {
+              key: "KEY-1",
+              fields: {
+                updated: "2024-10-21T09:00:00.000+0100",
+              },
+            },
+            {
+              key: "KEY-2",
+              fields: {
+                updated: "2024-10-21T09:00:00.000+0100",
+              },
+            },
+          ],
+          maxResults: 50,
+          startAt: 0,
+          total: 0,
+        })
+      );
+      fetchMock.mockResolvedValueOnce(
+        fetchResponseOk({
+          issues: [
+            {
+              key: "KEY-1",
+              fields: {
+                created: "2024-10-21T09:00:00.000+0100",
+                status: { name: "Backlog" },
+              },
+            },
+            {
+              key: "KEY-2",
+              fields: {
+                created: "2024-10-21T09:00:00.000+0100",
+                status: { name: "Backlog" },
+              },
+            },
+          ],
+        })
+      );
+      let jr = new JiraRequester();
+      let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
+      expect(jiras[0].getKey()).toEqual("KEY-1");
+      expect(jiras[1].getKey()).toEqual("KEY-2");
     });
   });
 
