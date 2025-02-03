@@ -21,19 +21,20 @@ interface State {
   selectedEpics: string[];
   selectedEpicsData: GoogleDataTableType[];
   allEpicsData: EpicBurnup[];
-  sizeMode: "count" | "estimate";
+  estimationMode: "count" | "estimate";
   startDate: Dayjs;
   endDate: Dayjs;
 }
 
 export function getSelectedEpics(
   allEpicsData: EpicBurnup[],
-  selectedEpics?: number[]
+  selectedEpics: number[]
 ) {
   return selectedEpics
     ? allEpicsData.filter((item, index) => selectedEpics.includes(index))
     : allEpicsData;
 }
+
 export function getEarliestDate(allEpicsData: EpicBurnup[]) {
   return allEpicsData.reduce((acc, val) => {
     return acc < val.startDate ? acc : val.startDate;
@@ -51,43 +52,49 @@ export function getLastDate(allEpicsData: EpicBurnup[]) {
 export default class EpicBurnupClass extends React.Component<Props, State> {
   constructor(props) {
     super(props);
-    this.onClick = this.onClick.bind(this);
+    this.onRequestData = this.onRequestData.bind(this);
     this.state = {
       input: localStorage.getItem("epicIssueKey") || "",
       epicSelectList: [],
       selectedEpics: [],
       selectedEpicsData: [],
       allEpicsData: [],
-      sizeMode: "count",
+      estimationMode: "count",
       startDate: dayjs(),
       endDate: dayjs(),
     };
   }
-  onClick() {
-    console.log("Button clicked");
+  getSelectedEpics = (
+    allEpicsData: EpicBurnup[] = this.state.allEpicsData,
+    selectedEpics: string[] = this.state.selectedEpics
+  ) => {
+    let selectedEpicsIndex: number[] = selectedEpics.map((item) =>
+      parseInt(item)
+    );
+    return getSelectedEpics(allEpicsData, selectedEpicsIndex);
+  };
+  onRequestData = () => {
     localStorage.setItem("epicIssueKey", this.state.input);
     //Request to the server /api/metrics
     fetch("/api/epicBurnup?query=" + this.state.input)
       .then((response) => response.json())
       .then((data) => {
-        let burnupDataArrays: EpicBurnup[] = JSON.parse(data.data);
-        this.setState({ allEpicsData: burnupDataArrays });
-        this.setState({
-          epicSelectList: burnupDataArrays.map((item, i) => {
-            return { label: item.key + " - " + item.summary, value: i };
-          }),
+        let allEpicsData: EpicBurnup[] = JSON.parse(data.data);
+        let epicSelectList = allEpicsData.map((item, i) => {
+          return { label: item.key + " - " + item.summary, value: i };
         });
         this.setState({
-          startDate: dayjs(getEarliestDate(burnupDataArrays)),
-          endDate: dayjs(getLastDate(burnupDataArrays)),
+          allEpicsData,
+          epicSelectList,
+          startDate: dayjs(getEarliestDate(allEpicsData)),
+          endDate: dayjs(getLastDate(allEpicsData)),
         });
       });
-  }
-
+  };
   onSelectedEpicsChanged = (selected: string[]) => {
-    let filteredEpics = getSelectedEpics(
+    let filteredEpics = this.getSelectedEpics(
       this.state.allEpicsData,
-      selected.map((item) => parseInt(item))
+      selected
     );
     this.setState({
       selectedEpics: selected,
@@ -95,17 +102,13 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
       endDate: dayjs(getLastDate(filteredEpics)),
     });
   };
-  handleSizeChange = (e: RadioChangeEvent) => {
-    this.setState({ sizeMode: e.target.value });
+  onEstimationModeChange = (e: RadioChangeEvent) => {
+    this.setState({ estimationMode: e.target.value });
   };
   render() {
-    let filteredEpics = getSelectedEpics(
-      this.state.allEpicsData,
-      this.state.selectedEpics.map((item) => parseInt(item))
-    );
     let data = getGoogleDataTableFromMultipleBurnupData(
-      filteredEpics,
-      this.state.sizeMode === "estimate",
+      this.getSelectedEpics(),
+      this.state.estimationMode === "estimate",
       this.state.startDate.toDate(),
       this.state.endDate.toDate()
     );
@@ -118,10 +121,10 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
             this.setState({ input: e.target.value });
           }}
         />
-        <button onClick={this.onClick}>Click me</button>
+        <button onClick={this.onRequestData}>Click me</button>
         <Radio.Group
-          value={this.state.sizeMode}
-          onChange={this.handleSizeChange}
+          value={this.state.estimationMode}
+          onChange={this.onEstimationModeChange}
         >
           <Radio.Button value="count">Count</Radio.Button>
           <Radio.Button value="estimate">Estimate</Radio.Button>
