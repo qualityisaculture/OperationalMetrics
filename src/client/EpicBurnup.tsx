@@ -1,18 +1,19 @@
 import React from "react";
-import {
-  EpicBurnup,
-  DoneAndScopeCount,
-  DoneAndScopeCountWithForecast,
-} from "../server/graphManagers/BurnupGraphManager";
-import Select from "./Select";
 import type { SelectProps, RadioChangeEvent } from "antd";
 import { DatePicker, Radio } from "antd";
-import { getSize } from "./Utils";
-import { TDateISODate } from "../Types";
 import dayjs, { Dayjs } from "dayjs";
+
+import Select from "./Select";
+
+import { EpicBurnup } from "../server/graphManagers/BurnupGraphManager";
 import LineChart from "./LineChart";
 import type { GoogleDataTableType } from "./LineChart";
-import { getGoogleDataTableFromMultipleBurnupData } from "./BurnupManager";
+import {
+  getEarliestDate,
+  getLastDate,
+  getSelectedEpics,
+  getGoogleDataTableFromMultipleBurnupData,
+} from "./BurnupManager";
 
 interface Props {}
 interface State {
@@ -26,33 +27,10 @@ interface State {
   endDate: Dayjs;
 }
 
-export function getSelectedEpics(
-  allEpicsData: EpicBurnup[],
-  selectedEpics: number[]
-) {
-  return selectedEpics
-    ? allEpicsData.filter((item, index) => selectedEpics.includes(index))
-    : allEpicsData;
-}
-
-export function getEarliestDate(allEpicsData: EpicBurnup[]) {
-  return allEpicsData.reduce((acc, val) => {
-    return acc < val.startDate ? acc : val.startDate;
-  }, new Date());
-}
-
-export function getLastDate(allEpicsData: EpicBurnup[]) {
-  let lastDateInJiras = allEpicsData.reduce((acc, val) => {
-    return acc > val.endDate ? acc : val.endDate;
-  }, new Date());
-  let today = new Date();
-  return lastDateInJiras > today ? lastDateInJiras : today;
-}
-
 export default class EpicBurnupClass extends React.Component<Props, State> {
   constructor(props) {
     super(props);
-    this.onRequestData = this.onRequestData.bind(this);
+    this.onDataRequested = this.onDataRequested.bind(this);
     this.state = {
       input: localStorage.getItem("epicIssueKey") || "",
       epicSelectList: [],
@@ -73,7 +51,7 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
     );
     return getSelectedEpics(allEpicsData, selectedEpicsIndex);
   };
-  onRequestData = () => {
+  onDataRequested = () => {
     localStorage.setItem("epicIssueKey", this.state.input);
     //Request to the server /api/metrics
     fetch("/api/epicBurnup?query=" + this.state.input)
@@ -121,7 +99,7 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
             this.setState({ input: e.target.value });
           }}
         />
-        <button onClick={this.onRequestData}>Click me</button>
+        <button onClick={this.onDataRequested}>Click me</button>
         <Radio.Group
           value={this.state.estimationMode}
           onChange={this.onEstimationModeChange}

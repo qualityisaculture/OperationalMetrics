@@ -203,3 +203,26 @@ export function reduceDSAField(
     return acc + val[field];
   }, 0);
 }
+
+export function getSelectedEpics(
+  allEpicsData: EpicBurnup[],
+  selectedEpics: number[]
+) {
+  return selectedEpics
+    ? allEpicsData.filter((item, index) => selectedEpics.includes(index))
+    : allEpicsData;
+}
+
+export function getEarliestDate(allEpicsData: EpicBurnup[]) {
+  return allEpicsData.reduce((acc, val) => {
+    return acc < val.startDate ? acc : val.startDate;
+  }, new Date());
+}
+
+export function getLastDate(allEpicsData: EpicBurnup[]) {
+  let lastDateInJiras = allEpicsData.reduce((acc, val) => {
+    return acc > val.endDate ? acc : val.endDate;
+  }, new Date());
+  let today = new Date();
+  return lastDateInJiras > today ? lastDateInJiras : today;
+}
