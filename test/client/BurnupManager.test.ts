@@ -1,7 +1,7 @@
 import {
   extendEpicBurnup,
   getGoogleDataTableFromMultipleBurnupData,
-} from "../../src/client/EpicBurnup";
+} from "../../src/client/BurnupManager";
 import {
   DoneAndScopeCount,
   EpicBurnup,

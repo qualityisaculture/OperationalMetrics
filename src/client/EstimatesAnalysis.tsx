@@ -1,6 +1,6 @@
 import React from "react";
 import { EstimatesData } from "../server/graphManagers/EstimatesGraphManager";
-  import Select from "./Select";
+import Select from "./Select";
 import EstimateChart from "./EstimateChart";
 
 interface Props {}
@@ -87,7 +87,7 @@ export default class EstimatesAnalysis extends React.Component<Props, State> {
           let statusTime = item.statusTimes.find(
             (statusTime) => statusTime.status === status
           );
-          csv += statusTime ? statusTime.time : 0;
+          csv += statusTime ? statusTime.days : 0;
           csv += ",";
         });
         csv += "\n";
