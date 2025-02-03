@@ -378,12 +378,13 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
           onChange={this.onSelectedEpicsChanged}
         />
         <br />
-        <DatePicker
+        {/* <DatePicker
+        DON'T TURN THIS ON, BECAUSE MOVING THE FIRST DATE MAKES THE BURNUP REQUIRED INCORRECT
           onChange={(date, dateString) => {
             this.setState({ startDate: date });
           }}
           value={this.state.startDate}
-        />
+        /> */}
         <DatePicker
           onChange={(date, dateString) => {
             this.setState({ endDate: date });
