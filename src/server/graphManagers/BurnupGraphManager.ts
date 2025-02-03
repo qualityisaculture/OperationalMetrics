@@ -106,7 +106,7 @@ export default class BurnupGraphManager {
     totalEstimate: number;
   }> {
     let startDate = epic.getEpicStartDate() || epic.getCreated();
-    let endDate = epic.getEpicDueDate() || new Date();
+    let endDate = new Date();
     endDate.setDate(endDate.getDate() + 1);
     let allChildJiras = await this.getAllChildrenJiras(epic, endDate);
     let childJiras = allChildJiras.filter((child) => child.isInScope(endDate));

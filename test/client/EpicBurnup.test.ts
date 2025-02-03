@@ -19,15 +19,18 @@ function get1EpicPerDayData(
     for (let j = 0; j < i; j++) {
       keys.push("KEY-" + j);
     }
+    //@ts-ignore
+    let isoDate: TDateISODate = date.toISOString().split("T")[0];
     data.push({
-      //@ts-ignore
-      date: date.toISOString().split("T")[0],
+      date: isoDate,
       doneCount: i,
       doneEstimate: i * 3600 * 8,
       doneKeys: keys,
       scopeCount: i,
       scopeEstimate: i * 3600 * 8,
       scopeKeys: keys,
+      doneCountRequired: i,
+      doneEstimateRequired: i * 3600 * 8,
     });
     date.setDate(date.getDate() + 1);
   }
@@ -44,9 +47,7 @@ let defaultEpicBurnups: EpicBurnup = {
   doneEstimateIncrement: 0,
   doneCountLimit: 10,
   doneEstimateLimit: 80,
-  doneCountRequiredIncrement: 2,
   doneCountRequiredLimit: 10,
-  doneEstimateRequiredIncrement: 2,
   doneEstimateRequiredLimit: 80,
 };
 
@@ -60,9 +61,7 @@ let first5DaysEpicBurnups: EpicBurnup = {
   doneEstimateIncrement: 0,
   doneCountLimit: 10,
   doneEstimateLimit: 80,
-  doneCountRequiredIncrement: 2,
   doneCountRequiredLimit: 10,
-  doneEstimateRequiredIncrement: 2,
   doneEstimateRequiredLimit: 80,
 };
 let second5DaysEpicBurnups: EpicBurnup = {
@@ -75,9 +74,7 @@ let second5DaysEpicBurnups: EpicBurnup = {
   doneEstimateIncrement: 0,
   doneCountLimit: 10,
   doneEstimateLimit: 80,
-  doneCountRequiredIncrement: 2,
   doneCountRequiredLimit: 10,
-  doneEstimateRequiredIncrement: 2,
   doneEstimateRequiredLimit: 80,
 };
 
@@ -91,7 +88,13 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
   it("should return just an empty flat line of today when passed no epics", () => {
     let allDates = getGoogleDataTableFromMultipleBurnupData([], true);
     expect(allDates.length).toEqual(1);
-    expect(allDates[0]).toEqual([new Date("2021-01-15"), null, 0, 0, null]);
+    expect(allDates[0].data).toEqual([
+      new Date("2021-01-15"),
+      null,
+      0,
+      0,
+      null,
+    ]);
   });
 
   it("should return just return from the start of the epic if passed a single epic", () => {
@@ -102,15 +105,21 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
       true
     );
     expect(allDates.length).toEqual(10);
-    expect(allDates[0]).toEqual([new Date("2021-01-01"), null, 0, 0, null]);
-    expect(allDates[1]).toEqual([
+    expect(allDates[0].data).toEqual([
+      new Date("2021-01-01"),
+      null,
+      0,
+      0,
+      null,
+    ]);
+    expect(allDates[1].data).toEqual([
       new Date("2021-01-02"),
       28800,
       28800,
       expect.any(Number),
       null,
     ]);
-    expect(allDates[9]).toEqual([
+    expect(allDates[9].data).toEqual([
       new Date("2021-01-10"),
       259200,
       259200,
@@ -126,22 +135,28 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
       true
     );
     expect(allDates.length).toEqual(15);
-    expect(allDates[0]).toEqual([new Date("2021-01-01"), null, 0, 0, null]);
-    expect(allDates[9]).toEqual([
+    expect(allDates[0].data).toEqual([
+      new Date("2021-01-01"),
+      null,
+      0,
+      0,
+      null,
+    ]);
+    expect(allDates[9].data).toEqual([
       new Date("2021-01-10"),
       259200,
       259200,
       expect.any(Number),
       null,
     ]);
-    expect(allDates[10]).toEqual([
+    expect(allDates[10].data).toEqual([
       new Date("2021-01-11"),
       259200,
       259200,
       expect.any(Number),
       null,
     ]);
-    expect(allDates[14]).toEqual([
+    expect(allDates[14].data).toEqual([
       new Date("2021-01-15"),
       259200,
       259200,
@@ -158,29 +173,35 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
       true
     );
     expect(allDates.length).toEqual(10);
-    expect(allDates[0]).toEqual([new Date("2021-01-01"), null, 0, 0, null]);
-    expect(allDates[1]).toEqual([
+    expect(allDates[0].data).toEqual([
+      new Date("2021-01-01"),
+      null,
+      0,
+      0,
+      null,
+    ]);
+    expect(allDates[1].data).toEqual([
       new Date("2021-01-02"),
       57600,
       57600,
       expect.any(Number),
       null,
     ]);
-    expect(allDates[4]).toEqual([
+    expect(allDates[4].data).toEqual([
       new Date("2021-01-05"),
       230400,
       230400,
       expect.any(Number),
       null,
     ]);
-    expect(allDates[5]).toEqual([
+    expect(allDates[5].data).toEqual([
       new Date("2021-01-06"),
       259200,
       259200,
       expect.any(Number),
       null,
     ]);
-    expect(allDates[9]).toEqual([
+    expect(allDates[9].data).toEqual([
       new Date("2021-01-10"),
       374400,
       374400,
@@ -197,29 +218,35 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
       true
     );
     expect(allDates.length).toEqual(10);
-    expect(allDates[0]).toEqual([new Date("2021-01-01"), null, 0, 0, null]);
-    expect(allDates[1]).toEqual([
+    expect(allDates[0].data).toEqual([
+      new Date("2021-01-01"),
+      null,
+      0,
+      0,
+      null,
+    ]);
+    expect(allDates[1].data).toEqual([
       new Date("2021-01-02"),
       28800,
       28800,
       expect.any(Number),
       null,
     ]);
-    expect(allDates[4]).toEqual([
+    expect(allDates[4].data).toEqual([
       new Date("2021-01-05"),
       115200,
       115200,
       expect.any(Number),
       null,
     ]);
-    expect(allDates[5]).toEqual([
+    expect(allDates[5].data).toEqual([
       new Date("2021-01-06"),
       288000,
       288000,
       expect.any(Number),
       null,
     ]);
-    expect(allDates[9]).toEqual([
+    expect(allDates[9].data).toEqual([
       new Date("2021-01-10"),
       518400,
       518400,
@@ -276,13 +303,13 @@ describe("extendEpicBurnup", () => {
       defaultLastDate
     );
     expect(extendedData).toEqual(
-      epicBurnUpData.map((item) => {
+      epicBurnUpData.map((item, index) => {
         return {
           ...item,
-          doneCountForecast: null,
-          doneCountRequired: null,
-          doneEstimateForecast: null,
-          doneEstimateRequired: null,
+          doneCountForecast: index,
+          doneCountRequired: index,
+          doneEstimateForecast: 0,
+          doneEstimateRequired: index * 28800,
           futureDoneKeys: [],
         };
       })
@@ -340,7 +367,7 @@ describe("extendEpicBurnup", () => {
     console.log(extendedData[0]);
     expect(extendedData.length).toEqual(20);
     expect(extendedData[0].doneCountForecast).toEqual(null);
-    expect(extendedData[9].doneCountForecast).toEqual(null);
+    expect(extendedData[9].doneCountForecast).toEqual(4);
     expect(extendedData[10].doneCountForecast).toEqual(5);
     expect(extendedData[19].doneCountForecast).toEqual(14);
   });

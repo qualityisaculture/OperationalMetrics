@@ -86,9 +86,11 @@ export function getEarliestDate(allEpicsData: EpicBurnup[]) {
 }
 
 export function getLastDate(allEpicsData: EpicBurnup[]) {
-  return allEpicsData.reduce((acc, val) => {
+  let lastDateInJiras = allEpicsData.reduce((acc, val) => {
     return acc > val.endDate ? acc : val.endDate;
   }, new Date());
+  let today = new Date();
+  return lastDateInJiras > today ? lastDateInJiras : today;
 }
 
 export function extendEpicBurnup(
@@ -152,8 +154,6 @@ export function extendEpicBurnup(
     }
     currentDate.setDate(currentDate.getDate() + 1);
   }
-
-  // console.log(extendedBurnupDataArray);
   return extendedBurnupDataArray;
 }
 
