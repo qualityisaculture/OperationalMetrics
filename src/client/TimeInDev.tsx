@@ -75,7 +75,18 @@ export default class TimeInDev extends React.Component<Props, State> {
     }
   };
   render() {
-    let filteredIssues = this.getSortedIssues();
+    let sortedIssues = this.getSortedIssues();
+    let summaryIssues = sortedIssues.map((issue) => {
+      let daysBooked = issue.timespent;
+      let daysInStatuses = this.timeInSelectedStatus(issue);
+      return {
+        key: issue.key,
+        summary: issue.summary,
+        daysBooked,
+        daysInStatuses,
+      };
+    });
+
     return (
       <div>
         <input
@@ -103,66 +114,80 @@ export default class TimeInDev extends React.Component<Props, State> {
             onChange={this.stateSelectedChange}
           />
         </span>
+        <TimeInDevSummary issues={summaryIssues} />
         <List
           header="Issues"
           bordered
-          dataSource={filteredIssues}
+          dataSource={sortedIssues}
           renderItem={(issue) => (
-            <List.Item>
-              <List.Item.Meta
-                title={
-                  <a href={issue.url} target="_blank">
-                    {issue.key + " - " + issue.summary}
-                  </a>
-                }
-                description={
-                  "Time booked " +
-                  issue.timespent.toString() +
-                  " days" +
-                  " \n " +
-                  issue.currentStatus
-                }
-              />
-              <List
-                header={
-                  "Statuses total: " +
-                  this.timeInSelectedStatus(issue) +
-                  " days"
-                }
-                bordered
-                dataSource={issue.statuses}
-                style={{ width: "80%" }}
-                renderItem={(status) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      title={status.status}
-                      description={status.days.toString() + " days"}
-                    />
-                  </List.Item>
-                )}
-              />
-            </List.Item>
+            <TimeInDevIssueDetail
+              issue={issue}
+              totalDays={this.timeInSelectedStatus(issue)}
+            />
           )}
         />
-        {/* <ul>
-          {this.state.issues.map((issue) => {
-            return (
-              <li key={issue.key}>
-                {issue.key} - {issue.timespent}
-                <ul>
-                  {issue.statuses.map((status) => {
-                    return (
-                      <li key={status.status}>
-                        {status.status} - {status.time}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </li>
-            );
-          })}
-        </ul> */}
       </div>
     );
   }
 }
+
+export const TimeInDevIssueDetail: React.FC<{
+  issue: ElapsedTime;
+  totalDays: number;
+}> = ({ issue, totalDays }) => {
+  return (
+    <List.Item>
+      <List.Item.Meta
+        title={
+          <a href={issue.url} target="_blank">
+            {issue.key + " - " + issue.summary}
+          </a>
+        }
+        description={
+          "Time booked " +
+          issue.timespent.toString() +
+          " days \n " +
+          issue.currentStatus
+        }
+      />
+      <List
+        header={"Statuses total: " + totalDays + " days"}
+        bordered
+        dataSource={issue.statuses}
+        style={{ width: "80%" }}
+        renderItem={(status) => (
+          <List.Item>
+            <List.Item.Meta
+              title={status.status}
+              description={status.days.toString() + " days"}
+            />
+          </List.Item>
+        )}
+      />
+    </List.Item>
+  );
+};
+
+type TimeInDevSummaryProps = {
+  issues: {
+    key: string;
+    summary: string;
+    daysBooked: number;
+    daysInStatuses: number;
+  }[];
+};
+
+export const TimeInDevSummary: React.FC<TimeInDevSummaryProps> = ({
+  issues,
+}) => {
+  return (
+    <div>
+      {issues.map((issue) => (
+        <li key={issue.key}>
+          {issue.key} - {issue.summary} - {issue.daysInStatuses} days in
+          progress - {issue.daysBooked} days booked
+        </li>
+      ))}
+    </div>
+  );
+};
