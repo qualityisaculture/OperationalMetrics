@@ -86,7 +86,14 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
   });
 
   it("should return just an empty flat line of today when passed no epics", () => {
-    let allDates = getGoogleDataTableFromMultipleBurnupData([], true);
+    let startDate = new Date("2021-01-15");
+    let endDate = new Date("2021-01-15");
+    let allDates = getGoogleDataTableFromMultipleBurnupData(
+      [],
+      true,
+      startDate,
+      endDate
+    );
     expect(allDates.length).toEqual(1);
     expect(allDates[0].data).toEqual([
       new Date("2021-01-15"),
@@ -100,9 +107,13 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
   it("should return just return from the start of the epic if passed a single epic", () => {
     jest.setSystemTime(new Date("2021-01-10"));
 
+    let startDate = new Date("2021-01-01");
+    let endDate = new Date("2021-01-10");
     let allDates = getGoogleDataTableFromMultipleBurnupData(
       [defaultEpicBurnups],
-      true
+      true,
+      startDate,
+      endDate
     );
     expect(allDates.length).toEqual(10);
     expect(allDates[0].data).toEqual([
@@ -129,10 +140,14 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
   });
 
   it("should return the final values after the epic data ends", () => {
+    let startDate = new Date("2021-01-01");
+    let endDate = new Date("2021-01-15");
     jest.setSystemTime(new Date("2021-01-15"));
     let allDates = getGoogleDataTableFromMultipleBurnupData(
       [defaultEpicBurnups],
-      true
+      true,
+      startDate,
+      endDate
     );
     expect(allDates.length).toEqual(15);
     expect(allDates[0].data).toEqual([
@@ -167,10 +182,13 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
 
   it("should add up two epics with the same data", () => {
     jest.setSystemTime(new Date("2021-01-10"));
-
+    let startDate = new Date("2021-01-01");
+    let endDate = new Date("2021-01-10");
     let allDates = getGoogleDataTableFromMultipleBurnupData(
       [defaultEpicBurnups, first5DaysEpicBurnups],
-      true
+      true,
+      startDate,
+      endDate
     );
     expect(allDates.length).toEqual(10);
     expect(allDates[0].data).toEqual([
@@ -212,10 +230,13 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
 
   it("should add up two epics", () => {
     jest.setSystemTime(new Date("2021-01-10"));
-
+    let startDate = new Date("2021-01-01");
+    let endDate = new Date("2021-01-10");
     let allDates = getGoogleDataTableFromMultipleBurnupData(
       [defaultEpicBurnups, second5DaysEpicBurnups],
-      true
+      true,
+      startDate,
+      endDate
     );
     expect(allDates.length).toEqual(10);
     expect(allDates[0].data).toEqual([

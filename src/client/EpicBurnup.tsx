@@ -6,9 +6,10 @@ import {
 } from "../server/graphManagers/BurnupGraphManager";
 import Select from "./Select";
 import type { SelectProps, RadioChangeEvent } from "antd";
-import { Radio } from "antd";
+import { DatePicker, Radio } from "antd";
 import { getSize } from "./Utils";
 import { TDateISODate } from "../Types";
+import dayjs, { Dayjs } from "dayjs";
 
 interface Props {}
 interface State {
@@ -18,6 +19,8 @@ interface State {
   selectedEpicsData: GoogleDataTableType[];
   allEpicsData: EpicBurnup[];
   sizeMode: "count" | "estimate";
+  startDate: Dayjs;
+  endDate: Dayjs;
 }
 
 type GoogleDataTableType = {
@@ -169,11 +172,13 @@ export function reduceDSAField(
 export function getGoogleDataTableFromMultipleBurnupData(
   allEpicsData: EpicBurnup[],
   estimate: boolean,
+  earliestDate: Date,
+  lastDate: Date,
   selectedEpics?: number[]
 ): GoogleDataTableType[] {
   let filteredEpics = getSelectedEpics(allEpicsData, selectedEpics);
-  let earliestDate = new Date(getEarliestDate(filteredEpics));
-  let lastDate = new Date(getLastDate(filteredEpics));
+  // let earliestDate = new Date(getEarliestDate(filteredEpics));
+  // let lastDate = new Date(getLastDate(filteredEpics));
   let extendedBurnupDataArray = filteredEpics.map((item) => {
     return extendEpicBurnup(item, earliestDate, lastDate);
   });
@@ -266,6 +271,8 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
       selectedEpicsData: [],
       allEpicsData: [],
       sizeMode: "count",
+      startDate: dayjs(),
+      endDate: dayjs(),
     };
   }
   onClick() {
@@ -282,11 +289,20 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
             return { label: item.key + " - " + item.summary, value: i };
           }),
         });
+        let firstDate = getEarliestDate(burnupDataArrays);
+        let lastDate = getLastDate(burnupDataArrays);
+
         let selectedEpicsData = getGoogleDataTableFromMultipleBurnupData(
           burnupDataArrays,
-          false
+          false,
+          firstDate,
+          lastDate
         );
-        this.setState({ selectedEpicsData });
+        this.setState({
+          selectedEpicsData,
+          startDate: dayjs(firstDate),
+          endDate: dayjs(lastDate),
+        });
 
         // this.drawChart(burnupDataArrays[0].data);
       });
@@ -296,21 +312,35 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
   // draws it.
 
   onSelectedEpicsChanged = (selected: string[]) => {
+    let filteredEpics = getSelectedEpics(
+      this.state.allEpicsData,
+      selected.map((item) => parseInt(item))
+    );
+    let firstDate = getEarliestDate(filteredEpics);
+    let lastDate = getLastDate(filteredEpics);
     let x = getGoogleDataTableFromMultipleBurnupData(
       this.state.allEpicsData,
       this.state.sizeMode === "estimate",
+      firstDate,
+      lastDate,
       selected.map((item) => parseInt(item))
     );
     this.setState({
       selectedEpics: selected,
       selectedEpicsData: x,
+      startDate: dayjs(firstDate),
+      endDate: dayjs(lastDate),
     });
   };
   handleSizeChange = (e: RadioChangeEvent) => {
     this.setState({ sizeMode: e.target.value });
+    let startDate = this.state.startDate.toDate();
+    let endDate = this.state.endDate.toDate();
     let selectedEpicsData = getGoogleDataTableFromMultipleBurnupData(
       this.state.allEpicsData,
       e.target.value === "estimate",
+      startDate,
+      endDate,
       this.state.selectedEpics.map((item) => parseInt(item))
     );
     this.setState({
@@ -318,6 +348,13 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
     });
   };
   render() {
+    let data = getGoogleDataTableFromMultipleBurnupData(
+      this.state.allEpicsData,
+      this.state.sizeMode === "estimate",
+      this.state.startDate.toDate(),
+      this.state.endDate.toDate(),
+      this.state.selectedEpics.map((item) => parseInt(item))
+    );
     return (
       <div>
         <input
@@ -335,11 +372,25 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
           <Radio.Button value="count">Count</Radio.Button>
           <Radio.Button value="estimate">Estimate</Radio.Button>
         </Radio.Group>
+        <br />
         <Select
           options={this.state.epicSelectList}
           onChange={this.onSelectedEpicsChanged}
         />
-        <LineChart burnupDataArray={this.state.selectedEpicsData} />
+        <br />
+        <DatePicker
+          onChange={(date, dateString) => {
+            this.setState({ startDate: date });
+          }}
+          value={this.state.startDate}
+        />
+        <DatePicker
+          onChange={(date, dateString) => {
+            this.setState({ endDate: date });
+          }}
+          value={this.state.endDate}
+        />
+        <LineChart burnupDataArray={data} />
       </div>
     );
   }
