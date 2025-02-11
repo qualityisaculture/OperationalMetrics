@@ -95,25 +95,61 @@ export class SankeyObject extends React.Component<Props, State> {
   }
 
   getInitiativesKeys(issues: IssueInfo[]): DefaultOptionType[] {
-    let initiativesSet = new Set(issues.map((issue) => issue.initiativeKey));
-    let initiatives: DefaultOptionType[] = [];
-    initiativesSet.forEach((initiative) => {
-      initiatives.push({ value: initiative, label: initiative });
+    let initiativesMap = new Map<
+      string,
+      { key: string; summary: string; issues: IssueInfo[] }
+    >();
+    issues.forEach((issue) => {
+      if (initiativesMap.has(issue.initiativeKey)) {
+        //@ts-ignore
+        initiativesMap.get(issue.initiativeKey).issues.push(issue);
+      } else {
+        initiativesMap.set(issue.initiativeKey, {
+          key: issue.initiativeKey,
+          summary: issue.initiativeName,
+          issues: [issue],
+        });
+      }
     });
+    let initiatives: DefaultOptionType[] = [];
+    initiativesMap.forEach((initiative) => {
+      initiatives.push({
+        value: initiative.key,
+        label: `${initiative.key} - ${initiative.summary} - ${this.getTimeSpent(initiative.issues)}`,
+      });
+    });
+
     return initiatives;
   }
 
   getLabelsKeys(issues: IssueInfo[]): DefaultOptionType[] {
-    let labelsSet = new Set(issues.flatMap((issue) => issue.labels));
+    let labelsMap = new Map<string, IssueInfo[]>();
+    issues.forEach((issue) => {
+      issue.labels.forEach((label) => {
+        if (labelsMap.has(label)) {
+          //@ts-ignore
+          labelsMap.get(label).push(issue);
+        } else {
+          labelsMap.set(label, [issue]);
+        }
+      });
+    });
     let labels: DefaultOptionType[] = [];
-    labelsSet.forEach((label) => {
-      labels.push({ value: label, label: label });
+    labelsMap.forEach((labelIssues, label) => {
+      labels.push({
+        value: label,
+        label: `${label} - ${this.getTimeSpent(labelIssues)}`,
+      });
     });
     return labels;
   }
 
   getTimeSpent(issues: IssueInfo[]): number {
-    return issues.reduce((acc, issue) => acc + (issue.timespent || 0), 0);
+    let rawTimeSpent = issues.reduce(
+      (acc, issue) => acc + (issue.timespent || 0),
+      0
+    );
+    return Math.floor(rawTimeSpent);
   }
 
   splitByAll(): {
@@ -192,41 +228,50 @@ export class SankeyObject extends React.Component<Props, State> {
     let timeSpent = this.getTimeSpent(this.state.selectedIssues);
     let totalSize =
       this.props.totalSize || this.getTimeSpent(this.props.issues);
-    let percentage = (timeSpent / totalSize) * 100;
+    let percentage = Math.round((timeSpent / totalSize) * 10000) / 100;
+    let optionSelectedString = this.state.options
+      .filter((option) =>
+        this.state.optionsSelected.includes(option.value as string)
+      )
+      .map((option) => option.label)
+      .join(", ");
+    let summaryString = `${timeSpent} days (${percentage}%) spent on ${optionSelectedString}} ${this.state.splitBy} (${this.state.selectedIssues.length} issues)`;
     return (
       <div>
-        <Select
-          options={splitByOptions}
-          onChange={this.setSplitBy.bind(this)}
-          mode="single"
-        />
-        <Select
-          options={this.state.options}
-          onChange={this.setSelectedOptions.bind(this)}
-        />
-        {this.state.splitBy +
-          " - " +
-          timeSpent +
-          " days -  " +
-          percentage +
-          "%"}
         <Collapse>
-          <Collapse.Panel
-            header={`${this.state.selectedIssues.length} issues`}
-            key="1"
-          >
-            {this.state.selectedIssues.map((issue) => (
-              <div key={issue.key}>
-                {issue.key} - {issue.summary}
-              </div>
-            ))}
-          </Collapse.Panel>
-        </Collapse>
-        {/* {this.state.selectedIssues.map((issue) => (
+          <Collapse.Panel header={`${summaryString}`} key="1">
+            <Select
+              options={splitByOptions}
+              onChange={this.setSplitBy.bind(this)}
+              mode="single"
+            />
+            <Select
+              options={this.state.options}
+              onChange={this.setSelectedOptions.bind(this)}
+            />
+            {this.state.splitBy +
+              " - " +
+              timeSpent +
+              " days -  " +
+              percentage +
+              "%"}
+            <Collapse>
+              <Collapse.Panel header="Issues" key="1">
+                {this.state.selectedIssues.map((issue) => (
+                  <div key={issue.key}>
+                    {issue.key} - {issue.summary}
+                  </div>
+                ))}
+              </Collapse.Panel>
+            </Collapse>
+
+            {/* {this.state.selectedIssues.map((issue) => (
           <div key={issue.key}>
             {issue.key} - {issue.summary}
           </div>
         ))} */}
+          </Collapse.Panel>
+        </Collapse>
         {this.state.children.map((child: React.JSX.Element) => (
           <div key={child.props.name}>{child}</div>
         ))}
