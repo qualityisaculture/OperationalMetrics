@@ -12,6 +12,11 @@ let splitByOptions: DefaultOptionType[] = [
   { value: "Initiative", label: "Initiative" },
   { value: "Labels", label: "Labels" },
 ];
+type SplitResponse = {
+  selectedIssues: IssueInfo[];
+  otherSankeyObject: React.JSX.Element | null;
+  options: DefaultOptionType[];
+};
 
 interface Props {
   issues: IssueInfo[];
@@ -21,7 +26,7 @@ interface Props {
 }
 interface State {
   splitBy: SankeySplitBy;
-  children: React.JSX.Element[];
+  otherSankeyObject: React.JSX.Element | null;
   options: DefaultOptionType[];
   optionsSelected: string[];
   selectedIssues: IssueInfo[];
@@ -32,7 +37,7 @@ export class SankeyObject extends React.Component<Props, State> {
     super(props);
     this.state = {
       splitBy: props.splitBy,
-      children: [],
+      otherSankeyObject: null,
       options: [{ value: "All", label: "All" }],
       optionsSelected: props.splitSelected,
       selectedIssues: this.props.issues,
@@ -41,55 +46,30 @@ export class SankeyObject extends React.Component<Props, State> {
   }
 
   setSplitBy(splitBy: SankeySplitBy, optionsSelected?: string[]) {
+    this.setState({ splitBy });
     if (splitBy === "All") {
-      let { selected, children, options } = this.splitByAll();
-      this.setState({
-        splitBy,
-        children,
-        selectedIssues: selected,
-        options: options,
-      });
+      this.setState(this.splitByAll());
     } else if (splitBy === "Initiative") {
-      let { selected, children, options } =
-        this.splitByInitiative(optionsSelected);
-      this.setState({
-        splitBy,
-        children,
-        selectedIssues: selected,
-        options: options,
-      });
-      // children = this.splitByInitiative();
-      // options = this.getInitiativesKeys(this.props.issues);
+      this.setState(this.splitByInitiative(optionsSelected));
     } else if (splitBy === "Labels") {
-      let { selected, children, options } = this.splitByLabels();
-      this.setState({
-        splitBy,
-        children,
-        selectedIssues: selected,
-        options: options,
-      });
-      // children = this.splitByLabels();
-      // options = this.getLabelsKeys(this.props.issues);
+      this.setState(this.splitByLabels());
     } else {
       // children = [];
     }
   }
 
-  setSelectedOptions(options: string[]) {
-    // this.setSplitBy(this.state.splitBy, options);
+  setSelectedOptions(optionsSelected: string[]) {
     if (this.state.splitBy === "Initiative") {
-      let { selected, children } = this.splitByInitiative(options);
       this.setState({
-        optionsSelected: options,
-        children,
-        selectedIssues: selected,
+        ...this.splitByInitiative(optionsSelected),
+        optionsSelected,
+        options: this.state.options,
       });
     } else if (this.state.splitBy === "Labels") {
-      let { selected, children } = this.splitByLabels(options);
       this.setState({
-        optionsSelected: options,
-        children,
-        selectedIssues: selected,
+        ...this.splitByLabels(optionsSelected),
+        optionsSelected,
+        options: this.state.options,
       });
     }
   }
@@ -152,24 +132,16 @@ export class SankeyObject extends React.Component<Props, State> {
     return Math.floor(rawTimeSpent);
   }
 
-  splitByAll(): {
-    selected: IssueInfo[];
-    children: React.JSX.Element[];
-    options: DefaultOptionType[];
-  } {
+  splitByAll(): SplitResponse {
     // return [new SankeyObject("All", this.props.issues, "None", ["None"])];
     return {
-      selected: this.props.issues,
-      children: [],
+      selectedIssues: this.props.issues,
+      otherSankeyObject: null,
       options: [{ value: "None", label: "None" }],
     };
   }
 
-  splitByInitiative(optionsSelected?: string[]): {
-    selected: IssueInfo[];
-    children: React.JSX.Element[];
-    options: DefaultOptionType[];
-  } {
+  splitByInitiative(optionsSelected?: string[]): SplitResponse {
     let selectedIssues: IssueInfo[] = [];
     let otherIssues: IssueInfo[] = [];
     optionsSelected = optionsSelected || this.state.optionsSelected;
@@ -180,25 +152,22 @@ export class SankeyObject extends React.Component<Props, State> {
         otherIssues.push(issue);
       }
     });
-    let children = [
+    let otherSankeyObject = (
       <SankeyObject
+        key={Math.random()}
         issues={otherIssues}
         splitBy="None"
         splitSelected={["None"]}
         totalSize={this.props.totalSize || this.getTimeSpent(this.props.issues)}
-      />,
-    ];
+      />
+    );
     return {
-      selected: selectedIssues,
-      children,
+      selectedIssues,
+      otherSankeyObject,
       options: this.getInitiativesKeys(this.props.issues),
     };
   }
-  splitByLabels(optionsSelected?: string[]): {
-    selected: IssueInfo[];
-    children: React.JSX.Element[];
-    options: DefaultOptionType[];
-  } {
+  splitByLabels(optionsSelected?: string[]): SplitResponse {
     let selectedIssues: IssueInfo[] = [];
     let otherIssues: IssueInfo[] = [];
     optionsSelected = optionsSelected || this.state.optionsSelected;
@@ -209,22 +178,23 @@ export class SankeyObject extends React.Component<Props, State> {
         otherIssues.push(issue);
       }
     });
-    let children: any[] = [
+    let otherSankeyObject = (
       <SankeyObject
         issues={otherIssues}
         splitBy="None"
         splitSelected={["None"]}
         totalSize={this.props.totalSize || this.getTimeSpent(this.props.issues)}
-      />,
-    ];
+      />
+    );
     return {
-      selected: selectedIssues,
-      children,
+      selectedIssues,
+      otherSankeyObject,
       options: this.getLabelsKeys(this.props.issues),
     };
   }
 
   render(): React.ReactNode {
+    console.log("RENDERING SANKEY OBJECT", this.state.splitBy);
     let timeSpent = this.getTimeSpent(this.state.selectedIssues);
     let totalSize =
       this.props.totalSize || this.getTimeSpent(this.props.issues);
@@ -235,7 +205,7 @@ export class SankeyObject extends React.Component<Props, State> {
       )
       .map((option) => option.label)
       .join(", ");
-    let summaryString = `${timeSpent} days (${percentage}%) spent on ${optionSelectedString}} ${this.state.splitBy} (${this.state.selectedIssues.length} issues)`;
+    let summaryString = `${timeSpent} days (${percentage}%) spent on ${optionSelectedString} ${this.state.splitBy} (${this.state.selectedIssues.length} issues)`;
     return (
       <div>
         <Collapse>
@@ -272,9 +242,9 @@ export class SankeyObject extends React.Component<Props, State> {
         ))} */}
           </Collapse.Panel>
         </Collapse>
-        {this.state.children.map((child: React.JSX.Element) => (
-          <div key={child.props.name}>{child}</div>
-        ))}
+        <div key={this.state.otherSankeyObject?.props.name}>
+          {this.state.otherSankeyObject}
+        </div>
       </div>
     );
   }
