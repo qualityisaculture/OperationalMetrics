@@ -42,10 +42,22 @@ export class SankeyObject extends React.Component<Props, State> {
       optionsSelected: props.splitSelected,
       selectedIssues: this.props.issues,
     };
-    this.setSplitBy(props.splitBy);
+  }
+
+  componentDidUpdate(
+    prevProps: Readonly<Props>,
+    prevState: Readonly<State>,
+    snapshot?: any
+  ): void {
+    if (this.props.issues !== prevProps.issues) {
+      this.setState({
+        selectedIssues: this.props.issues,
+      });
+    }
   }
 
   setSplitBy(splitBy: SankeySplitBy, optionsSelected?: string[]) {
+    console.log("Set split by", splitBy);
     this.setState({ splitBy });
     if (splitBy === "All") {
       this.setState(this.splitByAll());
@@ -194,7 +206,6 @@ export class SankeyObject extends React.Component<Props, State> {
   }
 
   render(): React.ReactNode {
-    console.log("RENDERING SANKEY OBJECT", this.state.splitBy);
     let timeSpent = this.getTimeSpent(this.state.selectedIssues);
     let totalSize =
       this.props.totalSize || this.getTimeSpent(this.props.issues);
@@ -214,6 +225,7 @@ export class SankeyObject extends React.Component<Props, State> {
               options={splitByOptions}
               onChange={this.setSplitBy.bind(this)}
               mode="single"
+              selected={[this.state.splitBy]}
             />
             <Select
               options={this.state.options}
@@ -234,12 +246,6 @@ export class SankeyObject extends React.Component<Props, State> {
                 ))}
               </Collapse.Panel>
             </Collapse>
-
-            {/* {this.state.selectedIssues.map((issue) => (
-          <div key={issue.key}>
-            {issue.key} - {issue.summary}
-          </div>
-        ))} */}
           </Collapse.Panel>
         </Collapse>
         <div key={this.state.otherSankeyObject?.props.name}>

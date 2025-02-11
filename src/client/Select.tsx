@@ -6,6 +6,7 @@ interface Props {
   options: SelectProps["options"];
   onChange: (value: (string | number | null | undefined)[]) => void;
   mode?: "multiple" | "single";
+  selected?: (string | number | null | undefined)[];
 }
 interface State {
   optionsSelected: (string | number | null | undefined)[];
@@ -15,7 +16,8 @@ export default class Select extends React.Component<Props, State> {
   constructor(props) {
     super(props);
     this.state = {
-      optionsSelected: props.options.map((item) => item.value),
+      optionsSelected:
+        this.props.selected || props.options.map((item) => item.value),
     };
   }
   componentDidUpdate(prevProps: Props) {
@@ -42,9 +44,6 @@ export default class Select extends React.Component<Props, State> {
         allowClear
         style={{ width: "100%" }}
         placeholder="Please select"
-        defaultValue={
-          this.props.options ? this.props.options.map((item) => item.value) : []
-        }
         value={this.state.optionsSelected}
         onChange={this.handleChange}
         options={this.props.options}
