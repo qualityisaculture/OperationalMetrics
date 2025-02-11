@@ -103,9 +103,9 @@ describe("Jira", () => {
       expect(jira.getInitiativeKey()).toEqual("INIT-1");
     });
 
-    it("should return null if no initiative key", () => {
+    it("should return 'NO_INITIATIVE' if no initiative key", () => {
       let jira = new Jira(defaultJiraJSON);
-      expect(jira.getInitiativeKey()).toEqual(null);
+      expect(jira.getInitiativeKey()).toEqual("NO_INITIATIVE");
     });
 
     it("should return the initiative name if exists", () => {
@@ -125,9 +125,9 @@ describe("Jira", () => {
       expect(jira.getInitiativeName()).toEqual("Initiative Name");
     });
 
-    it("should return null if no initiative name", () => {
+    it("should return 'NO_INITIATIVE_SUMMARY' if no initiative name", () => {
       let jira = new Jira(defaultJiraJSON);
-      expect(jira.getInitiativeName()).toEqual(null);
+      expect(jira.getInitiativeName()).toEqual("NO_INITIATIVE_SUMMARY");
     });
 
     it("should return parent key if is a subtask", () => {

@@ -10,8 +10,8 @@ export type IssueInfo = {
   resolution: string;
   epicKey: string | null;
   epicName: string | null;
-  initiativeKey: string | null;
-  initiativeName: string | null;
+  initiativeKey: string;
+  initiativeName: string;
   labels: string[];
   priority: string;
   components: string[];

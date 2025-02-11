@@ -42,8 +42,8 @@ export default class Jira {
     labels: string[];
     epicKey?: string;
     epicName?: string;
-    initiativeKey?: string;
-    initiativeName?: string;
+    initiativeKey: string;
+    initiativeName: string;
     parentKey?: string; //for subtasks
     parentName?: string; //for subtasks
     priority: { name: string };
@@ -72,6 +72,12 @@ export default class Jira {
       duedate: json.fields.duedate,
       fixVersions: json.fields.fixVersions,
       issuetype: json.fields.issuetype,
+      initiativeKey: json.fields.parent
+        ? json.fields.parent.key
+        : "NO_INITIATIVE",
+      initiativeName: json.fields.parent
+        ? json.fields.parent.fields.summary
+        : "NO_INITIATIVE_SUMMARY",
       labels: json.fields.labels,
       priority: json.fields.priority,
       resolution: json.fields.resolution,
@@ -133,10 +139,10 @@ export default class Jira {
     });
   }
   getInitiativeKey() {
-    return this.fields.initiativeKey ? this.fields.initiativeKey : null;
+    return this.fields.initiativeKey;
   }
   getInitiativeName() {
-    return this.fields.initiativeName ? this.fields.initiativeName : null;
+    return this.fields.initiativeName;
   }
   getLabels() {
     return this.fields.labels || [];

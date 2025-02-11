@@ -10,6 +10,8 @@ import { getSize } from "./Utils";
 import { DefaultOptionType } from "antd/es/select";
 import ColumnChart, { CategoryData, ColumnType } from "./ColumnChart";
 import { WithWildcards } from "../Types";
+import SankeyDiagram, { SankeyLink } from "./SankeyDiagram";
+import InvestmentDiagram from "./InvestmentDiagram";
 
 class ConcatableMap<K, V> extends Map<K, V[]> {
   concat(key: K, value: V) {
@@ -169,7 +171,7 @@ export default class Throughput extends React.Component<Props, State> {
   initiatitivesSelected = (selected: string[]) => {
     this.setState({ initiativesSelected: selected });
   };
-    labelsSelected = (selected: string[]) => {
+  labelsSelected = (selected: string[]) => {
     this.setState({ labelsSelected: selected });
   };
   handleSizeChange = (e: RadioChangeEvent) => {
@@ -348,6 +350,11 @@ export default class Throughput extends React.Component<Props, State> {
         ? this.getThroughputByInitiative(this.state.throughputData)
         : this.getThroughputByLabel(this.state.throughputData);
 
+    let issueInfo: IssueInfo[] = [];
+    this.state.throughputData.forEach((sprint) => {
+      issueInfo = issueInfo.concat(sprint.issueList);
+    });
+
     return (
       <div>
         <input
@@ -409,6 +416,7 @@ export default class Throughput extends React.Component<Props, State> {
           title="Throughput"
           extraOptions={{ isStacked: true }}
         />
+        <InvestmentDiagram issues={issueInfo} />
       </div>
     );
   }
