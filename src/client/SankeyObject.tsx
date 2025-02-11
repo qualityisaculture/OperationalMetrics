@@ -50,23 +50,30 @@ export class SankeyObject extends React.Component<Props, State> {
     snapshot?: any
   ): void {
     if (this.props.issues !== prevProps.issues) {
+      let { selectedIssues, otherSankeyObject, options } = this.getSplitBy(
+        this.state.splitBy
+      );
       this.setState({
         selectedIssues: this.props.issues,
+        options,
       });
     }
   }
 
   setSplitBy(splitBy: SankeySplitBy, optionsSelected?: string[]) {
-    console.log("Set split by", splitBy);
     this.setState({ splitBy });
+    this.setState(this.getSplitBy(splitBy));
+  }
+
+  getSplitBy(splitBy: SankeySplitBy): SplitResponse {
     if (splitBy === "All") {
-      this.setState(this.splitByAll());
+      return this.splitByAll();
     } else if (splitBy === "Initiative") {
-      this.setState(this.splitByInitiative(optionsSelected));
+      return this.splitByInitiative();
     } else if (splitBy === "Labels") {
-      this.setState(this.splitByLabels());
+      return this.splitByLabels();
     } else {
-      // children = [];
+      return this.splitByAll();
     }
   }
 
@@ -216,7 +223,7 @@ export class SankeyObject extends React.Component<Props, State> {
       )
       .map((option) => option.label)
       .join(", ");
-    let summaryString = `${timeSpent} days (${percentage}%) spent on ${optionSelectedString} ${this.state.splitBy} (${this.state.selectedIssues.length} issues)`;
+    let summaryString = `${timeSpent} days (${percentage}%) spent on ${optionSelectedString} (${this.state.selectedIssues.length} issues)`;
     return (
       <div>
         <Collapse>
@@ -239,11 +246,14 @@ export class SankeyObject extends React.Component<Props, State> {
               "%"}
             <Collapse>
               <Collapse.Panel header="Issues" key="1">
-                {this.state.selectedIssues.map((issue) => (
-                  <div key={issue.key}>
-                    {issue.key} - {issue.summary}
-                  </div>
-                ))}
+                {this.state.selectedIssues
+                  .sort((a, b) => (b.timespent || 0) - (a.timespent || 0))
+                  .map((issue) => (
+                    <div key={issue.key}>
+                      <a href={issue.url}>{issue.key}</a> - {issue.summary} -{" "}
+                      {issue.timespent} days
+                    </div>
+                  ))}
               </Collapse.Panel>
             </Collapse>
           </Collapse.Panel>
