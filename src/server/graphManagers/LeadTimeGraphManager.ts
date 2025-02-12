@@ -8,10 +8,15 @@ import {
   SprintIssueList,
 } from "./GraphManagerTypes";
 
+export type MinimumLeadTimeIssueInfo = MinimumIssueInfo & {
+  statusTimes: StatusDays[];
+  timeSpentInDays: number;
+};
+
 export type LeadTimeData = {
   timeSpentInDays: number;
   label: string;
-  issues: MinimumIssueInfo[];
+  issues: MinimumLeadTimeIssueInfo[];
 };
 
 export type LeadTimeSprintData = {

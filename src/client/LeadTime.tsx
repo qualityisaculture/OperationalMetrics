@@ -12,10 +12,12 @@ import {
   LeadTimeSprints,
   LeadTimeSprintData,
   LeadTimeData,
+  MinimumLeadTimeIssueInfo,
 } from "../server/graphManagers/LeadTimeGraphManager";
 import Column from "antd/es/table/Column";
 import ColumnChart, { CategoryData, ColumnType } from "./ColumnChart";
 import { LeadTimeIssueInfo } from "../server/graphManagers/GraphManagerTypes";
+import { MinimumIssueInfo } from "../Types";
 
 interface Props {}
 interface State {
@@ -93,12 +95,10 @@ export default class LeadTime extends React.Component<Props, State> {
       logHTML += `<h3>${index} days</h3>`;
       bucket.issues.forEach((issue) => {
         logHTML += `<a href="${issue.url}" target="_blank">${issue.key} ${issue.summary}</a><br>`;
-        //@ts-ignore
-        logHTML += `Time spent: ${issue.timespent} days<br>`;
-        //@ts-ignore
-        issue.statuses.forEach((status) => {
+        logHTML += `Time spent: ${issue.timeSpentInDays} days<br>`;
+        issue.statusTimes.forEach((status) => {
           if (this.state.statusesSelected.includes(status.status)) {
-            logHTML += `${status.status} ${status.time} days<br>`;
+            logHTML += `${status.status} ${status.days} days<br>`;
           }
         });
       });
@@ -134,13 +134,14 @@ export default class LeadTime extends React.Component<Props, State> {
       timeSpentInDays: 0,
       label: "null",
       issues: issues.map((issueInfo) => {
-        return {
+        let data: MinimumLeadTimeIssueInfo = {
           key: issueInfo.key,
           summary: issueInfo.summary,
           url: issueInfo.url,
-          statuses: issueInfo.statusTimes,
-          timespent: issueInfo.timespent,
+          statusTimes: issueInfo.statusTimes,
+          timeSpentInDays: issueInfo.timespent || 0,
         };
+        return data;
       }),
     });
     for (let bucketSize = 1; bucketSize < maxBucketSize; bucketSize++) {
@@ -164,8 +165,8 @@ export default class LeadTime extends React.Component<Props, State> {
             key: issueInfo.key,
             summary: issueInfo.summary,
             url: issueInfo.url,
-            statuses: issueInfo.statusTimes,
-            timespent: issueInfo.timespent,
+            statusTimes: issueInfo.statusTimes,
+            timeSpentInDays: issueInfo.timespent || 0,
           };
         }),
       });
@@ -178,8 +179,8 @@ export default class LeadTime extends React.Component<Props, State> {
           key: issueInfo.key,
           summary: issueInfo.summary,
           url: issueInfo.url,
-          statuses: issueInfo.statusTimes,
-          timespent: issueInfo.timespent,
+          statusTimes: issueInfo.statusTimes,
+          timeSpentInDays: issueInfo.timespent || 0,
         };
       }),
     });
