@@ -38,6 +38,7 @@ export type MinimumIssueInfo = {
   key: string;
   summary: string;
   url: string;
+  status: string;
 };
 
 export type StatusDays = {

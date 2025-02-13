@@ -51,12 +51,12 @@ export function extendEpicBurnup(
           doneCountRequired: null,
           doneEstimateRequired: null,
         });
-      } else if (currentDate > new Date()) {
+      } else {
         extendedBurnupDataArray.push({
           ...epicBurnups.dateData[epicBurnups.dateData.length - 1],
           date: currentDate.toISOString().split("T")[0] as TDateISODate,
-          doneCount: null,
-          doneEstimate: null,
+          //doneCount: null,
+          //doneEstimate: null,
           doneCountForecast: doneCountForecast,
           doneEstimateForecast: doneEstimateForecast,
           futureDoneKeys: [],
@@ -145,7 +145,7 @@ export function getGoogleDataTableFromMultipleBurnupData(
     function getJiraString(key: string) {
       let jira = allJirasMap.get(key);
       if (jira) {
-        return `<a href="${jira.url}">${key}</a> - ${jira.summary}`;
+        return `<a href="${jira.url}">${key}</a> - ${jira.summary} - ${jira.status}`;
       }
       return key;
     }

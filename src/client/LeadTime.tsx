@@ -138,6 +138,7 @@ export default class LeadTime extends React.Component<Props, State> {
           key: issueInfo.key,
           summary: issueInfo.summary,
           url: issueInfo.url,
+          status: issueInfo.status,
           statusTimes: issueInfo.statusTimes,
           timeSpentInDays: issueInfo.timespent || 0,
         };
@@ -165,6 +166,7 @@ export default class LeadTime extends React.Component<Props, State> {
             key: issueInfo.key,
             summary: issueInfo.summary,
             url: issueInfo.url,
+            status: issueInfo.status,
             statusTimes: issueInfo.statusTimes,
             timeSpentInDays: issueInfo.timespent || 0,
           };
@@ -179,6 +181,7 @@ export default class LeadTime extends React.Component<Props, State> {
           key: issueInfo.key,
           summary: issueInfo.summary,
           url: issueInfo.url,
+          status: issueInfo.status,
           statusTimes: issueInfo.statusTimes,
           timeSpentInDays: issueInfo.timespent || 0,
         };

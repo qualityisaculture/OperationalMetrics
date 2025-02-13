@@ -83,6 +83,7 @@ export default class BurnupGraphManager {
           key: jira.getKey(),
           summary: jira.getSummary(),
           url: jira.getUrl(),
+          status: jira.getStatus(),
         };
       }),
     };
