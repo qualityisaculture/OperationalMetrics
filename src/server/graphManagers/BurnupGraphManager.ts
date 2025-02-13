@@ -1,4 +1,4 @@
-import { TDateISODate } from "../../Types";
+import { MinimumIssueInfo, TDateISODate } from "../../Types";
 import Jira from "../Jira";
 import JiraRequester, { lastUpdatedKey } from "../JiraRequester";
 
@@ -35,6 +35,7 @@ export type EpicBurnup = {
   // doneEstimateRequiredIncrement: number; //How many points are required to be completed each day to finish on time
   doneEstimateRequiredLimit: number; //How many points are required to finish //TODO: Remove
   dateData: DoneAndScopeCount[];
+  allJiraInfo: MinimumIssueInfo[];
 };
 
 export default class BurnupGraphManager {
@@ -77,6 +78,13 @@ export default class BurnupGraphManager {
       doneCountRequiredLimit: finalScopeCount,
       doneEstimateRequiredLimit: finalDoneEstimate,
       dateData: burnupArray,
+      allJiraInfo: burnupArrayData.allChildJiras.map((jira) => {
+        return {
+          key: jira.getKey(),
+          summary: jira.getSummary(),
+          url: jira.getUrl(),
+        };
+      }),
     };
   }
 
@@ -105,6 +113,7 @@ export default class BurnupGraphManager {
     data: DoneAndScopeCount[];
     totalCount: number;
     totalEstimate: number;
+    allChildJiras: Jira[];
   }> {
     let startDate = epic.getEpicStartDate() || epic.getCreated();
     let endDate = epic.getEpicDueDate() || new Date();
@@ -173,6 +182,7 @@ export default class BurnupGraphManager {
       data: burnupArray,
       totalCount: allChildJiras.length,
       totalEstimate: childJiraTotalEstimate,
+      allChildJiras,
     };
   }
 

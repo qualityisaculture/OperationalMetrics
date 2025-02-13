@@ -3,7 +3,7 @@ import {
   DoneAndScopeCountWithForecast,
   EpicBurnup,
 } from "../server/graphManagers/BurnupGraphManager";
-import { TDateISODate } from "../Types";
+import { MinimumIssueInfo, TDateISODate } from "../Types";
 import { GoogleDataTableType } from "./LineChart";
 
 export function extendEpicBurnup(
@@ -76,6 +76,12 @@ export function getGoogleDataTableFromMultipleBurnupData(
   earliestDate: Date,
   lastDate: Date
 ): GoogleDataTableType[] {
+  let allJirasMap = new Map<string, MinimumIssueInfo>();
+  filteredEpics.forEach((epic) => {
+    epic.allJiraInfo.forEach((jira) => {
+      allJirasMap.set(jira.key, jira);
+    });
+  });
   let extendedBurnupDataArray = filteredEpics.map((item) => {
     return extendEpicBurnup(item, earliestDate, lastDate);
   });
@@ -88,25 +94,25 @@ export function getGoogleDataTableFromMultipleBurnupData(
   ) {
     let dayAfterDate = new Date(d);
     dayAfterDate.setDate(dayAfterDate.getDate() + 1);
-    let dataBetweenDates = extendedBurnupDataArray.map(
+    let issuesExistingToday = extendedBurnupDataArray.map(
       (doneAndScopeCountArray) => {
         return getDataBetweenDates(doneAndScopeCountArray, d, dayAfterDate);
       }
     );
     let sumDone = reduceDSAField(
-      dataBetweenDates,
+      issuesExistingToday,
       estimate ? "doneEstimate" : "doneCount"
     );
     let sumScope = reduceDSAField(
-      dataBetweenDates,
+      issuesExistingToday,
       estimate ? "scopeEstimate" : "scopeCount"
     );
     let sumRequired = reduceDSAField(
-      dataBetweenDates,
+      issuesExistingToday,
       estimate ? "doneEstimateRequired" : "doneCountRequired"
     );
     let sumForecast = reduceDSAField(
-      dataBetweenDates,
+      issuesExistingToday,
       estimate ? "doneEstimateForecast" : "doneCountForecast"
     );
     if (sumForecast === 0) {
@@ -121,9 +127,14 @@ export function getGoogleDataTableFromMultipleBurnupData(
       sumDone = null;
     }
     let allNewIssuesToday = new Set<string>();
-    dataBetweenDates.forEach((item) => {
+    let allUncompletedScope = new Set<string>();
+    issuesExistingToday.forEach((item) => {
+      item.scopeKeys.forEach((key) => {
+        allUncompletedScope.add(key);
+      });
       item.doneKeys.forEach((key) => {
         allNewIssuesToday.add(key);
+        allUncompletedScope.delete(key);
       });
     });
     previousIssues.forEach((item) => {
@@ -131,17 +142,30 @@ export function getGoogleDataTableFromMultipleBurnupData(
         allNewIssuesToday.delete(key);
       });
     });
-    let clickData = "<h3>Issues done today</h3>";
-    allNewIssuesToday.forEach((key) => {
-      clickData += `${key}<br>`;
-    });
+    function getJiraString(key: string) {
+      let jira = allJirasMap.get(key);
+      if (jira) {
+        return `<a href="${jira.url}">${key}</a> - ${jira.summary}`;
+      }
+      return key;
+    }
+
+    let clickData = "";
     clickData += "<h3>Issues done previously</h3>";
     previousIssues.forEach((item) => {
       item.doneKeys.forEach((key) => {
-        clickData += `${key}<br>`;
+        clickData += `${getJiraString(key)}<br>`;
       });
     });
-    previousIssues = dataBetweenDates;
+    clickData += "<h3>Issues done today</h3>";
+    allNewIssuesToday.forEach((key) => {
+      clickData += `${getJiraString(key)}<br>`;
+    });
+    clickData += "<h3>Uncompleted scope</h3>";
+    allUncompletedScope.forEach((key) => {
+      clickData += `${getJiraString(key)}<br>`;
+    });
+    previousIssues = issuesExistingToday;
 
     allDates.push({
       data: [new Date(d), sumDone, sumScope, sumRequired, sumForecast],
