@@ -221,7 +221,7 @@ export function getEarliestDate(allEpicsData: EpicBurnup[]) {
 
 export function getLastDate(allEpicsData: EpicBurnup[]) {
   let lastDateInJiras = allEpicsData.reduce((acc, val) => {
-    return acc > val.endDate ? acc : val.endDate;
+    return acc > new Date(val.endDate) ? acc : new Date(val.endDate);
   }, new Date());
   let today = new Date();
   return lastDateInJiras > today ? lastDateInJiras : today;
