@@ -184,8 +184,9 @@ export const TimeInDevSummary: React.FC<TimeInDevSummaryProps> = ({
     <div>
       {issues.map((issue) => (
         <li key={issue.key}>
-          {issue.key} - {issue.summary} - {issue.daysInStatuses} days in
-          progress - {issue.daysBooked} days booked
+          {issue.key} - {issue.summary} -{" "}
+          {Math.floor(issue.daysInStatuses * 100) / 100} days in progress -{" "}
+          {Math.floor(issue.daysBooked * 100) / 100} days booked
         </li>
       ))}
     </div>
