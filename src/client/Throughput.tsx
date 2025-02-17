@@ -38,7 +38,9 @@ interface State {
   initiativesSelected: string[];
   labels: SelectProps["options"];
   labelsSelected: string[];
-  splitMode: "labels" | "initiatives";
+  types: SelectProps["options"];
+  typesSelected: string[];
+  splitMode: "labels" | "initiatives" | "types";
   sizeMode: "count" | "time booked" | "estimate";
 }
 
@@ -57,6 +59,8 @@ export default class Throughput extends React.Component<Props, State> {
       initiativesSelected: [],
       labels: [],
       labelsSelected: [],
+      types: [],
+      typesSelected: [],
       sizeMode: "count",
       splitMode: "initiatives",
     };
@@ -135,6 +139,23 @@ export default class Throughput extends React.Component<Props, State> {
     });
     return allLabels;
   };
+  getTypesAsSelectProps = (throughputData: SprintIssueList[]) => {
+    let allTypes = this.arrayOfAllFieldsAsSelectProps(
+      throughputData,
+      (issue) => {
+        return [
+          {
+            key: issue.type,
+            value: {
+              label: issue.type,
+              value: issue.type,
+            },
+          },
+        ];
+      }
+    );
+    return allTypes;
+  };
   onClick = () => {
     localStorage.setItem("throughputQuery", this.state.input);
     console.log("Button clicked");
@@ -153,12 +174,15 @@ export default class Throughput extends React.Component<Props, State> {
         let arrayOfAllInitiatives =
           this.getInitiativesAsSelectProps(throughputData);
         let arrayOfAllLabels = this.getLabelsAsSelectProps(throughputData);
+        let arrayOfAllTypes = this.getTypesAsSelectProps(throughputData);
         this.setState({
           throughputData,
           initiatitives: arrayOfAllInitiatives,
           initiativesSelected: [],
           labels: arrayOfAllLabels,
           labelsSelected: [],
+          types: arrayOfAllTypes,
+          typesSelected: [],
         });
       });
   };
@@ -173,6 +197,9 @@ export default class Throughput extends React.Component<Props, State> {
   };
   labelsSelected = (selected: string[]) => {
     this.setState({ labelsSelected: selected });
+  };
+  typesSelected = (selected: string[]) => {
+    this.setState({ typesSelected: selected });
   };
   handleSizeChange = (e: RadioChangeEvent) => {
     this.setState({ sizeMode: e.target.value });
@@ -209,7 +236,6 @@ export default class Throughput extends React.Component<Props, State> {
   getThroughputByInitiative = (
     throughputData: SprintIssueList[]
   ): { data: CategoryData; columns: ColumnType[] } => {
-    console.log("getThroughputByInitiative", throughputData);
     let columns: ColumnType[] = [
       { type: "date", label: "Sprint Start Date", identifier: "date" },
     ];
@@ -267,12 +293,10 @@ export default class Throughput extends React.Component<Props, State> {
       row["clickData"] = clickData;
       data.push(row);
     });
-    console.log("data", data);
     return { data, columns };
   };
 
   getThroughputByLabel(throughputData: SprintIssueList[]) {
-    console.log("getThroughputByLabel", throughputData);
     let columns: ColumnType[] = [
       { type: "date", label: "Sprint Start Date", identifier: "date" },
     ];
@@ -340,7 +364,67 @@ export default class Throughput extends React.Component<Props, State> {
       row["clickData"] = clickData;
       data.push(row);
     });
-    console.log("data", data);
+    return { data, columns };
+  }
+
+  getThroughputByType(throughputData: SprintIssueList[]) {
+    let columns: ColumnType[] = [
+      { type: "date", label: "Sprint Start Date", identifier: "date" },
+    ];
+    this.state.typesSelected.forEach((type) => {
+      columns.push({
+        type: "number",
+        label: type,
+        identifier: type,
+      });
+    });
+    columns.push({ type: "number", label: "Other", identifier: "Other" });
+
+    let data: WithWildcards<{}>[] = [];
+
+    function getIssuesByType(issues: IssueInfo[], filteredTypes: string[]) {
+      let issuesByType = new ConcatableMap<string, IssueInfo>();
+
+      issues.forEach((issue) => {
+        if (filteredTypes.includes(issue.type)) {
+          issuesByType.concat(issue.type, issue);
+        } else {
+          issuesByType.concat("Other", issue);
+        }
+      });
+      return issuesByType;
+    }
+
+    this.state.throughputData.forEach((sprint) => {
+      let issuesByType = getIssuesByType(
+        sprint.issueList,
+        this.state.typesSelected
+      );
+      let row: WithWildcards<{}> = {
+        date: new Date(sprint.sprintStartingDate),
+      };
+
+      let clickData = "";
+      this.state.typesSelected.forEach((parent) => {
+        let issues = issuesByType.get(parent) || [];
+        row[parent] = getSize(issues, this.state.sizeMode);
+        clickData += this.getClickData({ initiativeKey: parent, issues });
+      });
+      let otherTypes = Array.from(issuesByType.keys()).filter(
+        (type) => !this.state.typesSelected.includes(type)
+      );
+      let x: IssueInfo[] = [];
+      let otherIssues = otherTypes.reduce((acc, type) => {
+        return acc.concat(issuesByType.get(type) || []);
+      }, x);
+      clickData += this.getClickData({
+        initiativeKey: "Other",
+        issues: otherIssues,
+      });
+      row["Other"] = getSize(otherIssues, this.state.sizeMode);
+      row["clickData"] = clickData;
+      data.push(row);
+    });
     return { data, columns };
   }
 
@@ -348,7 +432,9 @@ export default class Throughput extends React.Component<Props, State> {
     let { data, columns } =
       this.state.splitMode === "initiatives"
         ? this.getThroughputByInitiative(this.state.throughputData)
-        : this.getThroughputByLabel(this.state.throughputData);
+        : this.state.splitMode === "labels"
+          ? this.getThroughputByLabel(this.state.throughputData)
+          : this.getThroughputByType(this.state.throughputData);
 
     let issueInfo: IssueInfo[] = [];
     this.state.throughputData.forEach((sprint) => {
@@ -380,6 +466,7 @@ export default class Throughput extends React.Component<Props, State> {
         >
           <Radio.Button value="initiatives">Initiatives</Radio.Button>
           <Radio.Button value="labels">Labels</Radio.Button>
+          <Radio.Button value="types">Types</Radio.Button>
         </Radio.Group>
         <span
           style={{
@@ -399,6 +486,16 @@ export default class Throughput extends React.Component<Props, State> {
           <Select
             onChange={this.labelsSelected.bind(this)}
             options={this.state.labels}
+          />
+        </span>
+        <span
+          style={{
+            display: this.state.splitMode === "types" ? "" : "none",
+          }}
+        >
+          <Select
+            onChange={this.typesSelected.bind(this)}
+            options={this.state.types}
           />
         </span>
         <Radio.Group
