@@ -11,13 +11,16 @@ type BambooAPIBuilds = {
 type BambooAPIDetailBuild = {
   buildNumber: number;
   buildCompletedDate: string;
-  state: string;
+  buildDurationInSeconds: number;
+  buildDurationDescription: string;
   restartCount?: number;
+  state: string;
 };
-type BambooBuildData = {
+export type BambooBuildData = {
   buildNumber: number;
   buildState: string;
   buildDate: string;
+  buildDurationInMinutes: number;
   restartCount: number;
   allData: BambooAPIDetailBuild;
 };
@@ -53,6 +56,7 @@ export default class BambooRequester {
       buildNumber: buildData.buildNumber,
       buildState: buildData.state,
       buildDate: buildData.buildCompletedDate,
+      buildDurationInMinutes: buildData.buildDurationInSeconds / 60,
       restartCount: buildData.restartCount || 0,
       allData: buildData,
     };

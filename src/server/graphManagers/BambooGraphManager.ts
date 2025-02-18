@@ -1,4 +1,18 @@
-import BambooRequester from "../BambooRequester";
+import BambooRequester, { BambooBuildData } from "../BambooRequester";
+
+export type BuildInfo = {
+  month: string;
+  builds: BambooBuildData[];
+  averageBuildTime: number;
+  totalBuilds: number;
+  passBuilds: number;
+  restartedBuilds: number;
+  passFirstTimeBuilds: number;
+  successRate: number;
+  failureRate: number;
+  restartRate: number;
+  passFirstTimeRate: number;
+};
 
 export default class BambooGraphManager {
   bambooRequester: BambooRequester;
@@ -13,7 +27,7 @@ export default class BambooGraphManager {
     return Math.round((date - startOfYear) / 604_800_000);
   }
 
-  async getBuildDataByWeek(projectBuildKey: string) {
+  async getBuildDataByWeek(projectBuildKey: string): Promise<BuildInfo[]> {
     let builds = await this.bambooRequester.getLastXBuilds(
       projectBuildKey,
       200
@@ -32,7 +46,9 @@ export default class BambooGraphManager {
       return acc;
     }, {});
 
-    let arrayOfBuildsByMonth = Object.keys(buildsByMonthAndYear).map((key) => {
+    let arrayOfBuildsByMonth: BuildInfo[] = Object.keys(
+      buildsByMonthAndYear
+    ).map((key) => {
       return {
         month: key,
         builds: buildsByMonthAndYear[key],
@@ -44,6 +60,7 @@ export default class BambooGraphManager {
         failureRate: 0,
         restartRate: 0,
         passFirstTimeRate: 0,
+        averageBuildTime: 0,
       };
     });
 
@@ -64,6 +81,11 @@ export default class BambooGraphManager {
       let successRate =
         totalBuilds === 0 ? 0 : successfulBuilds.length / totalBuilds;
       buildsByMonth.totalBuilds = totalBuilds;
+      buildsByMonth.averageBuildTime =
+        buildsByMonth.builds.reduce(
+          (acc, build) => acc + build.buildDurationInMinutes,
+          0
+        ) / buildsByMonth.builds.length;
       buildsByMonth.passBuilds = successfulBuilds.length;
       buildsByMonth.restartedBuilds = restartedBuilds.length;
       buildsByMonth.passFirstTimeBuilds = buildsPassedFirstTime.length;
