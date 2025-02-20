@@ -85,7 +85,7 @@ export function getGoogleDataTableFromMultipleBurnupData(
   let extendedBurnupDataArray = filteredEpics.map((item) => {
     return extendEpicBurnup(item, earliestDate, lastDate);
   });
-  let previousIssues: DoneAndScopeCountWithForecast[] = [];
+  let previousIssuesCompleted: DoneAndScopeCountWithForecast[] = [];
   let allDates: GoogleDataTableType[] = [];
   for (
     let d = new Date(earliestDate);
@@ -126,20 +126,25 @@ export function getGoogleDataTableFromMultipleBurnupData(
     if (new Date(d) > tomorrow) {
       sumDone = null;
     }
-    let allNewIssuesToday = new Set<string>();
+    let allNewIssuesCompletedToday = new Set<string>();
     let allUncompletedScope = new Set<string>();
+    let allNewScopeToday = new Set<string>();
     issuesExistingToday.forEach((item) => {
       item.scopeKeys.forEach((key) => {
+        allNewScopeToday.add(key);
         allUncompletedScope.add(key);
       });
       item.doneKeys.forEach((key) => {
-        allNewIssuesToday.add(key);
+        allNewIssuesCompletedToday.add(key);
         allUncompletedScope.delete(key);
       });
     });
-    previousIssues.forEach((item) => {
+    previousIssuesCompleted.forEach((item) => {
       item.doneKeys.forEach((key) => {
-        allNewIssuesToday.delete(key);
+        allNewIssuesCompletedToday.delete(key);
+      });
+      item.scopeKeys.forEach((key) => {
+        allNewScopeToday.delete(key);
       });
     });
     function getJiraString(key: string) {
@@ -152,20 +157,24 @@ export function getGoogleDataTableFromMultipleBurnupData(
 
     let clickData = "";
     clickData += "<h3>Issues done previously</h3>";
-    previousIssues.forEach((item) => {
+    previousIssuesCompleted.forEach((item) => {
       item.doneKeys.forEach((key) => {
         clickData += `${getJiraString(key)}<br>`;
       });
     });
     clickData += "<h3>Issues done today</h3>";
-    allNewIssuesToday.forEach((key) => {
+    allNewIssuesCompletedToday.forEach((key) => {
+      clickData += `${getJiraString(key)}<br>`;
+    });
+    clickData += "<h3>Scope added today</h3>";
+    allNewScopeToday.forEach((key) => {
       clickData += `${getJiraString(key)}<br>`;
     });
     clickData += "<h3>Uncompleted scope</h3>";
     allUncompletedScope.forEach((key) => {
       clickData += `${getJiraString(key)}<br>`;
     });
-    previousIssues = issuesExistingToday;
+    previousIssuesCompleted = issuesExistingToday;
 
     allDates.push({
       data: [new Date(d), sumDone, sumScope, sumRequired, sumForecast],
