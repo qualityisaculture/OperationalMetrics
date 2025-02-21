@@ -62,6 +62,7 @@ describe("BambooRequester", () => {
           buildCompletedDate: "2021-01-02T00:00:00.000Z",
           state: "Failed",
           buildNumber: 1,
+          buildDurationInSeconds: 600,
         })
       );
       let response = await bambooRequester.getBuild("AA-BB", 1);
@@ -73,6 +74,7 @@ describe("BambooRequester", () => {
         buildState: "Failed",
         buildNumber: 1,
         restartCount: 0,
+        buildDurationInMinutes: 10,
         allData: expect.any(Object),
       });
     });

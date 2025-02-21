@@ -72,12 +72,15 @@ export default class Jira {
       duedate: json.fields.duedate,
       fixVersions: json.fields.fixVersions,
       issuetype: json.fields.issuetype,
-      initiativeKey: json.fields.parent
-        ? json.fields.parent.key
-        : "NO_INITIATIVE",
-      initiativeName: json.fields.parent
-        ? json.fields.parent.fields.summary
-        : "NO_INITIATIVE_SUMMARY",
+      initiativeKey:
+        json.fields.parent &&
+        json.fields.parent.fields.issuetype.name === "Sub-feature (AF)"
+          ? json.fields.parent.key
+          : "NO_INITIATIVE",
+      initiativeName:
+        json.fields.parent && json.fields.parent.fields.summary
+          ? json.fields.parent.fields.summary
+          : "NO_INITIATIVE_SUMMARY",
       labels: json.fields.labels,
       priority: json.fields.priority,
       resolution: json.fields.resolution,

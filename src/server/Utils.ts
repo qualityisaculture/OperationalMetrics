@@ -70,7 +70,7 @@ export function getIssuesBySprint(
 function getIssueInfoFromJira(jira: Jira): IssueInfo {
   let initiativeKey = jira.getInitiativeKey();
   let initiativeName = jira.getInitiativeName();
-  if (!initiativeKey) {
+  if (initiativeKey == "NO_INITIATIVE") {
     if (jira.getType() === "Bug") {
       initiativeKey = "Bug";
       initiativeName = "Bug";
