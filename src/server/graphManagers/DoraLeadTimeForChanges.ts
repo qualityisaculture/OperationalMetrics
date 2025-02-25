@@ -21,6 +21,13 @@ export type JiraData = {
   };
 }[];
 
+export type MappedJiraData = {
+  release: string;
+  resolvedDate: string;
+  jiras: { key: string; resolutiondate: string }[];
+  doraLeadTime: number;
+}[];
+
 export default class DoraLeadTimeForChanges {
   jiraRequester: JiraRequester;
   constructor(jiraRequester: JiraRequester) {
@@ -66,7 +73,7 @@ export default class DoraLeadTimeForChanges {
   private mapJiraDataToReleases(
     releases: Releases,
     jiraData: EssentialJiraData
-  ) {
+  ): MappedJiraData {
     return releases.map((release) => {
       const jirasForRelease = jiraData.filter((jira) =>
         jira.fields.fixVersions.some((fv: any) => fv.name === release.name)
