@@ -126,6 +126,24 @@ describe("JiraRequester", () => {
     });
   });
 
+  describe("getEssentialJiraDataFromKeys", () => {
+    it("should request only key, summary, and resolved fields", async () => {
+      fetchMock.mockResolvedValue(
+        fetchResponseOk({
+          issues: [
+            { key: "KEY-1", fields: { summary: "Summary 1", resolved: "2024-10-21T09:00:00.000+0100" } },
+          ],
+        })
+      );
+      let keys = ["KEY-1"];
+      let jiras = await jr.getEssentialJiraDataFromKeys(keys);
+      expect(fetchMock.mock.calls[0][0]).toEqual(
+        "localhost:8080/rest/api/3/search?jql=key=KEY-1&fields=key,summary,resolved"
+      );
+      expect(jiras[0].key).toEqual("KEY-1");
+    });
+  });
+
   describe("getJiraKeysInQuery", () => {
     let defaultResponse = fetchResponseOk({
       issues: [
@@ -590,6 +608,95 @@ describe("JiraRequester", () => {
       expect(jr.requestDataFromServer).toHaveBeenCalledWith(
         "key=KEY-51 OR key=KEY-52 OR key=KEY-53 OR key=KEY-54 OR key=KEY-55 OR key=KEY-56 OR key=KEY-57 OR key=KEY-58 OR key=KEY-59 OR key=KEY-60 OR key=KEY-61 OR key=KEY-62 OR key=KEY-63 OR key=KEY-64 OR key=KEY-65 OR key=KEY-66 OR key=KEY-67 OR key=KEY-68 OR key=KEY-69 OR key=KEY-70 OR key=KEY-71 OR key=KEY-72 OR key=KEY-73 OR key=KEY-74 OR key=KEY-75 OR key=KEY-76 OR key=KEY-77 OR key=KEY-78 OR key=KEY-79 OR key=KEY-80 OR key=KEY-81 OR key=KEY-82 OR key=KEY-83 OR key=KEY-84 OR key=KEY-85 OR key=KEY-86 OR key=KEY-87 OR key=KEY-88 OR key=KEY-89 OR key=KEY-90 OR key=KEY-91 OR key=KEY-92 OR key=KEY-93 OR key=KEY-94 OR key=KEY-95 OR key=KEY-96 OR key=KEY-97 OR key=KEY-98 OR key=KEY-99 OR key=KEY-100&expand=changelog"
       );
+    });
+  });
+
+  describe("getReleasesFromProject", () => {
+    it("should request releases from the specified project", async () => {
+      const projectKey = "TEST";
+      const releasesResponse = [
+        { id: "1", name: "Release 1", released: true },
+        { id: "2", name: "Release 2", released: true },
+      ];
+      fetchMock.mockResolvedValue(fetchResponseOk(releasesResponse));
+
+      let releases = await jr.getReleasesFromProject(projectKey);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][0]).toEqual(
+        "localhost:8080/rest/api/3/project/TEST/versions"
+      );
+      expect(releases).toEqual(releasesResponse);
+    });
+
+    it("should throw an error if the request fails", async () => {
+      const projectKey = "TEST";
+      fetchMock.mockRejectedValue(new Error("Failed to fetch"));
+
+      await expect(jr.getReleasesFromProject(projectKey)).rejects.toThrow(
+        "Failed to fetch"
+      );
+    });
+
+    it("should return the last X releases if count is specified", async () => {
+      const projectKey = "TEST";
+      const releasesResponse = [
+        { id: "1", name: "Release 1", released: true },
+        { id: "2", name: "Release 2", released: true },
+        { id: "3", name: "Release 3", released: true },
+        { id: "4", name: "Release 4", released: false },
+      ];
+      fetchMock.mockResolvedValue(fetchResponseOk(releasesResponse));
+
+      let releases = await jr.getReleasesFromProject(projectKey, 2);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][0]).toEqual(
+        "localhost:8080/rest/api/3/project/TEST/versions"
+      );
+      expect(releases).toEqual([
+        { id: "2", name: "Release 2", released: true },
+        { id: "3", name: "Release 3", released: true },
+      ]);
+    });
+
+    it("should return only released releases", async () => {
+      const projectKey = "TEST";
+      const releasesResponse = [
+        { id: "1", name: "Release 1", released: false },
+        { id: "2", name: "Release 2", released: true },
+        { id: "3", name: "Release 3", released: true },
+      ];
+      fetchMock.mockResolvedValue(fetchResponseOk(releasesResponse));
+
+      let releases = await jr.getReleasesFromProject(projectKey);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][0]).toEqual(
+        "localhost:8080/rest/api/3/project/TEST/versions"
+      );
+      expect(releases).toEqual([
+        { id: "2", name: "Release 2", released: true },
+        { id: "3", name: "Release 3", released: true },
+      ]);
+    });
+
+    it("should return the last X released releases if count is specified", async () => {
+      const projectKey = "TEST";
+      const releasesResponse = [
+        { id: "1", name: "Release 1", released: false },
+        { id: "2", name: "Release 2", released: true },
+        { id: "3", name: "Release 3", released: true },
+        { id: "4", name: "Release 4", released: true },
+      ];
+      fetchMock.mockResolvedValue(fetchResponseOk(releasesResponse));
+
+      let releases = await jr.getReleasesFromProject(projectKey, 2);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][0]).toEqual(
+        "localhost:8080/rest/api/3/project/TEST/versions"
+      );
+      expect(releases).toEqual([
+        { id: "3", name: "Release 3", released: true },
+        { id: "4", name: "Release 4", released: true },
+      ]);
     });
   });
 });

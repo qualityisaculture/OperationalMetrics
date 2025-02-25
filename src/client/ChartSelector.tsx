@@ -8,6 +8,7 @@ import BambooBuilds from "./BambooBuilds";
 import TimeInDev from "./TimeInDev";
 import LeadTime from "./LeadTime";
 import CumulativeFlowDiagram from "./CumulativeFlowDiagram";
+import DoraLeadTime from "./DoraLeadTime";
 
 interface Props {}
 
@@ -19,7 +20,8 @@ interface State {
     | "bamboo"
     | "timeInDev"
     | "leadTime"
-    | "cumulativeFlow";
+    | "cumulativeFlow"
+    | "doraLeadTime";
 }
 
 export default class ChartSelector extends React.Component<Props, State> {
@@ -56,6 +58,9 @@ export default class ChartSelector extends React.Component<Props, State> {
     let cumulativeFlowStyle = {
       display: this.state.chart === "cumulativeFlow" ? "block" : "none",
     };
+    let doraLeadTimeStyle = {
+      display: this.state.chart === "doraLeadTime" ? "block" : "none",
+    };
 
     return (
       <div>
@@ -71,6 +76,7 @@ export default class ChartSelector extends React.Component<Props, State> {
             <Radio.Button value="timeInDev">Time In Dev</Radio.Button>
             <Radio.Button value="leadTime">Lead Time</Radio.Button>
             <Radio.Button value="cumulativeFlow">Cumulative Flow</Radio.Button>
+            <Radio.Button value="doraLeadTime">Dora Lead Time</Radio.Button>
           </Radio.Group>
         </div>
         <div>
@@ -94,6 +100,9 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={cumulativeFlowStyle}>
             <CumulativeFlowDiagram />
+          </div>
+          <div style={doraLeadTimeStyle}>
+            <DoraLeadTime />
           </div>
         </div>
       </div>

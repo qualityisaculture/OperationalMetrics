@@ -1,8 +1,19 @@
 import Jira from "./Jira";
+
 export type lastUpdatedKey = {
   key: string;
   updated?: string;
 };
+
+export type EssentialJiraData = {
+  key: string;
+  fields: {
+    fixVersions: { name: string }[];
+    summary: string;
+    resolutiondate: string;
+  };
+}[];
+
 export default class JiraRequester {
   jiraMap: Map<string, Jira>;
   constructor() {
@@ -62,6 +73,23 @@ export default class JiraRequester {
         return this.jiraMap.get(issueRequest.key);
       })
       .filter((jira): jira is Jira => jira !== undefined);
+  }
+
+  async getEssentialJiraDataFromKeys(
+    keys: string[]
+  ): Promise<EssentialJiraData> {
+    if (keys.length === 0) {
+      return [];
+    }
+    let allIssues: any[] = [];
+    for (let i = 0; i < keys.length; i += 50) {
+      let batchKeys = keys.slice(i, i + 50);
+      let jql = batchKeys.map((key) => `key=${key}`).join(" OR ");
+      const query = `${jql}&fields=key,summary,resolutiondate,fixVersions`;
+      let data = await this.requestDataFromServer(query);
+      allIssues = allIssues.concat(data.issues);
+    }
+    return allIssues;
   }
 
   async getJiraWithInitiative(json: any) {
@@ -164,5 +192,13 @@ export default class JiraRequester {
       );
     }
     return response.json();
+  }
+
+  async getReleasesFromProject(projectKey: string, count: number = 10) {
+    const domain = process.env.JIRA_DOMAIN;
+    const url = `${domain}/rest/api/3/project/${projectKey}/versions`;
+    let response = await this.fetchRequest(url);
+    let releasedReleases = response.filter((release) => release.released);
+    return releasedReleases.slice(-count);
   }
 }

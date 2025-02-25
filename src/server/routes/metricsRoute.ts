@@ -15,6 +15,7 @@ import BambooGraphManager from "../graphManagers/BambooGraphManager";
 import TimeInDevManager from "../graphManagers/TimeInDevManager";
 import LeadTimeGraphManager from "../graphManagers/LeadTimeGraphManager";
 import CumulativeFlowDiagramManager from "../graphManagers/CumulativeFlowDiagramManager";
+import DoraLeadTimeForChanges from "../graphManagers/DoraLeadTimeForChanges";
 
 async function getJiraData(issueKey: string) {}
 
@@ -27,6 +28,7 @@ const bambooGraphManager = new BambooGraphManager(bambooRequester);
 const timeInDevManager = new TimeInDevManager(jiraRequester);
 const leadTimeGraphManager = new LeadTimeGraphManager(jiraRequester);
 const cfdm = new CumulativeFlowDiagramManager(jiraRequester);
+const doraLeadTimeForChanges = new DoraLeadTimeForChanges(jiraRequester);
 
 metricsRoute.get(
   "/cumulativeFlowDiagram",
@@ -142,6 +144,31 @@ metricsRoute.get(
         res.json({ message: "Metrics route", data: JSON.stringify(data) });
       })
       .catch((error) => console.error("Error:", error));
+  }
+);
+
+metricsRoute.get(
+  "/doraLeadTime",
+  (
+    req: TRQ<{ projectName: string }>,
+    res: TR<{ message: string; data: string }>
+  ) => {
+    const projectName = req.query.projectName;
+    doraLeadTimeForChanges
+      .getDoraLeadTime(projectName)
+      .then((data) => {
+        res.json({
+          message: "Dora lead time fetched successfully",
+          data: JSON.stringify(data),
+        });
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        res
+          //@ts-ignore
+          .status(500)
+          .json({ message: "Failed to fetch Dora lead time", error: error.message });
+      });
   }
 );
 
