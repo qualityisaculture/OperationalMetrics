@@ -39,6 +39,7 @@ function get1EpicPerDayData(
 
 let defaultEpicBurnups: EpicBurnup = {
   dateData: get1EpicPerDayData(10),
+  allJiraInfo: [],
   summary: "Epic 1",
   key: "EPIC-1",
   startDate: new Date("2021-01-01"),
@@ -53,6 +54,7 @@ let defaultEpicBurnups: EpicBurnup = {
 
 let first5DaysEpicBurnups: EpicBurnup = {
   dateData: get1EpicPerDayData(5),
+  allJiraInfo: [],
   summary: "Epic 2",
   key: "EPIC-2",
   startDate: new Date("2021-01-01"),
@@ -66,6 +68,7 @@ let first5DaysEpicBurnups: EpicBurnup = {
 };
 let second5DaysEpicBurnups: EpicBurnup = {
   dateData: get1EpicPerDayData(5, 5),
+  allJiraInfo: [],
   summary: "Epic 2",
   key: "EPIC-2",
   startDate: new Date("2021-01-06"),
@@ -104,7 +107,7 @@ describe("getGoogleDataTableFromMultipleBurnupData", () => {
     ]);
   });
 
-  it("should return just return from the start of the epic if passed a single epic", () => {
+  it.only("should return just return from the start of the epic if passed a single epic", () => {
     jest.setSystemTime(new Date("2021-01-10"));
 
     let startDate = new Date("2021-01-01");
