@@ -259,3 +259,23 @@ export function getLastDate(allEpicsData: EpicBurnup[]) {
   let today = new Date();
   return lastDateInJiras > today ? lastDateInJiras : today;
 }
+
+export function getGapDataFromBurnupData(
+  burnupData: GoogleDataTableType[]
+): GoogleDataTableType[] {
+  return burnupData.map((dataPoint) => {
+    const [date, done, scope] = dataPoint.data;
+    const gap = scope === null || done === null ? null : scope - done;
+
+    return {
+      data: [date, gap, 0, null, null] as [
+        Date,
+        number | null,
+        number | null,
+        number | null,
+        number | null,
+      ],
+      clickData: dataPoint.clickData,
+    };
+  });
+}

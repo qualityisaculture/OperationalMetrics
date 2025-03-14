@@ -13,6 +13,7 @@ import {
   getLastDate,
   getSelectedEpics,
   getGoogleDataTableFromMultipleBurnupData,
+  getGapDataFromBurnupData,
 } from "./BurnupManager";
 
 interface Props {}
@@ -90,6 +91,8 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
       this.state.startDate.toDate(),
       this.state.endDate.toDate()
     );
+    let gapData = getGapDataFromBurnupData(data);
+
     return (
       <div>
         <input
@@ -113,13 +116,6 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
           onChange={this.onSelectedEpicsChanged}
         />
         <br />
-        {/* <DatePicker
-        DON'T TURN THIS ON, BECAUSE MOVING THE FIRST DATE MAKES THE BURNUP REQUIRED INCORRECT
-          onChange={(date, dateString) => {
-            this.setState({ startDate: date });
-          }}
-          value={this.state.startDate}
-        /> */}
         <DatePicker
           onChange={(date, dateString) => {
             this.setState({ endDate: date });
@@ -127,6 +123,7 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
           value={this.state.endDate}
         />
         <LineChart burnupDataArray={data} />
+        <LineChart burnupDataArray={gapData} />
       </div>
     );
   }
