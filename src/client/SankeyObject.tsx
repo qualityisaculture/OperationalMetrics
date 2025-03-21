@@ -5,13 +5,20 @@ import Select from "./Select";
 import { DefaultOptionType } from "antd/es/select";
 import { Collapse } from "antd";
 
-type SankeySplitBy = "All" | "None" | "Initiative" | "Labels" | "Type";
+type SankeySplitBy =
+  | "All"
+  | "None"
+  | "Initiative"
+  | "Labels"
+  | "Type"
+  | "Account";
 let splitByOptions: DefaultOptionType[] = [
   { value: "All", label: "All" },
   { value: "None", label: "None" },
   { value: "Initiative", label: "Initiative" },
   { value: "Labels", label: "Labels" },
   { value: "Type", label: "Type" },
+  { value: "Account", label: "Account" },
 ];
 type SplitResponse = {
   selectedIssues: IssueInfo[];
@@ -75,6 +82,8 @@ export class SankeyObject extends React.Component<Props, State> {
       return this.splitByLabels();
     } else if (splitBy === "Type") {
       return this.splitByType();
+    } else if (splitBy === "Account") {
+      return this.splitByAccount();
     } else {
       return this.splitByAll();
     }
@@ -96,6 +105,12 @@ export class SankeyObject extends React.Component<Props, State> {
     } else if (this.state.splitBy === "Type") {
       this.setState({
         ...this.splitByType(optionsSelected),
+        optionsSelected,
+        options: this.state.options,
+      });
+    } else if (this.state.splitBy === "Account") {
+      this.setState({
+        ...this.splitByAccount(optionsSelected),
         optionsSelected,
         options: this.state.options,
       });
@@ -170,6 +185,26 @@ export class SankeyObject extends React.Component<Props, State> {
       });
     });
     return types;
+  }
+
+  getAccountKeys(issues: IssueInfo[]): DefaultOptionType[] {
+    let accountsMap = new Map<string, IssueInfo[]>();
+    issues.forEach((issue) => {
+      if (accountsMap.has(issue.account)) {
+        //@ts-ignore
+        accountsMap.get(issue.account).push(issue);
+      } else {
+        accountsMap.set(issue.account, [issue]);
+      }
+    });
+    let accounts: DefaultOptionType[] = [];
+    accountsMap.forEach((accountIssues, account) => {
+      accounts.push({
+        value: account,
+        label: `${account} - ${this.getTimeSpent(accountIssues)}`,
+      });
+    });
+    return accounts;
   }
 
   getTimeSpent(issues: IssueInfo[]): number {
@@ -263,6 +298,31 @@ export class SankeyObject extends React.Component<Props, State> {
       selectedIssues,
       otherSankeyObject,
       options: this.getTypesKeys(this.props.issues),
+    };
+  }
+  splitByAccount(optionsSelected?: string[]): SplitResponse {
+    let selectedIssues: IssueInfo[] = [];
+    let otherIssues: IssueInfo[] = [];
+    optionsSelected = optionsSelected || this.state.optionsSelected;
+    this.props.issues.forEach((issue) => {
+      if (optionsSelected.includes(issue.account)) {
+        selectedIssues.push(issue);
+      } else {
+        otherIssues.push(issue);
+      }
+    });
+    let otherSankeyObject = (
+      <SankeyObject
+        issues={otherIssues}
+        splitBy="None"
+        splitSelected={["None"]}
+        totalSize={this.props.totalSize || this.getTimeSpent(this.props.issues)}
+      />
+    );
+    return {
+      selectedIssues,
+      otherSankeyObject,
+      options: this.getAccountKeys(this.props.issues),
     };
   }
 

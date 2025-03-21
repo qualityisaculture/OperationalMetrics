@@ -56,6 +56,7 @@ export default class LeadTimeGraphManager {
       timeoriginalestimate: jira.getOriginalEstimate(),
       timespent: jira.getTimeSpent(),
       statusTimes: jira.getStatusDays(),
+      account: jira.getAccount(),
     };
   }
 

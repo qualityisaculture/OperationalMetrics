@@ -98,5 +98,6 @@ function getIssueInfoFromJira(jira: Jira): IssueInfo {
     url: jira.getUrl(),
     timeoriginalestimate: jira.getOriginalEstimate(),
     timespent: jira.getTimeSpent(),
+    account: jira.getAccount(),
   };
 }

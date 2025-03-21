@@ -22,6 +22,7 @@ export type JiraJsonFields = {
   timeoriginalestimate?: number;
   timespent?: number;
   updated: string;
+  customfield_10085?: { id: number; value: string }; // Account field
 };
 export type JiraJson = {
   key: string;
@@ -55,6 +56,7 @@ export default class Jira {
     timespent: number | null;
     updated: string;
     url: string;
+    account: string;
   };
   changelog: { histories: any[] };
   created: Date;
@@ -95,6 +97,7 @@ export default class Jira {
         : null,
       updated: json.fields.updated,
       url: `${domain}/browse/${json.key}`,
+      account: json.fields.customfield_10085?.value || "None",
     };
     if (
       json.fields.parent &&
@@ -321,5 +324,9 @@ export default class Jira {
 
   existsOn(date: Date) {
     return date >= this.created;
+  }
+
+  getAccount() {
+    return this.fields.account;
   }
 }

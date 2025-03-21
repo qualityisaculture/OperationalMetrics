@@ -19,6 +19,7 @@ export type IssueInfo = {
   url: string;
   timeoriginalestimate: number | null;
   timespent: number | null;
+  account: string;
 };
 
 export type LeadTimeIssueInfo = IssueInfo & {

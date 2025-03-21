@@ -40,7 +40,9 @@ interface State {
   labelsSelected: string[];
   types: SelectProps["options"];
   typesSelected: string[];
-  splitMode: "labels" | "initiatives" | "types";
+  accounts: SelectProps["options"];
+  accountsSelected: string[];
+  splitMode: "labels" | "initiatives" | "types" | "accounts";
   sizeMode: "count" | "time booked" | "estimate";
 }
 
@@ -61,6 +63,8 @@ export default class Throughput extends React.Component<Props, State> {
       labelsSelected: [],
       types: [],
       typesSelected: [],
+      accounts: [],
+      accountsSelected: [],
       sizeMode: "count",
       splitMode: "initiatives",
     };
@@ -156,6 +160,23 @@ export default class Throughput extends React.Component<Props, State> {
     );
     return allTypes;
   };
+  getAccountsAsSelectProps = (throughputData: SprintIssueList[]) => {
+    let allAccounts = this.arrayOfAllFieldsAsSelectProps(
+      throughputData,
+      (issue) => {
+        return [
+          {
+            key: issue.account,
+            value: {
+              label: issue.account,
+              value: issue.account,
+            },
+          },
+        ];
+      }
+    );
+    return allAccounts;
+  };
   onClick = () => {
     localStorage.setItem("throughputQuery", this.state.input);
     console.log("Button clicked");
@@ -175,6 +196,7 @@ export default class Throughput extends React.Component<Props, State> {
           this.getInitiativesAsSelectProps(throughputData);
         let arrayOfAllLabels = this.getLabelsAsSelectProps(throughputData);
         let arrayOfAllTypes = this.getTypesAsSelectProps(throughputData);
+        let arrayOfAllAccounts = this.getAccountsAsSelectProps(throughputData);
         this.setState({
           throughputData,
           initiatitives: arrayOfAllInitiatives,
@@ -183,6 +205,8 @@ export default class Throughput extends React.Component<Props, State> {
           labelsSelected: [],
           types: arrayOfAllTypes,
           typesSelected: [],
+          accounts: arrayOfAllAccounts,
+          accountsSelected: [],
         });
       });
   };
@@ -200,6 +224,9 @@ export default class Throughput extends React.Component<Props, State> {
   };
   typesSelected = (selected: string[]) => {
     this.setState({ typesSelected: selected });
+  };
+  accountsSelected = (selected: string[]) => {
+    this.setState({ accountsSelected: selected });
   };
   handleSizeChange = (e: RadioChangeEvent) => {
     this.setState({ sizeMode: e.target.value });
@@ -428,13 +455,79 @@ export default class Throughput extends React.Component<Props, State> {
     return { data, columns };
   }
 
+  getThroughputByAccount(throughputData: SprintIssueList[]) {
+    let columns: ColumnType[] = [
+      { type: "date", label: "Sprint Start Date", identifier: "date" },
+    ];
+    this.state.accountsSelected.forEach((account) => {
+      columns.push({
+        type: "number",
+        label: account,
+        identifier: account,
+      });
+    });
+    columns.push({ type: "number", label: "Other", identifier: "Other" });
+
+    let data: WithWildcards<{}>[] = [];
+
+    function getIssuesByAccount(
+      issues: IssueInfo[],
+      filteredAccounts: string[]
+    ) {
+      let issuesByAccount = new ConcatableMap<string, IssueInfo>();
+
+      issues.forEach((issue) => {
+        if (filteredAccounts.includes(issue.account)) {
+          issuesByAccount.concat(issue.account, issue);
+        } else {
+          issuesByAccount.concat("Other", issue);
+        }
+      });
+      return issuesByAccount;
+    }
+
+    this.state.throughputData.forEach((sprint) => {
+      let issuesByAccount = getIssuesByAccount(
+        sprint.issueList,
+        this.state.accountsSelected
+      );
+      let row: WithWildcards<{}> = {
+        date: new Date(sprint.sprintStartingDate),
+      };
+
+      let clickData = "";
+      this.state.accountsSelected.forEach((parent) => {
+        let issues = issuesByAccount.get(parent) || [];
+        row[parent] = getSize(issues, this.state.sizeMode);
+        clickData += this.getClickData({ initiativeKey: parent, issues });
+      });
+      let otherAccounts = Array.from(issuesByAccount.keys()).filter(
+        (account) => !this.state.accountsSelected.includes(account)
+      );
+      let x: IssueInfo[] = [];
+      let otherIssues = otherAccounts.reduce((acc, account) => {
+        return acc.concat(issuesByAccount.get(account) || []);
+      }, x);
+      clickData += this.getClickData({
+        initiativeKey: "Other",
+        issues: otherIssues,
+      });
+      row["Other"] = getSize(otherIssues, this.state.sizeMode);
+      row["clickData"] = clickData;
+      data.push(row);
+    });
+    return { data, columns };
+  }
+
   render() {
     let { data, columns } =
       this.state.splitMode === "initiatives"
         ? this.getThroughputByInitiative(this.state.throughputData)
         : this.state.splitMode === "labels"
           ? this.getThroughputByLabel(this.state.throughputData)
-          : this.getThroughputByType(this.state.throughputData);
+          : this.state.splitMode === "accounts"
+            ? this.getThroughputByAccount(this.state.throughputData)
+            : this.getThroughputByType(this.state.throughputData);
 
     let issueInfo: IssueInfo[] = [];
     this.state.throughputData.forEach((sprint) => {
@@ -467,6 +560,7 @@ export default class Throughput extends React.Component<Props, State> {
           <Radio.Button value="initiatives">Initiatives</Radio.Button>
           <Radio.Button value="labels">Labels</Radio.Button>
           <Radio.Button value="types">Types</Radio.Button>
+          <Radio.Button value="accounts">Accounts</Radio.Button>
         </Radio.Group>
         <span
           style={{
@@ -496,6 +590,16 @@ export default class Throughput extends React.Component<Props, State> {
           <Select
             onChange={this.typesSelected.bind(this)}
             options={this.state.types}
+          />
+        </span>
+        <span
+          style={{
+            display: this.state.splitMode === "accounts" ? "" : "none",
+          }}
+        >
+          <Select
+            onChange={this.accountsSelected.bind(this)}
+            options={this.state.accounts}
           />
         </span>
         <Radio.Group
