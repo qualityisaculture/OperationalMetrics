@@ -370,6 +370,19 @@ export class SankeyObject extends React.Component<Props, State> {
                   ))}
               </Collapse.Panel>
             </Collapse>
+            {this.state.splitBy !== "None" && (
+              <Collapse>
+                <Collapse.Panel header="Nested Analysis" key="1">
+                  <SankeyObject
+                    key={Math.random()}
+                    issues={this.state.selectedIssues}
+                    splitBy="All"
+                    splitSelected={["All"]}
+                    totalSize={this.getTimeSpent(this.state.selectedIssues)}
+                  />
+                </Collapse.Panel>
+              </Collapse>
+            )}
           </Collapse.Panel>
         </Collapse>
         <div key={this.state.otherSankeyObject?.props.name}>
