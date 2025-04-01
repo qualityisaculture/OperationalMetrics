@@ -63,10 +63,40 @@ export default class ColumnChart extends React.Component<
     if (notesElement) notesElement.innerHTML = clickData;
   };
 
+  addBreakdown(data: GoogleDataType) {
+    const columnSums: { [key: string]: number } = {};
+    let totalSum = 0;
+
+    this.props.data.forEach((categoryData) => {
+      this.props.columns.forEach((column) => {
+        const value = categoryData[column.identifier];
+        if (typeof value === "number") {
+          columnSums[column.label] = (columnSums[column.label] || 0) + value;
+          totalSum += value;
+        }
+      });
+    });
+
+    const summary = Object.entries(columnSums)
+      .map(([label, sum]) => {
+        const flooredSum = Math.floor(sum);
+        const percentage =
+          totalSum > 0 ? ((flooredSum / totalSum) * 100).toFixed(2) : "0.00";
+        return `${label}: ${flooredSum} (${percentage}%)`;
+      })
+      .join("<br>");
+
+    const notesElement = document.getElementById("notes");
+    if (notesElement) {
+      notesElement.innerHTML = summary;
+    }
+  }
+
   drawChart() {
     var data = new google.visualization.DataTable();
     this.addColumns(data);
     this.addDataToChart(data);
+    this.addBreakdown(data);
 
     var options = {
       title: this.props.title,

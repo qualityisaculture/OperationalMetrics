@@ -108,10 +108,12 @@ export default class JiraRequester {
       let epicjira = epics[0];
       let initiativeKey = epicjira.getInitiativeKey();
       let initiativeName = epicjira.getInitiativeName();
+      let epicLabels = epicjira.getLabels(); // Fetch Epic labels
       if (initiativeKey !== null && initiativeName !== null) {
         jira.fields.initiativeKey = initiativeKey;
         jira.fields.initiativeName = initiativeName;
       }
+      jira.fields.epicLabels = epicLabels; // Add Epic labels to the Jira fields
     }
 
     return jira;

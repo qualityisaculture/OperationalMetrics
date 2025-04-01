@@ -57,6 +57,7 @@ export default class Jira {
     updated: string;
     url: string;
     account: string;
+    epicLabels?: string[]; // Add epicLabels field
   };
   changelog: { histories: any[] };
   created: Date;
@@ -98,6 +99,7 @@ export default class Jira {
       updated: json.fields.updated,
       url: `${domain}/browse/${json.key}`,
       account: json.fields.customfield_10085?.value || "None",
+      epicLabels: [], // Initialize epicLabels as an empty array
     };
     if (
       json.fields.parent &&
@@ -328,5 +330,9 @@ export default class Jira {
 
   getAccount() {
     return this.fields.account;
+  }
+
+  getEpicLabels(): string[] {
+    return this.fields.epicLabels || [];
   }
 }

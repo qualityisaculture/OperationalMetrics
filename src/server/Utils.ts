@@ -79,6 +79,18 @@ function getIssueInfoFromJira(jira: Jira): IssueInfo {
       initiativeName = "NOINITIATIVE";
     }
   }
+  let labels = jira.getLabels();
+  if (labels.includes("corrected")) {
+    initiativeKey = "CORRECTED";
+    initiativeName = "CORRECTED";
+  }
+  if (jira.getEpicKey()) {
+    const epicLabels = jira.getEpicLabels();
+    if (epicLabels.includes("corrected")) {
+      initiativeKey = "EPIC_CORRECTED";
+      initiativeName = "EPIC_CORRECTED";
+    }
+  }
   return {
     key: jira.getKey(),
     summary: jira.getSummary(),
