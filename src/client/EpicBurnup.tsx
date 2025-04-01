@@ -1,98 +1,41 @@
 import React from "react";
-import type { SelectProps, RadioChangeEvent } from "antd";
-import { DatePicker, Radio } from "antd";
-import dayjs, { Dayjs } from "dayjs";
+import type { RadioChangeEvent } from "antd";
+import { Radio } from "antd";
 
-import Select from "./Select";
-
-import { EpicBurnup } from "../server/graphManagers/BurnupGraphManager";
-import LineChart from "./LineChart";
-import type { GoogleDataTableType } from "./LineChart";
-import {
-  getEarliestDate,
-  getLastDate,
-  getSelectedEpics,
-  getGoogleDataTableFromMultipleBurnupData,
-  getGapDataFromBurnupData,
-} from "./BurnupManager";
+import EpicBurnupChart from "./EpicBurnupChart";
+// import "./EpicBurnup.css";
 
 interface Props {}
 interface State {
   input: string;
-  epicSelectList: SelectProps["options"];
-  selectedEpics: string[];
-  selectedEpicsData: GoogleDataTableType[];
-  allEpicsData: EpicBurnup[];
+  queries: string[];
   estimationMode: "count" | "estimate";
-  startDate: Dayjs;
-  endDate: Dayjs;
 }
 
 export default class EpicBurnupClass extends React.Component<Props, State> {
-  constructor(props) {
+  constructor(props: Props) {
     super(props);
-    this.onDataRequested = this.onDataRequested.bind(this);
     this.state = {
       input: localStorage.getItem("epicIssueKey") || "",
-      epicSelectList: [],
-      selectedEpics: [],
-      selectedEpicsData: [],
-      allEpicsData: [],
+      queries: [],
       estimationMode: "count",
-      startDate: dayjs(),
-      endDate: dayjs(),
     };
   }
-  getSelectedEpics = (
-    allEpicsData: EpicBurnup[] = this.state.allEpicsData,
-    selectedEpics: string[] = this.state.selectedEpics
-  ) => {
-    let selectedEpicsIndex: number[] = selectedEpics.map((item) =>
-      parseInt(item)
-    );
-    return getSelectedEpics(allEpicsData, selectedEpicsIndex);
-  };
+
   onDataRequested = () => {
     localStorage.setItem("epicIssueKey", this.state.input);
-    //Request to the server /api/metrics
-    fetch("/api/epicBurnup?query=" + this.state.input)
-      .then((response) => response.json())
-      .then((data) => {
-        let allEpicsData: EpicBurnup[] = JSON.parse(data.data);
-        let epicSelectList = allEpicsData.map((item, i) => {
-          return { label: item.key + " - " + item.summary, value: i };
-        });
-        this.setState({
-          allEpicsData,
-          epicSelectList,
-          startDate: dayjs(getEarliestDate(allEpicsData)),
-          endDate: dayjs(getLastDate(allEpicsData)),
-        });
-      });
+    const queries = this.state.input
+      .split(";")
+      .map((q) => q.trim())
+      .filter((q) => q);
+    this.setState({ queries });
   };
-  onSelectedEpicsChanged = (selected: string[]) => {
-    let filteredEpics = this.getSelectedEpics(
-      this.state.allEpicsData,
-      selected
-    );
-    this.setState({
-      selectedEpics: selected,
-      startDate: dayjs(getEarliestDate(filteredEpics)),
-      endDate: dayjs(getLastDate(filteredEpics)),
-    });
-  };
+
   onEstimationModeChange = (e: RadioChangeEvent) => {
     this.setState({ estimationMode: e.target.value });
   };
-  render() {
-    let data = getGoogleDataTableFromMultipleBurnupData(
-      this.getSelectedEpics(),
-      this.state.estimationMode === "estimate",
-      this.state.startDate.toDate(),
-      this.state.endDate.toDate()
-    );
-    let gapData = getGapDataFromBurnupData(data);
 
+  render() {
     return (
       <div>
         <input
@@ -101,8 +44,9 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
           onChange={(e) => {
             this.setState({ input: e.target.value });
           }}
+          placeholder="Enter queries separated by semicolons"
         />
-        <button onClick={this.onDataRequested}>Click me</button>
+        <button onClick={this.onDataRequested}>Load Queries</button>
         <Radio.Group
           value={this.state.estimationMode}
           onChange={this.onEstimationModeChange}
@@ -110,20 +54,15 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
           <Radio.Button value="count">Count</Radio.Button>
           <Radio.Button value="estimate">Estimate</Radio.Button>
         </Radio.Group>
-        <br />
-        <Select
-          options={this.state.epicSelectList}
-          onChange={this.onSelectedEpicsChanged}
-        />
-        <br />
-        <DatePicker
-          onChange={(date, dateString) => {
-            this.setState({ endDate: date });
-          }}
-          value={this.state.endDate}
-        />
-        <LineChart burnupDataArray={data} />
-        <LineChart burnupDataArray={gapData} />
+        <div className="epic-burnup-charts">
+          {this.state.queries.map((query, index) => (
+            <EpicBurnupChart
+              key={index}
+              query={query}
+              estimationMode={this.state.estimationMode}
+            />
+          ))}
+        </div>
       </div>
     );
   }

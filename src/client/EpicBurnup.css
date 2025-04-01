@@ -1,0 +1,27 @@
+.epic-burnup-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.epic-burnup-chart {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.epic-burnup-chart h3 {
+  margin: 0 0 1rem 0;
+  color: #333;
+}
+
+.epic-burnup-chart .ant-picker {
+  margin-bottom: 1rem;
+}
+
+.epic-burnup-chart .ant-select {
+  width: 100%;
+  margin-bottom: 1rem;
+} 
