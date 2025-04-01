@@ -119,7 +119,7 @@ export default class BurnupGraphManager {
     let startDate = epic.getEpicStartDate() || epic.getCreated();
     let endDate = epic.getEpicDueDate() || new Date();
     endDate.setDate(endDate.getDate() + 1);
-    let allChildJiras = await this.getAllChildrenJiras(epic, endDate);
+    let allChildJiras = await this.getAllChildrenJiras(epic);
     let childJiras = allChildJiras.filter((child) => child.isInScope(endDate));
     let childJiraTotalEstimate = childJiras.reduce(
       (sum, child) => sum + (child.getOriginalEstimate() || 0),
@@ -148,7 +148,7 @@ export default class BurnupGraphManager {
     let burnupArray: DoneAndScopeCount[] = [];
     for (
       let date = startDate;
-      date <= endDate;
+      date <= new Date(); //Just go to today, even if the epic should be done already
       date.setDate(date.getDate() + 1)
     ) {
       let doneChildren = allChildJiras.filter((child) => child.isDone(date));
