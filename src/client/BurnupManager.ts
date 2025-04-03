@@ -31,6 +31,9 @@ export function extendEpicBurnup(
         doneCountForecast: doneCountForecast,
         doneEstimateForecast: doneEstimateForecast,
         futureDoneKeys: [],
+        inProgressCount: burnupData.inProgressCount || null,
+        inProgressEstimate: burnupData.inProgressEstimate || null,
+        inProgressKeys: burnupData.inProgressKeys || [],
       };
       doneCountForecast += epicBurnups.doneCountIncrement;
       doneEstimateForecast += epicBurnups.doneEstimateIncrement;
@@ -42,6 +45,9 @@ export function extendEpicBurnup(
           doneCount: null,
           doneEstimate: null,
           doneKeys: [],
+          inProgressCount: null,
+          inProgressEstimate: null,
+          inProgressKeys: [],
           scopeCount: null,
           scopeEstimate: null,
           scopeKeys: [],
@@ -52,14 +58,16 @@ export function extendEpicBurnup(
           doneEstimateRequired: null,
         });
       } else {
+        let lastData = epicBurnups.dateData[epicBurnups.dateData.length - 1];
         extendedBurnupDataArray.push({
-          ...epicBurnups.dateData[epicBurnups.dateData.length - 1],
+          ...lastData,
           date: currentDate.toISOString().split("T")[0] as TDateISODate,
-          //doneCount: null,
-          //doneEstimate: null,
           doneCountForecast: doneCountForecast,
           doneEstimateForecast: doneEstimateForecast,
           futureDoneKeys: [],
+          inProgressCount: lastData.inProgressCount || null,
+          inProgressEstimate: lastData.inProgressEstimate || null,
+          inProgressKeys: lastData.inProgressKeys || [],
         });
         doneCountForecast += epicBurnups.doneCountIncrement;
         doneEstimateForecast += epicBurnups.doneEstimateIncrement;
@@ -103,6 +111,10 @@ export function getGoogleDataTableFromMultipleBurnupData(
       issuesExistingToday,
       estimate ? "doneEstimate" : "doneCount"
     );
+    let sumInProgress = reduceDSAField(
+      issuesExistingToday,
+      estimate ? "inProgressEstimate" : "inProgressCount"
+    );
     let sumScope = reduceDSAField(
       issuesExistingToday,
       estimate ? "scopeEstimate" : "scopeCount"
@@ -121,12 +133,17 @@ export function getGoogleDataTableFromMultipleBurnupData(
     if (sumDone === 0) {
       sumDone = null;
     }
+    if (sumInProgress === 0) {
+      sumInProgress = null;
+    }
     let tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     if (new Date(d) > tomorrow) {
       sumDone = null;
+      sumInProgress = null;
     }
     let allNewIssuesCompletedToday = new Set<string>();
+    let allNewIssuesInProgressToday = new Set<string>();
     let allUncompletedScope = new Set<string>();
     let allNewScopeToday = new Set<string>();
     issuesExistingToday.forEach((item) => {
@@ -138,10 +155,16 @@ export function getGoogleDataTableFromMultipleBurnupData(
         allNewIssuesCompletedToday.add(key);
         allUncompletedScope.delete(key);
       });
+      item.inProgressKeys.forEach((key) => {
+        allNewIssuesInProgressToday.add(key);
+      });
     });
     previousIssuesCompleted.forEach((item) => {
       item.doneKeys.forEach((key) => {
         allNewIssuesCompletedToday.delete(key);
+      });
+      item.inProgressKeys?.forEach((key) => {
+        allNewIssuesInProgressToday.delete(key);
       });
       item.scopeKeys.forEach((key) => {
         allNewScopeToday.delete(key);
@@ -166,6 +189,10 @@ export function getGoogleDataTableFromMultipleBurnupData(
     allNewIssuesCompletedToday.forEach((key) => {
       clickData += `${getJiraString(key)}<br>`;
     });
+    clickData += "<h3>Issues in progress</h3>";
+    allNewIssuesInProgressToday.forEach((key) => {
+      clickData += `${getJiraString(key)}<br>`;
+    });
     clickData += "<h3>Scope added today</h3>";
     allNewScopeToday.forEach((key) => {
       clickData += `${getJiraString(key)}<br>`;
@@ -177,7 +204,14 @@ export function getGoogleDataTableFromMultipleBurnupData(
     previousIssuesCompleted = issuesExistingToday;
 
     allDates.push({
-      data: [new Date(d), sumDone, sumScope, sumRequired, sumForecast],
+      data: [
+        new Date(d),
+        sumDone,
+        sumInProgress,
+        sumScope,
+        sumRequired,
+        sumForecast,
+      ],
       clickData,
     });
   }
@@ -210,6 +244,9 @@ export function getDataBetweenDates(
       futureDoneKeys: lastData.futureDoneKeys,
       doneCountRequired: lastData.doneCountRequired,
       doneEstimateRequired: lastData.doneEstimateRequired,
+      inProgressCount: lastData.inProgressCount,
+      inProgressEstimate: lastData.inProgressEstimate,
+      inProgressKeys: lastData.inProgressKeys,
     };
   }
   return {
@@ -225,6 +262,9 @@ export function getDataBetweenDates(
     futureDoneKeys: [],
     doneCountRequired: null,
     doneEstimateRequired: null,
+    inProgressCount: null,
+    inProgressEstimate: null,
+    inProgressKeys: [],
   };
 }
 
@@ -264,12 +304,15 @@ export function getGapDataFromBurnupData(
   burnupData: GoogleDataTableType[]
 ): GoogleDataTableType[] {
   return burnupData.map((dataPoint) => {
-    const [date, done, scope] = dataPoint.data;
-    const gap = scope === null || done === null ? null : scope - done;
+    const [date, done, inProgress, scope] = dataPoint.data;
+    const gapToDone = scope === null || done === null ? null : scope - done;
+    const gapToInProgress =
+      scope === null || inProgress === null ? null : scope - inProgress;
 
     return {
-      data: [date, gap, 0, null, null] as [
+      data: [date, gapToDone, gapToInProgress, 0, null, null] as [
         Date,
+        number | null,
         number | null,
         number | null,
         number | null,

@@ -8,6 +8,9 @@ export type DoneAndScopeCount = {
   doneCount: number | null;
   doneEstimate: number | null;
   doneKeys: string[];
+  inProgressCount: number | null;
+  inProgressEstimate: number | null;
+  inProgressKeys: string[];
   scopeCount: number | null;
   scopeEstimate: number | null;
   scopeKeys: string[];
@@ -133,10 +136,6 @@ export default class BurnupGraphManager {
       epic,
       startDate
     );
-    // let completedEstimateAtBeginning = completedChildrenAtBeginning.reduce(
-    //   (sum, child) => sum + (child.getOriginalEstimate() || 0),
-    //   0
-    // );
 
     let requiredCountPerDay = childJiras.length / daysBetweenBeginningAndEnd;
     let requiredEstimatePerDay =
@@ -148,15 +147,22 @@ export default class BurnupGraphManager {
     let burnupArray: DoneAndScopeCount[] = [];
     for (
       let date = startDate;
-      date <= new Date(); //Just go to today, even if the epic should be done already
+      date <= new Date();
       date.setDate(date.getDate() + 1)
     ) {
       let doneChildren = allChildJiras.filter((child) => child.isDone(date));
+      let inProgressChildren = allChildJiras.filter((child) =>
+        child.isDoneOrDoing(date)
+      );
       let existingChildren = await this.getAllChildrenJiras(epic, date);
       let scopeChildren = existingChildren.filter((child) =>
         child.isInScope(date)
       );
       let doneEstimate = doneChildren.reduce(
+        (sum, child) => sum + (child.getOriginalEstimate() || 0),
+        0
+      );
+      let inProgressEstimate = inProgressChildren.reduce(
         (sum, child) => sum + (child.getOriginalEstimate() || 0),
         0
       );
@@ -169,6 +175,9 @@ export default class BurnupGraphManager {
         doneCount: doneChildren.length,
         doneEstimate,
         doneKeys: doneChildren.map((child) => child.getKey()),
+        inProgressCount: inProgressChildren.length,
+        inProgressEstimate,
+        inProgressKeys: inProgressChildren.map((child) => child.getKey()),
         scopeCount: scopeChildren.length,
         scopeEstimate,
         scopeKeys: scopeChildren.map((child) => child.getKey()),

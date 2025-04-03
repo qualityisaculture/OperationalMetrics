@@ -319,6 +319,12 @@ export default class Jira {
     return this.getStatus(date) === "Done";
   }
 
+  isDoneOrDoing(date?: Date) {
+    const status = this.getStatus(date);
+    const inProgressStatuses = ["In Progress", "Verification", "Done"];
+    return inProgressStatuses.includes(status);
+  }
+
   isInScope(date?: Date) {
     let descopedStatuses = ["Cancelled"];
     return !descopedStatuses.includes(this.getStatus(date));
