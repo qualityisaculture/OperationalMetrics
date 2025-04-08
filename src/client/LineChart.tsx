@@ -2,7 +2,7 @@ import React from "react";
 const google = globalThis.google;
 
 export type GoogleDataTableType = {
-  data: [Date, number | null, number | null, number | null];
+  data: [Date, number | null, number | null, number | null, number | null];
   clickData?: string;
 };
 
@@ -139,6 +139,7 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     data.addColumn("number", "Done");
     data.addColumn("number", "In Progress or Done");
     data.addColumn("number", "Scope");
+    data.addColumn("number", "Time Spent");
 
     // Add trend lines after main lines
     if (this.state.doneTrendLineData.length > 0) {
@@ -161,16 +162,29 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
 
     data.addRows(rows);
 
-    var options = {
+    const options = {
       title: "Issue Burnup",
       legend: { position: "bottom" },
       series: {
         0: { color: "blue" }, //done
         1: { color: "orange" }, //in progress
         2: { color: "green" }, //scope
-        3: { color: "blue", lineDashStyle: [4, 4] }, //done trend
-        4: { color: "green", lineDashStyle: [4, 4] }, //scope trend
+        3: { color: "red", targetAxisIndex: 1 }, //time spent
+        4: { color: "blue", lineDashStyle: [4, 4] }, //done trend
+        5: { color: "green", lineDashStyle: [4, 4] }, //scope trend
       },
+      vAxes: {
+        0: { title: "Story Points" },
+        1: { title: "Time Spent (days)" },
+      },
+      hAxis: {
+        title: "Date",
+        format: "MMM d",
+      },
+      tooltip: { isHtml: true },
+      chartArea: { width: "80%", height: "70%" },
+      width: "100%",
+      height: 400,
     };
 
     var chart = new google.visualization.LineChart(

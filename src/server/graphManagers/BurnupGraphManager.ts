@@ -14,6 +14,7 @@ export type DoneAndScopeCount = {
   scopeCount: number | null;
   scopeEstimate: number | null;
   scopeKeys: string[];
+  timeSpent: number | null; // Total time spent in days
 };
 
 export type EpicBurnup = {
@@ -116,6 +117,8 @@ export default class BurnupGraphManager {
     );
 
     let burnupArray: DoneAndScopeCount[] = [];
+    let timeSpentMap = new Map<string, number>(); // Track time spent per issue
+
     for (
       let date = startDate;
       date <= new Date();
@@ -129,6 +132,23 @@ export default class BurnupGraphManager {
       let scopeChildren = existingChildren.filter((child) =>
         child.isInScope(date)
       );
+
+      // Update time spent for each child
+      allChildJiras.forEach((child) => {
+        const changelog = child.changelog?.histories || [];
+        changelog.forEach((history) => {
+          const historyDate = new Date(history.created);
+          if (historyDate <= date) {
+            history.items.forEach((item) => {
+              if (item.field === "timespent") {
+                const timeSpent = parseInt(item.toString) / (3600 * 8); // Convert to days
+                timeSpentMap.set(child.getKey(), timeSpent);
+              }
+            });
+          }
+        });
+      });
+
       let doneEstimate = doneChildren.reduce(
         (sum, child) => sum + (child.getOriginalEstimate() || 0),
         0
@@ -141,6 +161,13 @@ export default class BurnupGraphManager {
         (sum, child) => sum + (child.getOriginalEstimate() || 0),
         0
       );
+
+      // Calculate total time spent for all children
+      let totalTimeSpent = Array.from(timeSpentMap.values()).reduce(
+        (sum, time) => sum + time,
+        0
+      );
+
       burnupArray.push({
         date: new Date(date).toISOString().split("T")[0] as TDateISODate,
         doneCount: doneChildren.length,
@@ -152,6 +179,7 @@ export default class BurnupGraphManager {
         scopeCount: scopeChildren.length,
         scopeEstimate,
         scopeKeys: scopeChildren.map((child) => child.getKey()),
+        timeSpent: totalTimeSpent || null,
       });
     }
 

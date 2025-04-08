@@ -37,6 +37,7 @@ export function extendEpicBurnup(
           scopeCount: null,
           scopeEstimate: null,
           scopeKeys: [],
+          timeSpent: null,
         });
       } else {
         let lastData = epicBurnups.dateData[epicBurnups.dateData.length - 1];
@@ -68,6 +69,7 @@ export function getGoogleDataTableFromMultipleBurnupData(
   });
   let previousIssuesCompleted: DoneAndScopeCount[] = [];
   let allDates: GoogleDataTableType[] = [];
+
   for (
     let d = new Date(earliestDate);
     d <= new Date(lastDate);
@@ -92,18 +94,25 @@ export function getGoogleDataTableFromMultipleBurnupData(
       issuesExistingToday,
       estimate ? "scopeEstimate" : "scopeCount"
     );
+    let sumTimeSpent = reduceDSAField(issuesExistingToday, "timeSpent");
+
     if (sumDone === 0) {
       sumDone = null;
     }
     if (sumInProgress === 0) {
       sumInProgress = null;
     }
+    if (sumTimeSpent === 0) {
+      sumTimeSpent = null;
+    }
     let tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     if (new Date(d) > tomorrow) {
       sumDone = null;
       sumInProgress = null;
+      sumTimeSpent = null;
     }
+
     let allNewIssuesCompletedToday = new Set<string>();
     let allNewIssuesInProgressToday = new Set<string>();
     let allUncompletedScope = new Set<string>();
@@ -166,7 +175,7 @@ export function getGoogleDataTableFromMultipleBurnupData(
     previousIssuesCompleted = issuesExistingToday;
 
     allDates.push({
-      data: [new Date(d), sumDone, sumInProgress, sumScope],
+      data: [new Date(d), sumDone, sumInProgress, sumScope, sumTimeSpent],
       clickData,
     });
   }
@@ -197,6 +206,7 @@ export function getDataBetweenDates(
       inProgressCount: lastData.inProgressCount,
       inProgressEstimate: lastData.inProgressEstimate,
       inProgressKeys: lastData.inProgressKeys,
+      timeSpent: lastData.timeSpent,
     };
   }
   return {
@@ -210,6 +220,7 @@ export function getDataBetweenDates(
     inProgressCount: null,
     inProgressEstimate: null,
     inProgressKeys: [],
+    timeSpent: null,
   };
 }
 
@@ -249,14 +260,15 @@ export function getGapDataFromBurnupData(
   burnupData: GoogleDataTableType[]
 ): GoogleDataTableType[] {
   return burnupData.map((dataPoint) => {
-    const [date, done, inProgress, scope] = dataPoint.data;
+    const [date, done, inProgress, scope, timeSpent] = dataPoint.data;
     const gapToDone = scope === null || done === null ? null : scope - done;
     const gapToInProgress =
       scope === null || inProgress === null ? null : scope - inProgress;
 
     return {
-      data: [date, gapToDone, gapToInProgress, 0] as [
+      data: [date, gapToDone, gapToInProgress, 0, timeSpent] as [
         Date,
+        number | null,
         number | null,
         number | null,
         number | null,
