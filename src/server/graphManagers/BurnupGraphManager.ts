@@ -14,14 +14,6 @@ export type DoneAndScopeCount = {
   scopeCount: number | null;
   scopeEstimate: number | null;
   scopeKeys: string[];
-  doneCountRequired: number | null;
-  doneEstimateRequired: number | null;
-};
-
-export type DoneAndScopeCountWithForecast = DoneAndScopeCount & {
-  doneCountForecast: number | null;
-  doneEstimateForecast: number | null;
-  futureDoneKeys: string[];
 };
 
 export type EpicBurnup = {
@@ -33,10 +25,6 @@ export type EpicBurnup = {
   doneCountLimit: number; //The maximum number of items that can be completed
   doneEstimateIncrement: number; //How many points are completed each day on average
   doneEstimateLimit: number; //The maximum number of points that can be completed
-  // doneCountRequiredIncrement: number; //How many items are required to be completed each day to finish on time
-  doneCountRequiredLimit: number; //How many items are required to finish //TODO: Remove
-  // doneEstimateRequiredIncrement: number; //How many points are required to be completed each day to finish on time
-  doneEstimateRequiredLimit: number; //How many points are required to finish //TODO: Remove
   dateData: DoneAndScopeCount[];
   allJiraInfo: MinimumIssueInfo[];
 };
@@ -78,8 +66,6 @@ export default class BurnupGraphManager {
       doneCountLimit: burnupArrayData.totalCount, //this seems wrong
       doneEstimateIncrement,
       doneEstimateLimit: burnupArrayData.totalEstimate, // this seems wrong
-      doneCountRequiredLimit: finalScopeCount,
-      doneEstimateRequiredLimit: finalDoneEstimate,
       dateData: burnupArray,
       allJiraInfo: burnupArrayData.allChildJiras.map((jira) => {
         return {
@@ -128,21 +114,6 @@ export default class BurnupGraphManager {
       (sum, child) => sum + (child.getOriginalEstimate() || 0),
       0
     );
-    let daysBetweenBeginningAndEnd = Math.floor(
-      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    let completedChildrenAtBeginning = await this.getAllChildrenJiras(
-      epic,
-      startDate
-    );
-
-    let requiredCountPerDay = childJiras.length / daysBetweenBeginningAndEnd;
-    let requiredEstimatePerDay =
-      childJiraTotalEstimate / daysBetweenBeginningAndEnd;
-
-    let requiredCountToday = 0;
-    let requiredEstimateToday = 0;
 
     let burnupArray: DoneAndScopeCount[] = [];
     for (
@@ -181,11 +152,7 @@ export default class BurnupGraphManager {
         scopeCount: scopeChildren.length,
         scopeEstimate,
         scopeKeys: scopeChildren.map((child) => child.getKey()),
-        doneCountRequired: requiredCountToday,
-        doneEstimateRequired: requiredEstimateToday,
       });
-      requiredCountToday += requiredCountPerDay;
-      requiredEstimateToday += requiredEstimatePerDay;
     }
 
     return {

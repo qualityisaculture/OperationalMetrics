@@ -2,14 +2,7 @@ import React from "react";
 const google = globalThis.google;
 
 export type GoogleDataTableType = {
-  data: [
-    Date,
-    number | null,
-    number | null,
-    number | null,
-    number | null,
-    number | null,
-  ];
+  data: [Date, number | null, number | null, number | null];
   clickData?: string;
 };
 
@@ -47,8 +40,6 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     data.addColumn("number", "Done");
     data.addColumn("number", "In Progress or Done");
     data.addColumn("number", "Scope");
-    data.addColumn("number", "Ideal Trend");
-    data.addColumn("number", "Forecast Trend");
     data.addRows(this.props.burnupDataArray.map((item) => item.data));
 
     var options = {
@@ -58,8 +49,6 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
         0: { color: "blue" }, //done
         1: { color: "orange" }, //in progress
         2: { color: "green" }, //scope
-        3: { color: "transparent" }, //ideal
-        4: { color: "transparent" }, //forecast
       },
     };
 
