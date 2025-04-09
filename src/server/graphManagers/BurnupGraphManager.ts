@@ -30,6 +30,13 @@ export type EpicBurnup = {
   allJiraInfo: MinimumIssueInfo[];
 };
 
+export type EpicBurnupResponse = {
+  originalKey: string;
+  originalSummary: string;
+  originalType: string;
+  epicBurnups: EpicBurnup[];
+};
+
 export default class BurnupGraphManager {
   jiraRequester: JiraRequester;
   constructor(jiraRequester) {
@@ -79,13 +86,61 @@ export default class BurnupGraphManager {
     };
   }
 
-  async getEpicBurnupData(query: string): Promise<EpicBurnup[]> {
-    let epics = await this.jiraRequester.getQuery(query);
-    epics = await Promise.all(
+  async getEpicsFromQuery(query: string): Promise<Jira[]> {
+    return await this.jiraRequester.getQuery(query);
+  }
+
+  async getAllEpicsUnderIssue(key: string): Promise<string[]> {
+    const issue = await this.jiraRequester.getFullJiraDataFromKeys([{ key }]);
+    if (!issue || issue.length === 0) return [];
+
+    const issueType = issue[0].getType();
+    if (issueType === "Epic") {
+      return [key];
+    }
+
+    // Get all children of the current issue
+    const children = await this.jiraRequester.getQuery(`parent=${key}`);
+    const childKeys = children.map((child) => child.getKey());
+
+    // Recursively get all epics under each child
+    const epicPromises = childKeys.map((childKey) =>
+      this.getAllEpicsUnderIssue(childKey)
+    );
+    const epicArrays = await Promise.all(epicPromises);
+
+    // Flatten the array of arrays into a single array of epic keys
+    return epicArrays.flat();
+  }
+
+  async getEpicsFromKeys(keys: string[]): Promise<Jira[]> {
+    let lastUpdatedKeys = keys.map((key) => ({ key }));
+    let epics =
+      await this.jiraRequester.getFullJiraDataFromKeys(lastUpdatedKeys);
+    return await Promise.all(
       epics.map((jira) => this.addChildKeysToJira(jira))
     );
+  }
+
+  async getEpicBurnupData(key: string): Promise<EpicBurnupResponse> {
+    // Get the original issue's info
+    const originalIssue = await this.jiraRequester.getFullJiraDataFromKeys([
+      { key },
+    ]);
+    if (!originalIssue || originalIssue.length === 0) {
+      throw new Error(`Issue ${key} not found`);
+    }
+
+    let epicKeys = await this.getAllEpicsUnderIssue(key);
+    let epics = await this.getEpicsFromKeys(epicKeys);
     let burnupArrays = await this.getEpicBurnupsToDate(epics);
-    return burnupArrays;
+
+    return {
+      originalKey: key,
+      originalSummary: originalIssue[0].getSummary(),
+      originalType: originalIssue[0].getType(),
+      epicBurnups: burnupArrays,
+    };
   }
 
   async addChildKeysToJira(jira: Jira): Promise<Jira> {

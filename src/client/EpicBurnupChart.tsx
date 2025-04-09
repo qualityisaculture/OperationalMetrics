@@ -3,7 +3,10 @@ import type { SelectProps } from "antd";
 import { DatePicker } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 
-import { EpicBurnup } from "../server/graphManagers/BurnupGraphManager";
+import {
+  EpicBurnup,
+  EpicBurnupResponse,
+} from "../server/graphManagers/BurnupGraphManager";
 import LineChart from "./LineChart";
 import type { GoogleDataTableType } from "./LineChart";
 import Select from "./Select";
@@ -27,6 +30,9 @@ interface State {
   selectedEpics: string[];
   startDate: Dayjs;
   endDate: Dayjs;
+  originalKey: string;
+  originalSummary: string;
+  originalType: string;
 }
 
 export default class EpicBurnupChart extends React.Component<Props, State> {
@@ -38,6 +44,9 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
       selectedEpics: [],
       startDate: dayjs(),
       endDate: dayjs(),
+      originalKey: "",
+      originalSummary: "",
+      originalType: "",
     };
   }
 
@@ -55,21 +64,24 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
     fetch("/api/epicBurnup?query=" + this.props.query)
       .then((response) => response.json())
       .then((data) => {
-        const epicData: EpicBurnup[] = JSON.parse(data.data);
-        const epicSelectList = epicData.map((item, i) => ({
+        const response: EpicBurnupResponse = JSON.parse(data.data);
+        const epicSelectList = response.epicBurnups.map((item, i) => ({
           label: item.key + " - " + item.summary,
           value: i,
         }));
-        const selectedEpics = epicData.map((_, i) => i.toString());
+        const selectedEpics = response.epicBurnups.map((_, i) => i.toString());
         this.setState({
-          epicData,
+          epicData: response.epicBurnups,
           epicSelectList,
           selectedEpics,
-          startDate: dayjs(getEarliestDate(epicData)),
-          endDate: dayjs(getLastDate(epicData)),
+          startDate: dayjs(getEarliestDate(response.epicBurnups)),
+          endDate: dayjs(getLastDate(response.epicBurnups)),
+          originalKey: response.originalKey,
+          originalSummary: response.originalSummary,
+          originalType: response.originalType,
         });
         if (this.props.onDataLoaded) {
-          this.props.onDataLoaded(epicData);
+          this.props.onDataLoaded(response.epicBurnups);
         }
       });
   };
@@ -101,7 +113,10 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
 
     return (
       <div className="epic-burnup-chart">
-        <h3>{this.props.query}</h3>
+        <h3>
+          {this.state.originalKey} - {this.state.originalSummary} (
+          {this.state.originalType})
+        </h3>
         <Select
           options={this.state.epicSelectList}
           onChange={this.onSelectedEpicsChanged}
