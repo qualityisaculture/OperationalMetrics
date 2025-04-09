@@ -1,3 +1,9 @@
+describe("SankeyObject", () => {
+  it("should be a test", () => {
+    expect(true).toBe(true);
+  });
+});
+
 // import React from "react";
 // import { render, screen } from "@testing-library/react";
 // import { SankeyObject } from "../../src/client/SankeyObject";

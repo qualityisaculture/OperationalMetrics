@@ -138,7 +138,7 @@ describe("JiraRequester", () => {
       let keys = ["KEY-1"];
       let jiras = await jr.getEssentialJiraDataFromKeys(keys);
       expect(fetchMock.mock.calls[0][0]).toEqual(
-        "localhost:8080/rest/api/3/search?jql=key=KEY-1&fields=key,summary,resolved"
+        "localhost:8080/rest/api/3/search?jql=key=KEY-1&fields=key,summary,resolutiondate,fixVersions"
       );
       expect(jiras[0].key).toEqual("KEY-1");
     });
