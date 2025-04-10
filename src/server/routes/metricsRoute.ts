@@ -138,12 +138,33 @@ metricsRoute.get(
   "/epicBurnup",
   (req: TRQ<{ query: string }>, res: TR<{ message: string; data: string }>) => {
     const query = req.query.query;
+
+    // Set headers for SSE
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    // Send initial processing message
+    res.write(
+      `data: ${JSON.stringify({ status: "processing", message: "Processing..." })}\n\n`
+    );
+
     burnupGraphManager
       .getEpicBurnupData(query)
       .then((data) => {
-        res.json({ message: "Metrics route", data: JSON.stringify(data) });
+        // Send completion message with data
+        res.write(
+          `data: ${JSON.stringify({ status: "complete", data: JSON.stringify(data) })}\n\n`
+        );
+        res.end();
       })
-      .catch((error) => console.error("Error:", error));
+      .catch((error) => {
+        console.error("Error:", error);
+        res.write(
+          `data: ${JSON.stringify({ status: "error", message: error.message })}\n\n`
+        );
+        res.end();
+      });
   }
 );
 
@@ -167,7 +188,10 @@ metricsRoute.get(
         res
           //@ts-ignore
           .status(500)
-          .json({ message: "Failed to fetch Dora lead time", error: error.message });
+          .json({
+            message: "Failed to fetch Dora lead time",
+            error: error.message,
+          });
       });
   }
 );

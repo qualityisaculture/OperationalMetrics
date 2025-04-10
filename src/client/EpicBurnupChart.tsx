@@ -1,6 +1,6 @@
 import React from "react";
 import type { SelectProps } from "antd";
-import { DatePicker } from "antd";
+import { DatePicker, Spin } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 
 import {
@@ -17,6 +17,7 @@ import {
   getGapDataFromBurnupData,
   getSelectedEpics,
 } from "./BurnupManager";
+import { SSEResponse } from "../Types";
 
 interface Props {
   query: string;
@@ -33,6 +34,8 @@ interface State {
   originalKey: string;
   originalSummary: string;
   originalType: string;
+  isLoading: boolean;
+  statusMessage: string;
 }
 
 export default class EpicBurnupChart extends React.Component<Props, State> {
@@ -47,6 +50,8 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
       originalKey: "",
       originalSummary: "",
       originalType: "",
+      isLoading: false,
+      statusMessage: "",
     };
   }
 
@@ -61,29 +66,58 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
   }
 
   fetchData = () => {
-    fetch("/api/epicBurnup?query=" + this.props.query)
-      .then((response) => response.json())
-      .then((data) => {
-        const response: EpicBurnupResponse = JSON.parse(data.data);
-        const epicSelectList = response.epicBurnups.map((item, i) => ({
+    this.setState({ isLoading: true, statusMessage: "Loading..." });
+
+    const eventSource = new EventSource(
+      `/api/epicBurnup?query=${this.props.query}`
+    );
+
+    eventSource.onmessage = (event) => {
+      const response: SSEResponse = JSON.parse(event.data);
+
+      if (response.status === "processing") {
+        this.setState({ statusMessage: response.message || "Processing..." });
+      } else if (response.status === "complete" && response.data) {
+        const epicResponse: EpicBurnupResponse = JSON.parse(response.data);
+        const epicSelectList = epicResponse.epicBurnups.map((item, i) => ({
           label: item.key + " - " + item.summary,
           value: i,
         }));
-        const selectedEpics = response.epicBurnups.map((_, i) => i.toString());
+        const selectedEpics = epicResponse.epicBurnups.map((_, i) =>
+          i.toString()
+        );
         this.setState({
-          epicData: response.epicBurnups,
+          epicData: epicResponse.epicBurnups,
           epicSelectList,
           selectedEpics,
-          startDate: dayjs(getEarliestDate(response.epicBurnups)),
-          endDate: dayjs(getLastDate(response.epicBurnups)),
-          originalKey: response.originalKey,
-          originalSummary: response.originalSummary,
-          originalType: response.originalType,
+          startDate: dayjs(getEarliestDate(epicResponse.epicBurnups)),
+          endDate: dayjs(getLastDate(epicResponse.epicBurnups)),
+          originalKey: epicResponse.originalKey,
+          originalSummary: epicResponse.originalSummary,
+          originalType: epicResponse.originalType,
+          isLoading: false,
+          statusMessage: "",
         });
         if (this.props.onDataLoaded) {
-          this.props.onDataLoaded(response.epicBurnups);
+          this.props.onDataLoaded(epicResponse.epicBurnups);
         }
+        eventSource.close();
+      } else if (response.status === "error") {
+        this.setState({
+          isLoading: false,
+          statusMessage: `Error: ${response.message}`,
+        });
+        eventSource.close();
+      }
+    };
+
+    eventSource.onerror = () => {
+      this.setState({
+        isLoading: false,
+        statusMessage: "Connection error. Please try again.",
       });
+      eventSource.close();
+    };
   };
 
   getSelectedEpics = () => {
@@ -117,18 +151,33 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
           {this.state.originalKey} - {this.state.originalSummary} (
           {this.state.originalType})
         </h3>
-        <Select
-          options={this.state.epicSelectList}
-          onChange={this.onSelectedEpicsChanged}
-        />
-        <DatePicker
-          onChange={(date) => {
-            this.setState({ endDate: date });
-          }}
-          value={this.state.endDate}
-        />
-        <LineChart burnupDataArray={data} />
-        <LineChart burnupDataArray={gapData} />
+        {this.state.isLoading && (
+          <div style={{ textAlign: "center", margin: "20px" }}>
+            <Spin size="large" />
+            <p>{this.state.statusMessage}</p>
+          </div>
+        )}
+        {!this.state.isLoading && this.state.statusMessage && (
+          <div style={{ textAlign: "center", margin: "20px", color: "red" }}>
+            <p>{this.state.statusMessage}</p>
+          </div>
+        )}
+        {!this.state.isLoading && !this.state.statusMessage && (
+          <>
+            <Select
+              options={this.state.epicSelectList}
+              onChange={this.onSelectedEpicsChanged}
+            />
+            <DatePicker
+              onChange={(date) => {
+                this.setState({ endDate: date });
+              }}
+              value={this.state.endDate}
+            />
+            <LineChart burnupDataArray={data} />
+            <LineChart burnupDataArray={gapData} />
+          </>
+        )}
       </div>
     );
   }

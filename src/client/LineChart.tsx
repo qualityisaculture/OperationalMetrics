@@ -41,6 +41,12 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     }
   }
 
+  componentDidMount() {
+    if (this.props.burnupDataArray && this.props.burnupDataArray.length > 0) {
+      this.drawChart();
+    }
+  }
+
   calculateTrendLine = (
     point1: { date: Date; value: number },
     point2: { date: Date; value: number }

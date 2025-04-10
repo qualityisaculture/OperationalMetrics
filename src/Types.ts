@@ -1,6 +1,9 @@
 import { Send, Query } from "express-serve-static-core";
 export interface TypedResponse<ResBody> extends Express.Response {
   json: Send<ResBody, this>;
+  setHeader: (name: string, value: string) => void;
+  write: (data: string) => void;
+  end: () => void;
 }
 export interface TypedRequestBody<T> extends Express.Request {
   body: T;
@@ -44,4 +47,12 @@ export type MinimumIssueInfo = {
 export type StatusDays = {
   status: string;
   days: number;
+};
+
+export type SSEStatus = "processing" | "complete" | "error";
+
+export type SSEResponse = {
+  status: SSEStatus;
+  message?: string;
+  data?: string;
 };
