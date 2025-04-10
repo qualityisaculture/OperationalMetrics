@@ -49,7 +49,6 @@ describe("LeadTimeGraphManager", () => {
       defaultCurrentSprinStartDate,
       defaultNumberOfSprints
     );
-    console.log(result.sprints[0]);
     expect(result.sprints[0].sprintStartingDate).toEqual(
       new Date("2024-10-21T09:00:00.000Z")
     );

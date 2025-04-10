@@ -136,7 +136,6 @@ export default class JiraRequester {
       let jql = keys.map((key) => `key=${key}`).join(" OR ");
       const query = `${jql}&expand=changelog`;
       let data = await this.requestDataFromServer(query);
-      console.log("Fetched " + data.issues.length + " issues");
       allIssues.issues = allIssues.issues.concat(data.issues);
     }
     return allIssues;
@@ -161,7 +160,6 @@ export default class JiraRequester {
   async requestDataFromServer(query: string) {
     const domain = process.env.JIRA_DOMAIN;
     const url = `${domain}/rest/api/3/search?jql=${query}`;
-    console.log("Fetching " + url);
     let response = await this.fetchRequest(url);
     if (response.total > 5000) {
       throw new Error("Query returned too many results");
@@ -169,7 +167,6 @@ export default class JiraRequester {
     if (response.total > 50) {
       let startAt = 50;
       while (startAt < response.total) {
-        console.log("Fetching " + startAt + " of " + response.total);
         let nextResponse = await this.fetchRequest(`${url}&startAt=${startAt}`);
         response.issues = response.issues.concat(nextResponse.issues);
         startAt += 50;
