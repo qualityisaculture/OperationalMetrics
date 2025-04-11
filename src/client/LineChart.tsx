@@ -28,9 +28,47 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     };
   }
 
+  updateTrendLines = () => {
+    const donePoints = this.state.clickedPoints.filter(
+      (p) => p.type === "done"
+    );
+    const scopePoints = this.state.clickedPoints.filter(
+      (p) => p.type === "scope"
+    );
+
+    const newState: Pick<
+      ChartState,
+      "doneTrendLineData" | "scopeTrendLineData"
+    > = {
+      doneTrendLineData: [],
+      scopeTrendLineData: [],
+    };
+
+    if (donePoints.length === 2) {
+      newState.doneTrendLineData = this.calculateTrendLine(
+        donePoints[0],
+        donePoints[1]
+      );
+    }
+
+    if (scopePoints.length === 2) {
+      newState.scopeTrendLineData = this.calculateTrendLine(
+        scopePoints[0],
+        scopePoints[1]
+      );
+    }
+
+    this.setState(newState);
+  };
+
   componentDidUpdate(prevProps, prevState) {
-    if (
-      prevProps !== this.props ||
+    if (prevProps.burnupDataArray !== this.props.burnupDataArray) {
+      if (!this.props.burnupDataArray) {
+        return;
+      }
+      this.updateTrendLines();
+      this.drawChart();
+    } else if (
       prevState.doneTrendLineData !== this.state.doneTrendLineData ||
       prevState.scopeTrendLineData !== this.state.scopeTrendLineData
     ) {
@@ -122,17 +160,9 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     );
     const newClickedPoints = [...otherTypePoints, ...newPoints];
 
-    // If we have two points of this type, draw the trend line
-    if (newPoints.length === 2) {
-      const trendLineData = this.calculateTrendLine(newPoints[0], newPoints[1]);
-      if (type === "done") {
-        this.setState({ doneTrendLineData: trendLineData });
-      } else {
-        this.setState({ scopeTrendLineData: trendLineData });
-      }
-    }
-
-    this.setState({ clickedPoints: newClickedPoints });
+    this.setState({ clickedPoints: newClickedPoints }, () => {
+      this.updateTrendLines();
+    });
 
     let clickData: string = dataPoint.clickData as string;
     let notesElement = document.getElementById("notes");
