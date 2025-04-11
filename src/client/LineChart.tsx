@@ -127,7 +127,29 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     const dataPoint = this.props.burnupDataArray[row];
     const [date, done, inProgress, scope] = dataPoint.data;
 
-    // Get the actual value and type based on the column clicked
+    // Clear trend line if clicking on one
+    if (column === 5) {
+      // Done trend line
+      this.setState({
+        clickedPoints: this.state.clickedPoints.filter(
+          (p) => p.type !== "done"
+        ),
+        doneTrendLineData: [],
+      });
+      return;
+    }
+    if (column === 6) {
+      // Scope trend line
+      this.setState({
+        clickedPoints: this.state.clickedPoints.filter(
+          (p) => p.type !== "scope"
+        ),
+        scopeTrendLineData: [],
+      });
+      return;
+    }
+
+    // Handle clicks on main lines
     let value: number | null = null;
     let type: "done" | "scope" | null = null;
 
@@ -136,12 +158,6 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       type = "done";
     } else if (column === 3) {
       value = scope;
-      type = "scope";
-    } else if (column === 4 && this.state.doneTrendLineData.length > 0) {
-      value = this.state.doneTrendLineData[row];
-      type = "done";
-    } else if (column === 5 && this.state.scopeTrendLineData.length > 0) {
-      value = this.state.scopeTrendLineData[row];
       type = "scope";
     }
 
@@ -152,17 +168,13 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       (p) => p.type === type
     );
 
-    // If we already have 2 points of this type, clear them and start fresh
+    // If we already have 2 points, clear them and start fresh
     if (existingPoints.length === 2) {
-      // Remove all points of this type
       const otherTypePoints = this.state.clickedPoints.filter(
         (p) => p.type !== type
       );
       this.setState({
         clickedPoints: [...otherTypePoints, { date, value, type }],
-        doneTrendLineData: type === "done" ? [] : this.state.doneTrendLineData,
-        scopeTrendLineData:
-          type === "scope" ? [] : this.state.scopeTrendLineData,
       });
       return;
     }
