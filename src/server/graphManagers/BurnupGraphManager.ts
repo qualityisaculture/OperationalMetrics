@@ -114,6 +114,8 @@ export default class BurnupGraphManager {
           summary: jira.getSummary(),
           url: jira.getUrl(),
           status: jira.getStatus(),
+          originalEstimate: jira.getOriginalEstimate(),
+          timeSpent: jira.getTimeSpent(),
         };
       }),
     };
@@ -306,7 +308,7 @@ export default class BurnupGraphManager {
           if (historyDate <= date) {
             history.items.forEach((item) => {
               if (item.field === "timespent") {
-                const timeSpent = parseInt(item.toString) / (3600 * 8); // Convert to days
+                const timeSpent = parseInt(item.toString) / (3600 * 7.5); // Convert seconds to days (7.5 hours per day)
                 timeSpentMap.set(child.getKey(), timeSpent);
               }
             });

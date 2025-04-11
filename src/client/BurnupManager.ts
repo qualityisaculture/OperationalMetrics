@@ -144,7 +144,21 @@ export function getGoogleDataTableFromMultipleBurnupData(
     function getJiraString(key: string) {
       let jira = allJirasMap.get(key);
       if (jira) {
-        return `<a href="${jira.url}">${key}</a> - ${jira.summary} - ${jira.status}`;
+        const formatTime = (days: number | null) => {
+          if (days === null) return "not set";
+          // Convert to total hours first
+          const totalHours = days * 7.5;
+          // Then calculate whole days and remaining hours
+          const wholeDays = Math.floor(days);
+          const remainingHours = Math.round(totalHours % 7.5);
+          return `${wholeDays > 0 ? `${wholeDays}d` : ""}${remainingHours > 0 ? ` ${remainingHours}h` : wholeDays === 0 ? "0d" : ""}`;
+        };
+
+        const estimate = formatTime(jira.originalEstimate);
+        const timeSpent = formatTime(jira.timeSpent);
+        const timeInfo = ` (Est: ${estimate}, Actual: ${timeSpent})`;
+
+        return `<a href="${jira.url}">${key}</a> - ${jira.summary} - ${jira.status}${timeInfo}`;
       }
       return key;
     }

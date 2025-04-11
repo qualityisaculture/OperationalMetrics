@@ -91,10 +91,10 @@ export default class Jira {
       status: json.fields.status,
       summary: json.fields.summary,
       timeoriginalestimateInDays: json.fields.timeoriginalestimate
-        ? json.fields.timeoriginalestimate / 3600 / 8
+        ? json.fields.timeoriginalestimate / 3600 / 7.5
         : null,
       timespent: json.fields.timespent
-        ? json.fields.timespent / 3600 / 8
+        ? json.fields.timespent / 3600 / 7.5
         : null,
       updated: json.fields.updated,
       url: `${domain}/browse/${json.key}`,

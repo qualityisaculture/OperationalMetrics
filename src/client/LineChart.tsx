@@ -14,6 +14,7 @@ interface ChartState {
   clickedPoints: { date: Date; value: number; type: "done" | "scope" }[];
   doneTrendLineData: (number | null)[];
   scopeTrendLineData: (number | null)[];
+  clickData: string;
 }
 
 export default class LineChart extends React.Component<ChartProps, ChartState> {
@@ -25,6 +26,7 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       clickedPoints: [],
       doneTrendLineData: [],
       scopeTrendLineData: [],
+      clickData: "",
     };
   }
 
@@ -135,6 +137,7 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
           (p) => p.type !== "done"
         ),
         doneTrendLineData: [],
+        clickData: "Cleared Done trend line",
       });
       return;
     }
@@ -145,6 +148,7 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
           (p) => p.type !== "scope"
         ),
         scopeTrendLineData: [],
+        clickData: "Cleared Scope trend line",
       });
       return;
     }
@@ -205,8 +209,7 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     }
 
     let clickData: string = dataPoint.clickData as string;
-    let notesElement = document.getElementById("notes");
-    if (notesElement) notesElement.innerHTML = clickData;
+    this.setState({ clickData });
   };
 
   drawChart() {
@@ -283,6 +286,19 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
         <div id={this.randomId}></div>
         {this.state.clickedPoints.length === 1 && (
           <div>Click another point to draw a trend line</div>
+        )}
+        {this.state.clickData && (
+          <div
+            style={{
+              marginTop: "20px",
+              padding: "15px",
+              backgroundColor: "#f5f5f5",
+              borderRadius: "4px",
+              maxHeight: "200px",
+              overflowY: "auto",
+            }}
+            dangerouslySetInnerHTML={{ __html: this.state.clickData }}
+          />
         )}
       </div>
     );
