@@ -1,4 +1,4 @@
-import { MinimumIssueInfo, TDateISODate } from "../../Types";
+import { MinimumIssueInfo, TDateISODate, SSEResponse } from "../../Types";
 import Jira from "../Jira";
 import JiraRequester, { lastUpdatedKey } from "../JiraRequester";
 
@@ -39,8 +39,40 @@ export type EpicBurnupResponse = {
 
 export default class BurnupGraphManager {
   jiraRequester: JiraRequester;
-  constructor(jiraRequester) {
+  private sendProgress: (response: SSEResponse) => void;
+  private lastProgress: any = {
+    current: 0,
+    total: 0,
+    currentEpic: "",
+    totalEpics: 0,
+    totalIssues: 0,
+    totalJiraRequests: 0,
+    currentJiraRequest: 0,
+  };
+
+  constructor(
+    jiraRequester: JiraRequester,
+    sendProgress?: (response: SSEResponse) => void
+  ) {
     this.jiraRequester = jiraRequester;
+    this.sendProgress = sendProgress || (() => {});
+  }
+
+  private updateProgress(step: string, message: string, progress?: any) {
+    // Keep track of the last progress data
+    if (progress) {
+      this.lastProgress = {
+        ...this.lastProgress,
+        ...progress,
+      };
+    }
+
+    this.sendProgress({
+      status: "processing",
+      step: step as any,
+      message,
+      progress: this.lastProgress,
+    });
   }
 
   async getEpicBurnupsToDate(epics: Jira[]): Promise<EpicBurnup[]> {
@@ -123,7 +155,17 @@ export default class BurnupGraphManager {
   }
 
   async getEpicBurnupData(key: string): Promise<EpicBurnupResponse> {
+    this.updateProgress("initializing", "Starting to process burnup data...");
+
     // Get the original issue's info
+    this.updateProgress(
+      "getting_original_issue",
+      `Getting details for issue ${key}...`,
+      {
+        currentJiraRequest: 1,
+        totalJiraRequests: 1,
+      }
+    );
     const originalIssue = await this.jiraRequester.getFullJiraDataFromKeys([
       { key },
     ]);
@@ -131,9 +173,75 @@ export default class BurnupGraphManager {
       throw new Error(`Issue ${key} not found`);
     }
 
+    // Find all epics under the issue
+    this.updateProgress(
+      "finding_epics",
+      "Finding all epics under the issue..."
+    );
     let epicKeys = await this.getAllEpicsUnderIssue(key);
+    this.updateProgress("finding_epics", `Found ${epicKeys.length} epics`, {
+      current: 0,
+      total: epicKeys.length,
+      totalEpics: epicKeys.length,
+      currentJiraRequest: 2,
+      totalJiraRequests: 2 + epicKeys.length, // Original issue + epic details + child issues
+    });
+
+    // Get epic details
+    this.updateProgress(
+      "getting_epic_details",
+      "Getting details for all epics..."
+    );
     let epics = await this.getEpicsFromKeys(epicKeys);
-    let burnupArrays = await this.getEpicBurnupsToDate(epics);
+
+    // Process each epic
+    let burnupArrays: EpicBurnup[] = [];
+    for (let i = 0; i < epics.length; i++) {
+      const epic = epics[i];
+      this.updateProgress(
+        "processing_epic",
+        `Processing epic ${epic.getKey()} (${i + 1}/${epicKeys.length})`,
+        {
+          current: i + 1,
+          total: epicKeys.length,
+          currentEpic: epic.getKey(),
+          totalEpics: epicKeys.length,
+          currentJiraRequest: 3 + i,
+          totalJiraRequests: 2 + epicKeys.length,
+        }
+      );
+
+      // Get all children for this epic
+      this.updateProgress(
+        "getting_child_issues",
+        `Getting child issues for epic ${epic.getKey()}...`
+      );
+      const allChildren = await this.getAllChildrenJiras(epic);
+      this.updateProgress(
+        "processing_child_issues",
+        `Processing ${allChildren.length} child issues for epic ${epic.getKey()}...`,
+        {
+          current: i + 1,
+          total: epicKeys.length,
+          currentEpic: epic.getKey(),
+          currentEpicProgress: 0,
+          totalEpics: epicKeys.length,
+          totalIssues: allChildren.length,
+          currentJiraRequest: 3 + i,
+          totalJiraRequests: 2 + epicKeys.length + allChildren.length,
+        }
+      );
+
+      // Calculate burnup data
+      this.updateProgress(
+        "calculating_burnup",
+        `Calculating burnup data for epic ${epic.getKey()}...`
+      );
+      const burnupData = await this.getBurnupChart(epic);
+      burnupArrays.push(burnupData);
+    }
+
+    this.updateProgress("complete", "Burnup data calculation complete");
 
     return {
       originalKey: key,

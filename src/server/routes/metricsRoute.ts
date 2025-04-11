@@ -144,9 +144,29 @@ metricsRoute.get(
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
+    // Create a new BurnupGraphManager with progress callback
+    const burnupGraphManager = new BurnupGraphManager(
+      jiraRequester,
+      (progress) => {
+        console.log("Sending progress update:", progress);
+        res.write(`data: ${JSON.stringify(progress)}\n\n`);
+      }
+    );
+
     // Send initial processing message
     res.write(
-      `data: ${JSON.stringify({ status: "processing", message: "Processing..." })}\n\n`
+      `data: ${JSON.stringify({
+        status: "processing",
+        step: "initializing",
+        message: "Starting to process burnup data...",
+        progress: {
+          current: 0,
+          total: 0,
+          currentEpic: "",
+          totalEpics: 0,
+          totalIssues: 0,
+        },
+      })}\n\n`
     );
 
     burnupGraphManager
@@ -154,14 +174,20 @@ metricsRoute.get(
       .then((data) => {
         // Send completion message with data
         res.write(
-          `data: ${JSON.stringify({ status: "complete", data: JSON.stringify(data) })}\n\n`
+          `data: ${JSON.stringify({
+            status: "complete",
+            data: JSON.stringify(data),
+          })}\n\n`
         );
         res.end();
       })
       .catch((error) => {
         console.error("Error:", error);
         res.write(
-          `data: ${JSON.stringify({ status: "error", message: error.message })}\n\n`
+          `data: ${JSON.stringify({
+            status: "error",
+            message: error.message,
+          })}\n\n`
         );
         res.end();
       });

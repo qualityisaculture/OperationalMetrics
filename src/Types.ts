@@ -51,8 +51,28 @@ export type StatusDays = {
 
 export type SSEStatus = "processing" | "complete" | "error";
 
+export type ProgressStep =
+  | "initializing"
+  | "getting_original_issue"
+  | "finding_epics"
+  | "processing_epic"
+  | "getting_epic_details"
+  | "getting_child_issues"
+  | "processing_child_issues"
+  | "calculating_burnup"
+  | "complete";
+
 export type SSEResponse = {
   status: SSEStatus;
+  step?: ProgressStep;
   message?: string;
   data?: string;
+  progress?: {
+    current: number;
+    total: number;
+    currentEpic?: string;
+    currentEpicProgress?: number;
+    totalEpics?: number;
+    totalIssues?: number;
+  };
 };

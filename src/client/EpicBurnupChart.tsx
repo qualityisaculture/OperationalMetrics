@@ -36,6 +36,15 @@ interface State {
   originalType: string;
   isLoading: boolean;
   statusMessage: string;
+  progress?: {
+    current: number;
+    total: number;
+    currentEpic?: string;
+    currentEpicProgress?: number;
+    totalEpics?: number;
+    totalIssues?: number;
+  };
+  currentStep?: string;
 }
 
 export default class EpicBurnupChart extends React.Component<Props, State> {
@@ -76,7 +85,17 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
       const response: SSEResponse = JSON.parse(event.data);
 
       if (response.status === "processing") {
-        this.setState({ statusMessage: response.message || "Processing..." });
+        this.setState({
+          statusMessage: response.message || "Processing...",
+          progress: response.progress || {
+            current: 0,
+            total: 0,
+            currentEpic: "",
+            totalEpics: 0,
+            totalIssues: 0,
+          },
+          currentStep: response.step,
+        });
       } else if (response.status === "complete" && response.data) {
         const epicResponse: EpicBurnupResponse = JSON.parse(response.data);
         const epicSelectList = epicResponse.epicBurnups.map((item, i) => ({
@@ -86,26 +105,36 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
         const selectedEpics = epicResponse.epicBurnups.map((_, i) =>
           i.toString()
         );
-        this.setState({
-          epicData: epicResponse.epicBurnups,
-          epicSelectList,
-          selectedEpics,
-          startDate: dayjs(getEarliestDate(epicResponse.epicBurnups)),
-          endDate: dayjs(getLastDate(epicResponse.epicBurnups)),
-          originalKey: epicResponse.originalKey,
-          originalSummary: epicResponse.originalSummary,
-          originalType: epicResponse.originalType,
-          isLoading: false,
-          statusMessage: "",
-        });
-        if (this.props.onDataLoaded) {
-          this.props.onDataLoaded(epicResponse.epicBurnups);
-        }
+
+        this.setState(
+          {
+            epicData: epicResponse.epicBurnups,
+            epicSelectList,
+            selectedEpics,
+            startDate: dayjs(getEarliestDate(epicResponse.epicBurnups)),
+            endDate: dayjs(getLastDate(epicResponse.epicBurnups)),
+            originalKey: epicResponse.originalKey,
+            originalSummary: epicResponse.originalSummary,
+            originalType: epicResponse.originalType,
+            isLoading: false,
+            statusMessage: "",
+            progress: undefined,
+            currentStep: undefined,
+          },
+          () => {
+            if (this.props.onDataLoaded) {
+              this.props.onDataLoaded(epicResponse.epicBurnups);
+            }
+          }
+        );
+
         eventSource.close();
       } else if (response.status === "error") {
         this.setState({
           isLoading: false,
           statusMessage: `Error: ${response.message}`,
+          progress: undefined,
+          currentStep: undefined,
         });
         eventSource.close();
       }
@@ -115,6 +144,8 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
       this.setState({
         isLoading: false,
         statusMessage: "Connection error. Please try again.",
+        progress: undefined,
+        currentStep: undefined,
       });
       eventSource.close();
     };
@@ -145,6 +176,31 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
     );
     const gapData = getGapDataFromBurnupData(data);
 
+    const formatProgress = () => {
+      if (!this.state.progress) {
+        return null;
+      }
+
+      const { current, total, currentEpic, totalIssues } = this.state.progress;
+      const progressText: string[] = [];
+
+      if (currentEpic) {
+        progressText.push(`Current Epic: ${currentEpic}`);
+      }
+      if (total) {
+        progressText.push(`Progress: ${current} of ${total} epics`);
+      }
+      if (totalIssues) {
+        progressText.push(`Total Issues: ${totalIssues}`);
+      }
+
+      return progressText.map((text, index) => (
+        <p key={index}>
+          <strong>{text}</strong>
+        </p>
+      ));
+    };
+
     return (
       <div className="epic-burnup-chart">
         <h3>
@@ -154,7 +210,28 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
         {this.state.isLoading && (
           <div style={{ textAlign: "center", margin: "20px" }}>
             <Spin size="large" />
-            <p>{this.state.statusMessage}</p>
+            <div style={{ marginTop: "10px" }}>
+              <p>{this.state.statusMessage}</p>
+              {this.state.currentStep && (
+                <p>
+                  <strong>Current Stage:</strong>{" "}
+                  {this.state.currentStep
+                    .replace(/_/g, " ")
+                    .replace(/\b\w/g, (l) => l.toUpperCase())}
+                </p>
+              )}
+              {this.state.progress && (
+                <div
+                  style={{
+                    textAlign: "left",
+                    maxWidth: "400px",
+                    margin: "10px auto",
+                  }}
+                >
+                  {formatProgress()}
+                </div>
+              )}
+            </div>
           </div>
         )}
         {!this.state.isLoading && this.state.statusMessage && (
