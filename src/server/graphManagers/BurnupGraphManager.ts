@@ -34,6 +34,7 @@ export type EpicBurnupResponse = {
   originalKey: string;
   originalSummary: string;
   originalType: string;
+  originalUrl: string;
   epicBurnups: EpicBurnup[];
 };
 
@@ -247,6 +248,7 @@ export default class BurnupGraphManager {
       originalKey: key,
       originalSummary: originalIssue[0].getSummary(),
       originalType: originalIssue[0].getType(),
+      originalUrl: originalIssue[0].getUrl(),
       epicBurnups: burnupArrays,
     };
   }

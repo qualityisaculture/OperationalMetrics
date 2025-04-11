@@ -34,6 +34,7 @@ interface State {
   originalKey: string;
   originalSummary: string;
   originalType: string;
+  originalUrl: string;
   isLoading: boolean;
   statusMessage: string;
   progress?: {
@@ -59,6 +60,7 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
       originalKey: "",
       originalSummary: "",
       originalType: "",
+      originalUrl: "",
       isLoading: false,
       statusMessage: "",
     };
@@ -116,6 +118,7 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
             originalKey: epicResponse.originalKey,
             originalSummary: epicResponse.originalSummary,
             originalType: epicResponse.originalType,
+            originalUrl: epicResponse.originalUrl,
             isLoading: false,
             statusMessage: "",
             progress: undefined,
@@ -204,8 +207,14 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
     return (
       <div className="epic-burnup-chart">
         <h3>
-          {this.state.originalKey} - {this.state.originalSummary} (
-          {this.state.originalType})
+          <a
+            href={this.state.originalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {this.state.originalKey}
+          </a>{" "}
+          - {this.state.originalSummary} ({this.state.originalType})
         </h3>
         {this.state.isLoading && (
           <div style={{ textAlign: "center", margin: "20px" }}>

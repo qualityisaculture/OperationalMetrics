@@ -151,18 +151,46 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     const existingPoints = this.state.clickedPoints.filter(
       (p) => p.type === type
     );
-    // Add new point and keep only last two of this type
-    const newPoints = [...existingPoints, { date, value, type }].slice(-2);
 
-    // Combine with points of the other type
-    const otherTypePoints = this.state.clickedPoints.filter(
-      (p) => p.type !== type
-    );
-    const newClickedPoints = [...otherTypePoints, ...newPoints];
+    // If we already have 2 points of this type, clear them and start fresh
+    if (existingPoints.length === 2) {
+      // Remove all points of this type
+      const otherTypePoints = this.state.clickedPoints.filter(
+        (p) => p.type !== type
+      );
+      this.setState({
+        clickedPoints: [...otherTypePoints, { date, value, type }],
+        doneTrendLineData: type === "done" ? [] : this.state.doneTrendLineData,
+        scopeTrendLineData:
+          type === "scope" ? [] : this.state.scopeTrendLineData,
+      });
+      return;
+    }
 
-    this.setState({ clickedPoints: newClickedPoints }, () => {
-      this.updateTrendLines();
-    });
+    // Add the new point to existing points
+    const newClickedPoints = [
+      ...this.state.clickedPoints,
+      { date, value, type },
+    ];
+
+    // If we now have exactly 2 points of this type, draw the trend line
+    const updatedTypePoints = newClickedPoints.filter((p) => p.type === type);
+    if (updatedTypePoints.length === 2) {
+      const trendLineData = this.calculateTrendLine(
+        updatedTypePoints[0],
+        updatedTypePoints[1]
+      );
+      this.setState({
+        clickedPoints: newClickedPoints,
+        doneTrendLineData:
+          type === "done" ? trendLineData : this.state.doneTrendLineData,
+        scopeTrendLineData:
+          type === "scope" ? trendLineData : this.state.scopeTrendLineData,
+      });
+    } else {
+      // Just update clicked points if we don't have 2 points yet
+      this.setState({ clickedPoints: newClickedPoints });
+    }
 
     let clickData: string = dataPoint.clickData as string;
     let notesElement = document.getElementById("notes");
