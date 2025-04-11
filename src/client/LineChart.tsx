@@ -2,7 +2,16 @@ import React from "react";
 const google = globalThis.google;
 
 export type GoogleDataTableType = {
-  data: [Date, number | null, number | null, number | null, number | null];
+  data: [
+    Date,
+    number | null, // doneDev
+    number | null, // inProgressDev
+    number | null, // scopeDev
+    number | null, // doneTest
+    number | null, // inProgressTest
+    number | null, // scopeTest
+    number | null, // timeSpent
+  ];
   clickData?: string;
 };
 
@@ -105,7 +114,16 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     const slope = valueDiff / timeDiff;
 
     return burnupDataArray.map((dataPoint) => {
-      const [date, done, inProgress, scope] = dataPoint.data;
+      const [
+        date,
+        doneDev,
+        inProgressDev,
+        scopeDev,
+        doneTest,
+        inProgressTest,
+        scopeTest,
+        timeSpent,
+      ] = dataPoint.data;
       const dateTime = date.getTime();
       const startDateTime = startDate.getTime();
 
@@ -127,7 +145,16 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     const row = selection[0].row;
     const column = selection[0].column;
     const dataPoint = this.props.burnupDataArray[row];
-    const [date, done, inProgress, scope] = dataPoint.data;
+    const [
+      date,
+      doneDev,
+      inProgressDev,
+      scopeDev,
+      doneTest,
+      inProgressTest,
+      scopeTest,
+      timeSpent,
+    ] = dataPoint.data;
 
     // Clear trend line if clicking on one
     if (column === 5) {
@@ -158,10 +185,10 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     let type: "done" | "scope" | null = null;
 
     if (column === 1) {
-      value = done;
+      value = doneDev;
       type = "done";
     } else if (column === 3) {
-      value = scope;
+      value = scopeDev;
       type = "scope";
     }
 
@@ -215,9 +242,12 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
   drawChart() {
     var data = new google.visualization.DataTable();
     data.addColumn("date", "Date");
-    data.addColumn("number", "Done");
-    data.addColumn("number", "In Progress or Done");
-    data.addColumn("number", "Scope");
+    data.addColumn("number", "Done Dev");
+    data.addColumn("number", "In Progress Dev");
+    data.addColumn("number", "Scope Dev");
+    data.addColumn("number", "Done Test");
+    data.addColumn("number", "In Progress Test");
+    data.addColumn("number", "Scope Test");
     data.addColumn("number", "Time Spent");
 
     // Add trend lines after main lines
@@ -245,12 +275,15 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       title: "Issue Burnup",
       legend: { position: "bottom" },
       series: {
-        0: { color: "blue" }, //done
-        1: { color: "orange" }, //in progress
-        2: { color: "green" }, //scope
-        3: { color: "red", targetAxisIndex: 1 }, //time spent
-        4: { color: "blue", lineDashStyle: [4, 4] }, //done trend
-        5: { color: "green", lineDashStyle: [4, 4] }, //scope trend
+        0: { color: "blue" }, // done dev
+        1: { color: "orange" }, // in progress dev
+        2: { color: "green" }, // scope dev
+        3: { color: "purple" }, // done test
+        4: { color: "brown" }, // in progress test
+        5: { color: "red" }, // scope test
+        6: { color: "gray", targetAxisIndex: 1 }, // time spent
+        7: { color: "blue", lineDashStyle: [4, 4] }, // done trend
+        8: { color: "green", lineDashStyle: [4, 4] }, // scope trend
       },
       vAxes: {
         0: { title: "Story Points" },

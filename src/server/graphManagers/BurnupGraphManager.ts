@@ -5,15 +5,24 @@ import JiraRequester, { lastUpdatedKey } from "../JiraRequester";
 export type DoneAndScopeCount = {
   //datestring
   date: TDateISODate;
-  doneCount: number | null;
-  doneEstimate: number | null;
-  doneKeys: string[];
-  inProgressCount: number | null;
-  inProgressEstimate: number | null;
-  inProgressKeys: string[];
-  scopeCount: number | null;
-  scopeEstimate: number | null;
-  scopeKeys: string[];
+  doneDevCount: number | null;
+  doneDevEstimate: number | null;
+  doneDevKeys: string[];
+  doneTestCount: number | null;
+  doneTestEstimate: number | null;
+  doneTestKeys: string[];
+  inProgressDevCount: number | null;
+  inProgressDevEstimate: number | null;
+  inProgressDevKeys: string[];
+  inProgressTestCount: number | null;
+  inProgressTestEstimate: number | null;
+  inProgressTestKeys: string[];
+  scopeDevCount: number | null;
+  scopeDevEstimate: number | null;
+  scopeDevKeys: string[];
+  scopeTestCount: number | null;
+  scopeTestEstimate: number | null;
+  scopeTestKeys: string[];
   timeSpent: number | null; // Total time spent in days
 };
 
@@ -22,10 +31,14 @@ export type EpicBurnup = {
   summary: string;
   startDate: Date;
   endDate: Date;
-  doneCountIncrement: number; //How many items are completed each day on average
-  doneCountLimit: number; //The maximum number of items that can be completed
-  doneEstimateIncrement: number; //How many points are completed each day on average
-  doneEstimateLimit: number; //The maximum number of points that can be completed
+  doneDevCountIncrement: number; //How many items are completed each day on average
+  doneDevCountLimit: number; //The maximum number of items that can be completed
+  doneDevEstimateIncrement: number; //How many points are completed each day on average
+  doneDevEstimateLimit: number; //The maximum number of points that can be completed
+  doneTestCountIncrement: number; //How many test items are completed each day on average
+  doneTestCountLimit: number; //The maximum number of test items that can be completed
+  doneTestEstimateIncrement: number; //How many test points are completed each day on average
+  doneTestEstimateLimit: number; //The maximum number of test points that can be completed
   dateData: DoneAndScopeCount[];
   allJiraInfo: MinimumIssueInfo[];
 };
@@ -90,23 +103,28 @@ export default class BurnupGraphManager {
       (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    let finalDoneCount = burnupArray[burnupArray.length - 1].doneCount || 0;
+    let finalDoneCount = burnupArray[burnupArray.length - 1].doneDevCount || 0;
     let finalDoneEstimate =
-      burnupArray[burnupArray.length - 1].doneEstimate || 0;
-    let finalScopeCount = burnupArray[burnupArray.length - 1].scopeCount || 0;
+      burnupArray[burnupArray.length - 1].doneDevEstimate || 0;
+    let finalScopeCount =
+      burnupArray[burnupArray.length - 1].scopeDevCount || 0;
 
-    let doneCountIncrement = finalDoneCount / daysBetween;
-    let doneEstimateIncrement = finalDoneEstimate / daysBetween;
+    let doneDevCountIncrement = finalDoneCount / daysBetween;
+    let doneDevEstimateIncrement = finalDoneEstimate / daysBetween;
 
     return {
       key: epic.getKey(),
       summary: epic.getSummary(),
       startDate: epic.getEpicStartDate() || epic.getCreated(),
       endDate: epic.getEpicDueDate() || new Date(),
-      doneCountIncrement,
-      doneCountLimit: burnupArrayData.totalCount, //this seems wrong
-      doneEstimateIncrement,
-      doneEstimateLimit: burnupArrayData.totalEstimate, // this seems wrong
+      doneDevCountIncrement,
+      doneDevCountLimit: burnupArrayData.totalCount, //this seems wrong
+      doneDevEstimateIncrement,
+      doneDevEstimateLimit: burnupArrayData.totalEstimate, // this seems wrong
+      doneTestCountIncrement: 0, // Assuming no test items in the initial implementation
+      doneTestCountLimit: 0, // Assuming no test items in the initial implementation
+      doneTestEstimateIncrement: 0, // Assuming no test items in the initial implementation
+      doneTestEstimateLimit: 0, // Assuming no test items in the initial implementation
       dateData: burnupArray,
       allJiraInfo: burnupArrayData.allChildJiras.map((jira) => {
         return {
@@ -267,6 +285,10 @@ export default class BurnupGraphManager {
     return jira;
   }
 
+  private isTestIssue(jira: Jira): boolean {
+    return jira.getType() === "Development - Tests (AF)";
+  }
+
   async getBurnupArrayToDate(epic: Jira): Promise<{
     data: DoneAndScopeCount[];
     totalCount: number;
@@ -316,36 +338,79 @@ export default class BurnupGraphManager {
         });
       });
 
-      let doneEstimate = doneChildren.reduce(
-        (sum, child) => sum + (child.getOriginalEstimate() || 0),
+      // Split into dev and test issues
+      let doneDevChildren = doneChildren.filter(
+        (child) => !this.isTestIssue(child)
+      );
+      let doneTestChildren = doneChildren.filter((child) =>
+        this.isTestIssue(child)
+      );
+      let inProgressDevChildren = inProgressChildren.filter(
+        (child) => !this.isTestIssue(child)
+      );
+      let inProgressTestChildren = inProgressChildren.filter((child) =>
+        this.isTestIssue(child)
+      );
+      let scopeDevChildren = scopeChildren.filter(
+        (child) => !this.isTestIssue(child)
+      );
+      let scopeTestChildren = scopeChildren.filter((child) =>
+        this.isTestIssue(child)
+      );
+
+      let doneDevEstimate = doneDevChildren.reduce(
+        (acc, child) => acc + (child.getOriginalEstimate() || 0),
         0
       );
-      let inProgressEstimate = inProgressChildren.reduce(
-        (sum, child) => sum + (child.getOriginalEstimate() || 0),
+      let doneTestEstimate = doneTestChildren.reduce(
+        (acc, child) => acc + (child.getOriginalEstimate() || 0),
         0
       );
-      let scopeEstimate = scopeChildren.reduce(
-        (sum, child) => sum + (child.getOriginalEstimate() || 0),
+      let inProgressDevEstimate = inProgressDevChildren.reduce(
+        (acc, child) => acc + (child.getOriginalEstimate() || 0),
+        0
+      );
+      let inProgressTestEstimate = inProgressTestChildren.reduce(
+        (acc, child) => acc + (child.getOriginalEstimate() || 0),
+        0
+      );
+      let scopeDevEstimate = scopeDevChildren.reduce(
+        (acc, child) => acc + (child.getOriginalEstimate() || 0),
+        0
+      );
+      let scopeTestEstimate = scopeTestChildren.reduce(
+        (acc, child) => acc + (child.getOriginalEstimate() || 0),
         0
       );
 
-      // Calculate total time spent for all children
+      // Calculate total time spent from the timeSpentMap
       let totalTimeSpent = Array.from(timeSpentMap.values()).reduce(
-        (sum, time) => sum + time,
+        (acc, time) => acc + time,
         0
       );
 
       burnupArray.push({
         date: new Date(date).toISOString().split("T")[0] as TDateISODate,
-        doneCount: doneChildren.length,
-        doneEstimate,
-        doneKeys: doneChildren.map((child) => child.getKey()),
-        inProgressCount: inProgressChildren.length,
-        inProgressEstimate,
-        inProgressKeys: inProgressChildren.map((child) => child.getKey()),
-        scopeCount: scopeChildren.length,
-        scopeEstimate,
-        scopeKeys: scopeChildren.map((child) => child.getKey()),
+        doneDevCount: doneDevChildren.length,
+        doneDevEstimate,
+        doneDevKeys: doneDevChildren.map((child) => child.getKey()),
+        doneTestCount: doneTestChildren.length,
+        doneTestEstimate,
+        doneTestKeys: doneTestChildren.map((child) => child.getKey()),
+        inProgressDevCount: inProgressDevChildren.length,
+        inProgressDevEstimate,
+        inProgressDevKeys: inProgressDevChildren.map((child) => child.getKey()),
+        inProgressTestCount: inProgressTestChildren.length,
+        inProgressTestEstimate,
+        inProgressTestKeys: inProgressTestChildren.map((child) =>
+          child.getKey()
+        ),
+        scopeDevCount: scopeDevChildren.length,
+        scopeDevEstimate,
+        scopeDevKeys: scopeDevChildren.map((child) => child.getKey()),
+        scopeTestCount: scopeTestChildren.length,
+        scopeTestEstimate,
+        scopeTestKeys: scopeTestChildren.map((child) => child.getKey()),
         timeSpent: totalTimeSpent || null,
       });
     }
