@@ -275,15 +275,15 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       title: "Issue Burnup",
       legend: { position: "bottom" },
       series: {
-        0: { color: "blue" }, // done dev
-        1: { color: "orange" }, // in progress dev
-        2: { color: "green" }, // scope dev
-        3: { color: "purple" }, // done test
-        4: { color: "brown" }, // in progress test
-        5: { color: "red" }, // scope test
-        6: { color: "gray", targetAxisIndex: 1 }, // time spent
-        7: { color: "blue", lineDashStyle: [4, 4] }, // done trend
-        8: { color: "green", lineDashStyle: [4, 4] }, // scope trend
+        0: { color: "blue" }, // Done Dev (always blue)
+        1: { color: "lightblue" }, // In Progress Dev
+        2: { color: "green" }, // Scope Dev (always green)
+        3: { color: "purple" }, // Done Test
+        4: { color: "plum" }, // In Progress Test
+        5: { color: "orange" }, // Scope Test
+        6: { color: "red", targetAxisIndex: 1 }, // Time Spent (always red)
+        7: { color: "blue", lineDashStyle: [4, 4] }, // Done Trend
+        8: { color: "green", lineDashStyle: [4, 4] }, // Scope Trend
       },
       vAxes: {
         0: { title: "Story Points" },
