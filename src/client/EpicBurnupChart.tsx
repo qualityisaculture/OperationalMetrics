@@ -261,7 +261,20 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
               value={this.state.endDate}
             />
             <LineChart burnupDataArray={data} />
-            <LineChart burnupDataArray={gapData} />
+            <LineChart
+              burnupDataArray={gapData}
+              labels={{
+                doneDev: "Remaining Unfinished Dev",
+                inProgressDev: "Remaining Unstarted Dev",
+                scopeDev: "Total Scope Dev",
+                doneTest: "Remaining Unfinished Test",
+                inProgressTest: "Remaining Unstarted Test",
+                scopeTest: "Total Scope Test",
+                timeSpent: "Remaining Time",
+                doneTrend: "Unfinished Trend",
+                scopeTrend: "Scope Trend",
+              }}
+            />
           </>
         )}
       </div>

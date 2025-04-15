@@ -17,7 +17,30 @@ export type GoogleDataTableType = {
 
 interface ChartProps {
   burnupDataArray: GoogleDataTableType[];
+  labels?: {
+    doneDev?: string;
+    inProgressDev?: string;
+    scopeDev?: string;
+    doneTest?: string;
+    inProgressTest?: string;
+    scopeTest?: string;
+    timeSpent?: string;
+    doneTrend?: string;
+    scopeTrend?: string;
+  };
 }
+
+const DEFAULT_LABELS = {
+  doneDev: "Done Dev",
+  inProgressDev: "In Progress or Done Dev",
+  scopeDev: "Scope Dev",
+  doneTest: "Done Test",
+  inProgressTest: "In Progress or Done Test",
+  scopeTest: "Scope Test",
+  timeSpent: "Time Spent",
+  doneTrend: "Done Trend",
+  scopeTrend: "Scope Trend",
+};
 
 interface ChartState {
   clickedPoints: { date: Date; value: number; type: "done" | "scope" }[];
@@ -241,21 +264,22 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
 
   drawChart() {
     var data = new google.visualization.DataTable();
+    const labels = { ...DEFAULT_LABELS, ...this.props.labels };
     data.addColumn("date", "Date");
-    data.addColumn("number", "Done Dev");
-    data.addColumn("number", "In Progress Dev");
-    data.addColumn("number", "Scope Dev");
-    data.addColumn("number", "Done Test");
-    data.addColumn("number", "In Progress Test");
-    data.addColumn("number", "Scope Test");
-    data.addColumn("number", "Time Spent");
+    data.addColumn("number", labels.doneDev);
+    data.addColumn("number", labels.inProgressDev);
+    data.addColumn("number", labels.scopeDev);
+    data.addColumn("number", labels.doneTest);
+    data.addColumn("number", labels.inProgressTest);
+    data.addColumn("number", labels.scopeTest);
+    data.addColumn("number", labels.timeSpent);
 
     // Add trend lines after main lines
     if (this.state.doneTrendLineData.length > 0) {
-      data.addColumn("number", "Done Trend");
+      data.addColumn("number", labels.doneTrend);
     }
     if (this.state.scopeTrendLineData.length > 0) {
-      data.addColumn("number", "Scope Trend");
+      data.addColumn("number", labels.scopeTrend);
     }
 
     const rows = this.props.burnupDataArray.map((item, index) => {
