@@ -117,21 +117,6 @@ export function getGoogleDataTableFromMultipleBurnupData(
     );
     let sumTimeSpent = reduceDSAField(issuesExistingToday, "timeSpent");
 
-    if (sumDoneDev === 0) {
-      sumDoneDev = null;
-    }
-    if (sumInProgressDev === 0) {
-      sumInProgressDev = null;
-    }
-    if (sumDoneTest === 0) {
-      sumDoneTest = null;
-    }
-    if (sumInProgressTest === 0) {
-      sumInProgressTest = null;
-    }
-    if (sumTimeSpent === 0) {
-      sumTimeSpent = null;
-    }
     let tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     if (new Date(d) > tomorrow) {
