@@ -28,6 +28,11 @@ type SelectPropsType = {
   value: string;
 };
 
+type IssueGroup = {
+  name: string;
+  issues: IssueInfo[];
+};
+
 interface Props {}
 interface State {
   isLoading: boolean;
@@ -50,8 +55,9 @@ interface State {
   typesSelected: string[];
   accounts: SelectProps["options"];
   accountsSelected: string[];
-  splitMode: "labels" | "initiatives" | "types" | "accounts";
+  splitMode: "labels" | "initiatives" | "types" | "accounts" | "sankey";
   sizeMode: "count" | "time booked" | "estimate";
+  sankeyGroups: IssueGroup[];
 }
 
 export default class Throughput extends React.Component<Props, State> {
@@ -79,6 +85,7 @@ export default class Throughput extends React.Component<Props, State> {
       accountsSelected: [],
       sizeMode: "count",
       splitMode: "initiatives",
+      sankeyGroups: [],
     };
   }
   getValuesInSprint = (
@@ -566,6 +573,81 @@ export default class Throughput extends React.Component<Props, State> {
     return { data, columns };
   }
 
+  getThroughputBySankey(throughputData: SprintIssueList[]) {
+    let columns: ColumnType[] = [
+      { type: "date", label: "Sprint Start Date", identifier: "date" },
+    ];
+
+    // Add a column for each sankey group
+    this.state.sankeyGroups.forEach((group) => {
+      columns.push({
+        type: "number",
+        label: group.name,
+        identifier: group.name,
+      });
+    });
+
+    // Add "Other" column for issues not in any group
+    columns.push({
+      type: "number",
+      label: "Other",
+      identifier: "Other",
+    });
+
+    let data: WithWildcards<{}>[] = [];
+
+    // For each sprint, calculate the size of issues that belong to each group
+    throughputData.forEach((sprint) => {
+      let row: WithWildcards<{}> = {
+        date: new Date(sprint.sprintStartingDate),
+      };
+
+      let clickData = "";
+      let processedIssueKeys = new Set<string>();
+
+      // For each group, find the issues from this sprint that belong to that group
+      this.state.sankeyGroups.forEach((group) => {
+        const groupIssuesInSprint = sprint.issueList.filter((issue) =>
+          group.issues.some((groupIssue) => groupIssue.key === issue.key)
+        );
+
+        // Add all processed issue keys to the set
+        groupIssuesInSprint.forEach((issue) =>
+          processedIssueKeys.add(issue.key)
+        );
+
+        row[group.name] = getSize(groupIssuesInSprint, this.state.sizeMode);
+        clickData += this.getClickData({
+          initiativeKey: group.name,
+          issues: groupIssuesInSprint,
+        });
+      });
+
+      // Find issues that weren't included in any group
+      const otherIssues = sprint.issueList.filter(
+        (issue) => !processedIssueKeys.has(issue.key)
+      );
+
+      row["Other"] = getSize(otherIssues, this.state.sizeMode);
+      clickData += this.getClickData({
+        initiativeKey: "Other",
+        issues: otherIssues,
+      });
+
+      row["clickData"] = clickData;
+      data.push(row);
+    });
+
+    return { data, columns };
+  }
+
+  handleSankeyGroupsUpdate = (groups: IssueGroup[]) => {
+    // Only update if the groups have actually changed
+    if (JSON.stringify(this.state.sankeyGroups) !== JSON.stringify(groups)) {
+      this.setState({ sankeyGroups: groups });
+    }
+  };
+
   render() {
     let { data, columns } =
       this.state.splitMode === "initiatives"
@@ -574,7 +656,9 @@ export default class Throughput extends React.Component<Props, State> {
           ? this.getThroughputByLabel(this.state.throughputData)
           : this.state.splitMode === "accounts"
             ? this.getThroughputByAccount(this.state.throughputData)
-            : this.getThroughputByType(this.state.throughputData);
+            : this.state.splitMode === "sankey"
+              ? this.getThroughputBySankey(this.state.throughputData)
+              : this.getThroughputByType(this.state.throughputData);
 
     let issueInfo: IssueInfo[] = [];
     this.state.throughputData.forEach((sprint) => {
@@ -614,6 +698,7 @@ export default class Throughput extends React.Component<Props, State> {
           <Radio.Button value="labels">Labels</Radio.Button>
           <Radio.Button value="types">Types</Radio.Button>
           <Radio.Button value="accounts">Accounts</Radio.Button>
+          <Radio.Button value="sankey">Sankey</Radio.Button>
         </Radio.Group>
         <span
           style={{
@@ -701,7 +786,10 @@ export default class Throughput extends React.Component<Props, State> {
             />
           )}
         </div>
-        <InvestmentDiagram issues={issueInfo} />
+        <InvestmentDiagram
+          issues={issueInfo}
+          onSankeyGroupsUpdate={this.handleSankeyGroupsUpdate}
+        />
       </div>
     );
   }

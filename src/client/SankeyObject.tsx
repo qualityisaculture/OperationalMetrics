@@ -26,11 +26,17 @@ type SplitResponse = {
   options: DefaultOptionType[];
 };
 
+type IssueGroup = {
+  name: string;
+  issues: IssueInfo[];
+};
+
 interface Props {
   issues: IssueInfo[];
   splitBy: SankeySplitBy;
   splitSelected: string[];
   totalSize?: number;
+  onIssuesUpdate?: (issueGroups: IssueGroup[]) => void;
 }
 interface State {
   splitBy: SankeySplitBy;
@@ -52,25 +58,77 @@ export class SankeyObject extends React.Component<Props, State> {
     };
   }
 
+  getGroupName(): string {
+    const timeSpent = this.getTimeSpent(this.state.selectedIssues);
+    const totalSize =
+      this.props.totalSize || this.getTimeSpent(this.props.issues);
+    const percentage = Math.round((timeSpent / totalSize) * 10000) / 100;
+    const optionSelectedString = this.state.options
+      .filter((option) =>
+        this.state.optionsSelected.includes(option.value as string)
+      )
+      .map((option) => option.label)
+      .join(", ");
+    return `${this.state.splitBy} - ${timeSpent} days (${percentage}%) spent on ${optionSelectedString} (${this.state.selectedIssues.length} issues)`;
+  }
+
+  getAllIssuesRecursively(): IssueGroup[] {
+    let groups: IssueGroup[] = [
+      {
+        name: this.getGroupName(),
+        issues: this.state.selectedIssues,
+      },
+    ];
+
+    return groups;
+  }
+
   componentDidUpdate(
     prevProps: Readonly<Props>,
     prevState: Readonly<State>,
     snapshot?: any
   ): void {
-    if (this.props.issues !== prevProps.issues) {
-      let { selectedIssues, otherSankeyObject, options } = this.getSplitBy(
-        this.state.splitBy
-      );
-      this.setState({
-        selectedIssues: this.props.issues,
-        options,
-      });
+    if (
+      JSON.stringify(this.props.issues) !== JSON.stringify(prevProps.issues) ||
+      JSON.stringify(this.state.selectedIssues) !==
+        JSON.stringify(prevState.selectedIssues) ||
+      JSON.stringify(this.state.optionsSelected) !==
+        JSON.stringify(prevState.optionsSelected)
+    ) {
+      const issueGroups = this.getAllIssuesRecursively();
+      this.props.onIssuesUpdate?.(issueGroups);
+
+      if (this.props.issues !== prevProps.issues) {
+        let { selectedIssues, otherSankeyObject, options } = this.getSplitBy(
+          this.state.splitBy
+        );
+        this.setState({
+          selectedIssues: this.props.issues,
+          options,
+        });
+      }
     }
   }
 
   setSplitBy(splitBy: SankeySplitBy, optionsSelected?: string[]) {
-    this.setState({ splitBy });
-    this.setState(this.getSplitBy(splitBy));
+    const splitResponse = this.getSplitBy(splitBy);
+    const defaultOption = String(splitResponse.options[0]?.value || "All");
+
+    // Only use the new optionsSelected if explicitly provided
+    const newOptionsSelected =
+      optionsSelected !== undefined ? optionsSelected : [defaultOption];
+
+    this.setState(
+      {
+        splitBy,
+        ...splitResponse,
+        optionsSelected: newOptionsSelected,
+      },
+      () => {
+        const issueGroups = this.getAllIssuesRecursively();
+        this.props.onIssuesUpdate?.(issueGroups);
+      }
+    );
   }
 
   getSplitBy(splitBy: SankeySplitBy): SplitResponse {
@@ -90,29 +148,37 @@ export class SankeyObject extends React.Component<Props, State> {
   }
 
   setSelectedOptions(optionsSelected: string[]) {
+    let newState;
     if (this.state.splitBy === "Initiative") {
-      this.setState({
+      newState = {
         ...this.splitByInitiative(optionsSelected),
         optionsSelected,
         options: this.state.options,
-      });
+      };
     } else if (this.state.splitBy === "Labels") {
-      this.setState({
+      newState = {
         ...this.splitByLabels(optionsSelected),
         optionsSelected,
         options: this.state.options,
-      });
+      };
     } else if (this.state.splitBy === "Type") {
-      this.setState({
+      newState = {
         ...this.splitByType(optionsSelected),
         optionsSelected,
         options: this.state.options,
-      });
+      };
     } else if (this.state.splitBy === "Account") {
-      this.setState({
+      newState = {
         ...this.splitByAccount(optionsSelected),
         optionsSelected,
         options: this.state.options,
+      };
+    }
+
+    if (newState) {
+      this.setState(newState, () => {
+        const issueGroups = this.getAllIssuesRecursively();
+        this.props.onIssuesUpdate?.(issueGroups);
       });
     }
   }
@@ -235,15 +301,22 @@ export class SankeyObject extends React.Component<Props, State> {
         otherIssues.push(issue);
       }
     });
-    let otherSankeyObject = (
-      <SankeyObject
-        key={Math.random()}
-        issues={otherIssues}
-        splitBy="None"
-        splitSelected={["None"]}
-        totalSize={this.props.totalSize || this.getTimeSpent(this.props.issues)}
-      />
-    );
+    let otherSankeyObject =
+      otherIssues.length > 0 ? (
+        <SankeyObject
+          key={Math.random()}
+          issues={otherIssues}
+          splitBy="None"
+          splitSelected={["None"]}
+          totalSize={
+            this.props.totalSize || this.getTimeSpent(this.props.issues)
+          }
+          onIssuesUpdate={(groups) => {
+            const allGroups = [...this.getAllIssuesRecursively(), ...groups];
+            this.props.onIssuesUpdate?.(allGroups);
+          }}
+        />
+      ) : null;
     return {
       selectedIssues,
       otherSankeyObject,
@@ -261,14 +334,22 @@ export class SankeyObject extends React.Component<Props, State> {
         otherIssues.push(issue);
       }
     });
-    let otherSankeyObject = (
-      <SankeyObject
-        issues={otherIssues}
-        splitBy="None"
-        splitSelected={["None"]}
-        totalSize={this.props.totalSize || this.getTimeSpent(this.props.issues)}
-      />
-    );
+    let otherSankeyObject =
+      otherIssues.length > 0 ? (
+        <SankeyObject
+          key={Math.random()}
+          issues={otherIssues}
+          splitBy="None"
+          splitSelected={["None"]}
+          totalSize={
+            this.props.totalSize || this.getTimeSpent(this.props.issues)
+          }
+          onIssuesUpdate={(groups) => {
+            const allGroups = [...this.getAllIssuesRecursively(), ...groups];
+            this.props.onIssuesUpdate?.(allGroups);
+          }}
+        />
+      ) : null;
     return {
       selectedIssues,
       otherSankeyObject,
@@ -286,14 +367,22 @@ export class SankeyObject extends React.Component<Props, State> {
         otherIssues.push(issue);
       }
     });
-    let otherSankeyObject = (
-      <SankeyObject
-        issues={otherIssues}
-        splitBy="None"
-        splitSelected={["None"]}
-        totalSize={this.props.totalSize || this.getTimeSpent(this.props.issues)}
-      />
-    );
+    let otherSankeyObject =
+      otherIssues.length > 0 ? (
+        <SankeyObject
+          key={Math.random()}
+          issues={otherIssues}
+          splitBy="None"
+          splitSelected={["None"]}
+          totalSize={
+            this.props.totalSize || this.getTimeSpent(this.props.issues)
+          }
+          onIssuesUpdate={(groups) => {
+            const allGroups = [...this.getAllIssuesRecursively(), ...groups];
+            this.props.onIssuesUpdate?.(allGroups);
+          }}
+        />
+      ) : null;
     return {
       selectedIssues,
       otherSankeyObject,
@@ -311,14 +400,22 @@ export class SankeyObject extends React.Component<Props, State> {
         otherIssues.push(issue);
       }
     });
-    let otherSankeyObject = (
-      <SankeyObject
-        issues={otherIssues}
-        splitBy="None"
-        splitSelected={["None"]}
-        totalSize={this.props.totalSize || this.getTimeSpent(this.props.issues)}
-      />
-    );
+    let otherSankeyObject =
+      otherIssues.length > 0 ? (
+        <SankeyObject
+          key={Math.random()}
+          issues={otherIssues}
+          splitBy="None"
+          splitSelected={["None"]}
+          totalSize={
+            this.props.totalSize || this.getTimeSpent(this.props.issues)
+          }
+          onIssuesUpdate={(groups) => {
+            const allGroups = [...this.getAllIssuesRecursively(), ...groups];
+            this.props.onIssuesUpdate?.(allGroups);
+          }}
+        />
+      ) : null;
     return {
       selectedIssues,
       otherSankeyObject,
@@ -327,17 +424,7 @@ export class SankeyObject extends React.Component<Props, State> {
   }
 
   render(): React.ReactNode {
-    let timeSpent = this.getTimeSpent(this.state.selectedIssues);
-    let totalSize =
-      this.props.totalSize || this.getTimeSpent(this.props.issues);
-    let percentage = Math.round((timeSpent / totalSize) * 10000) / 100;
-    let optionSelectedString = this.state.options
-      .filter((option) =>
-        this.state.optionsSelected.includes(option.value as string)
-      )
-      .map((option) => option.label)
-      .join(", ");
-    let summaryString = `${timeSpent} days (${percentage}%) spent on ${optionSelectedString} (${this.state.selectedIssues.length} issues)`;
+    const summaryString = this.getGroupName();
     return (
       <div>
         <Collapse>
@@ -352,15 +439,9 @@ export class SankeyObject extends React.Component<Props, State> {
               options={this.state.options}
               onChange={this.setSelectedOptions.bind(this)}
             />
-            {this.state.splitBy +
-              " - " +
-              timeSpent +
-              " days -  " +
-              percentage +
-              "%"}
             <Collapse>
               <Collapse.Panel header="Issues" key="1">
-                {this.state.selectedIssues
+                {[...this.state.selectedIssues]
                   .sort((a, b) => (b.timespent || 0) - (a.timespent || 0))
                   .map((issue) => (
                     <div key={issue.key}>
@@ -379,6 +460,7 @@ export class SankeyObject extends React.Component<Props, State> {
                     splitBy="All"
                     splitSelected={["All"]}
                     totalSize={this.getTimeSpent(this.state.selectedIssues)}
+                    onIssuesUpdate={this.props.onIssuesUpdate}
                   />
                 </Collapse.Panel>
               </Collapse>
