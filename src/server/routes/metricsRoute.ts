@@ -23,7 +23,6 @@ const jiraRequester = new JiraRequester();
 const bambooRequester = new BambooRequester();
 const burnupGraphManager = new BurnupGraphManager(jiraRequester);
 const estimatesGraphManager = new EstimatesGraphManager(jiraRequester);
-const throughputGraphManager = new ThroughputGraphManager(jiraRequester);
 const bambooGraphManager = new BambooGraphManager(bambooRequester);
 const timeInDevManager = new TimeInDevManager(jiraRequester);
 const leadTimeGraphManager = new LeadTimeGraphManager(jiraRequester);
@@ -112,12 +111,57 @@ metricsRoute.get(
     const query = req.query.query;
     const currentSprintStartDate = new Date(req.query.currentSprintStartDate);
     const numberOfSprints = parseInt(req.query.numberOfSprints);
+
+    // Set headers for SSE
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    // Create a new ThroughputGraphManager with progress callback
+    const throughputGraphManager = new ThroughputGraphManager(
+      jiraRequester,
+      (progress) => {
+        console.log("Sending progress update:", progress);
+        res.write(`data: ${JSON.stringify(progress)}\n\n`);
+      }
+    );
+
+    // Send initial processing message
+    res.write(
+      `data: ${JSON.stringify({
+        status: "processing",
+        step: "initializing",
+        message: "Starting to process throughput data...",
+        progress: {
+          current: 0,
+          total: 0,
+          totalIssues: 0,
+        },
+      })}\n\n`
+    );
+
     throughputGraphManager
       .getThroughputData(query, currentSprintStartDate, numberOfSprints)
       .then((data) => {
-        res.json({ message: "Metrics route", data: JSON.stringify(data) });
+        // Send completion message with data
+        res.write(
+          `data: ${JSON.stringify({
+            status: "complete",
+            data: JSON.stringify(data),
+          })}\n\n`
+        );
+        res.end();
       })
-      .catch((error) => console.error("Error:", error));
+      .catch((error) => {
+        console.error("Error:", error);
+        res.write(
+          `data: ${JSON.stringify({
+            status: "error",
+            message: error.message,
+          })}\n\n`
+        );
+        res.end();
+      });
   }
 );
 

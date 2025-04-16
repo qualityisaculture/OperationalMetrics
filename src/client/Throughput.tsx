@@ -1,6 +1,6 @@
 import React from "react";
 import type { RadioChangeEvent, DatePickerProps, InputNumberProps } from "antd";
-import { Radio, DatePicker, InputNumber } from "antd";
+import { Radio, DatePicker, InputNumber, Spin } from "antd";
 import dayjs from "dayjs";
 import { SprintIssueList } from "../server/graphManagers/GraphManagerTypes";
 import Select from "./Select";
@@ -30,6 +30,14 @@ type SelectPropsType = {
 
 interface Props {}
 interface State {
+  isLoading: boolean;
+  statusMessage: string;
+  currentStep?: string;
+  progress?: {
+    current: number;
+    total: number;
+    totalIssues: number;
+  };
   input: string;
   currentSprintStartDate: string;
   numberOfSprints: number;
@@ -53,6 +61,10 @@ export default class Throughput extends React.Component<Props, State> {
       "throughputQuery"
     );
     this.state = {
+      isLoading: false,
+      statusMessage: "",
+      currentStep: undefined,
+      progress: undefined,
       input: localStorage.getItem("throughputQuery") || tempQuery || "",
       currentSprintStartDate: dayjs().toString(),
       numberOfSprints: 4,
@@ -179,24 +191,35 @@ export default class Throughput extends React.Component<Props, State> {
   };
   onClick = () => {
     localStorage.setItem("throughputQuery", this.state.input);
-    console.log("Button clicked");
-    //Request to the server /api/metrics
-    fetch(
+    this.setState({ isLoading: true, statusMessage: "Starting data fetch..." });
+
+    const eventSource = new EventSource(
       "/api/throughput?query=" +
-        this.state.input +
+        encodeURIComponent(this.state.input) +
         "&currentSprintStartDate=" +
-        this.state.currentSprintStartDate +
+        encodeURIComponent(this.state.currentSprintStartDate) +
         "&numberOfSprints=" +
         this.state.numberOfSprints
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        let throughputData: SprintIssueList[] = JSON.parse(data.data);
-        let arrayOfAllInitiatives =
+    );
+
+    eventSource.onmessage = (event) => {
+      const response = JSON.parse(event.data);
+
+      if (response.status === "processing") {
+        this.setState({
+          statusMessage: response.message || "Processing...",
+          progress: response.progress,
+          currentStep: response.step,
+        });
+      } else if (response.status === "complete" && response.data) {
+        const throughputData = JSON.parse(response.data);
+        const arrayOfAllInitiatives =
           this.getInitiativesAsSelectProps(throughputData);
-        let arrayOfAllLabels = this.getLabelsAsSelectProps(throughputData);
-        let arrayOfAllTypes = this.getTypesAsSelectProps(throughputData);
-        let arrayOfAllAccounts = this.getAccountsAsSelectProps(throughputData);
+        const arrayOfAllLabels = this.getLabelsAsSelectProps(throughputData);
+        const arrayOfAllTypes = this.getTypesAsSelectProps(throughputData);
+        const arrayOfAllAccounts =
+          this.getAccountsAsSelectProps(throughputData);
+
         this.setState({
           throughputData,
           initiatitives: arrayOfAllInitiatives,
@@ -207,8 +230,32 @@ export default class Throughput extends React.Component<Props, State> {
           typesSelected: [],
           accounts: arrayOfAllAccounts,
           accountsSelected: [],
+          isLoading: false,
+          statusMessage: "",
+          progress: undefined,
+          currentStep: undefined,
         });
+        eventSource.close();
+      } else if (response.status === "error") {
+        this.setState({
+          isLoading: false,
+          statusMessage: `Error: ${response.message}`,
+          progress: undefined,
+          currentStep: undefined,
+        });
+        eventSource.close();
+      }
+    };
+
+    eventSource.onerror = () => {
+      this.setState({
+        isLoading: false,
+        statusMessage: "Connection error. Please try again.",
+        progress: undefined,
+        currentStep: undefined,
       });
+      eventSource.close();
+    };
   };
   onSprintStartDateChange: DatePickerProps["onChange"] = (date, dateString) => {
     this.setState({ currentSprintStartDate: date.toString() });
@@ -536,6 +583,12 @@ export default class Throughput extends React.Component<Props, State> {
 
     return (
       <div>
+        {/* Error message */}
+        {!this.state.isLoading && this.state.statusMessage && (
+          <div style={{ textAlign: "center", margin: "20px", color: "red" }}>
+            <p>{this.state.statusMessage}</p>
+          </div>
+        )}
         <input
           type="text"
           value={this.state.input}
@@ -611,12 +664,43 @@ export default class Throughput extends React.Component<Props, State> {
           <Radio.Button value="estimate">Estimate</Radio.Button>
         </Radio.Group>
         <button onClick={this.onClick}>Click me</button>
-        <ColumnChart
-          data={data}
-          columns={columns}
-          title="Throughput"
-          extraOptions={{ isStacked: true }}
-        />
+        {/* Chart or Loading Indicator */}
+        <div style={{ minHeight: "400px", position: "relative" }}>
+          {this.state.isLoading ? (
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                textAlign: "center",
+              }}
+            >
+              <Spin size="large" />
+              <div style={{ marginTop: "10px" }}>
+                <p>{this.state.statusMessage}</p>
+                {this.state.currentStep && (
+                  <p>
+                    <strong>Current Stage:</strong>{" "}
+                    {this.state.currentStep
+                      .replace(/_/g, " ")
+                      .replace(/\b\w/g, (l) => l.toUpperCase())}
+                  </p>
+                )}
+                {this.state.progress && this.state.progress.totalIssues && (
+                  <p>Processing {this.state.progress.totalIssues} issues</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <ColumnChart
+              data={data}
+              columns={columns}
+              title="Throughput"
+              extraOptions={{ isStacked: true }}
+            />
+          )}
+        </div>
         <InvestmentDiagram issues={issueInfo} />
       </div>
     );
