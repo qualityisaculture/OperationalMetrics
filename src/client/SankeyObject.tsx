@@ -46,6 +46,13 @@ interface State {
   selectedIssues: IssueInfo[];
 }
 
+function byTimeSpent(
+  a: { timeSpent?: number },
+  b: { timeSpent?: number }
+): number {
+  return (b.timeSpent || 0) - (a.timeSpent || 0);
+}
+
 export class SankeyObject extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
@@ -209,10 +216,11 @@ export class SankeyObject extends React.Component<Props, State> {
       initiatives.push({
         value: initiative.key,
         label: `${initiative.key} - ${initiative.summary} - ${this.getTimeSpent(initiative.issues)}`,
+        timeSpent: this.getTimeSpent(initiative.issues),
       });
     });
 
-    return initiatives;
+    return initiatives.sort(byTimeSpent);
   }
 
   getLabelsKeys(issues: IssueInfo[]): DefaultOptionType[] {
@@ -232,9 +240,10 @@ export class SankeyObject extends React.Component<Props, State> {
       labels.push({
         value: label,
         label: `${label} - ${this.getTimeSpent(labelIssues)}`,
+        timeSpent: this.getTimeSpent(labelIssues),
       });
     });
-    return labels;
+    return labels.sort(byTimeSpent);
   }
 
   getTypesKeys(issues: IssueInfo[]): DefaultOptionType[] {
@@ -252,9 +261,10 @@ export class SankeyObject extends React.Component<Props, State> {
       types.push({
         value: type,
         label: `${type} - ${this.getTimeSpent(typeIssues)}`,
+        timeSpent: this.getTimeSpent(typeIssues),
       });
     });
-    return types;
+    return types.sort(byTimeSpent);
   }
 
   getAccountKeys(issues: IssueInfo[]): DefaultOptionType[] {
@@ -272,9 +282,10 @@ export class SankeyObject extends React.Component<Props, State> {
       accounts.push({
         value: account,
         label: `${account} - ${this.getTimeSpent(accountIssues)}`,
+        timeSpent: this.getTimeSpent(accountIssues),
       });
     });
-    return accounts;
+    return accounts.sort(byTimeSpent);
   }
 
   getTimeSpent(issues: IssueInfo[]): number {
