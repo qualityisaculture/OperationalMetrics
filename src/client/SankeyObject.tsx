@@ -63,19 +63,23 @@ export class SankeyObject extends React.Component<Props, State> {
     const totalSize =
       this.props.totalSize || this.getTimeSpent(this.props.issues);
     const percentage = Math.round((timeSpent / totalSize) * 10000) / 100;
-    const optionSelectedString = this.state.options
+    const optionSelectedString = this.optionSelectedString();
+    return `${this.state.splitBy} - ${timeSpent} days (${percentage}%) spent on ${optionSelectedString} (${this.state.selectedIssues.length} issues)`;
+  }
+
+  private optionSelectedString() {
+    return this.state.options
       .filter((option) =>
         this.state.optionsSelected.includes(option.value as string)
       )
       .map((option) => option.label)
       .join(", ");
-    return `${this.state.splitBy} - ${timeSpent} days (${percentage}%) spent on ${optionSelectedString} (${this.state.selectedIssues.length} issues)`;
   }
 
   getAllIssuesRecursively(): IssueGroup[] {
     let groups: IssueGroup[] = [
       {
-        name: this.getGroupName(),
+        name: this.optionSelectedString(),
         issues: this.state.selectedIssues,
       },
     ];
