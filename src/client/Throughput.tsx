@@ -1,12 +1,12 @@
 import React from "react";
 import type { RadioChangeEvent, DatePickerProps, InputNumberProps } from "antd";
-import { Radio, DatePicker, InputNumber, Spin } from "antd";
+import { Radio, DatePicker, InputNumber, Spin, Button } from "antd";
 import dayjs from "dayjs";
 import { SprintIssueList } from "../server/graphManagers/GraphManagerTypes";
 import Select from "./Select";
 import type { SelectProps } from "antd";
 import { IssueInfo } from "../server/graphManagers/GraphManagerTypes";
-import { getSize } from "./Utils";
+import { getSize, createThroughputCSV } from "./Utils";
 import { DefaultOptionType } from "antd/es/select";
 import ColumnChart, { CategoryData, ColumnType } from "./ColumnChart";
 import { WithWildcards } from "../Types";
@@ -749,6 +749,15 @@ export default class Throughput extends React.Component<Props, State> {
           <Radio.Button value="estimate">Estimate</Radio.Button>
         </Radio.Group>
         <button onClick={this.onClick}>Click me</button>
+        {issueInfo.length > 0 && (
+          <Button
+            type="primary"
+            onClick={() => createThroughputCSV(issueInfo)}
+            style={{ marginLeft: "10px" }}
+          >
+            Export to CSV
+          </Button>
+        )}
         {/* Chart or Loading Indicator */}
         <div style={{ minHeight: "400px", position: "relative" }}>
           {this.state.isLoading ? (
