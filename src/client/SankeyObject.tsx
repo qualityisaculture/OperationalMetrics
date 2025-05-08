@@ -11,7 +11,8 @@ type SankeySplitBy =
   | "Initiative"
   | "Labels"
   | "Type"
-  | "Account";
+  | "Account"
+  | "Epic";
 let splitByOptions: DefaultOptionType[] = [
   { value: "All", label: "All" },
   { value: "None", label: "None" },
@@ -19,6 +20,7 @@ let splitByOptions: DefaultOptionType[] = [
   { value: "Labels", label: "Labels" },
   { value: "Type", label: "Type" },
   { value: "Account", label: "Account" },
+  { value: "Epic", label: "Epic" },
 ];
 type SplitResponse = {
   selectedIssues: IssueInfo[];
@@ -153,6 +155,8 @@ export class SankeyObject extends React.Component<Props, State> {
       return this.splitByType();
     } else if (splitBy === "Account") {
       return this.splitByAccount();
+    } else if (splitBy === "Epic") {
+      return this.splitByEpic();
     } else {
       return this.splitByAll();
     }
@@ -181,6 +185,12 @@ export class SankeyObject extends React.Component<Props, State> {
     } else if (this.state.splitBy === "Account") {
       newState = {
         ...this.splitByAccount(optionsSelected),
+        optionsSelected,
+        options: this.state.options,
+      };
+    } else if (this.state.splitBy === "Epic") {
+      newState = {
+        ...this.splitByEpic(optionsSelected),
         optionsSelected,
         options: this.state.options,
       };
@@ -286,6 +296,36 @@ export class SankeyObject extends React.Component<Props, State> {
       });
     });
     return accounts.sort(byTimeSpent);
+  }
+
+  getEpicKeys(issues: IssueInfo[]): DefaultOptionType[] {
+    let epicsMap = new Map<
+      string,
+      { key: string; name: string; issues: IssueInfo[] }
+    >();
+    issues.forEach((issue) => {
+      const epicKey = issue.epicKey || "NO_EPIC";
+      const epicName = issue.epicName || "No Epic";
+      if (epicsMap.has(epicKey)) {
+        //@ts-ignore
+        epicsMap.get(epicKey).issues.push(issue);
+      } else {
+        epicsMap.set(epicKey, {
+          key: epicKey,
+          name: epicName,
+          issues: [issue],
+        });
+      }
+    });
+    let epics: DefaultOptionType[] = [];
+    epicsMap.forEach((epic) => {
+      epics.push({
+        value: epic.key,
+        label: `${epic.key} - ${epic.name} - ${this.getTimeSpent(epic.issues)}`,
+        timeSpent: this.getTimeSpent(epic.issues),
+      });
+    });
+    return epics.sort(byTimeSpent);
   }
 
   getTimeSpent(issues: IssueInfo[]): number {
@@ -435,6 +475,41 @@ export class SankeyObject extends React.Component<Props, State> {
       selectedIssues,
       otherSankeyObject,
       options: this.getAccountKeys(this.props.issues),
+    };
+  }
+
+  splitByEpic(optionsSelected?: string[]): SplitResponse {
+    let selectedIssues: IssueInfo[] = [];
+    let otherIssues: IssueInfo[] = [];
+    optionsSelected = optionsSelected || this.state.optionsSelected;
+    this.props.issues.forEach((issue) => {
+      const epicKey = issue.epicKey || "NO_EPIC";
+      if (optionsSelected.includes(epicKey)) {
+        selectedIssues.push(issue);
+      } else {
+        otherIssues.push(issue);
+      }
+    });
+    let otherSankeyObject =
+      otherIssues.length > 0 ? (
+        <SankeyObject
+          key={Math.random()}
+          issues={otherIssues}
+          splitBy="None"
+          splitSelected={["None"]}
+          totalSize={
+            this.props.totalSize || this.getTimeSpent(this.props.issues)
+          }
+          onIssuesUpdate={(groups) => {
+            const allGroups = [...this.getAllIssuesRecursively(), ...groups];
+            this.props.onIssuesUpdate?.(allGroups);
+          }}
+        />
+      ) : null;
+    return {
+      selectedIssues,
+      otherSankeyObject,
+      options: this.getEpicKeys(this.props.issues),
     };
   }
 
