@@ -7,6 +7,8 @@ export type GoogleDataTableType = {
     number | null, // doneDev
     number | null, // inProgressDev
     number | null, // scopeDev
+    string | null, // annotation
+    string | null, // annotationHover
     number | null, // doneTest
     number | null, // inProgressTest
     number | null, // scopeTest
@@ -269,6 +271,12 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     data.addColumn("number", labels.doneDev);
     data.addColumn("number", labels.inProgressDev);
     data.addColumn("number", labels.scopeDev);
+    data.addColumn({ type: "string", role: "annotation" });
+    data.addColumn({
+      type: "string",
+      role: "annotationText",
+      p: { html: true },
+    });
     data.addColumn("number", labels.doneTest);
     data.addColumn("number", labels.inProgressTest);
     data.addColumn("number", labels.scopeTest);

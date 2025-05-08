@@ -9,7 +9,7 @@ export type CumulativeFlowDiagramData = {
 export type CumulativeFlowDiagramDateStatus = {
   date: Date;
   statuses: { status: string; issues: MinimumIssueInfo[] }[];
-}
+};
 
 export type CumulativeFlowDiagramTimeline = CumulativeFlowDiagramDateStatus[];
 
@@ -64,6 +64,10 @@ export default class CumulativeFlowDiagramManager {
           key: issue.getKey(),
           summary: issue.getSummary(),
           url: issue.getUrl(),
+          status: issue.getStatus(),
+          type: issue.getType(),
+          originalEstimate: issue.getOriginalEstimate(),
+          timeSpent: issue.getTimeSpent(),
         });
       }
       dateStatuses.push({

@@ -134,6 +134,7 @@ export default class BurnupGraphManager {
           status: jira.getStatus(),
           originalEstimate: jira.getOriginalEstimate(),
           timeSpent: jira.getTimeSpent(),
+          type: jira.getType(),
         };
       }),
     };

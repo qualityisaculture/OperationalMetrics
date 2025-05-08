@@ -139,6 +139,9 @@ export default class LeadTime extends React.Component<Props, State> {
           summary: issueInfo.summary,
           url: issueInfo.url,
           status: issueInfo.status,
+          type: issueInfo.type,
+          originalEstimate: issueInfo.timeoriginalestimate,
+          timeSpent: issueInfo.timespent,
           statusTimes: issueInfo.statusTimes,
           timeSpentInDays: issueInfo.timespent || 0,
         };
@@ -169,6 +172,9 @@ export default class LeadTime extends React.Component<Props, State> {
             status: issueInfo.status,
             statusTimes: issueInfo.statusTimes,
             timeSpentInDays: issueInfo.timespent || 0,
+            type: issueInfo.type,
+            originalEstimate: issueInfo.timeoriginalestimate,
+            timeSpent: issueInfo.timespent,
           };
         }),
       });
@@ -184,6 +190,9 @@ export default class LeadTime extends React.Component<Props, State> {
           status: issueInfo.status,
           statusTimes: issueInfo.statusTimes,
           timeSpentInDays: issueInfo.timespent || 0,
+          type: issueInfo.type,
+          originalEstimate: issueInfo.timeoriginalestimate,
+          timeSpent: issueInfo.timespent,
         };
       }),
     });

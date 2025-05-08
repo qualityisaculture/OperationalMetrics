@@ -42,6 +42,7 @@ export type MinimumIssueInfo = {
   summary: string;
   url: string;
   status: string;
+  type: string;
   originalEstimate: number | null;
   timeSpent: number | null;
 };

@@ -158,6 +158,13 @@ export function getGoogleDataTableFromMultipleBurnupData(
     function getJiraString(key: string) {
       let jira = allJirasMap.get(key);
       if (jira) {
+        return `${key} - ${jira.summary} - ${jira.status} - ${jira.type}`;
+      }
+      return key;
+    }
+    function getJiraURL(key: string) {
+      let jira = allJirasMap.get(key);
+      if (jira) {
         const formatTime = (days: number | null) => {
           if (days === null) return "not set";
           // Convert to total hours first
@@ -181,24 +188,24 @@ export function getGoogleDataTableFromMultipleBurnupData(
     clickData += "<h3>Issues done previously</h3>";
     previousIssuesCompleted.forEach((item) => {
       item.doneDevKeys.forEach((key) => {
-        clickData += `${getJiraString(key)}<br>`;
+        clickData += `${getJiraURL(key)}<br>`;
       });
     });
     clickData += "<h3>Issues done today</h3>";
     allNewIssuesCompletedToday.forEach((key) => {
-      clickData += `${getJiraString(key)}<br>`;
+      clickData += `${getJiraURL(key)}<br>`;
     });
     clickData += "<h3>Issues in progress</h3>";
     allNewIssuesInProgressToday.forEach((key) => {
-      clickData += `${getJiraString(key)}<br>`;
+      clickData += `${getJiraURL(key)}<br>`;
     });
     clickData += "<h3>Scope added today</h3>";
     allNewScopeToday.forEach((key) => {
-      clickData += `${getJiraString(key)}<br>`;
+      clickData += `${getJiraURL(key)}<br>`;
     });
     clickData += "<h3>Uncompleted scope</h3>";
     allUncompletedScope.forEach((key) => {
-      clickData += `${getJiraString(key)}<br>`;
+      clickData += `${getJiraURL(key)}<br>`;
     });
     previousIssuesCompleted = issuesExistingToday;
 
@@ -208,6 +215,10 @@ export function getGoogleDataTableFromMultipleBurnupData(
         sumDoneDev,
         sumInProgressDev,
         sumScopeDev,
+        allNewScopeToday.size > 0 ? allNewScopeToday.size.toString() : null,
+        allNewScopeToday.size > 0
+          ? Array.from(allNewScopeToday).map(getJiraString).join("<br/>")
+          : null,
         sumDoneTest,
         sumInProgressTest,
         sumScopeTest,
@@ -320,6 +331,8 @@ export function getGapDataFromBurnupData(
       doneDev,
       inProgressDev,
       scopeDev,
+      annotation,
+      annotationHover,
       doneTest,
       inProgressTest,
       scopeTest,
@@ -344,6 +357,8 @@ export function getGapDataFromBurnupData(
         gapToDoneDev,
         gapToInProgressDev,
         0,
+        null,
+        null,
         gapToDoneTest,
         gapToInProgressTest,
         0,
