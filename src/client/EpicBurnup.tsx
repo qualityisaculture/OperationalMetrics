@@ -53,7 +53,7 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
     this.state = {
       input: localStorage.getItem("epicIssueKey") || "",
       queries: [],
-      estimationMode: "count",
+      estimationMode: "estimate",
       order: [], // Initialize empty order array
     };
   }
