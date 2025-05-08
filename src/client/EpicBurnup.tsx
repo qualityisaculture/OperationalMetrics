@@ -16,8 +16,6 @@ interface State {
 
 const styles: Record<string, CSSProperties> = {
   chartsContainer: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(600px, 1fr))",
     gap: "2rem",
     marginTop: "2rem",
   },
