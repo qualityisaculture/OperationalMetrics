@@ -287,7 +287,9 @@ export default class BurnupGraphManager {
   }
 
   private isTestIssue(jira: Jira): boolean {
-    return jira.getType() === "Development - Tests (AF)";
+    return (
+      jira.getType() === "Development - Tests (AF)" || jira.getType() === "Test"
+    );
   }
 
   async getBurnupArrayToDate(epic: Jira): Promise<{
