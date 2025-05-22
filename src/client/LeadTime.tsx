@@ -4,6 +4,8 @@ import {
   InputNumber,
   Radio,
   RadioChangeEvent,
+  AutoComplete,
+  Button,
 } from "antd";
 import Select from "./Select";
 import React from "react";
@@ -22,6 +24,7 @@ import { MinimumIssueInfo } from "../Types";
 interface Props {}
 interface State {
   input: string;
+  queryHistory: string[];
   currentSprintStartDate: string;
   numberOfSprints: number;
   splitMode: "timebooked" | "statuses";
@@ -33,8 +36,14 @@ interface State {
 export default class LeadTime extends React.Component<Props, State> {
   constructor(props) {
     super(props);
+
+    // Load saved query history from localStorage
+    const savedQueryHistory = localStorage.getItem("leadTimeQueryHistory");
+    const queryHistory = savedQueryHistory ? JSON.parse(savedQueryHistory) : [];
+
     this.state = {
       input: localStorage.getItem("throughputQuery") || "",
+      queryHistory: queryHistory,
       currentSprintStartDate: dayjs().toString(),
       numberOfSprints: 5,
       splitMode: "timebooked",
@@ -43,6 +52,26 @@ export default class LeadTime extends React.Component<Props, State> {
       statusesSelected: [],
     };
   }
+
+  // Add a query to history, keeping only the latest 5 unique entries
+  addToQueryHistory = (query: string) => {
+    if (!query.trim()) return;
+
+    // Create a new array with the current query at the beginning
+    let newHistory = [query];
+
+    // Add previous unique queries, up to a total of 5
+    this.state.queryHistory.forEach((historyItem) => {
+      if (historyItem !== query && newHistory.length < 5) {
+        newHistory.push(historyItem);
+      }
+    });
+
+    // Update state and localStorage
+    this.setState({ queryHistory: newHistory });
+    localStorage.setItem("leadTimeQueryHistory", JSON.stringify(newHistory));
+  };
+
   onSprintStartDateChange: DatePickerProps["onChange"] = (date, dateString) => {
     this.setState({ currentSprintStartDate: date.toString() });
   };
@@ -55,6 +84,10 @@ export default class LeadTime extends React.Component<Props, State> {
 
   onClick = () => {
     localStorage.setItem("throughputQuery", this.state.input);
+
+    // Add current query to history
+    this.addToQueryHistory(this.state.input);
+
     console.log("Button clicked");
     //Request to the server /api/metrics
     fetch(
@@ -86,6 +119,11 @@ export default class LeadTime extends React.Component<Props, State> {
         });
       });
   };
+
+  handleQueryChange = (value: string) => {
+    this.setState({ input: value });
+  };
+
   getClickData = (leadTimeData: LeadTimeSprintData) => {
     let logHTML = "";
     this.getIssueInfoBySizeBucket(
@@ -249,32 +287,54 @@ export default class LeadTime extends React.Component<Props, State> {
       ? this.state.leadTimeData.sprints
       : [];
     let { data, columns } = this.getLeadTimeData(sprintData);
+
+    // Create options for the AutoComplete
+    const options = this.state.queryHistory.map((query) => ({
+      value: query,
+      label: query,
+    }));
+
     return (
       <div>
-        <input
-          type="text"
-          value={this.state.input}
-          onChange={(e) => {
-            this.setState({ input: e.target.value });
+        <div
+          style={{
+            display: "flex",
+            gap: "1rem",
+            alignItems: "center",
+            marginBottom: "1rem",
           }}
-        />
-        <DatePicker
-          onChange={this.onSprintStartDateChange}
-          value={dayjs(this.state.currentSprintStartDate)}
-        />
-        Number of Sprints to show:
-        <InputNumber
-          value={this.state.numberOfSprints}
-          onChange={this.onNumberOfSprintsChange}
-        />
+        >
+          <AutoComplete
+            style={{ flex: 1 }}
+            value={this.state.input}
+            options={options}
+            onChange={this.handleQueryChange}
+            placeholder="Enter query"
+          />
+          <DatePicker
+            onChange={this.onSprintStartDateChange}
+            value={dayjs(this.state.currentSprintStartDate)}
+          />
+          <span style={{ whiteSpace: "nowrap" }}>
+            Sprints:
+            <InputNumber
+              value={this.state.numberOfSprints}
+              onChange={this.onNumberOfSprintsChange}
+              style={{ marginLeft: "0.5rem" }}
+            />
+          </span>
+          <Button type="primary" onClick={this.onClick}>
+            Run Query
+          </Button>
+        </div>
         <Radio.Group
           value={this.state.splitMode}
           onChange={this.handleSplitModeChange}
+          style={{ marginBottom: "1rem" }}
         >
           <Radio.Button value="timebooked">TimeBooked</Radio.Button>
           <Radio.Button value="statuses">Statuses</Radio.Button>
         </Radio.Group>
-        <button onClick={this.onClick}>Click me</button>
         <br />
         <span
           style={{

@@ -1,6 +1,13 @@
 import React from "react";
 import type { RadioChangeEvent, DatePickerProps, InputNumberProps } from "antd";
-import { Radio, DatePicker, InputNumber, Spin, Button } from "antd";
+import {
+  Radio,
+  DatePicker,
+  InputNumber,
+  Spin,
+  Button,
+  AutoComplete,
+} from "antd";
 import dayjs from "dayjs";
 import { SprintIssueList } from "../server/graphManagers/GraphManagerTypes";
 import Select from "./Select";
@@ -44,6 +51,7 @@ interface State {
     totalIssues: number;
   };
   input: string;
+  queryHistory: string[];
   currentSprintStartDate: string;
   numberOfSprints: number;
   throughputData: SprintIssueList[];
@@ -66,12 +74,18 @@ export default class Throughput extends React.Component<Props, State> {
     let tempQuery = new URLSearchParams(window.location.search).get(
       "throughputQuery"
     );
+
+    // Load saved query history from localStorage
+    const savedQueryHistory = localStorage.getItem("throughputQueryHistory");
+    const queryHistory = savedQueryHistory ? JSON.parse(savedQueryHistory) : [];
+
     this.state = {
       isLoading: false,
       statusMessage: "",
       currentStep: undefined,
       progress: undefined,
       input: localStorage.getItem("throughputQuery") || tempQuery || "",
+      queryHistory: queryHistory,
       currentSprintStartDate: dayjs().toString(),
       numberOfSprints: 4,
       throughputData: [],
@@ -88,6 +102,26 @@ export default class Throughput extends React.Component<Props, State> {
       sankeyGroups: [],
     };
   }
+
+  // Add a query to history, keeping only the latest 5 unique entries
+  addToQueryHistory = (query: string) => {
+    if (!query.trim()) return;
+
+    // Create a new array with the current query at the beginning
+    let newHistory = [query];
+
+    // Add previous unique queries, up to a total of 5
+    this.state.queryHistory.forEach((historyItem) => {
+      if (historyItem !== query && newHistory.length < 5) {
+        newHistory.push(historyItem);
+      }
+    });
+
+    // Update state and localStorage
+    this.setState({ queryHistory: newHistory });
+    localStorage.setItem("throughputQueryHistory", JSON.stringify(newHistory));
+  };
+
   getValuesInSprint = (
     sprint: SprintIssueList,
     func: (IssueInfo) => { key: string; value: SelectPropsType }[]
@@ -198,6 +232,10 @@ export default class Throughput extends React.Component<Props, State> {
   };
   onClick = () => {
     localStorage.setItem("throughputQuery", this.state.input);
+
+    // Add current query to history
+    this.addToQueryHistory(this.state.input);
+
     this.setState({ isLoading: true, statusMessage: "Starting data fetch..." });
 
     const eventSource = new EventSource(
@@ -354,6 +392,10 @@ export default class Throughput extends React.Component<Props, State> {
       };
 
       let clickData = "";
+      clickData += this.getClickData({
+        initiativeKey: "All",
+        issues: sprint.issueList,
+      });
       this.state.initiativesSelected.forEach((parent) => {
         let issues = issuesByInitiative.get(parent) || [];
         row[parent] = getSize(issues, this.state.sizeMode);
@@ -648,6 +690,10 @@ export default class Throughput extends React.Component<Props, State> {
     }
   };
 
+  handleQueryChange = (value: string) => {
+    this.setState({ input: value });
+  };
+
   render() {
     let { data, columns } =
       this.state.splitMode === "initiatives"
@@ -665,6 +711,12 @@ export default class Throughput extends React.Component<Props, State> {
       issueInfo = issueInfo.concat(sprint.issueList);
     });
 
+    // Create options for the AutoComplete
+    const options = this.state.queryHistory.map((query) => ({
+      value: query,
+      label: query,
+    }));
+
     return (
       <div>
         {/* Error message */}
@@ -673,33 +725,86 @@ export default class Throughput extends React.Component<Props, State> {
             <p>{this.state.statusMessage}</p>
           </div>
         )}
-        <input
-          type="text"
-          value={this.state.input}
-          onChange={(e) => {
-            this.setState({ input: e.target.value });
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "1rem",
+            marginBottom: "1rem",
           }}
-        />
-        Start Date of Current Sprint:
-        <DatePicker
-          onChange={this.onSprintStartDateChange}
-          value={dayjs(this.state.currentSprintStartDate)}
-        />
-        Number of Sprints to show:
-        <InputNumber
-          value={this.state.numberOfSprints}
-          onChange={this.onNumberOfSprintsChange}
-        />
-        <Radio.Group
-          value={this.state.splitMode}
-          onChange={this.handleSplitModeChange}
         >
-          <Radio.Button value="initiatives">Initiatives</Radio.Button>
-          <Radio.Button value="labels">Labels</Radio.Button>
-          <Radio.Button value="types">Types</Radio.Button>
-          <Radio.Button value="accounts">Accounts</Radio.Button>
-          <Radio.Button value="sankey">Sankey</Radio.Button>
-        </Radio.Group>
+          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+            <AutoComplete
+              style={{ flex: 1 }}
+              value={this.state.input}
+              options={options}
+              onChange={this.handleQueryChange}
+              placeholder="Enter query"
+            />
+            <Button type="primary" onClick={this.onClick}>
+              Run Query
+            </Button>
+          </div>
+
+          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+            <span style={{ whiteSpace: "nowrap" }}>
+              Start Date of Current Sprint:
+              <DatePicker
+                onChange={this.onSprintStartDateChange}
+                value={dayjs(this.state.currentSprintStartDate)}
+                style={{ marginLeft: "0.5rem" }}
+              />
+            </span>
+            <span style={{ whiteSpace: "nowrap" }}>
+              Number of Sprints:
+              <InputNumber
+                value={this.state.numberOfSprints}
+                onChange={this.onNumberOfSprintsChange}
+                style={{ marginLeft: "0.5rem" }}
+              />
+            </span>
+            {issueInfo.length > 0 && (
+              <Button
+                type="primary"
+                onClick={() => createThroughputCSV(issueInfo)}
+              >
+                Export to CSV
+              </Button>
+            )}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "1rem",
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <Radio.Group
+              value={this.state.splitMode}
+              onChange={this.handleSplitModeChange}
+              style={{ marginRight: "1rem" }}
+            >
+              <Radio.Button value="initiatives">Initiatives</Radio.Button>
+              <Radio.Button value="labels">Labels</Radio.Button>
+              <Radio.Button value="types">Types</Radio.Button>
+              <Radio.Button value="accounts">Accounts</Radio.Button>
+              <Radio.Button value="sankey">Sankey</Radio.Button>
+            </Radio.Group>
+
+            <Radio.Group
+              value={this.state.sizeMode}
+              onChange={this.handleSizeChange}
+            >
+              <Radio.Button value="count">Count</Radio.Button>
+              <Radio.Button value="time booked">Time Booked</Radio.Button>
+              <Radio.Button value="estimate">Estimate</Radio.Button>
+            </Radio.Group>
+          </div>
+        </div>
+
         <span
           style={{
             display: this.state.splitMode === "initiatives" ? "" : "none",
@@ -740,26 +845,15 @@ export default class Throughput extends React.Component<Props, State> {
             options={this.state.accounts}
           />
         </span>
-        <Radio.Group
-          value={this.state.sizeMode}
-          onChange={this.handleSizeChange}
-        >
-          <Radio.Button value="count">Count</Radio.Button>
-          <Radio.Button value="time booked">Time Booked</Radio.Button>
-          <Radio.Button value="estimate">Estimate</Radio.Button>
-        </Radio.Group>
-        <button onClick={this.onClick}>Click me</button>
-        {issueInfo.length > 0 && (
-          <Button
-            type="primary"
-            onClick={() => createThroughputCSV(issueInfo)}
-            style={{ marginLeft: "10px" }}
-          >
-            Export to CSV
-          </Button>
-        )}
+
         {/* Chart or Loading Indicator */}
-        <div style={{ minHeight: "400px", position: "relative" }}>
+        <div
+          style={{
+            minHeight: "400px",
+            position: "relative",
+            marginTop: "1rem",
+          }}
+        >
           {this.state.isLoading ? (
             <div
               style={{

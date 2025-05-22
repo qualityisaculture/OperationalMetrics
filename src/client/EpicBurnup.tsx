@@ -1,6 +1,6 @@
 import React from "react";
 import type { RadioChangeEvent } from "antd";
-import { Radio, Button } from "antd";
+import { Radio, Button, Input, AutoComplete } from "antd";
 import { CSSProperties } from "react";
 
 import EpicBurnupChart from "./EpicBurnupChart";
@@ -10,6 +10,7 @@ interface Props {}
 interface State {
   input: string;
   queries: string[];
+  queryHistory: string[];
   estimationMode: "count" | "estimate";
   order: number[]; // Array of indices representing the current order
 }
@@ -45,21 +46,59 @@ const styles: Record<string, CSSProperties> = {
     opacity: 0.3,
     cursor: "not-allowed",
   },
+  inputContainer: {
+    display: "flex",
+    alignItems: "center",
+    gap: "1rem",
+    marginBottom: "1rem",
+  },
+  autocomplete: {
+    flex: 1,
+  },
 };
 
 export default class EpicBurnupClass extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
+
+    // Load saved query history from localStorage
+    const savedQueryHistory = localStorage.getItem("epicQueryHistory");
+    const queryHistory = savedQueryHistory ? JSON.parse(savedQueryHistory) : [];
+
     this.state = {
       input: localStorage.getItem("epicIssueKey") || "",
       queries: [],
+      queryHistory: queryHistory,
       estimationMode: "estimate",
       order: [], // Initialize empty order array
     };
   }
 
+  // Add a query to history, keeping only the latest 5 unique entries
+  addToQueryHistory = (query: string) => {
+    if (!query.trim()) return;
+
+    // Create a new array with the current query at the beginning
+    let newHistory = [query];
+
+    // Add previous unique queries, up to a total of 5
+    this.state.queryHistory.forEach((historyItem) => {
+      if (historyItem !== query && newHistory.length < 5) {
+        newHistory.push(historyItem);
+      }
+    });
+
+    // Update state and localStorage
+    this.setState({ queryHistory: newHistory });
+    localStorage.setItem("epicQueryHistory", JSON.stringify(newHistory));
+  };
+
   onDataRequested = () => {
     localStorage.setItem("epicIssueKey", this.state.input);
+
+    // Add current query to history
+    this.addToQueryHistory(this.state.input);
+
     const queries = this.state.input
       .split(";")
       .map((q) => q.trim())
@@ -102,18 +141,32 @@ export default class EpicBurnupClass extends React.Component<Props, State> {
     });
   };
 
+  handleQuerySelect = (value: string) => {
+    this.setState({ input: value });
+  };
+
   render() {
+    // Create options for the AutoComplete
+    const options = this.state.queryHistory.map((query) => ({
+      value: query,
+      label: query,
+    }));
+
     return (
       <div>
-        <input
-          type="text"
-          value={this.state.input}
-          onChange={(e) => {
-            this.setState({ input: e.target.value });
-          }}
-          placeholder="Enter queries separated by semicolons"
-        />
-        <button onClick={this.onDataRequested}>Load Queries</button>
+        <div style={styles.inputContainer}>
+          <AutoComplete
+            style={styles.autocomplete}
+            value={this.state.input}
+            options={options}
+            onChange={(value) => this.setState({ input: value })}
+            onSelect={this.handleQuerySelect}
+            placeholder="Enter queries separated by semicolons"
+          />
+          <Button type="primary" onClick={this.onDataRequested}>
+            Load Queries
+          </Button>
+        </div>
         <Radio.Group
           value={this.state.estimationMode}
           onChange={this.onEstimationModeChange}
