@@ -46,6 +46,8 @@ export function extendEpicBurnup(
           scopeTestCount: null,
           scopeTestEstimate: null,
           scopeTestKeys: [],
+          timeSpentDev: null,
+          timeSpentTest: null,
           timeSpent: null,
         });
       } else {
@@ -116,6 +118,8 @@ export function getGoogleDataTableFromMultipleBurnupData(
       estimate ? "scopeTestEstimate" : "scopeTestCount"
     );
     let sumTimeSpent = reduceDSAField(issuesExistingToday, "timeSpent");
+    let sumTimeSpentDev = reduceDSAField(issuesExistingToday, "timeSpentDev");
+    let sumTimeSpentTest = reduceDSAField(issuesExistingToday, "timeSpentTest");
 
     let tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -125,6 +129,8 @@ export function getGoogleDataTableFromMultipleBurnupData(
       sumDoneTest = null;
       sumInProgressTest = null;
       sumTimeSpent = null;
+      sumTimeSpentDev = null;
+      sumTimeSpentTest = null;
     }
 
     let allNewIssuesCompletedToday = new Set<string>();
@@ -223,6 +229,8 @@ export function getGoogleDataTableFromMultipleBurnupData(
         sumInProgressTest,
         sumScopeTest,
         sumTimeSpent,
+        sumTimeSpentDev,
+        sumTimeSpentTest,
       ],
       clickData,
     });
@@ -263,6 +271,8 @@ export function getDataBetweenDates(
       scopeTestCount: lastData.scopeTestCount,
       scopeTestEstimate: lastData.scopeTestEstimate,
       scopeTestKeys: lastData.scopeTestKeys,
+      timeSpentDev: lastData.timeSpentDev,
+      timeSpentTest: lastData.timeSpentTest,
       timeSpent: lastData.timeSpent,
     };
   }
@@ -286,6 +296,8 @@ export function getDataBetweenDates(
     scopeTestCount: null,
     scopeTestEstimate: null,
     scopeTestKeys: [],
+    timeSpentDev: null,
+    timeSpentTest: null,
     timeSpent: null,
   };
 }
@@ -337,6 +349,8 @@ export function getGapDataFromBurnupData(
       inProgressTest,
       scopeTest,
       timeSpent,
+      timeSpentDev,
+      timeSpentTest,
     ] = dataPoint.data;
     const gapToDoneDev =
       scopeDev === null || doneDev === null ? null : scopeDev - doneDev;
@@ -363,6 +377,8 @@ export function getGapDataFromBurnupData(
         gapToInProgressTest,
         0,
         timeSpent,
+        timeSpentDev,
+        timeSpentTest,
       ],
       clickData: dataPoint.clickData,
     };

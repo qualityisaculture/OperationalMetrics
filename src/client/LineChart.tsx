@@ -13,6 +13,8 @@ export type GoogleDataTableType = {
     number | null, // inProgressTest
     number | null, // scopeTest
     number | null, // timeSpent
+    number | null, // timeSpentDev
+    number | null, // timeSpentTest
   ];
   clickData?: string;
 };
@@ -27,6 +29,8 @@ interface ChartProps {
     inProgressTest?: string;
     scopeTest?: string;
     timeSpent?: string;
+    timeSpentDev?: string;
+    timeSpentTest?: string;
     doneTrend?: string;
     scopeTrend?: string;
   };
@@ -40,6 +44,8 @@ const DEFAULT_LABELS = {
   inProgressTest: "In Progress or Done Test",
   scopeTest: "Scope Test",
   timeSpent: "Time Spent",
+  timeSpentDev: "Time Spent Dev",
+  timeSpentTest: "Time Spent Test",
   doneTrend: "Done Trend",
   scopeTrend: "Scope Trend",
 };
@@ -144,10 +150,14 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
         doneDev,
         inProgressDev,
         scopeDev,
+        annotation,
+        annotationHover,
         doneTest,
         inProgressTest,
         scopeTest,
         timeSpent,
+        timeSpentDev,
+        timeSpentTest,
       ] = dataPoint.data;
       const dateTime = date.getTime();
       const startDateTime = startDate.getTime();
@@ -175,14 +185,18 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       doneDev,
       inProgressDev,
       scopeDev,
+      annotation,
+      annotationHover,
       doneTest,
       inProgressTest,
       scopeTest,
       timeSpent,
+      timeSpentDev,
+      timeSpentTest,
     ] = dataPoint.data;
 
     // Clear trend line if clicking on one
-    if (column === 5) {
+    if (column === 9) {
       // Done trend line
       this.setState({
         clickedPoints: this.state.clickedPoints.filter(
@@ -193,7 +207,7 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       });
       return;
     }
-    if (column === 6) {
+    if (column === 10) {
       // Scope trend line
       this.setState({
         clickedPoints: this.state.clickedPoints.filter(
@@ -281,6 +295,8 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     data.addColumn("number", labels.inProgressTest);
     data.addColumn("number", labels.scopeTest);
     data.addColumn("number", labels.timeSpent);
+    data.addColumn("number", labels.timeSpentDev);
+    data.addColumn("number", labels.timeSpentTest);
 
     // Add trend lines after main lines
     if (this.state.doneTrendLineData.length > 0) {
@@ -314,8 +330,10 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
         4: { color: "plum" }, // In Progress Test
         5: { color: "orange" }, // Scope Test
         6: { color: "red", targetAxisIndex: 1 }, // Time Spent (always red)
-        7: { color: "blue", lineDashStyle: [4, 4] }, // Done Trend
-        8: { color: "green", lineDashStyle: [4, 4] }, // Scope Trend
+        7: { color: "darkred", targetAxisIndex: 1 }, // Time Spent Dev
+        8: { color: "crimson", targetAxisIndex: 1 }, // Time Spent Test
+        9: { color: "blue", lineDashStyle: [4, 4] }, // Done Trend
+        10: { color: "green", lineDashStyle: [4, 4] }, // Scope Trend
       },
       vAxes: {
         0: { title: "Story Points" },

@@ -23,7 +23,9 @@ export type DoneAndScopeCount = {
   scopeTestCount: number | null;
   scopeTestEstimate: number | null;
   scopeTestKeys: string[];
-  timeSpent: number | null; // Total time spent in days
+  timeSpentDev: number | null; // Time spent on dev issues in days
+  timeSpentTest: number | null; // Time spent on test issues in days
+  timeSpent: number | null; // Total time spent in days (for backward compatibility)
 };
 
 export type EpicBurnup = {
@@ -386,11 +388,21 @@ export default class BurnupGraphManager {
         0
       );
 
-      // Calculate total time spent from the timeSpentMap
-      let totalTimeSpent = Array.from(timeSpentMap.values()).reduce(
-        (acc, time) => acc + time,
-        0
-      );
+      // Calculate time spent split by dev and test issues
+      let timeSpentDev = 0;
+      let timeSpentTest = 0;
+      let totalTimeSpent = 0;
+
+      allChildJiras.forEach((child) => {
+        const timeSpent = timeSpentMap.get(child.getKey()) || 0;
+        totalTimeSpent += timeSpent;
+
+        if (this.isTestIssue(child)) {
+          timeSpentTest += timeSpent;
+        } else {
+          timeSpentDev += timeSpent;
+        }
+      });
 
       burnupArray.push({
         date: new Date(date).toISOString().split("T")[0] as TDateISODate,
@@ -414,6 +426,8 @@ export default class BurnupGraphManager {
         scopeTestCount: scopeTestChildren.length,
         scopeTestEstimate,
         scopeTestKeys: scopeTestChildren.map((child) => child.getKey()),
+        timeSpentDev: timeSpentDev || null,
+        timeSpentTest: timeSpentTest || null,
         timeSpent: totalTimeSpent || null,
       });
     }
