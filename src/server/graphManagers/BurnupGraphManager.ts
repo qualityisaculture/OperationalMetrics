@@ -315,7 +315,7 @@ export default class BurnupGraphManager {
 
     for (
       let date = startDate;
-      date <= new Date();
+      date <= new Date(new Date().setDate(new Date().getDate() + 1)); //Need to add one day to the end date to include changes made today
       date.setDate(date.getDate() + 1)
     ) {
       let doneChildren = allChildJiras.filter((child) => child.isDone(date));
@@ -431,7 +431,6 @@ export default class BurnupGraphManager {
         timeSpent: totalTimeSpent || null,
       });
     }
-
     return {
       data: burnupArray,
       totalCount: allChildJiras.length,

@@ -18,7 +18,8 @@ export function extendEpicBurnup(
   }
   let extendedBurnupDataArray: DoneAndScopeCount[] = [];
   let currentDate = new Date(earliestDate);
-  while (currentDate <= lastDate) {
+  while (currentDate <= new Date(lastDate.getTime() + 24 * 60 * 60 * 1000)) {
+    //Need to add one day to the end date to include changes made today
     let burnupData: DoneAndScopeCount | undefined = epicBurnups.dateData.find(
       (item) => item.date === currentDate.toISOString().split("T")[0]
     );
