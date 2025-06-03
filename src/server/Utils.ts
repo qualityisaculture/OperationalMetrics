@@ -67,7 +67,7 @@ export function getIssuesBySprint(
   return sprints;
 }
 
-function getIssueInfoFromJira(jira: Jira): IssueInfo {
+export function getIssueInfoFromJira(jira: Jira): IssueInfo {
   let initiativeKey = jira.getInitiativeKey();
   let initiativeName = jira.getInitiativeName();
   if (initiativeKey == "NO_INITIATIVE") {

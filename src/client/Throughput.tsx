@@ -55,6 +55,7 @@ interface State {
   currentSprintStartDate: string;
   numberOfSprints: number;
   throughputData: SprintIssueList[];
+  openTicketsData: IssueInfo[];
   initiatitives: SelectProps["options"];
   initiativesSelected: string[];
   labels: SelectProps["options"];
@@ -89,6 +90,7 @@ export default class Throughput extends React.Component<Props, State> {
       currentSprintStartDate: dayjs().toString(),
       numberOfSprints: 4,
       throughputData: [],
+      openTicketsData: [],
       initiatitives: [],
       initiativesSelected: [],
       labels: [],
@@ -103,16 +105,16 @@ export default class Throughput extends React.Component<Props, State> {
     };
   }
 
-  // Add a query to history, keeping only the latest 5 unique entries
+  // Add a query to history, keeping only the latest 10 unique entries
   addToQueryHistory = (query: string) => {
     if (!query.trim()) return;
 
     // Create a new array with the current query at the beginning
     let newHistory = [query];
 
-    // Add previous unique queries, up to a total of 5
+    // Add previous unique queries, up to a total of 10
     this.state.queryHistory.forEach((historyItem) => {
-      if (historyItem !== query && newHistory.length < 5) {
+      if (historyItem !== query && newHistory.length < 10) {
         newHistory.push(historyItem);
       }
     });
@@ -256,8 +258,9 @@ export default class Throughput extends React.Component<Props, State> {
           progress: response.progress,
           currentStep: response.step,
         });
-      } else if (response.status === "complete" && response.data) {
+      } else if (response.status === "complete") {
         const throughputData = JSON.parse(response.data);
+        const openTicketsData = JSON.parse(response.openTickets);
         const arrayOfAllInitiatives =
           this.getInitiativesAsSelectProps(throughputData);
         const arrayOfAllLabels = this.getLabelsAsSelectProps(throughputData);
@@ -267,6 +270,7 @@ export default class Throughput extends React.Component<Props, State> {
 
         this.setState({
           throughputData,
+          openTicketsData,
           initiatitives: arrayOfAllInitiatives,
           initiativesSelected: [],
           labels: arrayOfAllLabels,
@@ -344,7 +348,7 @@ export default class Throughput extends React.Component<Props, State> {
     );
     let allTimeDays = getDaysAndHours(allTimeSpent);
     let allEstimateDays = getDaysAndHours(allEstimate);
-    logHTML += `<h3>${data.initiativeKey} e: ${allEstimateDays} a: ${allTimeDays}</h3>`;
+    logHTML += `<h3>${data.initiativeKey} (${data.issues.length}) e: ${allEstimateDays} a: ${allTimeDays}</h3>`;
     data.issues.forEach((issue) => {
       let timespentDays = getDaysAndHours(issue.timespent || 0);
       let estimateDays = getDaysAndHours(issue.timeoriginalestimate || 0);
@@ -706,6 +710,36 @@ export default class Throughput extends React.Component<Props, State> {
               ? this.getThroughputBySankey(this.state.throughputData)
               : this.getThroughputByType(this.state.throughputData);
 
+    // Create a new row for open tickets
+
+    console.log(this.state.openTicketsData);
+
+    const openTicketsRow = {
+      date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
+      ...Object.fromEntries(
+        this.state.initiativesSelected.map((initiative) => [
+          initiative,
+          getSize(
+            this.state.openTicketsData.filter(
+              (issue) => issue.initiativeKey === initiative
+            ),
+            this.state.sizeMode
+          ),
+        ])
+      ),
+      Other: getSize(
+        this.state.openTicketsData.filter(
+          (issue) =>
+            !this.state.initiativesSelected.includes(issue.initiativeKey)
+        ),
+        this.state.sizeMode
+      ),
+      clickData: this.getClickData({
+        initiativeKey: "Open Tickets",
+        issues: this.state.openTicketsData,
+      }),
+    };
+
     let issueInfo: IssueInfo[] = [];
     this.state.throughputData.forEach((sprint) => {
       issueInfo = issueInfo.concat(sprint.issueList);
@@ -881,12 +915,14 @@ export default class Throughput extends React.Component<Props, State> {
               </div>
             </div>
           ) : (
-            <ColumnChart
-              data={data}
-              columns={columns}
-              title="Throughput"
-              extraOptions={{ isStacked: true }}
-            />
+            <>
+              <ColumnChart
+                data={[...data, openTicketsRow]}
+                columns={columns}
+                title="Throughput (Resolved + Open Tickets)"
+                extraOptions={{ isStacked: true }}
+              />
+            </>
           )}
         </div>
         <InvestmentDiagram

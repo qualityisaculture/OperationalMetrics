@@ -1,6 +1,6 @@
 import Jira from "../Jira";
 import JiraRequester from "../JiraRequester";
-import { getSprintIssueListsBySprint } from "../Utils";
+import { getIssueInfoFromJira, getSprintIssueListsBySprint } from "../Utils";
 import { IssueInfo, SprintIssueList } from "./GraphManagerTypes";
 import dayjs from "dayjs";
 
@@ -10,6 +10,7 @@ export type SSEResponse = {
   message?: string;
   progress?: any;
   data?: string;
+  openTickets?: string;
 };
 
 export default class ThroughputGraphManager {
@@ -49,44 +50,69 @@ export default class ThroughputGraphManager {
     filter: string,
     currentSprintStartDate: Date,
     numberOfSprints: number
-  ): Promise<SprintIssueList[]> {
+  ): Promise<{
+    resolvedTickets: SprintIssueList[];
+    openTickets: IssueInfo[];
+  }> {
     try {
       this.updateProgress(
         "initializing",
         "Starting to fetch throughput data..."
       );
 
-      let query = this.getQuery(
+      // Get resolved tickets
+      let resolvedQuery = this.getQuery(
         filter,
         currentSprintStartDate,
         numberOfSprints
       );
-      this.updateProgress("fetching", "Fetching issues from Jira...");
+      this.updateProgress("fetching", "Fetching resolved issues from Jira...");
 
-      let jiras = await this.jiraRequester.getQuery(query);
-      this.updateProgress("processing", "Processing Jira issues...", {
-        totalIssues: jiras.length,
+      let resolvedJiras = await this.jiraRequester.getQuery(resolvedQuery);
+      this.updateProgress("processing", "Processing resolved Jira issues...", {
+        totalIssues: resolvedJiras.length,
       });
 
-      let jirasWithoutPlaceHolders = jiras.filter(
+      let resolvedJirasWithoutPlaceHolders = resolvedJiras.filter(
         (jira) => jira.getSummary().indexOf("Placeholder") === -1
       );
 
-      this.updateProgress("bucketing", "Organizing issues by sprint...", {
-        totalIssues: jirasWithoutPlaceHolders.length,
-      });
+      this.updateProgress(
+        "bucketing",
+        "Organizing resolved issues by sprint...",
+        {
+          totalIssues: resolvedJirasWithoutPlaceHolders.length,
+        }
+      );
 
-      let bucketedJiras = getSprintIssueListsBySprint(
-        jirasWithoutPlaceHolders,
+      let resolvedBucketedJiras = getSprintIssueListsBySprint(
+        resolvedJirasWithoutPlaceHolders,
         currentSprintStartDate
       );
 
-      this.sendProgress({
-        status: "complete",
-        data: JSON.stringify(bucketedJiras),
+      // Get open tickets
+      this.updateProgress("fetching", "Fetching open issues from Jira...");
+      let openQuery = this.getOpenTicketsQuery(filter);
+      let openJiras = await this.jiraRequester.getQuery(openQuery);
+
+      this.updateProgress("processing", "Processing open Jira issues...", {
+        totalIssues: openJiras.length,
       });
 
-      return bucketedJiras;
+      let openJirasWithoutPlaceHolders = openJiras
+        .filter((jira) => jira.getSummary().indexOf("Placeholder") === -1)
+        .map((jira) => getIssueInfoFromJira(jira));
+
+      this.sendProgress({
+        status: "complete",
+        data: JSON.stringify(resolvedBucketedJiras),
+        openTickets: JSON.stringify(openJirasWithoutPlaceHolders),
+      });
+
+      return {
+        resolvedTickets: resolvedBucketedJiras,
+        openTickets: openJirasWithoutPlaceHolders,
+      };
     } catch (error) {
       this.sendProgress({
         status: "error",
@@ -108,5 +134,9 @@ export default class ThroughputGraphManager {
       ' AND status="Done" AND resolved >= ' +
       resolvedDate.format("YYYY-MM-DD");
     return query;
+  }
+
+  private getOpenTicketsQuery(filter: string): string {
+    return filter + ' AND statusCategory = "In Progress"';
   }
 }
