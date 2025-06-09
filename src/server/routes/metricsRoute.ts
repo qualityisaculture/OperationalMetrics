@@ -16,6 +16,7 @@ import TimeInDevManager from "../graphManagers/TimeInDevManager";
 import LeadTimeGraphManager from "../graphManagers/LeadTimeGraphManager";
 import CumulativeFlowDiagramManager from "../graphManagers/CumulativeFlowDiagramManager";
 import DoraLeadTimeForChanges from "../graphManagers/DoraLeadTimeForChanges";
+import CustomerSLAGraphManager from "../graphManagers/CustomerSLAGraphManager";
 
 async function getJiraData(issueKey: string) {}
 
@@ -28,6 +29,7 @@ const timeInDevManager = new TimeInDevManager(jiraRequester);
 const leadTimeGraphManager = new LeadTimeGraphManager(jiraRequester);
 const cfdm = new CumulativeFlowDiagramManager(jiraRequester);
 const doraLeadTimeForChanges = new DoraLeadTimeForChanges(jiraRequester);
+const customerSLAGraphManager = new CustomerSLAGraphManager(jiraRequester);
 
 metricsRoute.get(
   "/cumulativeFlowDiagram",
@@ -262,6 +264,34 @@ metricsRoute.get(
             message: "Failed to fetch Dora lead time",
             error: error.message,
           });
+      });
+  }
+);
+
+metricsRoute.get(
+  "/customerSLA",
+  (
+    req: TRQ<{ projectName: string }>,
+    res: TR<{ message: string; data: string }>
+  ) => {
+    const projectName = req.query.projectName;
+
+    console.log(`Customer SLA endpoint called for project: ${projectName}`);
+
+    customerSLAGraphManager
+      .getCustomerSLAData(projectName)
+      .then((data) => {
+        res.json({
+          message: "Customer SLA data fetched successfully",
+          data: JSON.stringify(data),
+        });
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        res.json({
+          message: "Error fetching Customer SLA data",
+          data: JSON.stringify([]),
+        });
       });
   }
 );

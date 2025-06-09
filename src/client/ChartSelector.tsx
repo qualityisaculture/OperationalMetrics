@@ -9,6 +9,7 @@ import TimeInDev from "./TimeInDev";
 import LeadTime from "./LeadTime";
 import CumulativeFlowDiagram from "./CumulativeFlowDiagram";
 import DoraLeadTime from "./DoraLeadTime";
+import CustomerSLA from "./CustomerSLA";
 
 interface Props {}
 
@@ -21,7 +22,8 @@ interface State {
     | "timeInDev"
     | "leadTime"
     | "cumulativeFlow"
-    | "doraLeadTime";
+    | "doraLeadTime"
+    | "customerSLA";
 }
 
 export default class ChartSelector extends React.Component<Props, State> {
@@ -61,6 +63,9 @@ export default class ChartSelector extends React.Component<Props, State> {
     let doraLeadTimeStyle = {
       display: this.state.chart === "doraLeadTime" ? "block" : "none",
     };
+    let customerSLAStyle = {
+      display: this.state.chart === "customerSLA" ? "block" : "none",
+    };
 
     return (
       <div>
@@ -77,6 +82,7 @@ export default class ChartSelector extends React.Component<Props, State> {
             <Radio.Button value="leadTime">Lead Time</Radio.Button>
             <Radio.Button value="cumulativeFlow">Cumulative Flow</Radio.Button>
             <Radio.Button value="doraLeadTime">Dora Lead Time</Radio.Button>
+            <Radio.Button value="customerSLA">Customer SLA</Radio.Button>
           </Radio.Group>
         </div>
         <div>
@@ -103,6 +109,9 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={doraLeadTimeStyle}>
             <DoraLeadTime />
+          </div>
+          <div style={customerSLAStyle}>
+            <CustomerSLA />
           </div>
         </div>
       </div>
