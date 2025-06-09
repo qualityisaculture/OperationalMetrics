@@ -6,6 +6,8 @@ export type JiraJsonFields = {
   created: string;
   components: { name: string }[];
   customfield_10015?: string; // Epic Start Date
+  customfield_10022?: string; // Epic Start Date (fallback)
+  customfield_10023?: string; // Epic End Date (fallback)
   duedate?: string;
   fixVersions: { name: string }[];
   issuetype: { name: string };
@@ -37,6 +39,8 @@ export default class Jira {
     created: string;
     components: { name: string }[];
     customfield_10015?: string; // Epic Start Date
+    customfield_10022?: string; // Epic Start Date (fallback)
+    customfield_10023?: string; // Epic End Date (fallback)
     duedate?: string;
     fixVersions: { name: string }[];
     issuetype: { name: string };
@@ -72,6 +76,8 @@ export default class Jira {
       created: json.fields.created,
       components: json.fields.components,
       customfield_10015: json.fields.customfield_10015,
+      customfield_10022: json.fields.customfield_10022,
+      customfield_10023: json.fields.customfield_10023,
       duedate: json.fields.duedate,
       fixVersions: json.fields.fixVersions,
       issuetype: json.fields.issuetype,
@@ -186,16 +192,18 @@ export default class Jira {
     return this.fields.url;
   }
   getEpicStartDate(): Date | null {
-    if (!this.fields.customfield_10015) {
+    if (!this.fields.customfield_10015 && !this.fields.customfield_10022) {
       return null;
     }
-    return new Date(this.fields.customfield_10015);
+    return new Date(
+      this.fields.customfield_10015 || this.fields.customfield_10022!
+    );
   }
   getEpicDueDate(): Date | null {
-    if (!this.fields.duedate) {
+    if (!this.fields.duedate && !this.fields.customfield_10023) {
       return null;
     }
-    return new Date(this.fields.duedate);
+    return new Date(this.fields.duedate || this.fields.customfield_10023!);
   }
   /**
    *
