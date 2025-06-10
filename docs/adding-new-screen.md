@@ -1,150 +1,110 @@
 # Adding a New Screen to the Application
 
-This document outlines the steps required to add a new screen/feature to the Operational Metrics application.
+This document outlines the steps and best practices for adding a new screen/feature to the Operational Metrics application.
 
 ## Overview
 
 The application follows a pattern where each screen consists of:
 
-- A React component (frontend)
-- A GraphManager (data processing)
-- An API route (backend endpoint)
-- Integration with the main ChartSelector
+- A **React component** (frontend) in `src/client/`
+- A **GraphManager** (backend data processing) in `src/server/graphManagers/`
+- An **API route** (backend endpoint) in `src/server/routes/metricsRoute.ts`
+- Integration with the main **ChartSelector** in `src/client/ChartSelector.tsx`
 
-## Step-by-Step Process
+---
 
-### 1. Create the GraphManager (Backend Data Processing)
+## Recommended Workflow: An Iterative Approach
 
-**Location**: `src/server/graphManagers/`
+While the components can be built in any order, we recommend a **frontend-first, iterative approach**. This allows you to build and test the UI with dummy data before the backend logic is complete, ensuring a better user experience and easier debugging.
 
-- Create a new TypeScript file: `YourFeatureGraphManager.ts`
-- Import required dependencies:
-  - `JiraRequester` for API calls
-  - Types from `GraphManagerTypes.ts`
-  - Any utility functions needed
-- Implement data processing logic
-- Follow the pattern of existing managers (e.g., `ThroughputGraphManager.ts`)
+### Phase 1: Frontend Scaffolding & UI
 
-**Key considerations:**
+1.  **Navigation**: Add the new screen to `ChartSelector.tsx` so you can access it.
+2.  **Component Stub**: Create a minimal `YourFeature.tsx` component that just displays its name.
+3.  **Basic UI**: Add core UI elements (inputs, buttons, etc.) with dummy handlers.
+4.  **State & localStorage**: Implement state management for UI elements and persist user settings to `localStorage`. Use **per-project keys** if the settings are project-specific (e.g., `featureName_settings_${projectName}`).
 
-- Handle async operations properly
-- Implement error handling
-- Consider progress callbacks for long-running operations
-- Return data in a format suitable for frontend consumption
+### Phase 2: Dummy Backend & API Connection
 
-### 2. Add API Route (Backend Endpoint)
+5.  **Dummy API Route**: Add a new route in `metricsRoute.ts` that returns a hardcoded, realistic JSON response.
+6.  **Connect Frontend to API**: Update the frontend to call the new API endpoint.
+7.  **Display Raw Data**: For debugging, temporarily render the raw JSON response in a `<pre>` tag on your component to verify the connection and data format.
 
-**Location**: `src/server/routes/metricsRoute.ts`
+### Phase 3: Real Backend Logic
 
-- Add a new route handler using Express Router
-- Define TypeScript types for request/response using:
-  - `TypedRequestQuery<T>` for query parameters
-  - `TypedResponse<T>` for response body
-- Instantiate your GraphManager
-- Handle both regular responses and Server-Sent Events (SSE) if needed for progress updates
+8.  **GraphManager Stub**: Create `YourFeatureGraphManager.ts` that returns the same dummy data as your API route.
+9.  **Refactor API Route**: Connect the API route to the GraphManager. The frontend should still work exactly as before.
+10. **Implement Real JQL**: In the GraphManager, replace the dummy data with a real `jiraRequester.getQuery()` call.
+    - **Tip**: During development, add `LIMIT 50` to your JQL query to speed up testing. Add a `// TODO:` comment to remove it later.
+11. **Implement Business Logic**: Add any necessary data transformation and calculations (e.g., calculating business days between dates).
 
-**Example pattern:**
+### Phase 4: Final UI & Cleanup
 
-```typescript
-metricsRoute.get(
-  "/yourEndpoint",
-  (
-    req: TRQ<{ param1: string; param2: string }>,
-    res: TR<{ message: string; data: string }>
-  ) => {
-    // Implementation
-  }
-);
-```
+12. **Process and Display Data**: On the frontend, implement the logic to parse, sort, and group the real API data for display.
+13. **Refine UI**: Replace the raw data display with polished UI components (e.g., `Collapse`, `Card`, tables, charts).
+14. **Final Touches**: Add hyperlinks, tooltips, and other UX enhancements.
+15. **Cleanup**: Remove any temporary debugging code, like `console.log` statements or the raw JSON display.
 
-### 3. Create React Component (Frontend)
+---
 
-**Location**: `src/client/`
+## Detailed Steps
 
-- Create a new TypeScript React file: `YourFeature.tsx`
-- Follow the class component pattern used in the application
-- Import required Ant Design components for UI
-- Implement state management for:
-  - Loading states
-  - User inputs
-  - API response data
-  - Error handling
-
-**Key patterns to follow:**
-
-- Use Ant Design components (`Radio`, `DatePicker`, `InputNumber`, `Spin`, etc.)
-- Implement proper TypeScript interfaces for Props and State
-- Handle async API calls with proper error handling
-- Use localStorage for persisting user preferences where appropriate
-- Implement progress tracking for long operations
-
-### 4. Update ChartSelector (Navigation)
+### 1. Update ChartSelector (Navigation)
 
 **Location**: `src/client/ChartSelector.tsx`
 
-Make the following changes:
+1.  **Import** the new component (e.g., `import YourFeature from "./YourFeature";`).
+2.  **Add to `State` interface**: Add your chart's identifier to the `chart` type union.
+3.  **Add `Radio.Button`**: Add a new option to the `Radio.Group`.
+4.  **Add display style** and the component render block.
 
-1. **Import the new component:**
+### 2. Create React Component (Frontend)
 
-   ```typescript
-   import YourFeature from "./YourFeature";
-   ```
+**Location**: `src/client/`
 
-2. **Add to State interface:**
+- Create a new TypeScript React file: `YourFeature.tsx`.
+- Follow the existing class component pattern.
+- Define `Props` and `State` interfaces.
+- Implement UI using Ant Design components.
+- Manage loading states (`isLoading`), user inputs, and API responses.
 
-   ```typescript
-   interface State {
-     chart: "existing1" | "existing2" | "yourFeature";
-   }
-   ```
+### 3. Add API Route (Backend Endpoint)
 
-3. **Add radio button option:**
+**Location**: `src/server/routes/metricsRoute.ts`
 
-   ```typescript
-   <Radio.Button value="yourFeature">Your Feature Name</Radio.Button>
-   ```
+- Add a new route handler (`metricsRoute.get(...)`).
+- Initially, return hardcoded dummy data.
+- Later, instantiate your GraphManager and call it, returning its data.
 
-4. **Add display style:**
+### 4. Create the GraphManager (Backend Data Processing)
 
-   ```typescript
-   let yourFeatureStyle = {
-     display: this.state.chart === "yourFeature" ? "block" : "none",
-   };
-   ```
+**Location**: `src/server/graphManagers/`
 
-5. **Add component render:**
-   ```typescript
-   <div style={yourFeatureStyle}>
-     <YourFeature />
-   </div>
-   ```
+- Create `YourFeatureGraphManager.ts`.
+- Define necessary data types (e.g., `YourFeatureIssue`).
+- Initially, return dummy data to match the API.
+- Later, implement the full logic with JQL queries and data transformations.
 
 ### 5. Update Types (If Needed)
 
-**Location**: `src/Types.ts` and `src/server/graphManagers/GraphManagerTypes.ts`
+**Location**: `src/Types.ts` or within your GraphManager file.
 
-- Add any new TypeScript interfaces/types required by your feature
-- Follow existing naming conventions
-- Consider reusability across different parts of the application
+- Add any new TypeScript interfaces/types required by your feature.
+- For feature-specific types, it's often best to define them directly in the GraphManager file.
 
-### 6. Testing
-
-- Test the new screen functionality
-- Verify API endpoints work correctly
-- Check error handling scenarios
-- Test loading states and progress indicators
-- Ensure TypeScript compilation passes
+---
 
 ## Best Practices
 
-1. **Follow existing patterns**: Study similar screens before implementing
-2. **TypeScript**: Use proper typing throughout
-3. **Error handling**: Implement comprehensive error handling
-4. **Loading states**: Always show loading indicators for async operations
-5. **Progress tracking**: For long operations, implement progress callbacks
-6. **Ant Design**: Use existing design patterns and components
-7. **Data persistence**: Use localStorage for user preferences when appropriate
-8. **Code organization**: Keep components focused and modular
+1.  **Iterate with Dummy Data**: Build the UI with mock data first. This decouples frontend and backend development.
+2.  **Flexible Data Structures**: Prefer sending flat arrays of data from the backend. This allows the frontend to be more flexible in how it groups, sorts, and displays the data.
+3.  **Per-Project `localStorage`**: For settings that vary by project, use a dynamic key like `` `featureName_${projectName}` ``.
+4.  **JQL Optimization**: Use `LIMIT 50` during development for faster feedback.
+5.  **TypeScript**: Use proper typing throughout. Define types for API responses and component state.
+6.  **Error Handling**: Implement comprehensive error handling on both frontend (API catch blocks) and backend (try/catch blocks).
+7.  **Loading States**: Always show loading indicators for async operations to improve UX.
+8.  **Ant Design**: Reuse existing design patterns and components for consistency.
+9.  **Update This Document**: If you learn something new or find a better way of working during your process, please update this guide!
 
 ## File Structure Summary
 
