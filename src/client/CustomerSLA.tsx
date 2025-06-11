@@ -1,5 +1,5 @@
 import React from "react";
-import { Input, Button, Collapse, Card } from "antd";
+import { Input, Button, Collapse, Card, Select } from "antd";
 
 type CustomerSLAIssue = {
   key: string;
@@ -23,6 +23,12 @@ type StatusCategorization = {
   other: string[];
 };
 
+type Project = {
+  id: string;
+  key: string;
+  name: string;
+};
+
 interface Props {}
 
 interface State {
@@ -30,6 +36,8 @@ interface State {
   isLoading: boolean;
   statusGroups: StatusGroup[];
   statusCategorization: StatusCategorization;
+  projects: Project[];
+  isLoadingProjects: boolean;
 }
 
 export default class CustomerSLA extends React.Component<Props, State> {
@@ -44,13 +52,44 @@ export default class CustomerSLA extends React.Component<Props, State> {
         withCustomer: [],
         other: [],
       },
+      projects: [],
+      isLoadingProjects: false,
     };
   }
 
-  handleProjectNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newProjectName = e.target.value;
-    this.setState({ projectName: newProjectName });
-    localStorage.setItem("customerSLAProject", newProjectName);
+  componentDidMount() {
+    this.loadProjects();
+  }
+
+  loadProjects = () => {
+    this.setState({ isLoadingProjects: true });
+
+    console.log("Loading projects from API...");
+
+    fetch("/api/projects")
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Projects API Response:", data);
+        const projects: Project[] = JSON.parse(data.data);
+        console.log("Parsed Projects:", projects);
+
+        this.setState({
+          projects: projects,
+          isLoadingProjects: false,
+        });
+      })
+      .catch((error) => {
+        console.error("Projects API Error:", error);
+        this.setState({
+          isLoadingProjects: false,
+          projects: [], // Fallback to empty array on error
+        });
+      });
+  };
+
+  handleProjectChange = (value: string) => {
+    this.setState({ projectName: value });
+    localStorage.setItem("customerSLAProject", value);
   };
 
   groupIssuesByStatus = (issues: CustomerSLAIssue[]): StatusGroup[] => {
@@ -277,7 +316,7 @@ export default class CustomerSLA extends React.Component<Props, State> {
   };
 
   render() {
-    const { statusCategorization } = this.state;
+    const { statusCategorization, projects, isLoadingProjects } = this.state;
     const categoryGroups =
       this.state.statusGroups.length > 0
         ? this.groupIssuesByCategory(
@@ -289,15 +328,33 @@ export default class CustomerSLA extends React.Component<Props, State> {
       <div>
         <h2>Customer SLA Screen</h2>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 8 }}>
-            Project Name:
-          </label>
-          <Input
-            placeholder="Enter project name"
-            value={this.state.projectName}
-            onChange={this.handleProjectNameChange}
+          <label style={{ display: "block", marginBottom: 8 }}>Project:</label>
+          <Select
+            placeholder="Select a project"
+            value={this.state.projectName || undefined}
+            onChange={this.handleProjectChange}
             style={{ width: 300 }}
-          />
+            loading={isLoadingProjects}
+            showSearch
+            optionFilterProp="children"
+            filterOption={(input, option) => {
+              if (option && option.children) {
+                return (
+                  option.children
+                    .toString()
+                    .toLowerCase()
+                    .indexOf(input.toLowerCase()) >= 0
+                );
+              }
+              return false;
+            }}
+          >
+            {projects.map((project) => (
+              <Select.Option key={project.key} value={project.key}>
+                {project.key} - {project.name}
+              </Select.Option>
+            ))}
+          </Select>
         </div>
         <div style={{ marginBottom: 16 }}>
           <Button

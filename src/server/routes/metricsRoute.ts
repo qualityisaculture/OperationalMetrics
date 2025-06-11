@@ -297,6 +297,30 @@ metricsRoute.get(
 );
 
 metricsRoute.get(
+  "/projects",
+  (req: TRQ<{}>, res: TR<{ message: string; data: string }>) => {
+    console.log("Projects endpoint called - fetching from Jira");
+
+    jiraRequester
+      .getProjects()
+      .then((projects) => {
+        console.log(`Found ${projects.length} projects from Jira`);
+        res.json({
+          message: "Projects fetched successfully from Jira",
+          data: JSON.stringify(projects),
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching projects from Jira:", error);
+        res.json({
+          message: "Error fetching projects from Jira",
+          data: JSON.stringify([]),
+        });
+      });
+  }
+);
+
+metricsRoute.get(
   "/metrics",
   (req: TRQ<{}>, res: TR<{ message: string; data: string }>) => {
     const domain = process.env.JIRA_DOMAIN;

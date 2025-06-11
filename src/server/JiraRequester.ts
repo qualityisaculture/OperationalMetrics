@@ -204,4 +204,32 @@ export default class JiraRequester {
     let releasedReleases = response.filter((release) => release.released);
     return releasedReleases.slice(-count);
   }
+
+  async getProjects() {
+    const domain = process.env.JIRA_DOMAIN;
+    const url = `${domain}/rest/api/3/project/search`;
+    console.log(`Fetching projects from ${url}`);
+
+    let response = await this.fetchRequest(url);
+
+    // Handle pagination if there are more than 50 projects
+    if (response.total > 50) {
+      let startAt = 50;
+      while (startAt < response.total) {
+        console.log(
+          `Fetching next 50 projects of ${response.total}, startAt: ${startAt}`
+        );
+        let nextResponse = await this.fetchRequest(`${url}?startAt=${startAt}`);
+        response.values = response.values.concat(nextResponse.values);
+        startAt += 50;
+      }
+    }
+
+    // Return simplified project data with just the fields we need
+    return response.values.map((project: any) => ({
+      id: project.id,
+      key: project.key,
+      name: project.name,
+    }));
+  }
 }
