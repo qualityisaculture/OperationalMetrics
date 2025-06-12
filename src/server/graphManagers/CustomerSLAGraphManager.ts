@@ -60,6 +60,62 @@ export default class CustomerSLAGraphManager {
     }
   }
 
+  async getCustomerSLADataForMultipleProjects(
+    projectNames: string[]
+  ): Promise<CustomerSLAIssue[]> {
+    console.log(
+      `CustomerSLAGraphManager: Processing projects ${projectNames.join(", ")}`
+    );
+
+    if (projectNames.length === 0) {
+      return [];
+    }
+
+    // Build JQL query for multiple projects using OR condition
+    const projectConditions = projectNames
+      .map((name) => `project = "${name}"`)
+      .join(" OR ");
+    const jqlQuery = `(${projectConditions}) AND statusCategory != Done ORDER BY updated DESC`;
+
+    console.log(`CustomerSLAGraphManager: Executing JQL query: ${jqlQuery}`);
+
+    try {
+      // Fetch issues from Jira
+      const jiraIssues = await this.jiraRequester.getQuery(jqlQuery);
+
+      console.log(
+        `CustomerSLAGraphManager: Found ${jiraIssues.length} issues across ${projectNames.length} projects`
+      );
+
+      // Convert to CustomerSLAIssue format and calculate days in current status
+      const customerSLAIssues: CustomerSLAIssue[] = jiraIssues.map((jira) => {
+        // Get current status and calculate days in current status
+        const currentStatus = jira.getStatus();
+        const daysInCurrentStatus = this.calculateDaysInCurrentStatus(jira);
+
+        return {
+          key: jira.getKey(),
+          summary: jira.getSummary(),
+          type: jira.getType(),
+          status: currentStatus,
+          daysInCurrentStatus: Math.round(daysInCurrentStatus * 10) / 10, // Round to 1 decimal place
+          url: jira.getUrl(),
+        };
+      });
+
+      console.log(
+        `CustomerSLAGraphManager: Processed ${customerSLAIssues.length} issues from multiple projects`
+      );
+      return customerSLAIssues;
+    } catch (error) {
+      console.error(
+        `CustomerSLAGraphManager: Error fetching data for projects ${projectNames.join(", ")}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
   private calculateDaysInCurrentStatus(jira: any): number {
     const currentStatus = jira.getStatus();
     const statusChanges = jira.statusChanges;

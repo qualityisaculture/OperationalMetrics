@@ -271,15 +271,25 @@ metricsRoute.get(
 metricsRoute.get(
   "/customerSLA",
   (
-    req: TRQ<{ projectName: string }>,
+    req: TRQ<{ projectNames: string }>,
     res: TR<{ message: string; data: string }>
   ) => {
-    const projectName = req.query.projectName;
+    const projectNamesParam = req.query.projectNames;
 
-    console.log(`Customer SLA endpoint called for project: ${projectName}`);
+    // Handle both single project (legacy) and multiple projects
+    let projectNames: string[];
+    if (projectNamesParam.includes(",")) {
+      projectNames = projectNamesParam.split(",").map((name) => name.trim());
+    } else {
+      projectNames = [projectNamesParam];
+    }
+
+    console.log(
+      `Customer SLA endpoint called for projects: ${projectNames.join(", ")}`
+    );
 
     customerSLAGraphManager
-      .getCustomerSLAData(projectName)
+      .getCustomerSLADataForMultipleProjects(projectNames)
       .then((data) => {
         res.json({
           message: "Customer SLA data fetched successfully",

@@ -32,7 +32,7 @@ type Project = {
 interface Props {}
 
 interface State {
-  projectName: string;
+  projectNames: string[];
   isLoading: boolean;
   statusGroups: StatusGroup[];
   statusCategorization: StatusCategorization;
@@ -43,8 +43,19 @@ interface State {
 export default class CustomerSLA extends React.Component<Props, State> {
   constructor(props) {
     super(props);
+    const savedProjects = localStorage.getItem("customerSLAProjects");
+    let initialProjects: string[] = [];
+
+    if (savedProjects) {
+      try {
+        initialProjects = JSON.parse(savedProjects);
+      } catch (error) {
+        console.error("Error parsing saved projects:", error);
+      }
+    }
+
     this.state = {
-      projectName: localStorage.getItem("customerSLAProject") || "",
+      projectNames: initialProjects,
       isLoading: false,
       statusGroups: [],
       statusCategorization: {
@@ -87,9 +98,9 @@ export default class CustomerSLA extends React.Component<Props, State> {
       });
   };
 
-  handleProjectChange = (value: string) => {
-    this.setState({ projectName: value });
-    localStorage.setItem("customerSLAProject", value);
+  handleProjectChange = (values: string[]) => {
+    this.setState({ projectNames: values });
+    localStorage.setItem("customerSLAProjects", JSON.stringify(values));
   };
 
   groupIssuesByStatus = (issues: CustomerSLAIssue[]): StatusGroup[] => {
@@ -120,7 +131,9 @@ export default class CustomerSLA extends React.Component<Props, State> {
   };
 
   getStatusCategorizationStorageKey = () => {
-    return `customerSLA_statusCategories_${this.state.projectName}`;
+    // Use first project for storage key to maintain some backwards compatibility
+    const firstProject = this.state.projectNames[0] || "default";
+    return `customerSLA_statusCategories_${firstProject}`;
   };
 
   loadStatusCategorization = (): StatusCategorization => {
@@ -213,12 +226,14 @@ export default class CustomerSLA extends React.Component<Props, State> {
   };
 
   handleGetIssues = () => {
-    console.log(`Getting issues for project: ${this.state.projectName}`);
+    const projectNamesStr = this.state.projectNames.join(", ");
+    console.log(`Getting issues for projects: ${projectNamesStr}`);
 
     this.setState({ isLoading: true });
 
+    const encodedProjectNames = this.state.projectNames.join(",");
     fetch(
-      `/api/customerSLA?projectName=${encodeURIComponent(this.state.projectName)}`
+      `/api/customerSLA?projectNames=${encodeURIComponent(encodedProjectNames)}`
     )
       .then((response) => response.json())
       .then((data) => {
@@ -328,12 +343,12 @@ export default class CustomerSLA extends React.Component<Props, State> {
       <div>
         <h2>Customer SLA Screen</h2>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 8 }}>Project:</label>
+          <label style={{ display: "block", marginBottom: 8 }}>Projects:</label>
           <Select
-            placeholder="Select a project"
-            value={this.state.projectName || undefined}
+            placeholder="Select one or more projects"
+            value={this.state.projectNames || undefined}
             onChange={this.handleProjectChange}
-            style={{ width: 300 }}
+            style={{ width: 400 }}
             loading={isLoadingProjects}
             showSearch
             optionFilterProp="children"
@@ -348,6 +363,7 @@ export default class CustomerSLA extends React.Component<Props, State> {
               }
               return false;
             }}
+            mode="multiple"
           >
             {projects.map((project) => (
               <Select.Option key={project.key} value={project.key}>
@@ -360,13 +376,18 @@ export default class CustomerSLA extends React.Component<Props, State> {
           <Button
             type="primary"
             onClick={this.handleGetIssues}
-            disabled={!this.state.projectName.trim()}
+            disabled={!this.state.projectNames.length}
             loading={this.state.isLoading}
           >
             Get Issues
           </Button>
         </div>
-        <p>Current project: {this.state.projectName || "None"}</p>
+        <p>
+          Selected projects ({this.state.projectNames.length}):{" "}
+          {this.state.projectNames.length > 0
+            ? this.state.projectNames.join(", ")
+            : "None"}
+        </p>
 
         {this.state.statusGroups.length > 0 && (
           <>
