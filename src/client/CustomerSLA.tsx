@@ -38,6 +38,7 @@ interface State {
   statusCategorization: StatusCategorization;
   projects: Project[];
   isLoadingProjects: boolean;
+  selectedTypes: string[];
 }
 
 export default class CustomerSLA extends React.Component<Props, State> {
@@ -65,6 +66,7 @@ export default class CustomerSLA extends React.Component<Props, State> {
       },
       projects: [],
       isLoadingProjects: false,
+      selectedTypes: [],
     };
   }
 
@@ -246,9 +248,13 @@ export default class CustomerSLA extends React.Component<Props, State> {
 
         this.updateStatusCategorization(issues);
 
+        // Get all unique types and set them as selected by default
+        const allTypes = [...new Set(issues.map((issue) => issue.type))].sort();
+
         this.setState({
           statusGroups,
           isLoading: false,
+          selectedTypes: allTypes, // Set all types as selected by default
         });
       })
       .catch((error) => {
@@ -256,8 +262,17 @@ export default class CustomerSLA extends React.Component<Props, State> {
         this.setState({
           isLoading: false,
           statusGroups: [],
+          selectedTypes: [], // Reset to empty on error
         });
       });
+  };
+
+  handleTypeChange = (selectedTypes: string[]) => {
+    this.setState({ selectedTypes });
+  };
+
+  getUniqueTypes = (issues: CustomerSLAIssue[]): string[] => {
+    return [...new Set(issues.map((issue) => issue.type))].sort();
   };
 
   groupIssuesByCategory = (
@@ -267,11 +282,17 @@ export default class CustomerSLA extends React.Component<Props, State> {
     statusGroups: StatusGroup[];
     totalIssues: number;
   }[] => {
-    const { statusCategorization } = this.state;
+    const { statusCategorization, selectedTypes } = this.state;
+
+    // Filter issues by selected types if any are selected
+    const filteredIssues =
+      selectedTypes.length > 0
+        ? issues.filter((issue) => selectedTypes.includes(issue.type))
+        : issues;
 
     // Group issues by status first
     const statusMap = new Map<string, CustomerSLAIssue[]>();
-    issues.forEach((issue) => {
+    filteredIssues.forEach((issue) => {
       if (!statusMap.has(issue.status)) {
         statusMap.set(issue.status, []);
       }
@@ -331,10 +352,19 @@ export default class CustomerSLA extends React.Component<Props, State> {
   };
 
   render() {
-    const { statusCategorization, projects, isLoadingProjects } = this.state;
+    const { statusCategorization, projects, isLoadingProjects, selectedTypes } =
+      this.state;
     const categoryGroups =
       this.state.statusGroups.length > 0
         ? this.groupIssuesByCategory(
+            this.state.statusGroups.flatMap((group) => group.issues)
+          )
+        : [];
+
+    // Get unique types from all issues
+    const uniqueTypes =
+      this.state.statusGroups.length > 0
+        ? this.getUniqueTypes(
             this.state.statusGroups.flatMap((group) => group.issues)
           )
         : [];
@@ -391,6 +421,27 @@ export default class CustomerSLA extends React.Component<Props, State> {
 
         {this.state.statusGroups.length > 0 && (
           <>
+            {/* Add Type Filter */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", marginBottom: 8 }}>
+                Filter by Type:
+              </label>
+              <Select
+                placeholder="Select issue types to filter"
+                value={selectedTypes}
+                onChange={this.handleTypeChange}
+                style={{ width: 400 }}
+                mode="multiple"
+                allowClear
+              >
+                {uniqueTypes.map((type) => (
+                  <Select.Option key={type} value={type}>
+                    {type}
+                  </Select.Option>
+                ))}
+              </Select>
+            </div>
+
             {/* Status Categorization Section */}
             <div style={{ marginTop: 20, marginBottom: 30 }}>
               <h3>Status Categories:</h3>
