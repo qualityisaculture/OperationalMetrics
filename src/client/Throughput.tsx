@@ -1,5 +1,10 @@
 import React from "react";
-import type { RadioChangeEvent, DatePickerProps, InputNumberProps } from "antd";
+import type {
+  RadioChangeEvent,
+  DatePickerProps,
+  InputNumberProps,
+  CheckboxChangeEvent,
+} from "antd";
 import {
   Radio,
   DatePicker,
@@ -7,6 +12,7 @@ import {
   Spin,
   Button,
   AutoComplete,
+  Checkbox,
 } from "antd";
 import dayjs from "dayjs";
 import { SprintIssueList } from "../server/graphManagers/GraphManagerTypes";
@@ -67,6 +73,7 @@ interface State {
   splitMode: "labels" | "initiatives" | "types" | "accounts" | "sankey";
   sizeMode: "count" | "time booked" | "estimate";
   sankeyGroups: IssueGroup[];
+  includeEpicsAndInitiatives: boolean;
 }
 
 export default class Throughput extends React.Component<Props, State> {
@@ -102,6 +109,7 @@ export default class Throughput extends React.Component<Props, State> {
       sizeMode: "count",
       splitMode: "initiatives",
       sankeyGroups: [],
+      includeEpicsAndInitiatives: false,
     };
   }
 
@@ -698,29 +706,52 @@ export default class Throughput extends React.Component<Props, State> {
     this.setState({ input: value });
   };
 
+  handleIncludeEpicsChange = (e: CheckboxChangeEvent) => {
+    this.setState({ includeEpicsAndInitiatives: e.target.checked });
+  };
+
+  private filterEpicsAndInitiatives(issues: IssueInfo[]): IssueInfo[] {
+    if (this.state.includeEpicsAndInitiatives) {
+      return issues;
+    }
+    return issues.filter(
+      (issue) =>
+        issue.type !== "Epic" &&
+        issue.type !== "Initiative" &&
+        issue.type !== "Sub-feature (AF)"
+    );
+  }
+
   render() {
+    // Filter the data before processing
+    const filteredThroughputData = this.state.throughputData.map((sprint) => ({
+      ...sprint,
+      issueList: this.filterEpicsAndInitiatives(sprint.issueList),
+    }));
+
+    const filteredOpenTicketsData = this.filterEpicsAndInitiatives(
+      this.state.openTicketsData
+    );
+
     let { data, columns } =
       this.state.splitMode === "initiatives"
-        ? this.getThroughputByInitiative(this.state.throughputData)
+        ? this.getThroughputByInitiative(filteredThroughputData)
         : this.state.splitMode === "labels"
-          ? this.getThroughputByLabel(this.state.throughputData)
+          ? this.getThroughputByLabel(filteredThroughputData)
           : this.state.splitMode === "accounts"
-            ? this.getThroughputByAccount(this.state.throughputData)
+            ? this.getThroughputByAccount(filteredThroughputData)
             : this.state.splitMode === "sankey"
-              ? this.getThroughputBySankey(this.state.throughputData)
-              : this.getThroughputByType(this.state.throughputData);
+              ? this.getThroughputBySankey(filteredThroughputData)
+              : this.getThroughputByType(filteredThroughputData);
 
     // Create a new row for open tickets
-
-    console.log(this.state.openTicketsData);
-
     const openTicketsRow = {
       date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
       ...Object.fromEntries(
         this.state.initiativesSelected.map((initiative) => [
           initiative,
           getSize(
-            this.state.openTicketsData.filter(
+            filteredOpenTicketsData.filter(
               (issue) => issue.initiativeKey === initiative
             ),
             this.state.sizeMode
@@ -728,7 +759,7 @@ export default class Throughput extends React.Component<Props, State> {
         ])
       ),
       Other: getSize(
-        this.state.openTicketsData.filter(
+        filteredOpenTicketsData.filter(
           (issue) =>
             !this.state.initiativesSelected.includes(issue.initiativeKey)
         ),
@@ -736,12 +767,12 @@ export default class Throughput extends React.Component<Props, State> {
       ),
       clickData: this.getClickData({
         initiativeKey: "Open Tickets",
-        issues: this.state.openTicketsData,
+        issues: filteredOpenTicketsData,
       }),
     };
 
     let issueInfo: IssueInfo[] = [];
-    this.state.throughputData.forEach((sprint) => {
+    filteredThroughputData.forEach((sprint) => {
       issueInfo = issueInfo.concat(sprint.issueList);
     });
 
@@ -836,6 +867,13 @@ export default class Throughput extends React.Component<Props, State> {
               <Radio.Button value="time booked">Time Booked</Radio.Button>
               <Radio.Button value="estimate">Estimate</Radio.Button>
             </Radio.Group>
+
+            <Checkbox
+              checked={this.state.includeEpicsAndInitiatives}
+              onChange={this.handleIncludeEpicsChange}
+            >
+              Include Epics and Initiatives
+            </Checkbox>
           </div>
         </div>
 
