@@ -24,6 +24,8 @@ interface State {
   endDate: Date;
   allStates: SelectProps["options"];
   selectedStates: string[];
+  allTypes: SelectProps["options"];
+  selectedTypes: string[];
   cfdData: CumulativeFlowDiagramData | null;
   projects: Project[];
   isLoadingProjects: boolean;
@@ -54,6 +56,8 @@ export default class CumulativeFlowDiagram extends React.Component<
       cfdData: null,
       allStates: [],
       selectedStates: [],
+      allTypes: [],
+      selectedTypes: [],
       projects: [],
       isLoadingProjects: false,
       selectedProjects: initialProjects,
@@ -164,12 +168,39 @@ export default class CumulativeFlowDiagram extends React.Component<
           return { label: status, value: status };
         });
         let selectedStates = cfdData.allStatuses;
-        this.setState({ cfdData, selectedStates, allStates });
+
+        // Extract unique types from all issues in the timeline
+        let allTypesSet = new Set<string>();
+        cfdData.timeline.forEach((day) => {
+          day.statuses.forEach((status) => {
+            status.issues.forEach((issue) => {
+              if (issue.type) {
+                allTypesSet.add(issue.type);
+              }
+            });
+          });
+        });
+        let allTypes = Array.from(allTypesSet).map((type) => {
+          return { label: type, value: type };
+        });
+        let selectedTypes = Array.from(allTypesSet); // Default to all types selected
+
+        this.setState({
+          cfdData,
+          selectedStates,
+          allStates,
+          allTypes,
+          selectedTypes,
+        });
       });
   };
 
   statesSelected(value) {
     this.setState({ selectedStates: value });
+  }
+
+  typesSelected(value) {
+    this.setState({ selectedTypes: value });
   }
 
   getClickData(
@@ -204,17 +235,24 @@ export default class CumulativeFlowDiagram extends React.Component<
   render() {
     const { projects, isLoadingProjects, selectedProjects } = this.state;
 
+    // Filter the data based on selected types
+    let filteredData = this.state.cfdData
+      ? this.state.cfdData.timeline.map((timeline) => {
+          let filteredStatuses = timeline.statuses.map((status) => ({
+            ...status,
+            issues: status.issues.filter((issue) =>
+              this.state.selectedTypes.includes(issue.type)
+            ),
+          }));
+          return {
+            ...timeline,
+            statuses: filteredStatuses,
+          };
+        })
+      : null;
+
     let columns: AreaType[] = [];
     columns.push({ type: "date", identifier: "date", label: "Date" });
-    // for (let status in this.state.cfdData?.allStatuses) {
-    //   if (this.state.selectedStates.includes(status)) {
-    //     columns.push({
-    //       type: "number",
-    //       identifier: this.state.cfdData?.allStatuses[status],
-    //       label: this.state.cfdData?.allStatuses[status],
-    //     });
-    //   }
-    // }
     this.state.selectedStates.forEach((label) => {
       columns.push({
         type: "number",
@@ -223,18 +261,11 @@ export default class CumulativeFlowDiagram extends React.Component<
       });
     });
 
-    // this.state.cfdData
-    //   ? this.state.cfdData.allStatuses.map((status) => {
-    //       return { type: "string", identifier: status, label: status };
-    //     })
-    //   : [];
-    let data = this.state.cfdData
-      ? this.state.cfdData.timeline.map((timeline) => {
+    let data = filteredData
+      ? filteredData.map((timeline) => {
           let row: CategoryData = {};
           row["date"] = new Date(timeline.date);
-          // @ts-ignore
           for (let status in this.state.selectedStates) {
-            // let statusIndex = this.state.cfdData?.allStatuses[status] || 0;
             let statusIndex = this.state.selectedStates[status];
             let issuesLength =
               timeline.statuses.find((status) => status.status === statusIndex)
@@ -248,6 +279,7 @@ export default class CumulativeFlowDiagram extends React.Component<
           return row;
         })
       : [];
+
     console.log(columns, data);
     return (
       <div>
@@ -339,15 +371,28 @@ export default class CumulativeFlowDiagram extends React.Component<
         </div>
 
         {this.state.cfdData && (
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 8 }}>
-              Status Filter:
-            </label>
-            <Select
-              onChange={this.statesSelected.bind(this)}
-              options={this.state.allStates}
-            />
-          </div>
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", marginBottom: 8 }}>
+                Type Filter:
+              </label>
+              <Select
+                onChange={this.typesSelected.bind(this)}
+                options={this.state.allTypes}
+                selected={this.state.selectedTypes}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", marginBottom: 8 }}>
+                Status Filter:
+              </label>
+              <Select
+                onChange={this.statesSelected.bind(this)}
+                options={this.state.allStates}
+              />
+            </div>
+          </>
         )}
 
         <AreaChart
