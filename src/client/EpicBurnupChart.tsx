@@ -49,6 +49,7 @@ interface State {
   // Add visibility state for line groups
   showDev: boolean;
   showTest: boolean;
+  showStory: boolean;
   showTimeSpent: boolean;
 }
 
@@ -69,6 +70,7 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
       statusMessage: "",
       showDev: true,
       showTest: true,
+      showStory: true,
       showTimeSpent: true,
     };
   }
@@ -186,6 +188,10 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
     this.setState((prevState) => ({ showTest: !prevState.showTest }));
   };
 
+  toggleStory = () => {
+    this.setState((prevState) => ({ showStory: !prevState.showStory }));
+  };
+
   toggleTimeSpent = () => {
     this.setState((prevState) => ({ showTimeSpent: !prevState.showTimeSpent }));
   };
@@ -294,13 +300,19 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
                 type={this.state.showDev ? "primary" : "default"}
                 onClick={this.toggleDev}
               >
-                {this.state.showDev ? "Hide" : "Show"} Dev
+                {this.state.showDev ? "Hide" : "Show"} Other
               </Button>
               <Button
                 type={this.state.showTest ? "primary" : "default"}
                 onClick={this.toggleTest}
               >
                 {this.state.showTest ? "Hide" : "Show"} Test
+              </Button>
+              <Button
+                type={this.state.showStory ? "primary" : "default"}
+                onClick={this.toggleStory}
+              >
+                {this.state.showStory ? "Hide" : "Show"} Story
               </Button>
               <Button
                 type={this.state.showTimeSpent ? "primary" : "default"}
@@ -314,20 +326,25 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
               burnupDataArray={data}
               showDev={this.state.showDev}
               showTest={this.state.showTest}
+              showStory={this.state.showStory}
               showTimeSpent={this.state.showTimeSpent}
             />
             <LineChart
               burnupDataArray={gapData}
               showDev={this.state.showDev}
               showTest={this.state.showTest}
+              showStory={this.state.showStory}
               showTimeSpent={this.state.showTimeSpent}
               labels={{
-                doneDev: "Remaining Unfinished Dev",
-                inProgressDev: "Remaining Unstarted Dev",
-                scopeDev: "Total Scope Dev",
+                doneDev: "Remaining Unfinished Other",
+                inProgressDev: "Remaining Unstarted Other",
+                scopeDev: "Total Scope Other",
                 doneTest: "Remaining Unfinished Test",
                 inProgressTest: "Remaining Unstarted Test",
                 scopeTest: "Total Scope Test",
+                doneStory: "Remaining Unfinished Story",
+                inProgressStory: "Remaining Unstarted Story",
+                scopeStory: "Total Scope Story",
                 timeSpent: "Remaining Time",
                 doneTrend: "Unfinished Trend",
                 scopeTrend: "Scope Trend",

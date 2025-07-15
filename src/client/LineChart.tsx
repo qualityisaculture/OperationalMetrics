@@ -4,17 +4,21 @@ const google = globalThis.google;
 export type GoogleDataTableType = {
   data: [
     Date,
-    number | null, // doneDev
-    number | null, // inProgressDev
-    number | null, // scopeDev
+    number | null, // doneOther
+    number | null, // inProgressOther
+    number | null, // scopeOther
     string | null, // annotation
     string | null, // annotationHover
     number | null, // doneTest
     number | null, // inProgressTest
     number | null, // scopeTest
+    number | null, // doneStory
+    number | null, // inProgressStory
+    number | null, // scopeStory
     number | null, // timeSpent
-    number | null, // timeSpentDev
+    number | null, // timeSpentOther
     number | null, // timeSpentTest
+    number | null, // timeSpentStory
   ];
   clickData?: string;
 };
@@ -23,6 +27,7 @@ interface ChartProps {
   burnupDataArray: GoogleDataTableType[];
   showDev?: boolean;
   showTest?: boolean;
+  showStory?: boolean;
   showTimeSpent?: boolean;
   labels?: {
     doneDev?: string;
@@ -31,24 +36,32 @@ interface ChartProps {
     doneTest?: string;
     inProgressTest?: string;
     scopeTest?: string;
+    doneStory?: string;
+    inProgressStory?: string;
+    scopeStory?: string;
     timeSpent?: string;
     timeSpentDev?: string;
     timeSpentTest?: string;
+    timeSpentStory?: string;
     doneTrend?: string;
     scopeTrend?: string;
   };
 }
 
 const DEFAULT_LABELS = {
-  doneDev: "Done Dev",
-  inProgressDev: "In Progress or Done Dev",
-  scopeDev: "Scope Dev",
+  doneDev: "Done Other",
+  inProgressDev: "In Progress or Done Other",
+  scopeDev: "Scope Other",
   doneTest: "Done Test",
   inProgressTest: "In Progress or Done Test",
   scopeTest: "Scope Test",
+  doneStory: "Done Story",
+  inProgressStory: "In Progress or Done Story",
+  scopeStory: "Scope Story",
   timeSpent: "Time Spent",
-  timeSpentDev: "Time Spent Dev",
+  timeSpentDev: "Time Spent Other",
   timeSpentTest: "Time Spent Test",
+  timeSpentStory: "Time Spent Story",
   doneTrend: "Done Trend",
   scopeTrend: "Scope Trend",
 };
@@ -111,6 +124,7 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       prevProps.burnupDataArray !== this.props.burnupDataArray ||
       prevProps.showDev !== this.props.showDev ||
       prevProps.showTest !== this.props.showTest ||
+      prevProps.showStory !== this.props.showStory ||
       prevProps.showTimeSpent !== this.props.showTimeSpent
     ) {
       if (!this.props.burnupDataArray) {
@@ -163,9 +177,13 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
         doneTest,
         inProgressTest,
         scopeTest,
+        doneStory,
+        inProgressStory,
+        scopeStory,
         timeSpent,
         timeSpentDev,
         timeSpentTest,
+        timeSpentStory,
       ] = dataPoint.data;
       const dateTime = date.getTime();
       const startDateTime = startDate.getTime();
@@ -198,22 +216,28 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       doneTest,
       inProgressTest,
       scopeTest,
+      doneStory,
+      inProgressStory,
+      scopeStory,
       timeSpent,
       timeSpentDev,
       timeSpentTest,
+      timeSpentStory,
     ] = dataPoint.data;
 
     const {
       showDev = true,
       showTest = true,
+      showStory = true,
       showTimeSpent = true,
     } = this.props;
 
     // Calculate column offsets based on visibility
     let devOffset = 0;
-    let testOffset = showDev ? 5 : 0; // Dev columns + annotation columns
-    let timeSpentOffset = testOffset + (showTest ? 3 : 0);
-    let trendOffset = timeSpentOffset + (showTimeSpent ? 3 : 0);
+    let testOffset = showDev ? 5 : 0; // Other columns + annotation columns
+    let storyOffset = testOffset + (showTest ? 3 : 0);
+    let timeSpentOffset = storyOffset + (showStory ? 3 : 0);
+    let trendOffset = timeSpentOffset + (showTimeSpent ? 4 : 0); // 4 time spent columns now
 
     // Clear trend line if clicking on one
     if (column === trendOffset && this.state.doneTrendLineData.length > 0) {
@@ -246,7 +270,7 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     let value: number | null = null;
     let type: "done" | "scope" | null = null;
 
-    // Check Dev columns
+    // Check Other columns
     if (showDev && column === devOffset) {
       value = doneDev;
       type = "done";
@@ -260,6 +284,14 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       type = "done";
     } else if (showTest && column === testOffset + 2) {
       value = scopeTest;
+      type = "scope";
+    }
+    // Check Story columns
+    else if (showStory && column === storyOffset) {
+      value = doneStory;
+      type = "done";
+    } else if (showStory && column === storyOffset + 2) {
+      value = scopeStory;
       type = "scope";
     }
 
@@ -316,6 +348,7 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     const {
       showDev = true,
       showTest = true,
+      showStory = true,
       showTimeSpent = true,
     } = this.props;
 
@@ -326,7 +359,7 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     const columnMap: { [key: string]: number } = {};
     let currentColumnIndex = 1; // Start after date column
 
-    // Add Dev columns if visible
+    // Add Other columns if visible
     if (showDev) {
       data.addColumn("number", labels.doneDev);
       columnMap.doneDev = currentColumnIndex++;
@@ -354,6 +387,16 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       columnMap.scopeTest = currentColumnIndex++;
     }
 
+    // Add Story columns if visible
+    if (showStory) {
+      data.addColumn("number", labels.doneStory);
+      columnMap.doneStory = currentColumnIndex++;
+      data.addColumn("number", labels.inProgressStory);
+      columnMap.inProgressStory = currentColumnIndex++;
+      data.addColumn("number", labels.scopeStory);
+      columnMap.scopeStory = currentColumnIndex++;
+    }
+
     // Add Time Spent columns if visible
     if (showTimeSpent) {
       data.addColumn("number", labels.timeSpent);
@@ -362,6 +405,8 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       columnMap.timeSpentDev = currentColumnIndex++;
       data.addColumn("number", labels.timeSpentTest);
       columnMap.timeSpentTest = currentColumnIndex++;
+      data.addColumn("number", labels.timeSpentStory);
+      columnMap.timeSpentStory = currentColumnIndex++;
     }
 
     // Add trend lines after main lines
@@ -385,14 +430,18 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
         doneTest,
         inProgressTest,
         scopeTest,
+        doneStory,
+        inProgressStory,
+        scopeStory,
         timeSpent,
         timeSpentDev,
         timeSpentTest,
+        timeSpentStory,
       ] = item.data;
 
       const row: any[] = [date]; // Always include date
 
-      // Add Dev data if visible
+      // Add Other data if visible
       if (showDev) {
         row.push(doneDev, inProgressDev, scopeDev, annotation, annotationHover);
       }
@@ -402,9 +451,14 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
         row.push(doneTest, inProgressTest, scopeTest);
       }
 
+      // Add Story data if visible
+      if (showStory) {
+        row.push(doneStory, inProgressStory, scopeStory);
+      }
+
       // Add Time Spent data if visible
       if (showTimeSpent) {
-        row.push(timeSpent, timeSpentDev, timeSpentTest);
+        row.push(timeSpent, timeSpentDev, timeSpentTest, timeSpentStory);
       }
 
       // Add trend lines
@@ -425,9 +479,9 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     let seriesIndex = 0;
 
     if (showDev) {
-      series[seriesIndex++] = { color: "blue" }; // Done Dev
-      series[seriesIndex++] = { color: "lightblue" }; // In Progress Dev
-      series[seriesIndex++] = { color: "green" }; // Scope Dev
+      series[seriesIndex++] = { color: "blue" }; // Done Other
+      series[seriesIndex++] = { color: "lightblue" }; // In Progress Other
+      series[seriesIndex++] = { color: "green" }; // Scope Other
       seriesIndex += 2; // Skip annotation columns
     }
 
@@ -437,10 +491,17 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       series[seriesIndex++] = { color: "orange" }; // Scope Test
     }
 
+    if (showStory) {
+      series[seriesIndex++] = { color: "teal" }; // Done Story
+      series[seriesIndex++] = { color: "lightseagreen" }; // In Progress Story
+      series[seriesIndex++] = { color: "darkcyan" }; // Scope Story
+    }
+
     if (showTimeSpent) {
       series[seriesIndex++] = { color: "red", targetAxisIndex: 1 }; // Time Spent
-      series[seriesIndex++] = { color: "darkred", targetAxisIndex: 1 }; // Time Spent Dev
+      series[seriesIndex++] = { color: "darkred", targetAxisIndex: 1 }; // Time Spent Other
       series[seriesIndex++] = { color: "crimson", targetAxisIndex: 1 }; // Time Spent Test
+      series[seriesIndex++] = { color: "indianred", targetAxisIndex: 1 }; // Time Spent Story
     }
 
     // Add trend lines

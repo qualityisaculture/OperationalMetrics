@@ -35,20 +35,30 @@ export function extendEpicBurnup(
           doneTestCount: null,
           doneTestEstimate: null,
           doneTestKeys: [],
+          doneStoryCount: null,
+          doneStoryEstimate: null,
+          doneStoryKeys: [],
           inProgressDevCount: null,
           inProgressDevEstimate: null,
           inProgressDevKeys: [],
           inProgressTestCount: null,
           inProgressTestEstimate: null,
           inProgressTestKeys: [],
+          inProgressStoryCount: null,
+          inProgressStoryEstimate: null,
+          inProgressStoryKeys: [],
           scopeDevCount: null,
           scopeDevEstimate: null,
           scopeDevKeys: [],
           scopeTestCount: null,
           scopeTestEstimate: null,
           scopeTestKeys: [],
+          scopeStoryCount: null,
+          scopeStoryEstimate: null,
+          scopeStoryKeys: [],
           timeSpentDev: null,
           timeSpentTest: null,
+          timeSpentStory: null,
           timeSpent: null,
         });
       } else {
@@ -118,9 +128,25 @@ export function getGoogleDataTableFromMultipleBurnupData(
       issuesExistingToday,
       estimate ? "scopeTestEstimate" : "scopeTestCount"
     );
+    let sumDoneStory = reduceDSAField(
+      issuesExistingToday,
+      estimate ? "doneStoryEstimate" : "doneStoryCount"
+    );
+    let sumInProgressStory = reduceDSAField(
+      issuesExistingToday,
+      estimate ? "inProgressStoryEstimate" : "inProgressStoryCount"
+    );
+    let sumScopeStory = reduceDSAField(
+      issuesExistingToday,
+      estimate ? "scopeStoryEstimate" : "scopeStoryCount"
+    );
     let sumTimeSpent = reduceDSAField(issuesExistingToday, "timeSpent");
     let sumTimeSpentDev = reduceDSAField(issuesExistingToday, "timeSpentDev");
     let sumTimeSpentTest = reduceDSAField(issuesExistingToday, "timeSpentTest");
+    let sumTimeSpentStory = reduceDSAField(
+      issuesExistingToday,
+      "timeSpentStory"
+    );
 
     let tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -229,9 +255,13 @@ export function getGoogleDataTableFromMultipleBurnupData(
         sumDoneTest,
         sumInProgressTest,
         sumScopeTest,
+        sumDoneStory,
+        sumInProgressStory,
+        sumScopeStory,
         sumTimeSpent,
         sumTimeSpentDev,
         sumTimeSpentTest,
+        sumTimeSpentStory,
       ],
       clickData,
     });
@@ -349,9 +379,13 @@ export function getGapDataFromBurnupData(
       doneTest,
       inProgressTest,
       scopeTest,
+      doneStory,
+      inProgressStory,
+      scopeStory,
       timeSpent,
       timeSpentDev,
       timeSpentTest,
+      timeSpentStory,
     ] = dataPoint.data;
     const gapToDoneDev =
       scopeDev === null || doneDev === null ? null : scopeDev - doneDev;
@@ -365,6 +399,12 @@ export function getGapDataFromBurnupData(
       scopeTest === null || inProgressTest === null
         ? null
         : scopeTest - inProgressTest;
+    const gapToDoneStory =
+      scopeStory === null || doneStory === null ? null : scopeStory - doneStory;
+    const gapToInProgressStory =
+      scopeStory === null || inProgressStory === null
+        ? null
+        : scopeStory - inProgressStory;
 
     return {
       data: [
@@ -377,9 +417,13 @@ export function getGapDataFromBurnupData(
         gapToDoneTest,
         gapToInProgressTest,
         0,
+        gapToDoneStory,
+        gapToInProgressStory,
+        0,
         timeSpent,
         timeSpentDev,
         timeSpentTest,
+        timeSpentStory,
       ],
       clickData: dataPoint.clickData,
     };

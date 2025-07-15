@@ -11,20 +11,30 @@ export type DoneAndScopeCount = {
   doneTestCount: number | null;
   doneTestEstimate: number | null;
   doneTestKeys: string[];
+  doneStoryCount: number | null;
+  doneStoryEstimate: number | null;
+  doneStoryKeys: string[];
   inProgressDevCount: number | null;
   inProgressDevEstimate: number | null;
   inProgressDevKeys: string[];
   inProgressTestCount: number | null;
   inProgressTestEstimate: number | null;
   inProgressTestKeys: string[];
+  inProgressStoryCount: number | null;
+  inProgressStoryEstimate: number | null;
+  inProgressStoryKeys: string[];
   scopeDevCount: number | null;
   scopeDevEstimate: number | null;
   scopeDevKeys: string[];
   scopeTestCount: number | null;
   scopeTestEstimate: number | null;
   scopeTestKeys: string[];
-  timeSpentDev: number | null; // Time spent on dev issues in days
+  scopeStoryCount: number | null;
+  scopeStoryEstimate: number | null;
+  scopeStoryKeys: string[];
+  timeSpentDev: number | null; // Time spent on other issues in days
   timeSpentTest: number | null; // Time spent on test issues in days
+  timeSpentStory: number | null; // Time spent on story issues in days
   timeSpent: number | null; // Total time spent in days (for backward compatibility)
 };
 
@@ -294,6 +304,10 @@ export default class BurnupGraphManager {
     );
   }
 
+  private isStoryIssue(jira: Jira): boolean {
+    return jira.getType() === "Story";
+  }
+
   async getBurnupArrayToDate(epic: Jira): Promise<{
     data: DoneAndScopeCount[];
     totalCount: number;
@@ -343,24 +357,33 @@ export default class BurnupGraphManager {
         });
       });
 
-      // Split into dev and test issues
+      // Split into other, test, and story issues
       let doneDevChildren = doneChildren.filter(
-        (child) => !this.isTestIssue(child)
+        (child) => !this.isTestIssue(child) && !this.isStoryIssue(child)
       );
       let doneTestChildren = doneChildren.filter((child) =>
         this.isTestIssue(child)
       );
+      let doneStoryChildren = doneChildren.filter((child) =>
+        this.isStoryIssue(child)
+      );
       let inProgressDevChildren = inProgressChildren.filter(
-        (child) => !this.isTestIssue(child)
+        (child) => !this.isTestIssue(child) && !this.isStoryIssue(child)
       );
       let inProgressTestChildren = inProgressChildren.filter((child) =>
         this.isTestIssue(child)
       );
+      let inProgressStoryChildren = inProgressChildren.filter((child) =>
+        this.isStoryIssue(child)
+      );
       let scopeDevChildren = scopeChildren.filter(
-        (child) => !this.isTestIssue(child)
+        (child) => !this.isTestIssue(child) && !this.isStoryIssue(child)
       );
       let scopeTestChildren = scopeChildren.filter((child) =>
         this.isTestIssue(child)
+      );
+      let scopeStoryChildren = scopeChildren.filter((child) =>
+        this.isStoryIssue(child)
       );
 
       let doneDevEstimate = doneDevChildren.reduce(
@@ -368,6 +391,10 @@ export default class BurnupGraphManager {
         0
       );
       let doneTestEstimate = doneTestChildren.reduce(
+        (acc, child) => acc + (child.getOriginalEstimate() || 0),
+        0
+      );
+      let doneStoryEstimate = doneStoryChildren.reduce(
         (acc, child) => acc + (child.getOriginalEstimate() || 0),
         0
       );
@@ -379,6 +406,10 @@ export default class BurnupGraphManager {
         (acc, child) => acc + (child.getOriginalEstimate() || 0),
         0
       );
+      let inProgressStoryEstimate = inProgressStoryChildren.reduce(
+        (acc, child) => acc + (child.getOriginalEstimate() || 0),
+        0
+      );
       let scopeDevEstimate = scopeDevChildren.reduce(
         (acc, child) => acc + (child.getOriginalEstimate() || 0),
         0
@@ -387,10 +418,15 @@ export default class BurnupGraphManager {
         (acc, child) => acc + (child.getOriginalEstimate() || 0),
         0
       );
+      let scopeStoryEstimate = scopeStoryChildren.reduce(
+        (acc, child) => acc + (child.getOriginalEstimate() || 0),
+        0
+      );
 
-      // Calculate time spent split by dev and test issues
+      // Calculate time spent split by other, test, and story issues
       let timeSpentDev = 0;
       let timeSpentTest = 0;
+      let timeSpentStory = 0;
       let totalTimeSpent = 0;
 
       allChildJiras.forEach((child) => {
@@ -399,6 +435,8 @@ export default class BurnupGraphManager {
 
         if (this.isTestIssue(child)) {
           timeSpentTest += timeSpent;
+        } else if (this.isStoryIssue(child)) {
+          timeSpentStory += timeSpent;
         } else {
           timeSpentDev += timeSpent;
         }
@@ -412,6 +450,9 @@ export default class BurnupGraphManager {
         doneTestCount: doneTestChildren.length,
         doneTestEstimate,
         doneTestKeys: doneTestChildren.map((child) => child.getKey()),
+        doneStoryCount: doneStoryChildren.length,
+        doneStoryEstimate,
+        doneStoryKeys: doneStoryChildren.map((child) => child.getKey()),
         inProgressDevCount: inProgressDevChildren.length,
         inProgressDevEstimate,
         inProgressDevKeys: inProgressDevChildren.map((child) => child.getKey()),
@@ -420,14 +461,23 @@ export default class BurnupGraphManager {
         inProgressTestKeys: inProgressTestChildren.map((child) =>
           child.getKey()
         ),
+        inProgressStoryCount: inProgressStoryChildren.length,
+        inProgressStoryEstimate,
+        inProgressStoryKeys: inProgressStoryChildren.map((child) =>
+          child.getKey()
+        ),
         scopeDevCount: scopeDevChildren.length,
         scopeDevEstimate,
         scopeDevKeys: scopeDevChildren.map((child) => child.getKey()),
         scopeTestCount: scopeTestChildren.length,
         scopeTestEstimate,
         scopeTestKeys: scopeTestChildren.map((child) => child.getKey()),
+        scopeStoryCount: scopeStoryChildren.length,
+        scopeStoryEstimate,
+        scopeStoryKeys: scopeStoryChildren.map((child) => child.getKey()),
         timeSpentDev: timeSpentDev || null,
         timeSpentTest: timeSpentTest || null,
+        timeSpentStory: timeSpentStory || null,
         timeSpent: totalTimeSpent || null,
       });
     }
