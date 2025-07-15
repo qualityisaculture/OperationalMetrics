@@ -1,6 +1,6 @@
 import React from "react";
 import type { SelectProps } from "antd";
-import { DatePicker, Spin } from "antd";
+import { DatePicker, Spin, Button } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 
 import {
@@ -46,6 +46,10 @@ interface State {
     totalIssues?: number;
   };
   currentStep?: string;
+  // Add visibility state for line groups
+  showDev: boolean;
+  showTest: boolean;
+  showTimeSpent: boolean;
 }
 
 export default class EpicBurnupChart extends React.Component<Props, State> {
@@ -63,6 +67,9 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
       originalUrl: "",
       isLoading: false,
       statusMessage: "",
+      showDev: true,
+      showTest: true,
+      showTimeSpent: true,
     };
   }
 
@@ -170,6 +177,19 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
     });
   };
 
+  // Add toggle methods for line visibility
+  toggleDev = () => {
+    this.setState((prevState) => ({ showDev: !prevState.showDev }));
+  };
+
+  toggleTest = () => {
+    this.setState((prevState) => ({ showTest: !prevState.showTest }));
+  };
+
+  toggleTimeSpent = () => {
+    this.setState((prevState) => ({ showTimeSpent: !prevState.showTimeSpent }));
+  };
+
   render() {
     const data = getGoogleDataTableFromMultipleBurnupData(
       this.getSelectedEpics(),
@@ -260,9 +280,47 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
               }}
               value={this.state.endDate}
             />
-            <LineChart burnupDataArray={data} />
+
+            {/* Add visibility toggle buttons */}
+            <div
+              style={{
+                margin: "20px 0",
+                display: "flex",
+                gap: "10px",
+                flexWrap: "wrap",
+              }}
+            >
+              <Button
+                type={this.state.showDev ? "primary" : "default"}
+                onClick={this.toggleDev}
+              >
+                {this.state.showDev ? "Hide" : "Show"} Dev
+              </Button>
+              <Button
+                type={this.state.showTest ? "primary" : "default"}
+                onClick={this.toggleTest}
+              >
+                {this.state.showTest ? "Hide" : "Show"} Test
+              </Button>
+              <Button
+                type={this.state.showTimeSpent ? "primary" : "default"}
+                onClick={this.toggleTimeSpent}
+              >
+                {this.state.showTimeSpent ? "Hide" : "Show"} Time Spent
+              </Button>
+            </div>
+
+            <LineChart
+              burnupDataArray={data}
+              showDev={this.state.showDev}
+              showTest={this.state.showTest}
+              showTimeSpent={this.state.showTimeSpent}
+            />
             <LineChart
               burnupDataArray={gapData}
+              showDev={this.state.showDev}
+              showTest={this.state.showTest}
+              showTimeSpent={this.state.showTimeSpent}
               labels={{
                 doneDev: "Remaining Unfinished Dev",
                 inProgressDev: "Remaining Unstarted Dev",

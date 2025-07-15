@@ -21,6 +21,9 @@ export type GoogleDataTableType = {
 
 interface ChartProps {
   burnupDataArray: GoogleDataTableType[];
+  showDev?: boolean;
+  showTest?: boolean;
+  showTimeSpent?: boolean;
   labels?: {
     doneDev?: string;
     inProgressDev?: string;
@@ -104,7 +107,12 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
   };
 
   componentDidUpdate(prevProps, prevState) {
-    if (prevProps.burnupDataArray !== this.props.burnupDataArray) {
+    if (
+      prevProps.burnupDataArray !== this.props.burnupDataArray ||
+      prevProps.showDev !== this.props.showDev ||
+      prevProps.showTest !== this.props.showTest ||
+      prevProps.showTimeSpent !== this.props.showTimeSpent
+    ) {
       if (!this.props.burnupDataArray) {
         return;
       }
@@ -195,8 +203,20 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       timeSpentTest,
     ] = dataPoint.data;
 
+    const {
+      showDev = true,
+      showTest = true,
+      showTimeSpent = true,
+    } = this.props;
+
+    // Calculate column offsets based on visibility
+    let devOffset = 0;
+    let testOffset = showDev ? 5 : 0; // Dev columns + annotation columns
+    let timeSpentOffset = testOffset + (showTest ? 3 : 0);
+    let trendOffset = timeSpentOffset + (showTimeSpent ? 3 : 0);
+
     // Clear trend line if clicking on one
-    if (column === 9) {
+    if (column === trendOffset && this.state.doneTrendLineData.length > 0) {
       // Done trend line
       this.setState({
         clickedPoints: this.state.clickedPoints.filter(
@@ -207,7 +227,10 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       });
       return;
     }
-    if (column === 10) {
+    if (
+      column === trendOffset + 1 &&
+      this.state.scopeTrendLineData.length > 0
+    ) {
       // Scope trend line
       this.setState({
         clickedPoints: this.state.clickedPoints.filter(
@@ -223,11 +246,20 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     let value: number | null = null;
     let type: "done" | "scope" | null = null;
 
-    if (column === 1) {
+    // Check Dev columns
+    if (showDev && column === devOffset) {
       value = doneDev;
       type = "done";
-    } else if (column === 3) {
+    } else if (showDev && column === devOffset + 2) {
       value = scopeDev;
+      type = "scope";
+    }
+    // Check Test columns
+    else if (showTest && column === testOffset) {
+      value = doneTest;
+      type = "done";
+    } else if (showTest && column === testOffset + 2) {
+      value = scopeTest;
       type = "scope";
     }
 
@@ -281,60 +313,148 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
   drawChart() {
     var data = new google.visualization.DataTable();
     const labels = { ...DEFAULT_LABELS, ...this.props.labels };
+    const {
+      showDev = true,
+      showTest = true,
+      showTimeSpent = true,
+    } = this.props;
+
+    // Always add date column
     data.addColumn("date", "Date");
-    data.addColumn("number", labels.doneDev);
-    data.addColumn("number", labels.inProgressDev);
-    data.addColumn("number", labels.scopeDev);
-    data.addColumn({ type: "string", role: "annotation" });
-    data.addColumn({
-      type: "string",
-      role: "annotationText",
-      p: { html: true },
-    });
-    data.addColumn("number", labels.doneTest);
-    data.addColumn("number", labels.inProgressTest);
-    data.addColumn("number", labels.scopeTest);
-    data.addColumn("number", labels.timeSpent);
-    data.addColumn("number", labels.timeSpentDev);
-    data.addColumn("number", labels.timeSpentTest);
+
+    // Track which columns are added and their indices
+    const columnMap: { [key: string]: number } = {};
+    let currentColumnIndex = 1; // Start after date column
+
+    // Add Dev columns if visible
+    if (showDev) {
+      data.addColumn("number", labels.doneDev);
+      columnMap.doneDev = currentColumnIndex++;
+      data.addColumn("number", labels.inProgressDev);
+      columnMap.inProgressDev = currentColumnIndex++;
+      data.addColumn("number", labels.scopeDev);
+      columnMap.scopeDev = currentColumnIndex++;
+      data.addColumn({ type: "string", role: "annotation" });
+      columnMap.annotation = currentColumnIndex++;
+      data.addColumn({
+        type: "string",
+        role: "annotationText",
+        p: { html: true },
+      });
+      columnMap.annotationText = currentColumnIndex++;
+    }
+
+    // Add Test columns if visible
+    if (showTest) {
+      data.addColumn("number", labels.doneTest);
+      columnMap.doneTest = currentColumnIndex++;
+      data.addColumn("number", labels.inProgressTest);
+      columnMap.inProgressTest = currentColumnIndex++;
+      data.addColumn("number", labels.scopeTest);
+      columnMap.scopeTest = currentColumnIndex++;
+    }
+
+    // Add Time Spent columns if visible
+    if (showTimeSpent) {
+      data.addColumn("number", labels.timeSpent);
+      columnMap.timeSpent = currentColumnIndex++;
+      data.addColumn("number", labels.timeSpentDev);
+      columnMap.timeSpentDev = currentColumnIndex++;
+      data.addColumn("number", labels.timeSpentTest);
+      columnMap.timeSpentTest = currentColumnIndex++;
+    }
 
     // Add trend lines after main lines
     if (this.state.doneTrendLineData.length > 0) {
       data.addColumn("number", labels.doneTrend);
+      columnMap.doneTrend = currentColumnIndex++;
     }
     if (this.state.scopeTrendLineData.length > 0) {
       data.addColumn("number", labels.scopeTrend);
+      columnMap.scopeTrend = currentColumnIndex++;
     }
 
     const rows = this.props.burnupDataArray.map((item, index) => {
-      const row = [...item.data];
+      const [
+        date,
+        doneDev,
+        inProgressDev,
+        scopeDev,
+        annotation,
+        annotationHover,
+        doneTest,
+        inProgressTest,
+        scopeTest,
+        timeSpent,
+        timeSpentDev,
+        timeSpentTest,
+      ] = item.data;
+
+      const row: any[] = [date]; // Always include date
+
+      // Add Dev data if visible
+      if (showDev) {
+        row.push(doneDev, inProgressDev, scopeDev, annotation, annotationHover);
+      }
+
+      // Add Test data if visible
+      if (showTest) {
+        row.push(doneTest, inProgressTest, scopeTest);
+      }
+
+      // Add Time Spent data if visible
+      if (showTimeSpent) {
+        row.push(timeSpent, timeSpentDev, timeSpentTest);
+      }
+
+      // Add trend lines
       if (this.state.doneTrendLineData.length > 0) {
         row.push(this.state.doneTrendLineData[index]);
       }
       if (this.state.scopeTrendLineData.length > 0) {
         row.push(this.state.scopeTrendLineData[index]);
       }
+
       return row;
     });
 
     data.addRows(rows);
 
+    // Configure series colors based on visible columns
+    const series: { [key: number]: any } = {};
+    let seriesIndex = 0;
+
+    if (showDev) {
+      series[seriesIndex++] = { color: "blue" }; // Done Dev
+      series[seriesIndex++] = { color: "lightblue" }; // In Progress Dev
+      series[seriesIndex++] = { color: "green" }; // Scope Dev
+      seriesIndex += 2; // Skip annotation columns
+    }
+
+    if (showTest) {
+      series[seriesIndex++] = { color: "purple" }; // Done Test
+      series[seriesIndex++] = { color: "plum" }; // In Progress Test
+      series[seriesIndex++] = { color: "orange" }; // Scope Test
+    }
+
+    if (showTimeSpent) {
+      series[seriesIndex++] = { color: "red", targetAxisIndex: 1 }; // Time Spent
+      series[seriesIndex++] = { color: "darkred", targetAxisIndex: 1 }; // Time Spent Dev
+      series[seriesIndex++] = { color: "crimson", targetAxisIndex: 1 }; // Time Spent Test
+    }
+
+    // Add trend lines
+    if (this.state.doneTrendLineData.length > 0) {
+      series[seriesIndex++] = { color: "blue", lineDashStyle: [4, 4] }; // Done Trend
+    }
+    if (this.state.scopeTrendLineData.length > 0) {
+      series[seriesIndex++] = { color: "green", lineDashStyle: [4, 4] }; // Scope Trend
+    }
+
     const options = {
       title: "Issue Burnup",
       legend: { position: "bottom" },
-      series: {
-        0: { color: "blue" }, // Done Dev (always blue)
-        1: { color: "lightblue" }, // In Progress Dev
-        2: { color: "green" }, // Scope Dev (always green)
-        3: { color: "purple" }, // Done Test
-        4: { color: "plum" }, // In Progress Test
-        5: { color: "orange" }, // Scope Test
-        6: { color: "red", targetAxisIndex: 1 }, // Time Spent (always red)
-        7: { color: "darkred", targetAxisIndex: 1 }, // Time Spent Dev
-        8: { color: "crimson", targetAxisIndex: 1 }, // Time Spent Test
-        9: { color: "blue", lineDashStyle: [4, 4] }, // Done Trend
-        10: { color: "green", lineDashStyle: [4, 4] }, // Scope Trend
-      },
+      series,
       vAxes: {
         0: { title: "Story Points" },
         1: { title: "Time Spent (days)" },

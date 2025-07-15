@@ -17,6 +17,7 @@ import LeadTimeGraphManager from "../graphManagers/LeadTimeGraphManager";
 import CumulativeFlowDiagramManager from "../graphManagers/CumulativeFlowDiagramManager";
 import DoraLeadTimeForChanges from "../graphManagers/DoraLeadTimeForChanges";
 import CustomerSLAGraphManager from "../graphManagers/CustomerSLAGraphManager";
+import CreatedResolvedGraphManager from "../graphManagers/CreatedResolvedGraphManager";
 
 async function getJiraData(issueKey: string) {}
 
@@ -30,6 +31,9 @@ const leadTimeGraphManager = new LeadTimeGraphManager(jiraRequester);
 const cfdm = new CumulativeFlowDiagramManager(jiraRequester);
 const doraLeadTimeForChanges = new DoraLeadTimeForChanges(jiraRequester);
 const customerSLAGraphManager = new CustomerSLAGraphManager(jiraRequester);
+const createdResolvedGraphManager = new CreatedResolvedGraphManager(
+  jiraRequester
+);
 
 metricsRoute.get(
   "/cumulativeFlowDiagram",
@@ -324,6 +328,34 @@ metricsRoute.get(
         console.error("Error fetching projects from Jira:", error);
         res.json({
           message: "Error fetching projects from Jira",
+          data: JSON.stringify([]),
+        });
+      });
+  }
+);
+
+metricsRoute.get(
+  "/createdResolved",
+  (
+    req: TRQ<{ query: string; startDate: string; endDate: string }>,
+    res: TR<{ message: string; data: string }>
+  ) => {
+    const query = req.query.query;
+    const startDate = new Date(req.query.startDate);
+    const endDate = new Date(req.query.endDate);
+
+    createdResolvedGraphManager
+      .getCreatedResolvedData(query, startDate, endDate)
+      .then((data) => {
+        res.json({
+          message: "Created/Resolved data fetched successfully",
+          data: JSON.stringify(data),
+        });
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        res.json({
+          message: "Error fetching Created/Resolved data",
           data: JSON.stringify([]),
         });
       });
