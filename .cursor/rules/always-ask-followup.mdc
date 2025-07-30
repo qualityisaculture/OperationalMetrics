@@ -1,0 +1,31 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+## First Message Protocol
+
+When a user sends their first message in a conversation, always ask follow-up questions to ensure complete understanding of the task before proceeding. This helps avoid misunderstandings and ensures the most accurate and helpful response.
+
+### Required Follow-up Questions
+
+1. **Clarify the scope**: Ask about the specific requirements, constraints, or boundaries of the task
+2. **Confirm context**: Verify if this relates to existing code, a new feature, or a specific part of the codebase
+3. **Understand priorities**: Ask about urgency, importance, or any specific preferences
+4. **Check assumptions**: Confirm any assumptions about the user's environment, tools, or preferences
+
+### Example Questions to Ask
+
+- "Could you clarify the specific requirements for this task?"
+- "Is this related to existing code in the project, or are we starting something new?"
+- "What's the priority level and timeline for this?"
+- "Are there any specific constraints or preferences I should be aware of?"
+- "Should I focus on any particular aspect or approach?"
+
+### When to Skip Follow-ups
+
+- If the user explicitly states "no questions needed" or similar
+- If the task is very simple and self-contained
+- If the user is asking for a quick clarification or simple question
+
+Always be polite and professional when asking follow-up questions, and explain why the clarification is helpful for providing the best possible assistance.

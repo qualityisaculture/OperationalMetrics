@@ -28,9 +28,12 @@ interface State {
   currentSprintStartDate: string;
   numberOfSprints: number;
   splitMode: "timebooked" | "statuses";
+  viewMode: "sprint" | "combined";
   leadTimeData: LeadTimeSprints | null;
   allStatuses: { value: string; label: string }[];
   statusesSelected: string[];
+  allTicketTypes: { value: string; label: string }[];
+  ticketTypesSelected: string[];
 }
 
 export default class LeadTime extends React.Component<Props, State> {
@@ -47,9 +50,12 @@ export default class LeadTime extends React.Component<Props, State> {
       currentSprintStartDate: dayjs().toString(),
       numberOfSprints: 5,
       splitMode: "timebooked",
+      viewMode: "combined",
       leadTimeData: null,
       allStatuses: [],
       statusesSelected: [],
+      allTicketTypes: [],
+      ticketTypesSelected: [],
     };
   }
 
@@ -82,6 +88,22 @@ export default class LeadTime extends React.Component<Props, State> {
     this.setState({ splitMode: e.target.value });
   };
 
+  handleViewModeChange = (e: RadioChangeEvent) => {
+    this.setState({ viewMode: e.target.value });
+  };
+
+  filterIssuesByTicketType = (
+    issues: LeadTimeIssueInfo[]
+  ): LeadTimeIssueInfo[] => {
+    if (this.state.ticketTypesSelected.length === 0) {
+      return issues; // If no types selected, show all
+    }
+    return issues.filter(
+      (issue) =>
+        issue.type && this.state.ticketTypesSelected.includes(issue.type)
+    );
+  };
+
   onClick = () => {
     localStorage.setItem("throughputQuery", this.state.input);
 
@@ -102,20 +124,29 @@ export default class LeadTime extends React.Component<Props, State> {
       .then((data) => {
         let leadTimeData: LeadTimeSprints = JSON.parse(data.data);
         let allStatusesSet = new Set<string>();
+        let allTicketTypesSet = new Set<string>();
         leadTimeData.sprints.forEach((sprint) => {
           sprint.issues.forEach((issue) => {
             issue.statusTimes.forEach((statusTime) => {
               allStatusesSet.add(statusTime.status);
             });
+            if (issue.type) {
+              allTicketTypesSet.add(issue.type);
+            }
           });
         });
         let allStatuses = Array.from(allStatusesSet).map((status) => {
           return { value: status, label: status };
         });
+        let allTicketTypes = Array.from(allTicketTypesSet).map((type) => {
+          return { value: type, label: type };
+        });
         this.setState({
           leadTimeData,
           allStatuses,
           statusesSelected: [],
+          allTicketTypes,
+          ticketTypesSelected: allTicketTypes.map((type) => type.value), // Default to all selected
         });
       });
   };
@@ -152,18 +183,91 @@ export default class LeadTime extends React.Component<Props, State> {
     });
     return timeInSelectedStatuses;
   };
+
+  calculateAverageLeadTime = (issues: LeadTimeIssueInfo[]): number => {
+    const filteredIssues = this.filterIssuesByTicketType(issues);
+    const validIssues = filteredIssues.filter((issue) => {
+      if (this.state.splitMode === "statuses") {
+        return this.getTimeInSelectedStatuses(issue) > 0;
+      } else {
+        return issue.timespent !== null && issue.timespent > 0;
+      }
+    });
+
+    if (validIssues.length === 0) return 0;
+
+    const totalTime = validIssues.reduce((sum, issue) => {
+      if (this.state.splitMode === "statuses") {
+        return sum + this.getTimeInSelectedStatuses(issue);
+      } else {
+        return sum + (issue.timespent || 0);
+      }
+    }, 0);
+
+    return totalTime / validIssues.length;
+  };
+
+  getValidIssuesCount = (issues: LeadTimeIssueInfo[]): number => {
+    const filteredIssues = this.filterIssuesByTicketType(issues);
+    return filteredIssues.filter((issue) => {
+      if (this.state.splitMode === "statuses") {
+        return this.getTimeInSelectedStatuses(issue) > 0;
+      } else {
+        return issue.timespent !== null && issue.timespent > 0;
+      }
+    }).length;
+  };
+
+  getDateRange = (
+    issues: LeadTimeIssueInfo[]
+  ): { startDate: string | null; endDate: string | null } => {
+    const filteredIssues = this.filterIssuesByTicketType(issues);
+    const validIssues = filteredIssues.filter((issue) => {
+      if (this.state.splitMode === "statuses") {
+        return this.getTimeInSelectedStatuses(issue) > 0;
+      } else {
+        return issue.timespent !== null && issue.timespent > 0;
+      }
+    });
+
+    if (validIssues.length === 0) {
+      return { startDate: null, endDate: null };
+    }
+
+    const resolvedDates = validIssues
+      .map((issue) => issue.resolved)
+      .filter((date) => date) // Filter out null/undefined dates
+      .map((date) => new Date(date));
+
+    if (resolvedDates.length === 0) {
+      return { startDate: null, endDate: null };
+    }
+
+    const startDate = new Date(
+      Math.min(...resolvedDates.map((d) => d.getTime()))
+    );
+    const endDate = new Date(
+      Math.max(...resolvedDates.map((d) => d.getTime()))
+    );
+
+    return {
+      startDate: startDate.toISOString().split("T")[0], // YYYY-MM-DD format
+      endDate: endDate.toISOString().split("T")[0],
+    };
+  };
   getIssueInfoBySizeBucket(
     leadTimeIssueInfos: LeadTimeIssueInfo[],
     byStatus: boolean = false
   ): LeadTimeData[] {
+    const filteredIssues = this.filterIssuesByTicketType(leadTimeIssueInfos);
     const maxBucketSize = 10;
     let sizeBuckets: LeadTimeData[] = [];
-    let issues = leadTimeIssueInfos.filter((issueInfo) =>
+    let issues = filteredIssues.filter((issueInfo) =>
       byStatus
         ? this.getTimeInSelectedStatuses(issueInfo) == 0
         : issueInfo.timespent === null
     );
-    leadTimeIssueInfos = leadTimeIssueInfos.filter((issueInfo) =>
+    let remainingIssues = filteredIssues.filter((issueInfo) =>
       byStatus
         ? this.getTimeInSelectedStatuses(issueInfo) !== 0
         : issueInfo.timespent !== null
@@ -187,13 +291,13 @@ export default class LeadTime extends React.Component<Props, State> {
       }),
     });
     for (let bucketSize = 1; bucketSize < maxBucketSize; bucketSize++) {
-      let issues = leadTimeIssueInfos.filter((issueInfo) => {
+      let issues = remainingIssues.filter((issueInfo) => {
         const timeSpent = byStatus
           ? this.getTimeInSelectedStatuses(issueInfo)
           : issueInfo.timespent;
         return timeSpent !== null && timeSpent <= bucketSize;
       });
-      leadTimeIssueInfos = leadTimeIssueInfos.filter((issueInfo) => {
+      remainingIssues = remainingIssues.filter((issueInfo) => {
         const timeSpent = byStatus
           ? this.getTimeInSelectedStatuses(issueInfo)
           : issueInfo.timespent;
@@ -220,7 +324,7 @@ export default class LeadTime extends React.Component<Props, State> {
     sizeBuckets.push({
       timeSpentInDays: maxBucketSize,
       label: `${maxBucketSize}+ days`,
-      issues: leadTimeIssueInfos.map((issueInfo) => {
+      issues: remainingIssues.map((issueInfo) => {
         return {
           key: issueInfo.key,
           summary: issueInfo.summary,
@@ -244,7 +348,7 @@ export default class LeadTime extends React.Component<Props, State> {
     columns.push({
       type: "date",
       identifier: "sprintDate",
-      label: "Start Date",
+      label: this.state.viewMode === "sprint" ? "Start Date" : "All Data",
     });
     columns.push({
       type: "number",
@@ -263,24 +367,94 @@ export default class LeadTime extends React.Component<Props, State> {
       identifier: 10,
       label: "10+ days",
     });
+    columns.push({
+      type: "number",
+      identifier: "average",
+      label: "Average (days)",
+    });
     let data: CategoryData = [];
-    leadTimeData.forEach((sprint) => {
+
+    if (this.state.viewMode === "sprint") {
+      // Original sprint-based view
+      leadTimeData.forEach((sprint) => {
+        let row = {};
+        row["sprintDate"] = new Date(sprint.sprintStartingDate);
+        this.getIssueInfoBySizeBucket(
+          sprint.issues,
+          this.state.splitMode == "statuses"
+        ).forEach((bucket, index) => {
+          row[index] = bucket.issues.length;
+        });
+
+        // Calculate average for this sprint
+        const averageTime = this.calculateAverageLeadTime(sprint.issues);
+        row["average"] = averageTime;
+
+        // Add ticket count and date range
+        row["ticketCount"] = this.getValidIssuesCount(sprint.issues);
+        const dateRange = this.getDateRange(sprint.issues);
+        row["startDate"] = dateRange.startDate;
+        row["endDate"] = dateRange.endDate;
+
+        let clickData = this.getClickData(sprint);
+        row["clickData"] = clickData;
+        data.push(row);
+      });
+    } else {
+      // Combined view - merge all issues from all sprints
+      let allIssues: LeadTimeIssueInfo[] = [];
+      leadTimeData.forEach((sprint) => {
+        allIssues = allIssues.concat(sprint.issues);
+      });
+
       let row = {};
-      row["sprintDate"] = new Date(sprint.sprintStartingDate);
+      row["sprintDate"] = new Date(); // Use current date for combined view
       this.getIssueInfoBySizeBucket(
-        sprint.issues,
+        allIssues,
         this.state.splitMode == "statuses"
       ).forEach((bucket, index) => {
         row[index] = bucket.issues.length;
       });
-      let clickData = this.getClickData(sprint);
-      row["clickData"] = clickData;
+
+      // Calculate average for all issues
+      const averageTime = this.calculateAverageLeadTime(allIssues);
+      row["average"] = averageTime;
+
+      // Add ticket count and date range
+      row["ticketCount"] = this.getValidIssuesCount(allIssues);
+      const dateRange = this.getDateRange(allIssues);
+      row["startDate"] = dateRange.startDate;
+      row["endDate"] = dateRange.endDate;
+
+      // Create combined click data
+      let combinedClickData = "";
+      this.getIssueInfoBySizeBucket(
+        allIssues,
+        this.state.splitMode == "statuses"
+      ).forEach((bucket, index) => {
+        combinedClickData += `<h3>${index} days</h3>`;
+        bucket.issues.forEach((issue) => {
+          combinedClickData += `<a href="${issue.url}" target="_blank">${issue.key} ${issue.summary}</a><br>`;
+          combinedClickData += `Time spent: ${issue.timeSpentInDays} days<br>`;
+          issue.statusTimes.forEach((status) => {
+            if (this.state.statusesSelected.includes(status.status)) {
+              combinedClickData += `${status.status} ${status.days} days<br>`;
+            }
+          });
+        });
+      });
+      row["clickData"] = combinedClickData;
       data.push(row);
-    });
+    }
+
     return { data, columns };
   }
   statusesSelected = (statusesSelected) => {
     this.setState({ statusesSelected });
+  };
+
+  ticketTypesSelected = (ticketTypesSelected) => {
+    this.setState({ ticketTypesSelected });
   };
   render() {
     let sprintData = this.state.leadTimeData
@@ -336,6 +510,15 @@ export default class LeadTime extends React.Component<Props, State> {
           <Radio.Button value="statuses">Statuses</Radio.Button>
         </Radio.Group>
         <br />
+        <Radio.Group
+          value={this.state.viewMode}
+          onChange={this.handleViewModeChange}
+          style={{ marginBottom: "1rem" }}
+        >
+          <Radio.Button value="sprint">Split by Sprint</Radio.Button>
+          <Radio.Button value="combined">All Data Together</Radio.Button>
+        </Radio.Group>
+        <br />
         <span
           style={{
             display: this.state.splitMode === "statuses" ? "" : "none",
@@ -347,7 +530,110 @@ export default class LeadTime extends React.Component<Props, State> {
           />
         </span>
         <br />
-        <ColumnChart data={data} columns={columns} title="Lead Time" />
+        {this.state.leadTimeData && this.state.allTicketTypes.length > 0 && (
+          <span>
+            <label style={{ marginRight: "0.5rem", fontWeight: "bold" }}>
+              Ticket Types:
+            </label>
+            <Select
+              onChange={this.ticketTypesSelected}
+              options={this.state.allTicketTypes}
+            />
+          </span>
+        )}
+        <br />
+        {this.state.leadTimeData && (
+          <div
+            style={{
+              marginBottom: "1rem",
+              padding: "1rem",
+              backgroundColor: "#f5f5f5",
+              borderRadius: "4px",
+            }}
+          >
+            <h3 style={{ margin: "0 0 0.5rem 0" }}>Summary</h3>
+            {this.state.viewMode === "sprint" ? (
+              <div>
+                <p style={{ margin: "0.25rem 0" }}>
+                  <strong>Average Lead Time by Sprint:</strong>
+                </p>
+                {data.map((row, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      margin: "0.5rem 0",
+                      padding: "0.5rem",
+                      backgroundColor: "white",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        margin: "0.25rem 0",
+                        fontSize: "0.9rem",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {row.sprintDate instanceof Date
+                        ? row.sprintDate.toLocaleDateString()
+                        : "All Data"}
+                      :
+                    </p>
+                    <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
+                      <strong>Average:</strong>{" "}
+                      {row.average ? row.average.toFixed(2) : "0.00"} days
+                    </p>
+                    <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
+                      <strong>Tickets:</strong> {row.ticketCount || 0}
+                    </p>
+                    {row.startDate && row.endDate && (
+                      <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
+                        <strong>Resolved:</strong> {row.startDate} to{" "}
+                        {row.endDate}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div>
+                <p style={{ margin: "0.25rem 0" }}>
+                  <strong>Overall Average Lead Time:</strong>{" "}
+                  <strong style={{ fontSize: "1.2rem", color: "#1890ff" }}>
+                    {data.length > 0 && data[0].average
+                      ? data[0].average.toFixed(2)
+                      : "0.00"}{" "}
+                    days
+                  </strong>
+                </p>
+                <p style={{ margin: "0.25rem 0" }}>
+                  <strong>Total Tickets:</strong>{" "}
+                  {data.length > 0 ? data[0].ticketCount || 0 : 0}
+                </p>
+                {data.length > 0 && data[0].startDate && data[0].endDate && (
+                  <p style={{ margin: "0.25rem 0" }}>
+                    <strong>Resolved Date Range:</strong> {data[0].startDate} to{" "}
+                    {data[0].endDate}
+                  </p>
+                )}
+              </div>
+            )}
+            <p
+              style={{
+                margin: "0.5rem 0 0 0",
+                fontSize: "0.8rem",
+                color: "#666",
+              }}
+            >
+              * Average excludes tickets with no time data
+            </p>
+          </div>
+        )}
+        <ColumnChart
+          data={data}
+          columns={columns}
+          title={`Lead Time - ${this.state.viewMode === "sprint" ? "By Sprint" : "All Data Combined"}`}
+        />
       </div>
     );
   }
