@@ -1,5 +1,6 @@
 import { IssueInfo } from "../server/graphManagers/GraphManagerTypes";
 import { EstimatesData } from "../server/graphManagers/EstimatesGraphManager";
+import { SprintIssueList } from "../server/graphManagers/GraphManagerTypes";
 
 export function getSize(
   issues: IssueInfo[],
@@ -94,5 +95,132 @@ export function createThroughputCSV(issues: IssueInfo[]) {
   hiddenElement.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
   hiddenElement.target = "_blank";
   hiddenElement.download = "throughput_data.csv";
+  hiddenElement.click();
+}
+
+export function createThroughputSplitExcel(
+  throughputData: SprintIssueList[],
+  openTicketsData: IssueInfo[],
+  splitMode: "labels" | "initiatives" | "types" | "accounts" | "sankey",
+  selectedItems: string[],
+  sizeMode: "count" | "time booked" | "estimate"
+) {
+  // Don't export for sankey mode as it has a different data structure
+  if (splitMode === "sankey") {
+    alert(
+      "Excel export is not available for Sankey diagram mode. Please select a different split mode."
+    );
+    return;
+  }
+
+  // Create headers
+  const headers = ["Sprint Start Date"];
+
+  // Add selected categories
+  selectedItems.forEach((item) => {
+    headers.push(item);
+  });
+
+  // Add "Other" category
+  headers.push("Other");
+
+  // Add "Total" column
+  headers.push("Total");
+
+  // Helper function to get issues by category
+  const getIssuesByCategory = (issues: IssueInfo[]) => {
+    const issuesByCategory = new Map<string, IssueInfo[]>();
+
+    issues.forEach((issue) => {
+      let category = "Other";
+
+      if (splitMode === "initiatives") {
+        if (selectedItems.includes(issue.initiativeKey)) {
+          category = issue.initiativeKey;
+        }
+      } else if (splitMode === "labels") {
+        const matchingLabels = issue.labels.filter((label) =>
+          selectedItems.includes(label)
+        );
+        if (matchingLabels.length > 0) {
+          category = matchingLabels[0];
+        }
+      } else if (splitMode === "types") {
+        if (selectedItems.includes(issue.type)) {
+          category = issue.type;
+        }
+      } else if (splitMode === "accounts") {
+        if (selectedItems.includes(issue.account)) {
+          category = issue.account;
+        }
+      }
+
+      if (!issuesByCategory.has(category)) {
+        issuesByCategory.set(category, []);
+      }
+      issuesByCategory.get(category)!.push(issue);
+    });
+
+    return issuesByCategory;
+  };
+
+  // Create rows for historical sprint data
+  const rows = throughputData.map((sprint) => {
+    const row = [new Date(sprint.sprintStartingDate).toLocaleDateString()];
+
+    const issuesByCategory = getIssuesByCategory(sprint.issueList);
+
+    // Add values for each selected category
+    selectedItems.forEach((item) => {
+      const issues = issuesByCategory.get(item) || [];
+      row.push(getSize(issues, sizeMode).toString());
+    });
+
+    // Add "Other" value
+    const otherIssues = issuesByCategory.get("Other") || [];
+    row.push(getSize(otherIssues, sizeMode).toString());
+
+    // Add "Total" value
+    const totalIssues = [...selectedItems, "Other"].flatMap(
+      (item) => issuesByCategory.get(item) || []
+    );
+    row.push(getSize(totalIssues, sizeMode).toString());
+
+    return row;
+  });
+
+  // Add open tickets row
+  const openTicketsRow = ["Open Tickets"];
+  const openTicketsByCategory = getIssuesByCategory(openTicketsData);
+
+  // Add values for each selected category
+  selectedItems.forEach((item) => {
+    const issues = openTicketsByCategory.get(item) || [];
+    openTicketsRow.push(getSize(issues, sizeMode).toString());
+  });
+
+  // Add "Other" value
+  const otherOpenTickets = openTicketsByCategory.get("Other") || [];
+  openTicketsRow.push(getSize(otherOpenTickets, sizeMode).toString());
+
+  // Add "Total" value for open tickets
+  const totalOpenTickets = [...selectedItems, "Other"].flatMap(
+    (item) => openTicketsByCategory.get(item) || []
+  );
+  openTicketsRow.push(getSize(totalOpenTickets, sizeMode).toString());
+
+  // Add open tickets row to the data
+  rows.push(openTicketsRow);
+
+  // Create CSV content
+  const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join(
+    "\n"
+  );
+
+  // Create and trigger download
+  const hiddenElement = document.createElement("a");
+  hiddenElement.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+  hiddenElement.target = "_blank";
+  hiddenElement.download = `throughput_${splitMode}_${sizeMode}.csv`;
   hiddenElement.click();
 }

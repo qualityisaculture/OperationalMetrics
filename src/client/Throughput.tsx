@@ -13,13 +13,18 @@ import {
   Button,
   AutoComplete,
   Checkbox,
+  Tooltip,
 } from "antd";
 import dayjs from "dayjs";
 import { SprintIssueList } from "../server/graphManagers/GraphManagerTypes";
 import Select from "./Select";
 import type { SelectProps } from "antd";
 import { IssueInfo } from "../server/graphManagers/GraphManagerTypes";
-import { getSize, createThroughputCSV } from "./Utils";
+import {
+  getSize,
+  createThroughputCSV,
+  createThroughputSplitExcel,
+} from "./Utils";
 import { DefaultOptionType } from "antd/es/select";
 import ColumnChart, { CategoryData, ColumnType } from "./ColumnChart";
 import { WithWildcards } from "../Types";
@@ -744,32 +749,99 @@ export default class Throughput extends React.Component<Props, State> {
               ? this.getThroughputBySankey(filteredThroughputData)
               : this.getThroughputByType(filteredThroughputData);
 
-    // Create a new row for open tickets
-    const openTicketsRow = {
-      date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
-      ...Object.fromEntries(
-        this.state.initiativesSelected.map((initiative) => [
-          initiative,
-          getSize(
+    // Helper function to get open tickets grouped by current split mode
+    const getOpenTicketsBySplitMode = () => {
+      const selectedItems =
+        this.state.splitMode === "initiatives"
+          ? this.state.initiativesSelected
+          : this.state.splitMode === "labels"
+            ? this.state.labelsSelected
+            : this.state.splitMode === "types"
+              ? this.state.typesSelected
+              : this.state.splitMode === "accounts"
+                ? this.state.accountsSelected
+                : [];
+
+      const openTicketsRow: any = {
+        date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
+      };
+
+      // Group open tickets by the current split mode
+      if (this.state.splitMode === "initiatives") {
+        // Group by initiatives
+        selectedItems.forEach((initiative) => {
+          openTicketsRow[initiative] = getSize(
             filteredOpenTicketsData.filter(
               (issue) => issue.initiativeKey === initiative
             ),
             this.state.sizeMode
+          );
+        });
+        openTicketsRow.Other = getSize(
+          filteredOpenTicketsData.filter(
+            (issue) => !selectedItems.includes(issue.initiativeKey)
           ),
-        ])
-      ),
-      Other: getSize(
-        filteredOpenTicketsData.filter(
-          (issue) =>
-            !this.state.initiativesSelected.includes(issue.initiativeKey)
-        ),
-        this.state.sizeMode
-      ),
-      clickData: this.getClickData({
+          this.state.sizeMode
+        );
+      } else if (this.state.splitMode === "labels") {
+        // Group by labels
+        selectedItems.forEach((label) => {
+          openTicketsRow[label] = getSize(
+            filteredOpenTicketsData.filter((issue) =>
+              issue.labels.includes(label)
+            ),
+            this.state.sizeMode
+          );
+        });
+        openTicketsRow.Other = getSize(
+          filteredOpenTicketsData.filter(
+            (issue) =>
+              !issue.labels.some((label) => selectedItems.includes(label))
+          ),
+          this.state.sizeMode
+        );
+      } else if (this.state.splitMode === "types") {
+        // Group by types
+        selectedItems.forEach((type) => {
+          openTicketsRow[type] = getSize(
+            filteredOpenTicketsData.filter((issue) => issue.type === type),
+            this.state.sizeMode
+          );
+        });
+        openTicketsRow.Other = getSize(
+          filteredOpenTicketsData.filter(
+            (issue) => !selectedItems.includes(issue.type)
+          ),
+          this.state.sizeMode
+        );
+      } else if (this.state.splitMode === "accounts") {
+        // Group by accounts
+        selectedItems.forEach((account) => {
+          openTicketsRow[account] = getSize(
+            filteredOpenTicketsData.filter(
+              (issue) => issue.account === account
+            ),
+            this.state.sizeMode
+          );
+        });
+        openTicketsRow.Other = getSize(
+          filteredOpenTicketsData.filter(
+            (issue) => !selectedItems.includes(issue.account)
+          ),
+          this.state.sizeMode
+        );
+      }
+
+      openTicketsRow.clickData = this.getClickData({
         initiativeKey: "Open Tickets",
         issues: filteredOpenTicketsData,
-      }),
+      });
+
+      return openTicketsRow;
     };
+
+    // Create a new row for open tickets
+    const openTicketsRow = getOpenTicketsBySplitMode();
 
     let issueInfo: IssueInfo[] = [];
     filteredThroughputData.forEach((sprint) => {
@@ -830,12 +902,48 @@ export default class Throughput extends React.Component<Props, State> {
               />
             </span>
             {issueInfo.length > 0 && (
-              <Button
-                type="primary"
-                onClick={() => createThroughputCSV(issueInfo)}
-              >
-                Export to CSV
-              </Button>
+              <>
+                <Button
+                  type="primary"
+                  onClick={() => createThroughputCSV(issueInfo)}
+                >
+                  Export to CSV
+                </Button>
+                <Tooltip
+                  title={
+                    this.state.splitMode === "sankey"
+                      ? "Excel export is not available for Sankey diagram mode. Please select a different split mode."
+                      : "Export the chart data as Excel-compatible CSV with sprint dates and split categories"
+                  }
+                >
+                  <Button
+                    type="primary"
+                    disabled={this.state.splitMode === "sankey"}
+                    onClick={() => {
+                      const selectedItems =
+                        this.state.splitMode === "initiatives"
+                          ? this.state.initiativesSelected
+                          : this.state.splitMode === "labels"
+                            ? this.state.labelsSelected
+                            : this.state.splitMode === "types"
+                              ? this.state.typesSelected
+                              : this.state.splitMode === "accounts"
+                                ? this.state.accountsSelected
+                                : [];
+
+                      createThroughputSplitExcel(
+                        this.state.throughputData,
+                        this.state.openTicketsData,
+                        this.state.splitMode,
+                        selectedItems,
+                        this.state.sizeMode
+                      );
+                    }}
+                  >
+                    Export Split Data to Excel
+                  </Button>
+                </Tooltip>
+              </>
             )}
           </div>
 
