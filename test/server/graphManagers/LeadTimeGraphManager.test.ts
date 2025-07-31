@@ -30,7 +30,7 @@ describe("LeadTimeGraphManager", () => {
     process.env.JIRA_DOMAIN = "localhost:8080";
   });
 
-  it("should request the query from the Jirarequest", async () => {
+  it("should request the modified query from the Jirarequest with date filter", async () => {
     let ltm = new LeadTimeGraphManager(mockJiraRequester);
     await ltm.getLeadTimeData(
       'project="Project 1"',
@@ -38,7 +38,7 @@ describe("LeadTimeGraphManager", () => {
       defaultNumberOfSprints
     );
     expect(mockJiraRequester.getQuery).toHaveBeenCalledWith(
-      'project="Project 1"'
+      'project="Project 1" AND status="Done" AND resolved >= 2024-09-23'
     );
   });
 

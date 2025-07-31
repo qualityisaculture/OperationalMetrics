@@ -7,6 +7,7 @@ import {
   LeadTimeIssueInfo,
   SprintIssueList,
 } from "./GraphManagerTypes";
+import dayjs from "dayjs";
 
 export type MinimumLeadTimeIssueInfo = MinimumIssueInfo & {
   statusTimes: StatusDays[];
@@ -60,12 +61,31 @@ export default class LeadTimeGraphManager {
     };
   }
 
+  getQuery(
+    filter: string,
+    currentSprintStartDate: Date,
+    numberOfSprints: number
+  ): string {
+    let resolvedDate = dayjs(currentSprintStartDate);
+    resolvedDate = resolvedDate.subtract(2 * numberOfSprints, "week");
+    let query =
+      filter +
+      ' AND status="Done" AND resolved >= ' +
+      resolvedDate.format("YYYY-MM-DD");
+    return query;
+  }
+
   async getLeadTimeData(
     filter: string,
     currentSprintStartDate: Date,
     numberOfSprints: number
   ): Promise<LeadTimeSprints> {
-    let jiras = await this.jiraRequester.getQuery(filter);
+    let modifiedQuery = this.getQuery(
+      filter,
+      currentSprintStartDate,
+      numberOfSprints
+    );
+    let jiras = await this.jiraRequester.getQuery(modifiedQuery);
     let jirasBySprint: { sprintStartingDate: Date; issues: Jira[] }[] =
       getIssuesBySprint(jiras, currentSprintStartDate);
     return {

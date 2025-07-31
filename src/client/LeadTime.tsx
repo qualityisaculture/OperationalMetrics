@@ -49,7 +49,7 @@ export default class LeadTime extends React.Component<Props, State> {
       queryHistory: queryHistory,
       currentSprintStartDate: dayjs().toString(),
       numberOfSprints: 5,
-      splitMode: "timebooked",
+      splitMode: "statuses",
       viewMode: "combined",
       leadTimeData: null,
       allStatuses: [],
