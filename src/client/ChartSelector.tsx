@@ -34,7 +34,7 @@ export default class ChartSelector extends React.Component<Props, State> {
   constructor(props) {
     super(props);
     this.state = {
-      chart: "bamboo",
+      chart: "tempoAnalyzer",
     };
   }
   handleChartChange = (e: RadioChangeEvent) => {

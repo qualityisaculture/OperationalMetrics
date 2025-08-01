@@ -8,11 +8,59 @@ import {
   Typography,
   Space,
   Alert,
+  Collapse,
+  Statistic,
+  Row,
+  Col,
+  Radio,
 } from "antd";
-import { UploadOutlined, FileExcelOutlined } from "@ant-design/icons";
+import {
+  UploadOutlined,
+  FileExcelOutlined,
+  BarChartOutlined,
+  UserOutlined,
+  BugOutlined,
+} from "@ant-design/icons";
 import * as XLSX from "xlsx";
 
 const { Title, Text } = Typography;
+const { Panel } = Collapse;
+
+// Configuration for issue keys that should be split into their own categories
+const ISSUE_KEY_EXCEPTIONS = [
+  {
+    issueKeys: ["ABS-56", "ABS-58", "ABS-57"],
+    categorySuffix: "Holiday & Absence",
+  },
+  {
+    issueKeys: ["HR-57", "LD-47", "DEL-12", "DEL-15", "LD-48"],
+    categorySuffix: "Meeting",
+  },
+  {
+    issueKeys: [
+      "HR-48",
+      "DEL-14",
+      "HR-49",
+      "LD-53",
+      "HR-68",
+      "LD-54",
+      "DEL-13",
+      "LAM-39",
+    ],
+    categorySuffix: "Team Management",
+  },
+  {
+    issueKeys: ["LD-50", "HR-47", "LD-45"],
+    categorySuffix: "Training",
+  },
+  {
+    issueKeys: ["STR-45"],
+    categorySuffix: "XFT Reorg",
+  },
+  // Add more exceptions here as needed:
+  // { issueKeys: ["ABS-57", "ABS-58"], categorySuffix: "Sick Leave" },
+  // { issueKeys: ["LD-51", "LD-52", "LD-53"], categorySuffix: "Advanced Training" },
+];
 
 interface Props {}
 
@@ -21,6 +69,37 @@ interface State {
   columns: any[];
   isLoading: boolean;
   fileName: string;
+  groupedData: { [key: string]: number };
+  totalHours: number;
+  selectedCategory: string | null;
+  detailedData: { [key: string]: number };
+  categoryTotalHours: number;
+  accountCategoryIndex: number;
+  loggedHoursIndex: number;
+  fullNameIndex: number;
+  issueKeyIndex: number;
+  issueTypeIndex: number;
+  rawData: any[];
+  headers: string[];
+  viewMode: "name" | "issue" | "type";
+  detailedByName: { [key: string]: number };
+  detailedByIssue: { [key: string]: number };
+  detailedByIssueWithType: { [key: string]: { hours: number; type: string } };
+  detailedByType: { [key: string]: number };
+  selectedIssueKey: string | null;
+  issueUserData: { [key: string]: number };
+  issueTotalHours: number;
+  summaryViewMode: "category" | "name";
+  groupedByName: { [key: string]: number };
+  selectedUser: string | null;
+  userCategoryData: { [key: string]: number };
+  userTotalHours: number;
+  selectedUserCategory: string | null;
+  userCategoryIssueData: { [key: string]: number };
+  userCategoryIssueDataWithType: {
+    [key: string]: { hours: number; type: string };
+  };
+  userCategoryIssueTotal: number;
 }
 
 export default class TempoAnalyzer extends React.Component<Props, State> {
@@ -31,8 +110,594 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       columns: [],
       isLoading: false,
       fileName: "",
+      groupedData: {},
+      totalHours: 0,
+      selectedCategory: null,
+      detailedData: {},
+      categoryTotalHours: 0,
+      accountCategoryIndex: -1,
+      loggedHoursIndex: -1,
+      fullNameIndex: -1,
+      issueKeyIndex: -1,
+      issueTypeIndex: -1,
+      rawData: [],
+      headers: [],
+      viewMode: "name",
+      detailedByName: {},
+      detailedByIssue: {},
+      detailedByIssueWithType: {},
+      detailedByType: {},
+      selectedIssueKey: null,
+      issueUserData: {},
+      issueTotalHours: 0,
+      summaryViewMode: "category",
+      groupedByName: {},
+      selectedUser: null,
+      userCategoryData: {},
+      userTotalHours: 0,
+      selectedUserCategory: null,
+      userCategoryIssueData: {},
+      userCategoryIssueDataWithType: {},
+      userCategoryIssueTotal: 0,
     };
   }
+
+  processData = (tableData: any[], headers: string[]) => {
+    // Find the column indices for Account Category and Logged Hours
+    const accountCategoryIndex = headers.findIndex(
+      (header) =>
+        header.toLowerCase().includes("account category") ||
+        header.toLowerCase().includes("accountcategory")
+    );
+    const loggedHoursIndex = headers.findIndex(
+      (header) =>
+        header.toLowerCase().includes("logged hours") ||
+        header.toLowerCase().includes("loggedhours") ||
+        header.toLowerCase().includes("hours")
+    );
+    const fullNameIndex = headers.findIndex(
+      (header) =>
+        header.toLowerCase().includes("full name") ||
+        header.toLowerCase().includes("fullname") ||
+        header.toLowerCase().includes("name")
+    );
+    const issueKeyIndex = headers.findIndex(
+      (header) =>
+        header.toLowerCase().includes("issue key") ||
+        header.toLowerCase().includes("issuekey") ||
+        header.toLowerCase().includes("key")
+    );
+    const issueTypeIndex = headers.findIndex(
+      (header) =>
+        header.toLowerCase().includes("issue type") ||
+        header.toLowerCase().includes("issuetype")
+    );
+
+    if (accountCategoryIndex === -1 || loggedHoursIndex === -1) {
+      message.warning(
+        "Could not find 'Account Category' or 'Logged Hours' columns. Please ensure your Excel file contains these columns."
+      );
+      return;
+    }
+
+    if (fullNameIndex === -1) {
+      message.warning(
+        "Could not find 'Full Name' column. Full Name view will not be available."
+      );
+    }
+
+    if (issueKeyIndex === -1) {
+      message.warning(
+        "Could not find 'Issue Key' column. Issue Key view will not be available."
+      );
+    }
+
+    if (issueTypeIndex === -1) {
+      message.warning(
+        "Could not find 'Issue Type' column. Issue Type information will not be available."
+      );
+    }
+
+    // Store the column indices for later use
+    this.setState({
+      accountCategoryIndex,
+      loggedHoursIndex,
+      fullNameIndex,
+      issueKeyIndex,
+      issueTypeIndex,
+      rawData: tableData,
+      headers,
+    });
+
+    // Group by Account Category and sum Logged Hours
+    const grouped: { [key: string]: number } = {};
+    const groupedByName: { [key: string]: number } = {};
+    let totalHours = 0;
+
+    tableData.forEach((row) => {
+      const accountCategory = row[accountCategoryIndex.toString()];
+      const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
+      const issueKey =
+        issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
+      const fullName =
+        fullNameIndex !== -1 ? row[fullNameIndex.toString()] : null;
+
+      if (accountCategory) {
+        const category = String(accountCategory).trim();
+        if (category) {
+          // Check if this issue key should be split into its own category
+          const exception = ISSUE_KEY_EXCEPTIONS.find((exp) =>
+            exp.issueKeys.includes(issueKey)
+          );
+          let finalCategory = category;
+
+          if (exception) {
+            finalCategory = `${category} ${exception.categorySuffix}`;
+          }
+
+          grouped[finalCategory] = (grouped[finalCategory] || 0) + loggedHours;
+          totalHours += loggedHours;
+        }
+      }
+
+      // Group by Full Name if available
+      if (fullName) {
+        const name = String(fullName).trim();
+        if (name) {
+          groupedByName[name] = (groupedByName[name] || 0) + loggedHours;
+        }
+      }
+    });
+
+    this.setState({
+      groupedData: grouped,
+      groupedByName: groupedByName,
+      totalHours: totalHours,
+    });
+  };
+
+  handleRowClick = (category: string) => {
+    const {
+      rawData,
+      accountCategoryIndex,
+      loggedHoursIndex,
+      fullNameIndex,
+      issueKeyIndex,
+      issueTypeIndex,
+    } = this.state;
+
+    if (fullNameIndex === -1 && issueKeyIndex === -1) {
+      message.warning(
+        "Neither 'Full Name' nor 'Issue Key' columns found. Cannot show detailed breakdown."
+      );
+      return;
+    }
+
+    // Check if this is an exception category and extract the original category
+    let originalCategory = category;
+    let exceptionIssueKeys: string[] | null = null;
+
+    for (const exception of ISSUE_KEY_EXCEPTIONS) {
+      if (category.endsWith(` ${exception.categorySuffix}`)) {
+        originalCategory = category.replace(` ${exception.categorySuffix}`, "");
+        exceptionIssueKeys = exception.issueKeys; // Include all issue keys in the exception group
+        break;
+      }
+    }
+
+    // Filter data for the selected category and group by Full Name
+    const detailedByName: { [key: string]: number } = {};
+    const detailedByIssue: { [key: string]: number } = {};
+    const detailedByIssueWithType: {
+      [key: string]: { hours: number; type: string };
+    } = {};
+    const detailedByType: { [key: string]: number } = {};
+    let categoryTotal = 0;
+
+    rawData.forEach((row) => {
+      const rowCategory = row[accountCategoryIndex.toString()];
+      const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
+
+      if (String(rowCategory).trim() === originalCategory) {
+        // If this is an exception category, only include rows with any of the exception issue keys
+        if (exceptionIssueKeys) {
+          const rowIssueKey = row[issueKeyIndex.toString()];
+          if (!exceptionIssueKeys.includes(rowIssueKey)) {
+            return; // Skip this row if it doesn't match any of the exception issue keys
+          }
+        } else {
+          // For regular categories, exclude rows that match any exception issue keys
+          const rowIssueKey = row[issueKeyIndex.toString()];
+          const isExceptionRow = ISSUE_KEY_EXCEPTIONS.some((exp) =>
+            exp.issueKeys.includes(rowIssueKey)
+          );
+          if (isExceptionRow) {
+            return; // Skip this row if it matches any exception issue key
+          }
+        }
+
+        categoryTotal += loggedHours;
+
+        // Group by Full Name if available
+        if (fullNameIndex !== -1) {
+          const fullName = row[fullNameIndex.toString()];
+          if (fullName) {
+            const name = String(fullName).trim();
+            if (name) {
+              detailedByName[name] = (detailedByName[name] || 0) + loggedHours;
+            }
+          }
+        }
+
+        // Group by Issue Key if available
+        if (issueKeyIndex !== -1) {
+          const issueKey = row[issueKeyIndex.toString()];
+          if (issueKey) {
+            const key = String(issueKey).trim();
+            if (key) {
+              detailedByIssue[key] = (detailedByIssue[key] || 0) + loggedHours;
+
+              // Also collect issue type information
+              const issueType =
+                issueTypeIndex !== -1
+                  ? row[issueTypeIndex.toString()]
+                  : "Unknown";
+              const type = String(issueType).trim() || "Unknown";
+
+              if (detailedByIssueWithType[key]) {
+                detailedByIssueWithType[key].hours += loggedHours;
+              } else {
+                detailedByIssueWithType[key] = {
+                  hours: loggedHours,
+                  type: type,
+                };
+              }
+            }
+          }
+        }
+
+        // Group by Issue Type if available
+        if (issueTypeIndex !== -1) {
+          const issueType = row[issueTypeIndex.toString()];
+          if (issueType) {
+            const type = String(issueType).trim();
+            if (type) {
+              detailedByType[type] = (detailedByType[type] || 0) + loggedHours;
+            }
+          }
+        }
+      }
+    });
+
+    // Determine which view to show by default
+    let defaultViewMode: "name" | "issue" | "type" = "issue";
+    if (fullNameIndex === -1 && issueKeyIndex !== -1) {
+      defaultViewMode = "issue";
+    } else if (fullNameIndex !== -1 && issueKeyIndex !== -1) {
+      defaultViewMode = "issue"; // Default to issue view if both are available
+    }
+
+    this.setState({
+      selectedCategory: category,
+      detailedData:
+        defaultViewMode === "name"
+          ? detailedByName
+          : defaultViewMode === "issue"
+            ? detailedByIssue
+            : detailedByType,
+      categoryTotalHours: categoryTotal,
+      viewMode: defaultViewMode,
+      detailedByName,
+      detailedByIssue,
+      detailedByIssueWithType,
+      detailedByType,
+    });
+  };
+
+  handleBackToSummary = () => {
+    this.setState({
+      selectedCategory: null,
+      detailedData: {},
+      categoryTotalHours: 0,
+      selectedUser: null,
+      userCategoryData: {},
+      userTotalHours: 0,
+      selectedUserCategory: null,
+      userCategoryIssueData: {},
+      userCategoryIssueTotal: 0,
+    });
+  };
+
+  handleSummaryViewModeChange = (mode: "category" | "name") => {
+    const { groupedByName } = this.state;
+
+    if (mode === "name" && Object.keys(groupedByName).length === 0) {
+      message.warning("No Full Name data available.");
+      return;
+    }
+
+    this.setState({
+      summaryViewMode: mode,
+    });
+  };
+
+  handleUserClick = (userName: string) => {
+    const {
+      rawData,
+      accountCategoryIndex,
+      loggedHoursIndex,
+      fullNameIndex,
+      issueKeyIndex,
+    } = this.state;
+
+    if (fullNameIndex === -1) {
+      message.warning(
+        "Full Name column not found. Cannot show user breakdown."
+      );
+      return;
+    }
+
+    // Filter data for the selected user and group by Account Category
+    const userCategoryData: { [key: string]: number } = {};
+    let userTotal = 0;
+
+    rawData.forEach((row) => {
+      const rowFullName = row[fullNameIndex.toString()];
+      const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
+      const issueKey =
+        issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
+
+      if (String(rowFullName).trim() === userName) {
+        userTotal += loggedHours;
+
+        // Group by Account Category
+        const accountCategory = row[accountCategoryIndex.toString()];
+        if (accountCategory) {
+          const category = String(accountCategory).trim();
+          if (category) {
+            // Check if this issue key should be split into its own category
+            const exception = ISSUE_KEY_EXCEPTIONS.find((exp) =>
+              exp.issueKeys.includes(issueKey)
+            );
+            let finalCategory = category;
+
+            if (exception) {
+              finalCategory = `${category} ${exception.categorySuffix}`;
+            }
+
+            userCategoryData[finalCategory] =
+              (userCategoryData[finalCategory] || 0) + loggedHours;
+          }
+        }
+      }
+    });
+
+    this.setState({
+      selectedUser: userName,
+      userCategoryData: userCategoryData,
+      userTotalHours: userTotal,
+    });
+  };
+
+  handleUserCategoryClick = (category: string) => {
+    const {
+      rawData,
+      accountCategoryIndex,
+      loggedHoursIndex,
+      fullNameIndex,
+      issueKeyIndex,
+      issueTypeIndex,
+      selectedUser,
+    } = this.state;
+
+    if (issueKeyIndex === -1) {
+      message.warning(
+        "Issue Key column not found. Cannot show issue breakdown."
+      );
+      return;
+    }
+
+    // Check if this is an exception category and extract the original category
+    let originalCategory = category;
+    let exceptionIssueKeys: string[] | null = null;
+
+    for (const exception of ISSUE_KEY_EXCEPTIONS) {
+      if (category.endsWith(` ${exception.categorySuffix}`)) {
+        originalCategory = category.replace(` ${exception.categorySuffix}`, "");
+        exceptionIssueKeys = exception.issueKeys; // Include all issue keys in the exception group
+        break;
+      }
+    }
+
+    // Filter data for the specific user and category, then group by Issue Key
+    const userCategoryIssueData: { [key: string]: number } = {};
+    const userCategoryIssueDataWithType: {
+      [key: string]: { hours: number; type: string };
+    } = {};
+    let userCategoryIssueTotal = 0;
+
+    rawData.forEach((row) => {
+      const rowFullName = row[fullNameIndex.toString()];
+      const rowCategory = row[accountCategoryIndex.toString()];
+      const rowIssueKey = row[issueKeyIndex.toString()];
+      const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
+
+      if (
+        String(rowFullName).trim() === selectedUser &&
+        String(rowCategory).trim() === originalCategory
+      ) {
+        // If this is an exception category, only include rows with any of the exception issue keys
+        if (exceptionIssueKeys && !exceptionIssueKeys.includes(rowIssueKey)) {
+          return; // Skip this row if it doesn't match any of the exception issue keys
+        } else if (!exceptionIssueKeys) {
+          // For regular categories, exclude rows that match any exception issue keys
+          const isExceptionRow = ISSUE_KEY_EXCEPTIONS.some((exp) =>
+            exp.issueKeys.includes(rowIssueKey)
+          );
+          if (isExceptionRow) {
+            return; // Skip this row if it matches any exception issue key
+          }
+        }
+
+        userCategoryIssueTotal += loggedHours;
+
+        // Group by Issue Key
+        if (rowIssueKey) {
+          const key = String(rowIssueKey).trim();
+          if (key) {
+            userCategoryIssueData[key] =
+              (userCategoryIssueData[key] || 0) + loggedHours;
+
+            // Also collect issue type information
+            const issueType =
+              issueTypeIndex !== -1
+                ? row[issueTypeIndex.toString()]
+                : "Unknown";
+            const type = String(issueType).trim() || "Unknown";
+
+            if (userCategoryIssueDataWithType[key]) {
+              userCategoryIssueDataWithType[key].hours += loggedHours;
+            } else {
+              userCategoryIssueDataWithType[key] = {
+                hours: loggedHours,
+                type: type,
+              };
+            }
+          }
+        }
+      }
+    });
+
+    this.setState({
+      selectedUserCategory: category,
+      userCategoryIssueData: userCategoryIssueData,
+      userCategoryIssueDataWithType: userCategoryIssueDataWithType,
+      userCategoryIssueTotal: userCategoryIssueTotal,
+    });
+  };
+
+  handleViewModeChange = (mode: "name" | "issue" | "type") => {
+    const { detailedByName, detailedByIssue, detailedByType, issueTypeIndex } =
+      this.state;
+
+    if (mode === "name" && Object.keys(detailedByName).length === 0) {
+      message.warning("No Full Name data available for this category.");
+      return;
+    }
+
+    if (mode === "issue" && Object.keys(detailedByIssue).length === 0) {
+      message.warning("No Issue Key data available for this category.");
+      return;
+    }
+
+    if (mode === "type" && Object.keys(detailedByType).length === 0) {
+      message.warning("No Issue Type data available for this category.");
+      return;
+    }
+
+    if (mode === "type" && issueTypeIndex === -1) {
+      message.warning(
+        "Issue Type column not found. Cannot show Issue Type breakdown."
+      );
+      return;
+    }
+
+    this.setState({
+      viewMode: mode,
+      detailedData:
+        mode === "name"
+          ? detailedByName
+          : mode === "issue"
+            ? detailedByIssue
+            : detailedByType,
+      selectedIssueKey: null, // Reset issue key selection when switching views
+      issueUserData: {},
+      issueTotalHours: 0,
+    });
+  };
+
+  handleIssueKeyClick = (issueKey: string) => {
+    const {
+      rawData,
+      accountCategoryIndex,
+      loggedHoursIndex,
+      fullNameIndex,
+      issueKeyIndex,
+      selectedCategory,
+    } = this.state;
+
+    if (fullNameIndex === -1) {
+      message.warning(
+        "Full Name column not found. Cannot show user breakdown."
+      );
+      return;
+    }
+
+    // Check if this is an exception category and extract the original category
+    let originalCategory = selectedCategory;
+    let exceptionIssueKeys: string[] | null = null;
+
+    for (const exception of ISSUE_KEY_EXCEPTIONS) {
+      if (
+        selectedCategory &&
+        selectedCategory.endsWith(` ${exception.categorySuffix}`)
+      ) {
+        originalCategory = selectedCategory.replace(
+          ` ${exception.categorySuffix}`,
+          ""
+        );
+        exceptionIssueKeys = exception.issueKeys; // Include all issue keys in the exception group
+        break;
+      }
+    }
+
+    // Filter data for the specific issue key and group by Full Name
+    const userData: { [key: string]: number } = {};
+    let issueTotal = 0;
+
+    rawData.forEach((row) => {
+      const rowCategory = row[accountCategoryIndex.toString()];
+      const rowIssueKey = row[issueKeyIndex.toString()];
+      const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
+
+      if (
+        String(rowCategory).trim() === originalCategory &&
+        rowIssueKey === issueKey
+      ) {
+        // If this is an exception category, only include rows with any of the exception issue keys
+        if (exceptionIssueKeys && !exceptionIssueKeys.includes(rowIssueKey)) {
+          return; // Skip this row if it doesn't match any of the exception issue keys
+        }
+
+        issueTotal += loggedHours;
+
+        // Group by Full Name
+        if (fullNameIndex !== -1) {
+          const fullName = row[fullNameIndex.toString()];
+          if (fullName) {
+            const name = String(fullName).trim();
+            if (name) {
+              userData[name] = (userData[name] || 0) + loggedHours;
+            }
+          }
+        }
+      }
+    });
+
+    this.setState({
+      selectedIssueKey: issueKey,
+      issueUserData: userData,
+      issueTotalHours: issueTotal,
+    });
+  };
+
+  handleBackToIssueView = () => {
+    this.setState({
+      selectedIssueKey: null,
+      issueUserData: {},
+      issueTotalHours: 0,
+    });
+  };
 
   handleFileUpload = (file: File) => {
     this.setState({ isLoading: true, fileName: file.name });
@@ -80,6 +745,9 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
           });
           return rowData;
         });
+
+        // Process the data for grouping
+        this.processData(tableData, headers);
 
         this.setState({
           excelData: tableData,
@@ -132,7 +800,31 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
   };
 
   render() {
-    const { excelData, columns, isLoading, fileName } = this.state;
+    const {
+      excelData,
+      columns,
+      isLoading,
+      fileName,
+      groupedData,
+      totalHours,
+      selectedCategory,
+      detailedData,
+      categoryTotalHours,
+      selectedIssueKey,
+      issueUserData,
+      issueTotalHours,
+      summaryViewMode,
+      groupedByName,
+      selectedUser,
+      userCategoryData,
+      userTotalHours,
+      selectedUserCategory,
+      userCategoryIssueData,
+      userCategoryIssueDataWithType,
+      userCategoryIssueTotal,
+      detailedByIssueWithType,
+      detailedByType,
+    } = this.state;
 
     return (
       <div style={{ padding: "20px" }}>
@@ -172,28 +864,776 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
 
             {fileName && <Text strong>Current file: {fileName}</Text>}
 
-            {excelData.length > 0 && (
-              <div>
-                <Title level={4}>Raw Data Preview</Title>
-                <Text type="secondary">
-                  Showing {excelData.length} rows from the first sheet
-                </Text>
-                <div style={{ marginTop: "16px" }}>
-                  <Table
-                    columns={columns}
-                    dataSource={excelData}
-                    scroll={{ x: true }}
-                    pagination={{
-                      pageSize: 20,
-                      showSizeChanger: true,
-                      showQuickJumper: true,
-                      showTotal: (total, range) =>
-                        `${range[0]}-${range[1]} of ${total} items`,
-                    }}
-                    size="small"
-                  />
-                </div>
+            {/* Summary View Toggle */}
+            {Object.keys(groupedData).length > 0 && (
+              <div style={{ marginBottom: "16px" }}>
+                <Radio.Group
+                  value={summaryViewMode}
+                  onChange={(e) =>
+                    this.handleSummaryViewModeChange(e.target.value)
+                  }
+                  optionType="button"
+                  buttonStyle="solid"
+                >
+                  <Radio.Button value="category">
+                    <BarChartOutlined style={{ marginRight: "4px" }} />
+                    Account Category
+                  </Radio.Button>
+                  {Object.keys(groupedByName).length > 0 && (
+                    <Radio.Button value="name">
+                      <UserOutlined style={{ marginRight: "4px" }} />
+                      Full Name
+                    </Radio.Button>
+                  )}
+                </Radio.Group>
               </div>
+            )}
+
+            {/* Summary or Detailed View */}
+            {Object.keys(groupedData).length > 0 && (
+              <div>
+                {!selectedCategory && !selectedUser ? (
+                  // Summary View
+                  <>
+                    <Title level={4}>
+                      <BarChartOutlined style={{ marginRight: "8px" }} />
+                      {summaryViewMode === "category"
+                        ? "Account Category"
+                        : "Full Name"}{" "}
+                      Summary
+                    </Title>
+
+                    <Row gutter={16} style={{ marginBottom: "24px" }}>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="Total Hours"
+                            value={totalHours}
+                            precision={2}
+                            suffix="hrs"
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="Total Days"
+                            value={totalHours / 7.5}
+                            precision={2}
+                            suffix="days"
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title={`Average per ${summaryViewMode === "category" ? "Category" : "Person"}`}
+                            value={
+                              totalHours /
+                              (summaryViewMode === "category"
+                                ? Object.keys(groupedData).length
+                                : Object.keys(groupedByName).length)
+                            }
+                            precision={2}
+                            suffix="hrs"
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+
+                    <Card
+                      title={`Hours by ${summaryViewMode === "category" ? "Account Category" : "Full Name"} (Click a row to drill down)`}
+                    >
+                      <Table
+                        dataSource={Object.entries(
+                          summaryViewMode === "category"
+                            ? groupedData
+                            : groupedByName
+                        ).map(([item, hours], index) => ({
+                          key: index,
+                          item: item,
+                          hours: hours,
+                          chargeableDays: hours / 7.5,
+                          percentage: ((hours / totalHours) * 100).toFixed(1),
+                        }))}
+                        columns={[
+                          {
+                            title:
+                              summaryViewMode === "category"
+                                ? "Account Category"
+                                : "Full Name",
+                            dataIndex: "item",
+                            key: "item",
+                            render: (text) => <Text strong>{text}</Text>,
+                          },
+                          {
+                            title: "Logged Hours",
+                            dataIndex: "hours",
+                            key: "hours",
+                            render: (text) => (
+                              <Text>{text.toFixed(2)} hrs</Text>
+                            ),
+                            sorter: (a, b) => a.hours - b.hours,
+                            defaultSortOrder: "descend" as const,
+                          },
+                          {
+                            title: "Logged Days",
+                            dataIndex: "chargeableDays",
+                            key: "chargeableDays",
+                            render: (text) => (
+                              <Text>{text.toFixed(2)} days</Text>
+                            ),
+                            sorter: (a, b) =>
+                              a.chargeableDays - b.chargeableDays,
+                          },
+                          {
+                            title: "Percentage",
+                            dataIndex: "percentage",
+                            key: "percentage",
+                            render: (text) => (
+                              <Text type="secondary">{text}%</Text>
+                            ),
+                          },
+                        ]}
+                        pagination={false}
+                        size="small"
+                        onRow={(record) => ({
+                          onClick: () =>
+                            summaryViewMode === "category"
+                              ? this.handleRowClick(record.item)
+                              : this.handleUserClick(record.item),
+                          style: { cursor: "pointer" },
+                        })}
+                      />
+                    </Card>
+                  </>
+                ) : selectedUser && !selectedUserCategory ? (
+                  // User Category Breakdown View (Name → Category)
+                  <>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      <Button
+                        icon={<UserOutlined />}
+                        onClick={this.handleBackToSummary}
+                        style={{ marginRight: "16px" }}
+                      >
+                        Back to Summary
+                      </Button>
+                      <Title level={4} style={{ margin: 0, flex: 1 }}>
+                        <UserOutlined style={{ marginRight: "8px" }} />
+                        {selectedUser} - Account Category Breakdown
+                      </Title>
+                    </div>
+
+                    <Row gutter={16} style={{ marginBottom: "24px" }}>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="User Total Hours"
+                            value={userTotalHours}
+                            precision={2}
+                            suffix="hrs"
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="Categories"
+                            value={Object.keys(userCategoryData).length}
+                            suffix=""
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="Average per Category"
+                            value={
+                              userTotalHours /
+                              Object.keys(userCategoryData).length
+                            }
+                            precision={2}
+                            suffix="hrs"
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+
+                    <Card
+                      title={`${selectedUser} - Hours by Account Category (Click a row to see issues)`}
+                    >
+                      <Table
+                        dataSource={Object.entries(userCategoryData).map(
+                          ([category, hours], index) => ({
+                            key: index,
+                            category: category,
+                            hours: hours,
+                            chargeableDays: hours / 7.5,
+                            percentage: (
+                              (hours / userTotalHours) *
+                              100
+                            ).toFixed(1),
+                          })
+                        )}
+                        columns={[
+                          {
+                            title: "Account Category",
+                            dataIndex: "category",
+                            key: "category",
+                            render: (text) => <Text strong>{text}</Text>,
+                          },
+                          {
+                            title: "Logged Hours",
+                            dataIndex: "hours",
+                            key: "hours",
+                            render: (text) => (
+                              <Text>{text.toFixed(2)} hrs</Text>
+                            ),
+                            sorter: (a, b) => a.hours - b.hours,
+                            defaultSortOrder: "descend" as const,
+                          },
+                          {
+                            title: "Logged Days",
+                            dataIndex: "chargeableDays",
+                            key: "chargeableDays",
+                            render: (text) => (
+                              <Text>{text.toFixed(2)} days</Text>
+                            ),
+                            sorter: (a, b) =>
+                              a.chargeableDays - b.chargeableDays,
+                          },
+                          {
+                            title: "Percentage",
+                            dataIndex: "percentage",
+                            key: "percentage",
+                            render: (text) => (
+                              <Text type="secondary">{text}%</Text>
+                            ),
+                          },
+                        ]}
+                        pagination={false}
+                        size="small"
+                        onRow={(record) => ({
+                          onClick: () =>
+                            this.handleUserCategoryClick(record.category),
+                          style: { cursor: "pointer" },
+                        })}
+                      />
+                    </Card>
+                  </>
+                ) : selectedUserCategory ? (
+                  // User Category Issue Breakdown View (Name → Category → Issue)
+                  <>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      <Button
+                        icon={<UserOutlined />}
+                        onClick={this.handleBackToSummary}
+                        style={{ marginRight: "8px" }}
+                      >
+                        Summary
+                      </Button>
+                      <Text style={{ marginRight: "8px" }}>/</Text>
+                      <Button
+                        icon={<BarChartOutlined />}
+                        onClick={() =>
+                          this.setState({
+                            selectedUserCategory: null,
+                            userCategoryIssueData: {},
+                            userCategoryIssueTotal: 0,
+                          })
+                        }
+                        style={{ marginRight: "16px" }}
+                      >
+                        {selectedUser}
+                      </Button>
+                      <Title level={4} style={{ margin: 0, flex: 1 }}>
+                        <BugOutlined style={{ marginRight: "8px" }} />
+                        {selectedUser} - {selectedUserCategory} - Issues
+                      </Title>
+                    </div>
+
+                    <Row gutter={16} style={{ marginBottom: "24px" }}>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="Category Total Hours"
+                            value={userCategoryIssueTotal}
+                            precision={2}
+                            suffix="hrs"
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="Issues"
+                            value={Object.keys(userCategoryIssueData).length}
+                            suffix=""
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="Average per Issue"
+                            value={
+                              userCategoryIssueTotal /
+                              Object.keys(userCategoryIssueData).length
+                            }
+                            precision={2}
+                            suffix="hrs"
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+
+                    <Card
+                      title={`${selectedUser} - ${selectedUserCategory} - Hours by Issue Key`}
+                    >
+                      <Table
+                        dataSource={Object.entries(
+                          userCategoryIssueDataWithType
+                        ).map(([issueKey, data], index) => ({
+                          key: index,
+                          issueKey: issueKey,
+                          type: data.type,
+                          hours: data.hours,
+                          chargeableDays: data.hours / 7.5,
+                          percentage: (
+                            (data.hours / userCategoryIssueTotal) *
+                            100
+                          ).toFixed(1),
+                        }))}
+                        columns={[
+                          {
+                            title: "Issue Key",
+                            dataIndex: "issueKey",
+                            key: "issueKey",
+                            render: (text) => (
+                              <a
+                                href={`https://lendscape.atlassian.net/browse/${text}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ fontWeight: "bold" }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {text}
+                              </a>
+                            ),
+                          },
+                          {
+                            title: "Issue Type",
+                            dataIndex: "type",
+                            key: "type",
+                            render: (text) => <Text>{text}</Text>,
+                          },
+                          {
+                            title: "Logged Hours",
+                            dataIndex: "hours",
+                            key: "hours",
+                            render: (text) => (
+                              <Text>{text.toFixed(2)} hrs</Text>
+                            ),
+                            sorter: (a, b) => a.hours - b.hours,
+                            defaultSortOrder: "descend" as const,
+                          },
+                          {
+                            title: "Logged Days",
+                            dataIndex: "chargeableDays",
+                            key: "chargeableDays",
+                            render: (text) => (
+                              <Text>{text.toFixed(2)} days</Text>
+                            ),
+                            sorter: (a, b) =>
+                              a.chargeableDays - b.chargeableDays,
+                          },
+                          {
+                            title: "Percentage",
+                            dataIndex: "percentage",
+                            key: "percentage",
+                            render: (text) => (
+                              <Text type="secondary">{text}%</Text>
+                            ),
+                          },
+                        ]}
+                        pagination={false}
+                        size="small"
+                      />
+                    </Card>
+                  </>
+                ) : !selectedIssueKey ? (
+                  // Detailed View (Category → Issue/Name)
+                  <>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      <Button
+                        icon={<BarChartOutlined />}
+                        onClick={this.handleBackToSummary}
+                        style={{ marginRight: "16px" }}
+                      >
+                        Back to Summary
+                      </Button>
+                      <Title level={4} style={{ margin: 0, flex: 1 }}>
+                        <BarChartOutlined style={{ marginRight: "8px" }} />
+                        {selectedCategory} - Breakdown
+                      </Title>
+                      <Radio.Group
+                        value={this.state.viewMode}
+                        onChange={(e) =>
+                          this.handleViewModeChange(e.target.value)
+                        }
+                        optionType="button"
+                        buttonStyle="solid"
+                      >
+                        <Radio.Button value="name">
+                          <UserOutlined style={{ marginRight: "4px" }} />
+                          Full Name
+                        </Radio.Button>
+                        <Radio.Button value="issue">
+                          <BugOutlined style={{ marginRight: "4px" }} />
+                          Issue Key
+                        </Radio.Button>
+                        <Radio.Button value="type">
+                          <BarChartOutlined style={{ marginRight: "4px" }} />
+                          Issue Type
+                        </Radio.Button>
+                      </Radio.Group>
+                    </div>
+
+                    <Row gutter={16} style={{ marginBottom: "24px" }}>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="Category Total Hours"
+                            value={categoryTotalHours}
+                            precision={2}
+                            suffix="hrs"
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title={
+                              this.state.viewMode === "name"
+                                ? "People"
+                                : this.state.viewMode === "type"
+                                  ? "Types"
+                                  : "Issues"
+                            }
+                            value={Object.keys(detailedData).length}
+                            suffix=""
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title={`Average per ${this.state.viewMode === "name" ? "Person" : this.state.viewMode === "type" ? "Type" : "Issue"}`}
+                            value={
+                              categoryTotalHours /
+                              Object.keys(detailedData).length
+                            }
+                            precision={2}
+                            suffix="hrs"
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+
+                    <Card
+                      title={`${selectedCategory} - Hours by ${this.state.viewMode === "name" ? "Full Name" : this.state.viewMode === "issue" ? "Issue Key" : "Issue Type"}${this.state.viewMode === "issue" ? " (Click an issue to see user breakdown)" : ""}`}
+                    >
+                      <Table
+                        dataSource={
+                          this.state.viewMode === "issue"
+                            ? Object.entries(detailedByIssueWithType).map(
+                                ([issueKey, data], index) => ({
+                                  key: index,
+                                  item: issueKey,
+                                  hours: data.hours,
+                                  type: data.type,
+                                  chargeableDays: data.hours / 7.5,
+                                  percentage: (
+                                    (data.hours / categoryTotalHours) *
+                                    100
+                                  ).toFixed(1),
+                                })
+                              )
+                            : this.state.viewMode === "type"
+                              ? Object.entries(detailedByType).map(
+                                  ([type, hours], index) => ({
+                                    key: index,
+                                    item: type,
+                                    hours: hours,
+                                    chargeableDays: hours / 7.5,
+                                    percentage: (
+                                      (hours / categoryTotalHours) *
+                                      100
+                                    ).toFixed(1),
+                                  })
+                                )
+                              : Object.entries(detailedData).map(
+                                  ([item, hours], index) => ({
+                                    key: index,
+                                    item: item,
+                                    hours: hours,
+                                    chargeableDays: hours / 7.5,
+                                    percentage: (
+                                      (hours / categoryTotalHours) *
+                                      100
+                                    ).toFixed(1),
+                                  })
+                                )
+                        }
+                        columns={[
+                          {
+                            title:
+                              this.state.viewMode === "name"
+                                ? "Full Name"
+                                : this.state.viewMode === "issue"
+                                  ? "Issue Key"
+                                  : "Issue Type",
+                            dataIndex: "item",
+                            key: "item",
+                            render: (text) => {
+                              if (this.state.viewMode === "issue") {
+                                return (
+                                  <a
+                                    href={`https://lendscape.atlassian.net/browse/${text}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ fontWeight: "bold" }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {text}
+                                  </a>
+                                );
+                              }
+                              return <Text strong>{text}</Text>;
+                            },
+                          },
+                          ...(this.state.viewMode === "issue"
+                            ? [
+                                {
+                                  title: "Issue Type",
+                                  dataIndex: "type",
+                                  key: "type",
+                                  render: (text) => <Text>{text}</Text>,
+                                },
+                              ]
+                            : []),
+                          {
+                            title: "Logged Hours",
+                            dataIndex: "hours",
+                            key: "hours",
+                            render: (text) => (
+                              <Text>{text.toFixed(2)} hrs</Text>
+                            ),
+                            sorter: (a, b) => a.hours - b.hours,
+                            defaultSortOrder: "descend" as const,
+                          },
+                          {
+                            title: "Logged Days",
+                            dataIndex: "chargeableDays",
+                            key: "chargeableDays",
+                            render: (text) => (
+                              <Text>{text.toFixed(2)} days</Text>
+                            ),
+                            sorter: (a, b) =>
+                              a.chargeableDays - b.chargeableDays,
+                          },
+                          {
+                            title: "Percentage",
+                            dataIndex: "percentage",
+                            key: "percentage",
+                            render: (text) => (
+                              <Text type="secondary">{text}%</Text>
+                            ),
+                          },
+                        ]}
+                        pagination={false}
+                        size="small"
+                        onRow={
+                          this.state.viewMode === "issue"
+                            ? (record) => ({
+                                onClick: () =>
+                                  this.handleIssueKeyClick(record.item),
+                                style: { cursor: "pointer" },
+                              })
+                            : undefined
+                        }
+                      />
+                    </Card>
+                  </>
+                ) : (
+                  // Issue Key User Breakdown View (Category → Issue → User)
+                  <>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      <Button
+                        icon={<BarChartOutlined />}
+                        onClick={this.handleBackToSummary}
+                        style={{ marginRight: "8px" }}
+                      >
+                        Summary
+                      </Button>
+                      <Text style={{ marginRight: "8px" }}>/</Text>
+                      <Button
+                        icon={<BugOutlined />}
+                        onClick={this.handleBackToIssueView}
+                        style={{ marginRight: "16px" }}
+                      >
+                        {selectedCategory}
+                      </Button>
+                      <Title level={4} style={{ margin: 0, flex: 1 }}>
+                        <UserOutlined style={{ marginRight: "8px" }} />
+                        {selectedIssueKey} - User Breakdown
+                      </Title>
+                    </div>
+
+                    <Row gutter={16} style={{ marginBottom: "24px" }}>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="Issue Total Hours"
+                            value={issueTotalHours}
+                            precision={2}
+                            suffix="hrs"
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="People"
+                            value={Object.keys(issueUserData).length}
+                            suffix=""
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="Average per Person"
+                            value={
+                              issueTotalHours /
+                              Object.keys(issueUserData).length
+                            }
+                            precision={2}
+                            suffix="hrs"
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+
+                    <Card title={`${selectedIssueKey} - Hours by Full Name`}>
+                      <Table
+                        dataSource={Object.entries(issueUserData).map(
+                          ([name, hours], index) => ({
+                            key: index,
+                            name: name,
+                            hours: hours,
+                            chargeableDays: hours / 7.5,
+                            percentage: (
+                              (hours / issueTotalHours) *
+                              100
+                            ).toFixed(1),
+                          })
+                        )}
+                        columns={[
+                          {
+                            title: "Full Name",
+                            dataIndex: "name",
+                            key: "name",
+                            render: (text) => <Text strong>{text}</Text>,
+                          },
+                          {
+                            title: "Logged Hours",
+                            dataIndex: "hours",
+                            key: "hours",
+                            render: (text) => (
+                              <Text>{text.toFixed(2)} hrs</Text>
+                            ),
+                            sorter: (a, b) => a.hours - b.hours,
+                            defaultSortOrder: "descend" as const,
+                          },
+                          {
+                            title: "Logged Days",
+                            dataIndex: "chargeableDays",
+                            key: "chargeableDays",
+                            render: (text) => (
+                              <Text>{text.toFixed(2)} days</Text>
+                            ),
+                            sorter: (a, b) =>
+                              a.chargeableDays - b.chargeableDays,
+                          },
+                          {
+                            title: "Percentage",
+                            dataIndex: "percentage",
+                            key: "percentage",
+                            render: (text) => (
+                              <Text type="secondary">{text}%</Text>
+                            ),
+                          },
+                        ]}
+                        pagination={false}
+                        size="small"
+                      />
+                    </Card>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Raw Data in Expandable Section */}
+            {excelData.length > 0 && (
+              <Collapse>
+                <Panel header="Raw Data (Click to expand)" key="1">
+                  <div>
+                    <Text type="secondary">
+                      Showing {excelData.length} rows from the first sheet
+                    </Text>
+                    <div style={{ marginTop: "16px" }}>
+                      <Table
+                        columns={columns}
+                        dataSource={excelData}
+                        scroll={{ x: true }}
+                        pagination={{
+                          pageSize: 20,
+                          showSizeChanger: true,
+                          showQuickJumper: true,
+                          showTotal: (total, range) =>
+                            `${range[0]}-${range[1]} of ${total} items`,
+                        }}
+                        size="small"
+                      />
+                    </div>
+                  </div>
+                </Panel>
+              </Collapse>
             )}
           </Space>
         </Card>
