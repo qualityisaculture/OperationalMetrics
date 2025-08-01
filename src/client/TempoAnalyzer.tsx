@@ -13,6 +13,8 @@ import {
   Row,
   Col,
   Radio,
+  Modal,
+  List,
 } from "antd";
 import {
   UploadOutlined,
@@ -79,6 +81,8 @@ interface State {
   fullNameIndex: number;
   issueKeyIndex: number;
   issueTypeIndex: number;
+  workDescriptionIndex: number;
+  dateIndex: number;
   rawData: any[];
   headers: string[];
   viewMode: "name" | "issue" | "type";
@@ -86,6 +90,13 @@ interface State {
   detailedByIssue: { [key: string]: number };
   detailedByIssueWithType: { [key: string]: { hours: number; type: string } };
   detailedByType: { [key: string]: number };
+  issueWorkDescriptions: {
+    [key: string]: Array<{
+      description: string;
+      fullName: string;
+      date: string;
+    }>;
+  };
   selectedIssueKey: string | null;
   issueUserData: { [key: string]: number };
   issueTotalHours: number;
@@ -100,6 +111,17 @@ interface State {
     [key: string]: { hours: number; type: string };
   };
   userCategoryIssueTotal: number;
+  userCategoryIssueWorkDescriptions: {
+    [key: string]: Array<{
+      description: string;
+      fullName: string;
+      date: string;
+    }>;
+  };
+  showWorkDescriptionModal: boolean;
+  selectedWorkDescriptions: string[];
+  selectedWorkDescriptionTitle: string;
+  selectedWorkDescriptionDetails: Array<{ fullName: string; date: string }>;
 }
 
 export default class TempoAnalyzer extends React.Component<Props, State> {
@@ -120,6 +142,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       fullNameIndex: -1,
       issueKeyIndex: -1,
       issueTypeIndex: -1,
+      workDescriptionIndex: -1,
+      dateIndex: -1,
       rawData: [],
       headers: [],
       viewMode: "name",
@@ -127,6 +151,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       detailedByIssue: {},
       detailedByIssueWithType: {},
       detailedByType: {},
+      issueWorkDescriptions: {},
       selectedIssueKey: null,
       issueUserData: {},
       issueTotalHours: 0,
@@ -139,6 +164,11 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       userCategoryIssueData: {},
       userCategoryIssueDataWithType: {},
       userCategoryIssueTotal: 0,
+      userCategoryIssueWorkDescriptions: {},
+      showWorkDescriptionModal: false,
+      selectedWorkDescriptions: [],
+      selectedWorkDescriptionTitle: "",
+      selectedWorkDescriptionDetails: [],
     };
   }
 
@@ -172,6 +202,17 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
         header.toLowerCase().includes("issue type") ||
         header.toLowerCase().includes("issuetype")
     );
+    const workDescriptionIndex = headers.findIndex(
+      (header) =>
+        header.toLowerCase().includes("work description") ||
+        header.toLowerCase().includes("workdescription") ||
+        header.toLowerCase().includes("description")
+    );
+    const dateIndex = headers.findIndex(
+      (header) =>
+        header.toLowerCase().includes("date") ||
+        header.toLowerCase().includes("date")
+    );
 
     if (accountCategoryIndex === -1 || loggedHoursIndex === -1) {
       message.warning(
@@ -198,6 +239,18 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       );
     }
 
+    if (workDescriptionIndex === -1) {
+      message.warning(
+        "Could not find 'Work Description' column. Work Description information will not be available."
+      );
+    }
+
+    if (dateIndex === -1) {
+      message.warning(
+        "Could not find 'Date' column. Date information will not be available."
+      );
+    }
+
     // Store the column indices for later use
     this.setState({
       accountCategoryIndex,
@@ -205,6 +258,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       fullNameIndex,
       issueKeyIndex,
       issueTypeIndex,
+      workDescriptionIndex,
+      dateIndex,
       rawData: tableData,
       headers,
     });
@@ -264,6 +319,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       fullNameIndex,
       issueKeyIndex,
       issueTypeIndex,
+      workDescriptionIndex,
+      dateIndex,
     } = this.state;
 
     if (fullNameIndex === -1 && issueKeyIndex === -1) {
@@ -292,6 +349,13 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       [key: string]: { hours: number; type: string };
     } = {};
     const detailedByType: { [key: string]: number } = {};
+    const issueWorkDescriptions: {
+      [key: string]: Array<{
+        description: string;
+        fullName: string;
+        date: string;
+      }>;
+    } = {};
     let categoryTotal = 0;
 
     rawData.forEach((row) => {
@@ -352,6 +416,44 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                   type: type,
                 };
               }
+
+              // Collect work descriptions
+              if (workDescriptionIndex !== -1) {
+                const workDescription = row[workDescriptionIndex.toString()];
+                if (workDescription) {
+                  const description = String(workDescription).trim();
+                  if (description) {
+                    const fullName =
+                      fullNameIndex !== -1
+                        ? row[fullNameIndex.toString()]
+                        : null;
+                    const date =
+                      dateIndex !== -1 ? row[dateIndex.toString()] : null;
+
+                    if (!issueWorkDescriptions[key]) {
+                      issueWorkDescriptions[key] = [];
+                    }
+
+                    const workEntry = {
+                      description: description,
+                      fullName: fullName ? String(fullName).trim() : "N/A",
+                      date: date ? String(date).trim() : "N/A",
+                    };
+
+                    // Check if this exact entry already exists
+                    const exists = issueWorkDescriptions[key].some(
+                      (entry) =>
+                        entry.description === workEntry.description &&
+                        entry.fullName === workEntry.fullName &&
+                        entry.date === workEntry.date
+                    );
+
+                    if (!exists) {
+                      issueWorkDescriptions[key].push(workEntry);
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -391,6 +493,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       detailedByIssue,
       detailedByIssueWithType,
       detailedByType,
+      issueWorkDescriptions,
     });
   };
 
@@ -487,6 +590,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       fullNameIndex,
       issueKeyIndex,
       issueTypeIndex,
+      workDescriptionIndex,
+      dateIndex,
       selectedUser,
     } = this.state;
 
@@ -513,6 +618,13 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     const userCategoryIssueData: { [key: string]: number } = {};
     const userCategoryIssueDataWithType: {
       [key: string]: { hours: number; type: string };
+    } = {};
+    const userCategoryIssueWorkDescriptions: {
+      [key: string]: Array<{
+        description: string;
+        fullName: string;
+        date: string;
+      }>;
     } = {};
     let userCategoryIssueTotal = 0;
 
@@ -563,6 +675,40 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                 type: type,
               };
             }
+
+            // Collect work descriptions
+            if (workDescriptionIndex !== -1) {
+              const workDescription = row[workDescriptionIndex.toString()];
+              if (workDescription) {
+                const description = String(workDescription).trim();
+                if (description) {
+                  const date =
+                    dateIndex !== -1 ? row[dateIndex.toString()] : null;
+
+                  if (!userCategoryIssueWorkDescriptions[key]) {
+                    userCategoryIssueWorkDescriptions[key] = [];
+                  }
+
+                  const workEntry = {
+                    description: description,
+                    fullName: String(rowFullName).trim(),
+                    date: date ? String(date).trim() : "N/A",
+                  };
+
+                  // Check if this exact entry already exists
+                  const exists = userCategoryIssueWorkDescriptions[key].some(
+                    (entry) =>
+                      entry.description === workEntry.description &&
+                      entry.fullName === workEntry.fullName &&
+                      entry.date === workEntry.date
+                  );
+
+                  if (!exists) {
+                    userCategoryIssueWorkDescriptions[key].push(workEntry);
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -572,6 +718,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       selectedUserCategory: category,
       userCategoryIssueData: userCategoryIssueData,
       userCategoryIssueDataWithType: userCategoryIssueDataWithType,
+      userCategoryIssueWorkDescriptions: userCategoryIssueWorkDescriptions,
       userCategoryIssueTotal: userCategoryIssueTotal,
     });
   };
@@ -696,6 +843,30 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       selectedIssueKey: null,
       issueUserData: {},
       issueTotalHours: 0,
+    });
+  };
+
+  showWorkDescriptions = (
+    issueKey: string,
+    descriptions: Array<{ description: string; fullName: string; date: string }>
+  ) => {
+    this.setState({
+      showWorkDescriptionModal: true,
+      selectedWorkDescriptions: descriptions.map((desc) => desc.description),
+      selectedWorkDescriptionTitle: `Work Descriptions for ${issueKey}`,
+      selectedWorkDescriptionDetails: descriptions.map((desc) => ({
+        fullName: desc.fullName,
+        date: desc.date,
+      })),
+    });
+  };
+
+  hideWorkDescriptionModal = () => {
+    this.setState({
+      showWorkDescriptionModal: false,
+      selectedWorkDescriptions: [],
+      selectedWorkDescriptionTitle: "",
+      selectedWorkDescriptionDetails: [],
     });
   };
 
@@ -824,6 +995,12 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       userCategoryIssueTotal,
       detailedByIssueWithType,
       detailedByType,
+      issueWorkDescriptions,
+      userCategoryIssueWorkDescriptions,
+      showWorkDescriptionModal,
+      selectedWorkDescriptions,
+      selectedWorkDescriptionTitle,
+      selectedWorkDescriptionDetails,
     } = this.state;
 
     return (
@@ -1240,6 +1417,33 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                             render: (text) => <Text>{text}</Text>,
                           },
                           {
+                            title: "Work Description",
+                            key: "workDescription",
+                            render: (_, record) => {
+                              const descriptions =
+                                userCategoryIssueWorkDescriptions[
+                                  record.issueKey
+                                ] || [];
+                              return descriptions.length > 0 ? (
+                                <Button
+                                  size="small"
+                                  type="link"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    this.showWorkDescriptions(
+                                      record.issueKey,
+                                      descriptions
+                                    );
+                                  }}
+                                >
+                                  View Descriptions ({descriptions.length})
+                                </Button>
+                              ) : (
+                                <Text type="secondary">No descriptions</Text>
+                              );
+                            },
+                          },
+                          {
                             title: "Logged Hours",
                             dataIndex: "hours",
                             key: "hours",
@@ -1437,6 +1641,34 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                                   dataIndex: "type",
                                   key: "type",
                                   render: (text) => <Text>{text}</Text>,
+                                },
+                                {
+                                  title: "Work Description",
+                                  key: "workDescription",
+                                  render: (_, record) => {
+                                    const descriptions =
+                                      issueWorkDescriptions[record.item] || [];
+                                    return descriptions.length > 0 ? (
+                                      <Button
+                                        size="small"
+                                        type="link"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          this.showWorkDescriptions(
+                                            record.item,
+                                            descriptions
+                                          );
+                                        }}
+                                      >
+                                        View Descriptions ({descriptions.length}
+                                        )
+                                      </Button>
+                                    ) : (
+                                      <Text type="secondary">
+                                        No descriptions
+                                      </Text>
+                                    );
+                                  },
                                 },
                               ]
                             : []),
@@ -1637,6 +1869,40 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
             )}
           </Space>
         </Card>
+
+        {/* Work Description Modal */}
+        <Modal
+          title={selectedWorkDescriptionTitle}
+          open={showWorkDescriptionModal}
+          onCancel={this.hideWorkDescriptionModal}
+          footer={[
+            <Button key="close" onClick={this.hideWorkDescriptionModal}>
+              Close
+            </Button>,
+          ]}
+          width={600}
+        >
+          <List
+            dataSource={selectedWorkDescriptions.map((description, index) => ({
+              key: index,
+              description: description,
+              fullName:
+                selectedWorkDescriptionDetails[index]?.fullName || "N/A",
+              date: selectedWorkDescriptionDetails[index]?.date || "N/A",
+            }))}
+            renderItem={(item, index) => (
+              <List.Item>
+                <div style={{ width: "100%" }}>
+                  <Text strong>
+                    {item.fullName} on {item.date})
+                  </Text>
+                  <br />
+                  <Text>{item.description}</Text>
+                </div>
+              </List.Item>
+            )}
+          />
+        </Modal>
       </div>
     );
   }
