@@ -15,6 +15,8 @@ import {
   Radio,
   Modal,
   List,
+  Select,
+  Checkbox,
 } from "antd";
 import {
   UploadOutlined,
@@ -27,6 +29,7 @@ import * as XLSX from "xlsx";
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
+const { Option } = Select;
 
 // Configuration for issue keys that should be split into their own categories
 const ISSUE_KEY_EXCEPTIONS = [
@@ -63,6 +66,14 @@ const ISSUE_KEY_EXCEPTIONS = [
   // { issueKeys: ["ABS-57", "ABS-58"], categorySuffix: "Sick Leave" },
   // { issueKeys: ["LD-51", "LD-52", "LD-53"], categorySuffix: "Advanced Training" },
 ];
+
+interface SheetData {
+  name: string;
+  data: any[];
+  headers: string[];
+  columns: any[];
+  fileName: string;
+}
 
 interface Props {}
 
@@ -125,6 +136,10 @@ interface State {
   selectedWorkDescriptions: string[];
   selectedWorkDescriptionTitle: string;
   selectedWorkDescriptionDetails: Array<{ fullName: string; date: string }>;
+  // New state for multiple sheets
+  sheets: SheetData[];
+  selectedSheets: string[];
+  currentSheetName: string;
 }
 
 export default class TempoAnalyzer extends React.Component<Props, State> {
@@ -173,6 +188,10 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       selectedWorkDescriptions: [],
       selectedWorkDescriptionTitle: "",
       selectedWorkDescriptionDetails: [],
+      // New state for multiple sheets
+      sheets: [],
+      selectedSheets: [],
+      currentSheetName: "",
     };
   }
 
@@ -325,6 +344,138 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       groupedByName: groupedByName,
       totalHours: totalHours,
     });
+  };
+
+  // New method to combine data from multiple sheets
+  combineSheetData = () => {
+    const { sheets, selectedSheets } = this.state;
+
+    if (selectedSheets.length === 0) {
+      return;
+    }
+
+    // Combine data from all selected sheets
+    let combinedData: any[] = [];
+    let combinedHeaders: string[] = [];
+    let combinedColumns: any[] = [];
+
+    selectedSheets.forEach((sheetIdentifier) => {
+      const [fileName, sheetName] = sheetIdentifier.split("|");
+      const sheet = sheets.find(
+        (s) => s.fileName === fileName && s.name === sheetName
+      );
+      if (sheet) {
+        if (combinedData.length === 0) {
+          // First sheet - use its headers and columns
+          combinedHeaders = sheet.headers;
+          combinedColumns = sheet.columns;
+        } else {
+          // Check if headers match
+          if (
+            JSON.stringify(combinedHeaders) !== JSON.stringify(sheet.headers)
+          ) {
+            message.warning(
+              `Headers in sheet "${sheetName}" from "${fileName}" don't match the first sheet. Skipping this sheet.`
+            );
+            return;
+          }
+        }
+        combinedData = combinedData.concat(sheet.data);
+      }
+    });
+
+    if (combinedData.length > 0) {
+      // Process the combined data
+      this.processData(combinedData, combinedHeaders);
+
+      this.setState({
+        excelData: combinedData,
+        columns: combinedColumns,
+        rawData: combinedData,
+        headers: combinedHeaders,
+      });
+
+      message.success(
+        `Successfully combined ${selectedSheets.length} sheet(s) with ${combinedData.length} total rows`
+      );
+    }
+  };
+
+  // New method to handle sheet selection changes
+  handleSheetSelectionChange = (selectedSheets: string[]) => {
+    this.setState({ selectedSheets }, () => {
+      if (selectedSheets.length > 0) {
+        this.combineSheetData();
+      } else {
+        // Clear data when no sheets are selected
+        this.setState({
+          excelData: [],
+          columns: [],
+          rawData: [],
+          headers: [],
+          groupedData: {},
+          groupedByName: {},
+          totalHours: 0,
+          selectedCategory: null,
+          detailedData: {},
+          categoryTotalHours: 0,
+        });
+      }
+    });
+  };
+
+  // New method to remove a sheet
+  removeSheet = (sheetName: string, fileName?: string) => {
+    this.setState(
+      (prevState) => {
+        let updatedSheets;
+        let updatedSelectedSheets;
+
+        if (fileName) {
+          // Remove by filename and sheet name
+          updatedSheets = prevState.sheets.filter(
+            (sheet) =>
+              !(sheet.name === sheetName && sheet.fileName === fileName)
+          );
+          const sheetIdentifier = `${fileName}|${sheetName}`;
+          updatedSelectedSheets = prevState.selectedSheets.filter(
+            (identifier) => identifier !== sheetIdentifier
+          );
+        } else {
+          // Remove by sheet name only (for backward compatibility)
+          updatedSheets = prevState.sheets.filter(
+            (sheet) => sheet.name !== sheetName
+          );
+          updatedSelectedSheets = prevState.selectedSheets.filter(
+            (identifier) => !identifier.endsWith(`|${sheetName}`)
+          );
+        }
+
+        return {
+          sheets: updatedSheets,
+          selectedSheets: updatedSelectedSheets,
+        };
+      },
+      () => {
+        if (this.state.selectedSheets.length > 0) {
+          this.handleSheetSelectionChange(this.state.selectedSheets);
+        } else {
+          // Clear data when no sheets are selected
+          this.setState({
+            excelData: [],
+            columns: [],
+            rawData: [],
+            headers: [],
+            groupedData: {},
+            groupedByName: {},
+            totalHours: 0,
+            selectedCategory: null,
+            detailedData: {},
+            categoryTotalHours: 0,
+          });
+        }
+      }
+    );
   };
 
   handleRowClick = (category: string) => {
@@ -904,6 +1055,136 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     });
   };
 
+  // New method to handle multiple file uploads
+  handleMultipleFileUpload = (fileList: File[]) => {
+    this.setState({ isLoading: true });
+
+    let processedCount = 0;
+    let totalFiles = fileList.length;
+    let allNewSheets: SheetData[] = [];
+
+    fileList.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: "array" });
+
+          // Process only sheets named "Worklogs"
+          const newSheets: SheetData[] = [];
+
+          workbook.SheetNames.forEach((sheetName) => {
+            // Only process sheets named "Worklogs"
+            if (sheetName !== "Worklogs") {
+              return;
+            }
+
+            const worksheet = workbook.Sheets[sheetName];
+
+            // Convert to JSON
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+            if (jsonData.length === 0) {
+              message.warning(
+                `Sheet "Worklogs" in "${file.name}" appears to be empty`
+              );
+              return;
+            }
+
+            // Extract headers from first row
+            const headers = jsonData[0] as string[];
+            const dataRows = jsonData.slice(1);
+
+            // Create table columns
+            const columns = headers.map((header, index) => ({
+              title: header || `Column ${index + 1}`,
+              dataIndex: index.toString(),
+              key: index.toString(),
+              render: (text: any) => {
+                if (text === null || text === undefined) return "-";
+                if (typeof text === "object") return JSON.stringify(text);
+                return String(text);
+              },
+            }));
+
+            // Create table data
+            const tableData = dataRows.map((row, rowIndex) => {
+              const rowData: any = { key: rowIndex };
+              headers.forEach((_, colIndex) => {
+                rowData[colIndex.toString()] = (row as any[])[colIndex];
+              });
+              return rowData;
+            });
+
+            newSheets.push({
+              name: sheetName,
+              data: tableData,
+              headers: headers,
+              columns: columns,
+              fileName: file.name,
+            });
+          });
+
+          if (newSheets.length === 0) {
+            message.warning(`No "Worklogs" sheet found in "${file.name}"`);
+          }
+
+          // Collect all new sheets
+          allNewSheets = allNewSheets.concat(newSheets);
+        } catch (error) {
+          console.error("Error processing Excel file:", error);
+          message.error(
+            `Failed to process "${file.name}". Please check the file format.`
+          );
+        }
+
+        processedCount++;
+        if (processedCount === totalFiles) {
+          // All files processed, add all new sheets at once
+          this.setState(
+            (prevState) => {
+              const updatedSheets = [...prevState.sheets, ...allNewSheets];
+
+              // Select the new Worklogs sheets by default
+              const newSheetNames = allNewSheets.map(
+                (sheet) => `${sheet.fileName}|${sheet.name}`
+              );
+              const updatedSelectedSheets = [
+                ...prevState.selectedSheets,
+                ...newSheetNames,
+              ];
+
+              return {
+                sheets: updatedSheets,
+                selectedSheets: updatedSelectedSheets,
+                isLoading: false,
+              };
+            },
+            () => {
+              // Process the newly added sheets
+              this.handleSheetSelectionChange(this.state.selectedSheets);
+
+              message.success(
+                `Successfully processed ${totalFiles} file(s). Found ${allNewSheets.length} Worklogs sheets.`
+              );
+            }
+          );
+        }
+      };
+
+      reader.onerror = () => {
+        message.error(`Failed to read "${file.name}"`);
+        processedCount++;
+        if (processedCount === totalFiles) {
+          this.setState({ isLoading: false });
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  // Method to handle single file uploads
   handleFileUpload = (file: File) => {
     this.setState({ isLoading: true, fileName: file.name });
 
@@ -913,55 +1194,95 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: "array" });
 
-        // Get the first sheet
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
+        // Process only sheets named "Worklogs"
+        const newSheets: SheetData[] = [];
 
-        // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        workbook.SheetNames.forEach((sheetName) => {
+          // Only process sheets named "Worklogs"
+          if (sheetName !== "Worklogs") {
+            return;
+          }
 
-        if (jsonData.length === 0) {
-          message.error("The Excel file appears to be empty");
+          const worksheet = workbook.Sheets[sheetName];
+
+          // Convert to JSON
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          if (jsonData.length === 0) {
+            message.warning(
+              `Sheet "Worklogs" in "${file.name}" appears to be empty`
+            );
+            return;
+          }
+
+          // Extract headers from first row
+          const headers = jsonData[0] as string[];
+          const dataRows = jsonData.slice(1);
+
+          // Create table columns
+          const columns = headers.map((header, index) => ({
+            title: header || `Column ${index + 1}`,
+            dataIndex: index.toString(),
+            key: index.toString(),
+            render: (text: any) => {
+              if (text === null || text === undefined) return "-";
+              if (typeof text === "object") return JSON.stringify(text);
+              return String(text);
+            },
+          }));
+
+          // Create table data
+          const tableData = dataRows.map((row, rowIndex) => {
+            const rowData: any = { key: rowIndex };
+            headers.forEach((_, colIndex) => {
+              rowData[colIndex.toString()] = (row as any[])[colIndex];
+            });
+            return rowData;
+          });
+
+          newSheets.push({
+            name: sheetName,
+            data: tableData,
+            headers: headers,
+            columns: columns,
+            fileName: file.name,
+          });
+        });
+
+        if (newSheets.length === 0) {
+          message.warning(`No "Worklogs" sheet found in "${file.name}"`);
           this.setState({ isLoading: false });
           return;
         }
 
-        // Extract headers from first row
-        const headers = jsonData[0] as string[];
-        const dataRows = jsonData.slice(1);
+        // Add new sheets to existing sheets
+        this.setState(
+          (prevState) => {
+            const updatedSheets = [...prevState.sheets, ...newSheets];
 
-        // Create table columns
-        const columns = headers.map((header, index) => ({
-          title: header || `Column ${index + 1}`,
-          dataIndex: index.toString(),
-          key: index.toString(),
-          render: (text: any) => {
-            if (text === null || text === undefined) return "-";
-            if (typeof text === "object") return JSON.stringify(text);
-            return String(text);
+            // Select the new Worklogs sheets by default
+            const newSheetNames = newSheets.map(
+              (sheet) => `${sheet.fileName}|${sheet.name}`
+            );
+            const updatedSelectedSheets = [
+              ...prevState.selectedSheets,
+              ...newSheetNames,
+            ];
+
+            return {
+              sheets: updatedSheets,
+              selectedSheets: updatedSelectedSheets,
+              isLoading: false,
+            };
           },
-        }));
+          () => {
+            // Process the newly added sheets
+            this.handleSheetSelectionChange(this.state.selectedSheets);
 
-        // Create table data
-        const tableData = dataRows.map((row, rowIndex) => {
-          const rowData: any = { key: rowIndex };
-          headers.forEach((_, colIndex) => {
-            rowData[colIndex.toString()] = (row as any[])[colIndex];
-          });
-          return rowData;
-        });
-
-        // Process the data for grouping
-        this.processData(tableData, headers);
-
-        this.setState({
-          excelData: tableData,
-          columns: columns,
-          isLoading: false,
-        });
-
-        message.success(
-          `Successfully loaded ${tableData.length} rows from "${firstSheetName}"`
+            message.success(
+              `Successfully loaded Worklogs sheet from "${file.name}"`
+            );
+          }
         );
       } catch (error) {
         console.error("Error processing Excel file:", error);
@@ -978,30 +1299,6 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     };
 
     reader.readAsArrayBuffer(file);
-    return false; // Prevent default upload behavior
-  };
-
-  beforeUpload = (file: File) => {
-    const isExcel =
-      file.type ===
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-      file.type === "application/vnd.ms-excel" ||
-      file.name.endsWith(".xlsx") ||
-      file.name.endsWith(".xls");
-
-    if (!isExcel) {
-      message.error("You can only upload Excel files!");
-      return false;
-    }
-
-    const isLt10M = file.size / 1024 / 1024 < 10;
-    if (!isLt10M) {
-      message.error("File must be smaller than 10MB!");
-      return false;
-    }
-
-    this.handleFileUpload(file);
-    return false; // Prevent default upload behavior
   };
 
   render() {
@@ -1035,6 +1332,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       selectedWorkDescriptions,
       selectedWorkDescriptionTitle,
       selectedWorkDescriptionDetails,
+      sheets,
+      selectedSheets,
     } = this.state;
 
     return (
@@ -1053,15 +1352,71 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
 
             <Alert
               message="Instructions"
-              description="Upload an Excel file (.xlsx or .xls) to begin analysis. The first sheet will be automatically processed and displayed below."
+              description="Upload Excel files (.xlsx or .xls) to begin analysis. Only sheets named 'Worklogs' will be processed. You can upload multiple files at once and select which Worklogs sheets to include in your analysis."
               type="info"
               showIcon
             />
 
             <Upload
-              beforeUpload={this.beforeUpload}
+              beforeUpload={(file, fileList) => {
+                // If multiple files are being uploaded, only process on the first file
+                if (fileList && fileList.length > 1) {
+                  // Only process if this is the first file in the list
+                  if (fileList[0] !== file) {
+                    return false; // Skip processing for subsequent files
+                  }
+
+                  // Validate all files first
+                  for (const f of fileList) {
+                    const isExcel =
+                      f.type ===
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+                      f.type === "application/vnd.ms-excel" ||
+                      f.name.endsWith(".xlsx") ||
+                      f.name.endsWith(".xls");
+
+                    if (!isExcel) {
+                      message.error("You can only upload Excel files!");
+                      return false;
+                    }
+
+                    const isLt10M = f.size / 1024 / 1024 < 10;
+                    if (!isLt10M) {
+                      message.error("File must be smaller than 10MB!");
+                      return false;
+                    }
+                  }
+
+                  // Process all files together (only once)
+                  this.handleMultipleFileUpload(fileList);
+                  return false;
+                } else {
+                  // Single file upload - use existing logic
+                  const isExcel =
+                    file.type ===
+                      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+                    file.type === "application/vnd.ms-excel" ||
+                    file.name.endsWith(".xlsx") ||
+                    file.name.endsWith(".xls");
+
+                  if (!isExcel) {
+                    message.error("You can only upload Excel files!");
+                    return false;
+                  }
+
+                  const isLt10M = file.size / 1024 / 1024 < 10;
+                  if (!isLt10M) {
+                    message.error("File must be smaller than 10MB!");
+                    return false;
+                  }
+
+                  this.handleFileUpload(file);
+                  return false;
+                }
+              }}
               showUploadList={false}
               accept=".xlsx,.xls"
+              multiple={true}
             >
               <Button
                 icon={<UploadOutlined />}
@@ -1069,11 +1424,78 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                 loading={isLoading}
                 type="primary"
               >
-                {isLoading ? "Processing..." : "Upload Excel File"}
+                {isLoading ? "Processing..." : "Upload Excel Files"}
               </Button>
             </Upload>
 
             {fileName && <Text strong>Current file: {fileName}</Text>}
+
+            {/* Loaded Sheets Display */}
+            {sheets.length > 0 && (
+              <Card size="small" title="Loaded Worklogs Sheets">
+                <Space direction="vertical" style={{ width: "100%" }}>
+                  {sheets.map((sheet, index) => (
+                    <div
+                      key={`${sheet.fileName}-${index}`}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "8px",
+                        border: "1px solid #d9d9d9",
+                        borderRadius: "6px",
+                        backgroundColor: selectedSheets.includes(
+                          `${sheet.fileName}|${sheet.name}`
+                        )
+                          ? "#f0f8ff"
+                          : "#fafafa",
+                      }}
+                    >
+                      <div>
+                        <Text strong>{sheet.fileName}</Text>
+                        <br />
+                        <Text type="secondary">
+                          {sheet.data.length} rows from Worklogs sheet
+                        </Text>
+                      </div>
+                      <Space>
+                        <Checkbox
+                          checked={selectedSheets.includes(
+                            `${sheet.fileName}|${sheet.name}`
+                          )}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              this.handleSheetSelectionChange([
+                                ...selectedSheets,
+                                `${sheet.fileName}|${sheet.name}`,
+                              ]);
+                            } else {
+                              this.handleSheetSelectionChange(
+                                selectedSheets.filter(
+                                  (name) =>
+                                    name !== `${sheet.fileName}|${sheet.name}`
+                                )
+                              );
+                            }
+                          }}
+                        >
+                          Include
+                        </Checkbox>
+                        <Button
+                          size="small"
+                          danger
+                          onClick={() =>
+                            this.removeSheet(sheet.name, sheet.fileName)
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </Space>
+                    </div>
+                  ))}
+                </Space>
+              </Card>
+            )}
 
             {/* Summary View Toggle */}
             {Object.keys(groupedData).length > 0 && (
