@@ -81,6 +81,7 @@ interface State {
   fullNameIndex: number;
   issueKeyIndex: number;
   issueTypeIndex: number;
+  issueSummaryIndex: number;
   workDescriptionIndex: number;
   dateIndex: number;
   rawData: any[];
@@ -88,7 +89,9 @@ interface State {
   viewMode: "name" | "issue" | "type";
   detailedByName: { [key: string]: number };
   detailedByIssue: { [key: string]: number };
-  detailedByIssueWithType: { [key: string]: { hours: number; type: string } };
+  detailedByIssueWithType: {
+    [key: string]: { hours: number; type: string; summary: string };
+  };
   detailedByType: { [key: string]: number };
   issueWorkDescriptions: {
     [key: string]: Array<{
@@ -108,7 +111,7 @@ interface State {
   selectedUserCategory: string | null;
   userCategoryIssueData: { [key: string]: number };
   userCategoryIssueDataWithType: {
-    [key: string]: { hours: number; type: string };
+    [key: string]: { hours: number; type: string; summary: string };
   };
   userCategoryIssueTotal: number;
   userCategoryIssueWorkDescriptions: {
@@ -142,6 +145,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       fullNameIndex: -1,
       issueKeyIndex: -1,
       issueTypeIndex: -1,
+      issueSummaryIndex: -1,
       workDescriptionIndex: -1,
       dateIndex: -1,
       rawData: [],
@@ -202,6 +206,11 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
         header.toLowerCase().includes("issue type") ||
         header.toLowerCase().includes("issuetype")
     );
+    const issueSummaryIndex = headers.findIndex(
+      (header) =>
+        header.toLowerCase().includes("issue summary") ||
+        header.toLowerCase().includes("issuesummary")
+    );
     const workDescriptionIndex = headers.findIndex(
       (header) =>
         header.toLowerCase().includes("work description") ||
@@ -239,6 +248,12 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       );
     }
 
+    if (issueSummaryIndex === -1) {
+      message.warning(
+        "Could not find 'Issue Summary' column. Issue Summary information will not be available."
+      );
+    }
+
     if (workDescriptionIndex === -1) {
       message.warning(
         "Could not find 'Work Description' column. Work Description information will not be available."
@@ -258,6 +273,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       fullNameIndex,
       issueKeyIndex,
       issueTypeIndex,
+      issueSummaryIndex,
       workDescriptionIndex,
       dateIndex,
       rawData: tableData,
@@ -319,6 +335,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       fullNameIndex,
       issueKeyIndex,
       issueTypeIndex,
+      issueSummaryIndex,
       workDescriptionIndex,
       dateIndex,
     } = this.state;
@@ -346,7 +363,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     const detailedByName: { [key: string]: number } = {};
     const detailedByIssue: { [key: string]: number } = {};
     const detailedByIssueWithType: {
-      [key: string]: { hours: number; type: string };
+      [key: string]: { hours: number; type: string; summary: string };
     } = {};
     const detailedByType: { [key: string]: number } = {};
     const issueWorkDescriptions: {
@@ -408,12 +425,20 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                   : "Unknown";
               const type = String(issueType).trim() || "Unknown";
 
+              // Also collect issue summary information
+              const issueSummary =
+                issueSummaryIndex !== -1
+                  ? row[issueSummaryIndex.toString()]
+                  : "";
+              const summary = String(issueSummary).trim() || "";
+
               if (detailedByIssueWithType[key]) {
                 detailedByIssueWithType[key].hours += loggedHours;
               } else {
                 detailedByIssueWithType[key] = {
                   hours: loggedHours,
                   type: type,
+                  summary: summary,
                 };
               }
 
@@ -477,6 +502,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       defaultViewMode = "issue";
     } else if (fullNameIndex !== -1 && issueKeyIndex !== -1) {
       defaultViewMode = "issue"; // Default to issue view if both are available
+    } else if (fullNameIndex !== -1 && issueKeyIndex === -1) {
+      defaultViewMode = "name"; // Default to name view if only name is available
     }
 
     this.setState({
@@ -590,6 +617,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       fullNameIndex,
       issueKeyIndex,
       issueTypeIndex,
+      issueSummaryIndex,
       workDescriptionIndex,
       dateIndex,
       selectedUser,
@@ -617,7 +645,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     // Filter data for the specific user and category, then group by Issue Key
     const userCategoryIssueData: { [key: string]: number } = {};
     const userCategoryIssueDataWithType: {
-      [key: string]: { hours: number; type: string };
+      [key: string]: { hours: number; type: string; summary: string };
     } = {};
     const userCategoryIssueWorkDescriptions: {
       [key: string]: Array<{
@@ -667,12 +695,18 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                 : "Unknown";
             const type = String(issueType).trim() || "Unknown";
 
+            // Also collect issue summary information
+            const issueSummary =
+              issueSummaryIndex !== -1 ? row[issueSummaryIndex.toString()] : "";
+            const summary = String(issueSummary).trim() || "";
+
             if (userCategoryIssueDataWithType[key]) {
               userCategoryIssueDataWithType[key].hours += loggedHours;
             } else {
               userCategoryIssueDataWithType[key] = {
                 hours: loggedHours,
                 type: type,
+                summary: summary,
               };
             }
 
@@ -912,7 +946,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
         const tableData = dataRows.map((row, rowIndex) => {
           const rowData: any = { key: rowIndex };
           headers.forEach((_, colIndex) => {
-            rowData[colIndex.toString()] = row[colIndex];
+            rowData[colIndex.toString()] = (row as any[])[colIndex];
           });
           return rowData;
         });
@@ -1386,6 +1420,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                           key: index,
                           issueKey: issueKey,
                           type: data.type,
+                          summary: data.summary,
                           hours: data.hours,
                           chargeableDays: data.hours / 7.5,
                           percentage: (
@@ -1415,6 +1450,23 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                             dataIndex: "type",
                             key: "type",
                             render: (text) => <Text>{text}</Text>,
+                          },
+                          {
+                            title: "Issue Summary",
+                            dataIndex: "summary",
+                            key: "summary",
+                            render: (text) => (
+                              <Text
+                                style={{
+                                  maxWidth: "200px",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {text || "No summary"}
+                              </Text>
+                            ),
                           },
                           {
                             title: "Work Description",
@@ -1574,6 +1626,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                                   item: issueKey,
                                   hours: data.hours,
                                   type: data.type,
+                                  summary: data.summary,
                                   chargeableDays: data.hours / 7.5,
                                   percentage: (
                                     (data.hours / categoryTotalHours) *
@@ -1641,6 +1694,23 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                                   dataIndex: "type",
                                   key: "type",
                                   render: (text) => <Text>{text}</Text>,
+                                },
+                                {
+                                  title: "Issue Summary",
+                                  dataIndex: "summary",
+                                  key: "summary",
+                                  render: (text) => (
+                                    <Text
+                                      style={{
+                                        maxWidth: "200px",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {text || "No summary"}
+                                    </Text>
+                                  ),
                                 },
                                 {
                                   title: "Work Description",
@@ -1894,7 +1964,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
               <List.Item>
                 <div style={{ width: "100%" }}>
                   <Text strong>
-                    {item.fullName} on {item.date})
+                    {item.fullName} on {item.date}
                   </Text>
                   <br />
                   <Text>{item.description}</Text>
