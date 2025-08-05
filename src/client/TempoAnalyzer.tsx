@@ -140,6 +140,8 @@ interface State {
   sheets: SheetData[];
   selectedSheets: string[];
   currentSheetName: string;
+  // New state for excluding holiday and absence data
+  excludeHolidayAbsence: boolean;
 }
 
 export default class TempoAnalyzer extends React.Component<Props, State> {
@@ -192,6 +194,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       sheets: [],
       selectedSheets: [],
       currentSheetName: "",
+      // New state for excluding holiday and absence data
+      excludeHolidayAbsence: false,
     };
   }
 
@@ -299,12 +303,35 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       headers,
     });
 
+    // Filter out holiday and absence data if the toggle is enabled
+    let filteredData = tableData;
+    if (this.state.excludeHolidayAbsence && issueKeyIndex !== -1) {
+      const holidayAbsenceIssueKeys =
+        ISSUE_KEY_EXCEPTIONS.find(
+          (exp) => exp.categorySuffix === "Holiday & Absence"
+        )?.issueKeys || [];
+
+      if (holidayAbsenceIssueKeys.length > 0) {
+        filteredData = tableData.filter((row) => {
+          const issueKey = row[issueKeyIndex.toString()];
+          return !holidayAbsenceIssueKeys.includes(issueKey);
+        });
+
+        const excludedCount = tableData.length - filteredData.length;
+        if (excludedCount > 0) {
+          message.info(
+            `Excluded ${excludedCount} holiday/absence entries from analysis`
+          );
+        }
+      }
+    }
+
     // Group by Account Category and sum Logged Hours
     const grouped: { [key: string]: number } = {};
     const groupedByName: { [key: string]: number } = {};
     let totalHours = 0;
 
-    tableData.forEach((row) => {
+    filteredData.forEach((row) => {
       const accountCategory = row[accountCategoryIndex.toString()];
       const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
       const issueKey =
@@ -419,6 +446,12 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
           selectedCategory: null,
           detailedData: {},
           categoryTotalHours: 0,
+          selectedUser: null,
+          userCategoryData: {},
+          userTotalHours: 0,
+          selectedUserCategory: null,
+          userCategoryIssueData: {},
+          userCategoryIssueTotal: 0,
         });
       }
     });
@@ -1055,6 +1088,16 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     });
   };
 
+  // New method to handle holiday and absence exclusion toggle
+  handleExcludeHolidayAbsenceChange = (checked: boolean) => {
+    this.setState({ excludeHolidayAbsence: checked }, () => {
+      // Reprocess the data with the new filter setting
+      if (this.state.rawData.length > 0) {
+        this.processData(this.state.rawData, this.state.headers);
+      }
+    });
+  };
+
   // New method to handle multiple file uploads
   handleMultipleFileUpload = (fileList: File[]) => {
     this.setState({ isLoading: true });
@@ -1334,6 +1377,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       selectedWorkDescriptionDetails,
       sheets,
       selectedSheets,
+      excludeHolidayAbsence,
     } = this.state;
 
     return (
@@ -1500,25 +1544,38 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
             {/* Summary View Toggle */}
             {Object.keys(groupedData).length > 0 && (
               <div style={{ marginBottom: "16px" }}>
-                <Radio.Group
-                  value={summaryViewMode}
-                  onChange={(e) =>
-                    this.handleSummaryViewModeChange(e.target.value)
-                  }
-                  optionType="button"
-                  buttonStyle="solid"
-                >
-                  <Radio.Button value="category">
-                    <BarChartOutlined style={{ marginRight: "4px" }} />
-                    Account Category
-                  </Radio.Button>
-                  {Object.keys(groupedByName).length > 0 && (
-                    <Radio.Button value="name">
-                      <UserOutlined style={{ marginRight: "4px" }} />
-                      Full Name
+                <Space direction="vertical" style={{ width: "100%" }}>
+                  <Radio.Group
+                    value={summaryViewMode}
+                    onChange={(e) =>
+                      this.handleSummaryViewModeChange(e.target.value)
+                    }
+                    optionType="button"
+                    buttonStyle="solid"
+                  >
+                    <Radio.Button value="category">
+                      <BarChartOutlined style={{ marginRight: "4px" }} />
+                      Account Category
                     </Radio.Button>
-                  )}
-                </Radio.Group>
+                    {Object.keys(groupedByName).length > 0 && (
+                      <Radio.Button value="name">
+                        <UserOutlined style={{ marginRight: "4px" }} />
+                        Full Name
+                      </Radio.Button>
+                    )}
+                  </Radio.Group>
+
+                  <div style={{ marginTop: "8px" }}>
+                    <Checkbox
+                      checked={excludeHolidayAbsence}
+                      onChange={(e) =>
+                        this.handleExcludeHolidayAbsenceChange(e.target.checked)
+                      }
+                    >
+                      Exclude Holiday & Absence data (ABS-56, ABS-58, ABS-57)
+                    </Checkbox>
+                  </div>
+                </Space>
               </div>
             )}
 
