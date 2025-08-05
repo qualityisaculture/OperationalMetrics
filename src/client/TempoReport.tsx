@@ -10,10 +10,12 @@ import {
   Tag,
   Tooltip,
 } from "antd";
+import type { FilterDropdownProps } from "antd/es/table/interface";
 import {
   BarChartOutlined,
   ReloadOutlined,
   InfoCircleOutlined,
+  SearchOutlined,
 } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
@@ -104,6 +106,56 @@ export default class TempoReport extends React.Component<Props, State> {
         key: "name",
         render: (text: string) => <Text>{text}</Text>,
         sorter: (a: any, b: any) => a.name.localeCompare(b.name),
+        filterDropdown: ({
+          setSelectedKeys,
+          selectedKeys,
+          confirm,
+          clearFilters,
+        }: FilterDropdownProps) => (
+          <div style={{ padding: 8 }}>
+            <input
+              placeholder="Search name"
+              value={String(selectedKeys[0] || "")}
+              onChange={(e) =>
+                setSelectedKeys(e.target.value ? [e.target.value] : [])
+              }
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                if (e.key === "Enter" || e.keyCode === 13) {
+                  confirm();
+                }
+              }}
+              style={{ width: 188, marginBottom: 8, display: "block" }}
+            />
+            <Space>
+              <Button
+                type="primary"
+                onClick={() => confirm()}
+                icon={<SearchOutlined />}
+                size="small"
+                style={{ width: 90 }}
+              >
+                Search
+              </Button>
+              <Button
+                onClick={() => {
+                  if (clearFilters) {
+                    clearFilters();
+                  }
+                  confirm();
+                }}
+                size="small"
+                style={{ width: 90 }}
+              >
+                Reset
+              </Button>
+            </Space>
+          </div>
+        ),
+        filterIcon: (filtered) => (
+          <SearchOutlined style={{ color: filtered ? "#1890ff" : undefined }} />
+        ),
+        onFilter: (value: string, record: any) =>
+          record.name.toLowerCase().includes(value.toLowerCase()),
       },
       {
         title: "Status",
