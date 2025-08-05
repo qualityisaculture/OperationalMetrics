@@ -18,6 +18,7 @@ import CumulativeFlowDiagramManager from "../graphManagers/CumulativeFlowDiagram
 import DoraLeadTimeForChanges from "../graphManagers/DoraLeadTimeForChanges";
 import CustomerSLAGraphManager from "../graphManagers/CustomerSLAGraphManager";
 import CreatedResolvedGraphManager from "../graphManagers/CreatedResolvedGraphManager";
+import TempoReportGraphManager from "../graphManagers/TempoReportGraphManager";
 
 async function getJiraData(issueKey: string) {}
 
@@ -34,6 +35,7 @@ const customerSLAGraphManager = new CustomerSLAGraphManager(jiraRequester);
 const createdResolvedGraphManager = new CreatedResolvedGraphManager(
   jiraRequester
 );
+const tempoReportGraphManager = new TempoReportGraphManager();
 
 metricsRoute.get(
   "/cumulativeFlowDiagram",
@@ -356,6 +358,27 @@ metricsRoute.get(
         console.error("Error:", error);
         res.json({
           message: "Error fetching Created/Resolved data",
+          data: JSON.stringify([]),
+        });
+      });
+  }
+);
+
+metricsRoute.get(
+  "/tempoAccounts",
+  (req: TRQ<{}>, res: TR<{ message: string; data: string }>) => {
+    tempoReportGraphManager
+      .getAccounts()
+      .then((accounts) => {
+        res.json({
+          message: "Tempo accounts data fetched successfully",
+          data: JSON.stringify(accounts),
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching Tempo accounts:", error);
+        res.json({
+          message: "Error fetching Tempo accounts data",
           data: JSON.stringify([]),
         });
       });

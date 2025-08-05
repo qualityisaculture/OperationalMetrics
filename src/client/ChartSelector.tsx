@@ -12,6 +12,7 @@ import DoraLeadTime from "./DoraLeadTime";
 import CustomerSLA from "./CustomerSLA";
 import CreatedResolved from "./CreatedResolved";
 import TempoAnalyzer from "./TempoAnalyzer";
+import TempoReport from "./TempoReport";
 
 interface Props {}
 
@@ -27,7 +28,8 @@ interface State {
     | "doraLeadTime"
     | "customerSLA"
     | "createdResolved"
-    | "tempoAnalyzer";
+    | "tempoAnalyzer"
+    | "tempoReport";
 }
 
 export default class ChartSelector extends React.Component<Props, State> {
@@ -76,6 +78,9 @@ export default class ChartSelector extends React.Component<Props, State> {
     let tempoAnalyzerStyle = {
       display: this.state.chart === "tempoAnalyzer" ? "block" : "none",
     };
+    let tempoReportStyle = {
+      display: this.state.chart === "tempoReport" ? "block" : "none",
+    };
 
     return (
       <div>
@@ -97,6 +102,7 @@ export default class ChartSelector extends React.Component<Props, State> {
               Created / Resolved
             </Radio.Button>
             <Radio.Button value="tempoAnalyzer">Tempo Analyzer</Radio.Button>
+            <Radio.Button value="tempoReport">Tempo Report</Radio.Button>
           </Radio.Group>
         </div>
         <div>
@@ -132,6 +138,9 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={tempoAnalyzerStyle}>
             <TempoAnalyzer />
+          </div>
+          <div style={tempoReportStyle}>
+            <TempoReport />
           </div>
         </div>
       </div>
