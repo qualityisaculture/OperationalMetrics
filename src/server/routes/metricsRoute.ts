@@ -20,6 +20,7 @@ import DoraLeadTimeForChanges from "../graphManagers/DoraLeadTimeForChanges";
 import CustomerSLAGraphManager from "../graphManagers/CustomerSLAGraphManager";
 import CreatedResolvedGraphManager from "../graphManagers/CreatedResolvedGraphManager";
 import TempoReportGraphManager from "../graphManagers/TempoReportGraphManager";
+import JiraReportGraphManager from "../graphManagers/JiraReportGraphManager";
 
 async function getJiraData(issueKey: string) {}
 
@@ -37,6 +38,7 @@ const createdResolvedGraphManager = new CreatedResolvedGraphManager(
   jiraRequester
 );
 const tempoReportGraphManager = new TempoReportGraphManager();
+const jiraReportGraphManager = new JiraReportGraphManager(jiraRequester);
 
 metricsRoute.get(
   "/cumulativeFlowDiagram",
@@ -499,6 +501,31 @@ metricsRoute.get(
         res.json({ message: "Metrics route", data });
       })
       .catch((error) => console.error("Error:", error));
+  }
+);
+
+// Real API route for Jira Report projects
+metricsRoute.get(
+  "/jiraReport/projects",
+  (req: TRQ<{}>, res: TR<{ message: string; data: string }>) => {
+    console.log("Jira Report projects endpoint called - fetching from Jira");
+
+    jiraReportGraphManager
+      .getProjects()
+      .then((projects) => {
+        console.log(`Found ${projects.length} projects from Jira`);
+        res.json({
+          message: "Jira projects fetched successfully",
+          data: JSON.stringify(projects),
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching projects from Jira:", error);
+        res.json({
+          message: "Error fetching projects from Jira",
+          data: JSON.stringify([]),
+        });
+      });
   }
 );
 

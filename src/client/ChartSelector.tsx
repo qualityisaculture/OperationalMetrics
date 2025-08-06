@@ -13,6 +13,7 @@ import CustomerSLA from "./CustomerSLA";
 import CreatedResolved from "./CreatedResolved";
 import TempoAnalyzer from "./TempoAnalyzer";
 import TempoReport from "./TempoReport";
+import JiraReport from "./JiraReport";
 
 interface Props {}
 
@@ -29,14 +30,15 @@ interface State {
     | "customerSLA"
     | "createdResolved"
     | "tempoAnalyzer"
-    | "tempoReport";
+    | "tempoReport"
+    | "jiraReport";
 }
 
 export default class ChartSelector extends React.Component<Props, State> {
   constructor(props) {
     super(props);
     this.state = {
-      chart: "tempoAnalyzer",
+      chart: "jiraReport",
     };
   }
   handleChartChange = (e: RadioChangeEvent) => {
@@ -81,6 +83,9 @@ export default class ChartSelector extends React.Component<Props, State> {
     let tempoReportStyle = {
       display: this.state.chart === "tempoReport" ? "block" : "none",
     };
+    let jiraReportStyle = {
+      display: this.state.chart === "jiraReport" ? "block" : "none",
+    };
 
     return (
       <div>
@@ -103,6 +108,7 @@ export default class ChartSelector extends React.Component<Props, State> {
             </Radio.Button>
             <Radio.Button value="tempoAnalyzer">Tempo Analyzer</Radio.Button>
             <Radio.Button value="tempoReport">Tempo Report</Radio.Button>
+            <Radio.Button value="jiraReport">Jira Report</Radio.Button>
           </Radio.Group>
         </div>
         <div>
@@ -141,6 +147,9 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={tempoReportStyle}>
             <TempoReport />
+          </div>
+          <div style={jiraReportStyle}>
+            <JiraReport />
           </div>
         </div>
       </div>
