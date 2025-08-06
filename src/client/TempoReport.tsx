@@ -11,6 +11,7 @@ import {
   Tooltip,
   List,
   Divider,
+  Modal,
 } from "antd";
 import type { FilterDropdownProps } from "antd/es/table/interface";
 import {
@@ -22,6 +23,7 @@ import {
   UserOutlined,
   CalendarOutlined,
   ArrowLeftOutlined,
+  BugOutlined,
 } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
@@ -36,6 +38,11 @@ interface State {
   worklogs: any[];
   worklogsLoading: boolean;
   worklogsError: string | null;
+  selectedWorklog: any | null;
+  jiraWorklog: any | null;
+  jiraWorklogLoading: boolean;
+  jiraWorklogError: string | null;
+  jiraWorklogModalVisible: boolean;
 }
 
 export default class TempoReport extends React.Component<Props, State> {
@@ -49,6 +56,11 @@ export default class TempoReport extends React.Component<Props, State> {
       worklogs: [],
       worklogsLoading: false,
       worklogsError: null,
+      selectedWorklog: null,
+      jiraWorklog: null,
+      jiraWorklogLoading: false,
+      jiraWorklogError: null,
+      jiraWorklogModalVisible: false,
     };
   }
 
@@ -121,6 +133,74 @@ export default class TempoReport extends React.Component<Props, State> {
     }
   };
 
+  fetchJiraWorklog = async (tempoWorklogId: number) => {
+    this.setState({ jiraWorklogLoading: true, jiraWorklogError: null });
+
+    try {
+      const response = await fetch("/api/tempoToJiraWorklog", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+        body: JSON.stringify({ tempoWorklogId }),
+      });
+      const result = await response.json();
+
+      if (response.ok) {
+        const jiraWorklog = JSON.parse(result.data);
+        this.setState({
+          jiraWorklog,
+          jiraWorklogLoading: false,
+        });
+      } else {
+        this.setState({
+          jiraWorklogError: `API Error: ${result.message || "Unknown error"}`,
+          jiraWorklogLoading: false,
+        });
+      }
+    } catch (error) {
+      this.setState({
+        jiraWorklogError: `Network Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        jiraWorklogLoading: false,
+      });
+    }
+  };
+
+  fetchJiraIssue = async (issueId: number) => {
+    this.setState({ jiraWorklogLoading: true, jiraWorklogError: null });
+
+    try {
+      // Use the existing Jira infrastructure to fetch issue data by ID
+      const response = await fetch(`/api/jiraIssue/${issueId}`, {
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      });
+      const result = await response.json();
+
+      if (response.ok) {
+        const jiraIssue = JSON.parse(result.data);
+        this.setState({
+          jiraWorklog: jiraIssue, // Reuse the same state for Jira issue data
+          jiraWorklogLoading: false,
+        });
+      } else {
+        this.setState({
+          jiraWorklogError: `API Error: ${result.message || "Unknown error"}`,
+          jiraWorklogLoading: false,
+        });
+      }
+    } catch (error) {
+      this.setState({
+        jiraWorklogError: `Network Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        jiraWorklogLoading: false,
+      });
+    }
+  };
+
   handleAccountClick = (account: any) => {
     this.setState({
       selectedAccount: account,
@@ -135,6 +215,32 @@ export default class TempoReport extends React.Component<Props, State> {
       selectedAccount: null,
       worklogs: [],
       worklogsError: null,
+    });
+  };
+
+  handleWorklogClick = (worklog: any) => {
+    this.setState({
+      selectedWorklog: worklog,
+      jiraWorklog: null,
+      jiraWorklogError: null,
+      jiraWorklogModalVisible: true,
+    });
+
+    // If we have an issue ID, fetch the Jira issue data
+    if (worklog.issue?.id) {
+      this.fetchJiraIssue(worklog.issue.id);
+    } else {
+      // Fallback to fetching Jira worklog data
+      this.fetchJiraWorklog(worklog.tempoWorklogId);
+    }
+  };
+
+  handleJiraWorklogModalClose = () => {
+    this.setState({
+      jiraWorklogModalVisible: false,
+      selectedWorklog: null,
+      jiraWorklog: null,
+      jiraWorklogError: null,
     });
   };
 
@@ -178,6 +284,11 @@ export default class TempoReport extends React.Component<Props, State> {
       worklogs,
       worklogsLoading,
       worklogsError,
+      selectedWorklog,
+      jiraWorklog,
+      jiraWorklogLoading,
+      jiraWorklogError,
+      jiraWorklogModalVisible,
     } = this.state;
 
     const accountsColumns = [
@@ -316,6 +427,17 @@ export default class TempoReport extends React.Component<Props, State> {
     ];
 
     const worklogsColumns = [
+      {
+        title: "Tempo Worklog ID",
+        dataIndex: "tempoWorklogId",
+        key: "tempoWorklogId",
+        render: (id: number) => (
+          <Text strong style={{ fontFamily: "monospace" }}>
+            {id}
+          </Text>
+        ),
+        sorter: (a: any, b: any) => a.tempoWorklogId - b.tempoWorklogId,
+      },
       {
         title: "Issue ID",
         dataIndex: ["issue", "id"],
@@ -553,6 +675,10 @@ export default class TempoReport extends React.Component<Props, State> {
                     }}
                     size="middle"
                     scroll={{ x: true }}
+                    onRow={(record) => ({
+                      onClick: () => this.handleWorklogClick(record),
+                      style: { cursor: "pointer" },
+                    })}
                   />
                 )}
 
@@ -570,6 +696,266 @@ export default class TempoReport extends React.Component<Props, State> {
             )}
           </Space>
         </Card>
+
+        {/* Jira Worklog Modal */}
+        <Modal
+          title={
+            <Space>
+              <BugOutlined />
+              Jira Issue Details
+              {selectedWorklog && (
+                <Text type="secondary">
+                  (Tempo Worklog ID: {selectedWorklog.tempoWorklogId})
+                </Text>
+              )}
+            </Space>
+          }
+          open={jiraWorklogModalVisible}
+          onCancel={this.handleJiraWorklogModalClose}
+          footer={[
+            <Button key="close" onClick={this.handleJiraWorklogModalClose}>
+              Close
+            </Button>,
+          ]}
+          width={800}
+        >
+          {jiraWorklogLoading && (
+            <div style={{ textAlign: "center", padding: "20px" }}>
+              <Spin size="large" />
+              <div style={{ marginTop: "16px" }}>
+                <Text>Loading Jira issue details...</Text>
+              </div>
+            </div>
+          )}
+
+          {jiraWorklogError && (
+            <Alert
+              message="Error"
+              description={jiraWorklogError}
+              type="error"
+              showIcon
+              style={{ marginBottom: "16px" }}
+            />
+          )}
+
+          {!jiraWorklogLoading && !jiraWorklogError && jiraWorklog && (
+            <div>
+              <Space
+                direction="vertical"
+                size="large"
+                style={{ width: "100%" }}
+              >
+                <div>
+                  <Title level={5}>Issue Information</Title>
+                  <List
+                    size="small"
+                    dataSource={[
+                      {
+                        label: "Issue Key",
+                        value: jiraWorklog.fields?.key || jiraWorklog.key,
+                      },
+                      {
+                        label: "Summary",
+                        value:
+                          jiraWorklog.fields?.summary || jiraWorklog.summary,
+                      },
+                      {
+                        label: "Issue Type",
+                        value:
+                          jiraWorklog.fields?.issuetype?.name ||
+                          jiraWorklog.issuetype,
+                      },
+                      {
+                        label: "Status",
+                        value:
+                          jiraWorklog.fields?.status?.name ||
+                          jiraWorklog.status,
+                      },
+                      {
+                        label: "Priority",
+                        value:
+                          jiraWorklog.fields?.priority?.name ||
+                          jiraWorklog.priority,
+                      },
+                    ]}
+                    renderItem={(item) => (
+                      <List.Item>
+                        <Text strong>{item.label}:</Text> {item.value || "N/A"}
+                      </List.Item>
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <Title level={5}>Assignee & Reporter</Title>
+                  <List
+                    size="small"
+                    dataSource={[
+                      {
+                        label: "Assignee",
+                        value:
+                          jiraWorklog.fields?.assignee?.displayName ||
+                          jiraWorklog.fields?.assignee?.name ||
+                          jiraWorklog.assignee ||
+                          "Unassigned",
+                      },
+                      {
+                        label: "Reporter",
+                        value:
+                          jiraWorklog.fields?.reporter?.displayName ||
+                          jiraWorklog.fields?.reporter?.name ||
+                          jiraWorklog.reporter ||
+                          "N/A",
+                      },
+                    ]}
+                    renderItem={(item) => (
+                      <List.Item>
+                        <Text strong>{item.label}:</Text> {item.value}
+                      </List.Item>
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <Title level={5}>Timestamps</Title>
+                  <List
+                    size="small"
+                    dataSource={[
+                      {
+                        label: "Created",
+                        value: this.formatDateTime(
+                          jiraWorklog.fields?.created || jiraWorklog.created
+                        ),
+                      },
+                      {
+                        label: "Updated",
+                        value: this.formatDateTime(
+                          jiraWorklog.fields?.updated || jiraWorklog.updated
+                        ),
+                      },
+                      {
+                        label: "Resolved",
+                        value:
+                          jiraWorklog.fields?.resolutiondate ||
+                          jiraWorklog.resolutiondate
+                            ? this.formatDateTime(
+                                jiraWorklog.fields?.resolutiondate ||
+                                  jiraWorklog.resolutiondate
+                              )
+                            : "Not resolved",
+                      },
+                    ]}
+                    renderItem={(item) => (
+                      <List.Item>
+                        <Text strong>{item.label}:</Text> {item.value}
+                      </List.Item>
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <Title level={5}>Time Tracking</Title>
+                  <List
+                    size="small"
+                    dataSource={[
+                      {
+                        label: "Original Estimate",
+                        value: jiraWorklog.fields?.timeoriginalestimate
+                          ? this.formatTimeSpent(
+                              jiraWorklog.fields.timeoriginalestimate
+                            )
+                          : "Not set",
+                      },
+                      {
+                        label: "Time Spent",
+                        value: jiraWorklog.fields?.timespent
+                          ? this.formatTimeSpent(jiraWorklog.fields.timespent)
+                          : "0m",
+                      },
+                      {
+                        label: "Remaining Estimate",
+                        value: jiraWorklog.fields?.timeestimate
+                          ? this.formatTimeSpent(
+                              jiraWorklog.fields.timeestimate
+                            )
+                          : "Not set",
+                      },
+                    ]}
+                    renderItem={(item) => (
+                      <List.Item>
+                        <Text strong>{item.label}:</Text> {item.value}
+                      </List.Item>
+                    )}
+                  />
+                </div>
+
+                {jiraWorklog.fields?.description && (
+                  <div>
+                    <Title level={5}>Description</Title>
+                    <Text>{jiraWorklog.fields.description}</Text>
+                  </div>
+                )}
+
+                {jiraWorklog.fields?.components &&
+                  jiraWorklog.fields.components.length > 0 && (
+                    <div>
+                      <Title level={5}>Components</Title>
+                      <Space wrap>
+                        {jiraWorklog.fields.components.map(
+                          (component: any, index: number) => (
+                            <Tag key={index} color="blue">
+                              {component.name}
+                            </Tag>
+                          )
+                        )}
+                      </Space>
+                    </div>
+                  )}
+
+                {jiraWorklog.fields?.labels &&
+                  jiraWorklog.fields.labels.length > 0 && (
+                    <div>
+                      <Title level={5}>Labels</Title>
+                      <Space wrap>
+                        {jiraWorklog.fields.labels.map(
+                          (label: string, index: number) => (
+                            <Tag key={index} color="green">
+                              {label}
+                            </Tag>
+                          )
+                        )}
+                      </Space>
+                    </div>
+                  )}
+
+                {jiraWorklog.fields?.fixVersions &&
+                  jiraWorklog.fields.fixVersions.length > 0 && (
+                    <div>
+                      <Title level={5}>Fix Versions</Title>
+                      <Space wrap>
+                        {jiraWorklog.fields.fixVersions.map(
+                          (version: any, index: number) => (
+                            <Tag key={index} color="purple">
+                              {version.name}
+                            </Tag>
+                          )
+                        )}
+                      </Space>
+                    </div>
+                  )}
+              </Space>
+            </div>
+          )}
+
+          {!jiraWorklogLoading && !jiraWorklogError && !jiraWorklog && (
+            <Alert
+              message="No Jira Issue Found"
+              description="No corresponding Jira issue was found for this worklog."
+              type="info"
+              showIcon
+            />
+          )}
+        </Modal>
       </div>
     );
   }

@@ -412,6 +412,73 @@ metricsRoute.get(
   }
 );
 
+metricsRoute.post("/tempoToJiraWorklog", (req: Request, res: Response) => {
+  const { tempoWorklogId } = req.body;
+
+  if (!tempoWorklogId) {
+    res.status(400).json({
+      message: "tempoWorklogId is required",
+      data: JSON.stringify(null),
+    });
+    return;
+  }
+
+  tempoReportGraphManager
+    .getJiraWorklogByTempoId(tempoWorklogId)
+    .then((jiraWorklog) => {
+      res.json({
+        message: "Jira worklog data fetched successfully",
+        data: JSON.stringify(jiraWorklog),
+      });
+    })
+    .catch((error) => {
+      console.error(
+        `Error converting Tempo worklog ID ${tempoWorklogId} to Jira worklog:`,
+        error
+      );
+      res.json({
+        message: `Error converting Tempo worklog ID ${tempoWorklogId} to Jira worklog`,
+        data: JSON.stringify(null),
+      });
+    });
+});
+
+metricsRoute.get("/jiraIssue/:issueId", (req: Request, res: Response) => {
+  const issueId = req.params.issueId;
+
+  if (!issueId) {
+    res.status(400).json({
+      message: "issueId is required",
+      data: JSON.stringify(null),
+    });
+    return;
+  }
+
+  // Use the existing JiraRequester to fetch issue data by ID
+  jiraRequester
+    .getEssentialJiraDataFromKeys([issueId])
+    .then((issues) => {
+      if (issues && issues.length > 0) {
+        res.json({
+          message: "Jira issue data fetched successfully",
+          data: JSON.stringify(issues[0]),
+        });
+      } else {
+        res.json({
+          message: `No Jira issue found with ID ${issueId}`,
+          data: JSON.stringify(null),
+        });
+      }
+    })
+    .catch((error) => {
+      console.error(`Error fetching Jira issue ${issueId}:`, error);
+      res.json({
+        message: `Error fetching Jira issue data for ID ${issueId}`,
+        data: JSON.stringify(null),
+      });
+    });
+});
+
 metricsRoute.get(
   "/metrics",
   (req: TRQ<{}>, res: TR<{ message: string; data: string }>) => {

@@ -50,6 +50,46 @@ export interface TempoWorklogResponse {
   self: string;
 }
 
+export interface TempoToJiraWorklogResponse {
+  metadata: {
+    count: number;
+    limit: number;
+    next?: string;
+    offset: number;
+    previous?: string;
+  };
+  results: Array<{
+    jiraWorklogId: number;
+    tempoWorklogId: number;
+  }>;
+  self: string;
+}
+
+export interface JiraWorklog {
+  id: number;
+  issueId: number;
+  author: {
+    accountId: string;
+    displayName: string;
+    emailAddress: string;
+  };
+  updateAuthor: {
+    accountId: string;
+    displayName: string;
+    emailAddress: string;
+  };
+  comment: string;
+  created: string;
+  updated: string;
+  started: string;
+  timeSpent: string;
+  timeSpentSeconds: number;
+  visibility?: {
+    type: string;
+    value: string;
+  };
+}
+
 export default class TempoReportGraphManager {
   private tempoToken: string;
   private tempoBaseUrl: string;
@@ -268,19 +308,93 @@ export default class TempoReportGraphManager {
     }
   }
 
-  private async makeTempoApiCall(endpoint: string): Promise<any> {
+  async getJiraWorklogByTempoId(
+    tempoWorklogId: number
+  ): Promise<JiraWorklog | null> {
+    try {
+      console.log(
+        `Converting Tempo worklog ID ${tempoWorklogId} to Jira worklog ID`
+      );
+
+      // First, convert Tempo worklog ID to Jira worklog ID
+      const tempoToJiraResponse = (await this.makeTempoApiCall(
+        `/4/worklogs/tempo-to-jira`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            tempoWorklogIds: [tempoWorklogId],
+          }),
+        }
+      )) as TempoToJiraWorklogResponse;
+
+      console.log(
+        "Tempo to Jira conversion response:",
+        JSON.stringify(tempoToJiraResponse, null, 2)
+      );
+
+      if (
+        !tempoToJiraResponse ||
+        !tempoToJiraResponse.results ||
+        tempoToJiraResponse.results.length === 0
+      ) {
+        console.warn(
+          `No Jira worklog found for Tempo worklog ID ${tempoWorklogId}`
+        );
+        return null;
+      }
+
+      const jiraWorklogId = tempoToJiraResponse.results[0].jiraWorklogId;
+      console.log(`Found Jira worklog ID: ${jiraWorklogId}`);
+
+      // Now fetch the Jira worklog details using the Jira API
+      const jiraWorklog = await this.getJiraWorklogById(jiraWorklogId);
+      return jiraWorklog;
+    } catch (error) {
+      console.error(
+        `Error converting Tempo worklog ID ${tempoWorklogId} to Jira worklog:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  private async getJiraWorklogById(
+    jiraWorklogId: number
+  ): Promise<JiraWorklog | null> {
+    try {
+      // This would need to be implemented to call the Jira API
+      // For now, we'll return null as this requires Jira API integration
+      console.log(`Would fetch Jira worklog details for ID: ${jiraWorklogId}`);
+      return null;
+    } catch (error) {
+      console.error(`Error fetching Jira worklog ${jiraWorklogId}:`, error);
+      return null;
+    }
+  }
+
+  private async makeTempoApiCall(
+    endpoint: string,
+    options?: RequestInit
+  ): Promise<any> {
     if (!this.tempoToken) {
       throw new Error("TEMPO_API_TOKEN environment variable is not set");
     }
 
-    const response = await fetch(`${this.tempoBaseUrl}${endpoint}`, {
+    const defaultOptions: RequestInit = {
       method: "GET",
       headers: {
         Authorization: `Bearer ${this.tempoToken}`,
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-    });
+    };
+
+    const finalOptions = { ...defaultOptions, ...options };
+
+    const response = await fetch(
+      `${this.tempoBaseUrl}${endpoint}`,
+      finalOptions
+    );
 
     if (!response.ok) {
       throw new Error(
