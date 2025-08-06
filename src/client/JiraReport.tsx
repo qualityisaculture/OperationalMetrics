@@ -257,8 +257,33 @@ export default class JiraReport extends React.Component<Props, State> {
         title: "Issue Key",
         dataIndex: "key",
         key: "key",
-        render: (key: string) => <Tag color="orange">{key}</Tag>,
+        render: (key: string, record: JiraIssue) => (
+          <a
+            href={record.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()} // Prevent row click when clicking link
+            style={{ fontWeight: "bold", color: "#1890ff" }}
+          >
+            <Tag color="orange">{key}</Tag>
+          </a>
+        ),
         sorter: (a, b) => a.key.localeCompare(b.key),
+      },
+      {
+        title: "Issue Type",
+        dataIndex: "type",
+        key: "type",
+        render: (type: string) => <Tag color="blue">{type}</Tag>,
+        sorter: (a, b) => a.type.localeCompare(b.type),
+        filters: (() => {
+          // Get unique issue types from the current data
+          const uniqueTypes = [
+            ...new Set(projectIssues.map((issue) => issue.type)),
+          ].sort();
+          return uniqueTypes.map((type) => ({ text: type, value: type }));
+        })(),
+        onFilter: (value, record) => record.type === value,
       },
       {
         title: "Summary",
@@ -269,21 +294,18 @@ export default class JiraReport extends React.Component<Props, State> {
       },
       {
         title: "Children",
-        dataIndex: "children",
+        dataIndex: "childCount",
         key: "children",
-        render: (children: string[]) => (
-          <Space>
-            {children.length > 0 ? (
-              children.map((child) => (
-                <Tag key={child} color="purple">
-                  {child}
-                </Tag>
-              ))
+        render: (childCount: number) => (
+          <Text>
+            {childCount > 0 ? (
+              <Tag color="purple">{childCount}</Tag>
             ) : (
-              <Text type="secondary">No children</Text>
+              <Text type="secondary">0</Text>
             )}
-          </Space>
+          </Text>
         ),
+        sorter: (a, b) => a.childCount - b.childCount,
       },
     ];
 

@@ -9,7 +9,9 @@ export interface JiraProject {
 export interface JiraIssue {
   key: string;
   summary: string;
-  children: string[];
+  type: string;
+  children: JiraIssue[];
+  childCount: number;
 }
 
 export default class JiraReportGraphManager {

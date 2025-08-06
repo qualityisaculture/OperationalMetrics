@@ -17,8 +17,50 @@ export type EssentialJiraData = {
 export type LiteJiraIssue = {
   key: string;
   summary: string;
-  children: string[];
+  type: string;
+  children: LiteJiraIssue[];
+  childCount: number;
 };
+
+export class JiraLite {
+  key: string;
+  summary: string;
+  type: string;
+  children: JiraLite[];
+  childCount: number;
+
+  constructor(
+    key: string,
+    summary: string,
+    type: string,
+    children: JiraLite[] = []
+  ) {
+    this.key = key;
+    this.summary = summary;
+    this.type = type;
+    this.children = children;
+    this.childCount = children.length;
+  }
+
+  static fromLiteJiraIssue(issue: LiteJiraIssue): JiraLite {
+    const children = issue.children.map((child) =>
+      typeof child === "string"
+        ? new JiraLite(child, "", "", [])
+        : JiraLite.fromLiteJiraIssue(child)
+    );
+    return new JiraLite(issue.key, issue.summary, issue.type, children);
+  }
+
+  toLiteJiraIssue(): LiteJiraIssue {
+    return {
+      key: this.key,
+      summary: this.summary,
+      type: this.type,
+      children: this.children.map((child) => child.toLiteJiraIssue()),
+      childCount: this.childCount,
+    };
+  }
+}
 
 export default class JiraRequester {
   jiraMap: Map<string, Jira>;
@@ -242,7 +284,7 @@ export default class JiraRequester {
   async getLiteQuery(query: string): Promise<LiteJiraIssue[]> {
     try {
       const domain = process.env.JIRA_DOMAIN;
-      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,subtasks`;
+      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,issuetype`;
       console.log(`Fetching lite data for ${url}`);
 
       let response = await this.fetchRequest(url);
@@ -262,17 +304,70 @@ export default class JiraRequester {
         }
       }
 
-      // Transform to minimal data structure
-      return response.issues.map((issue: any) => ({
-        key: issue.key,
-        summary: issue.fields.summary || "",
-        children: issue.fields.subtasks
-          ? issue.fields.subtasks.map((subtask: any) => subtask.key)
-          : [],
-      }));
+      // Get the top-level issues (those that are not children of other issues)
+      const topLevelIssues = response.issues.filter((issue: any) => {
+        // Filter out subtasks and issues that have parents
+        return (
+          issue.fields.issuetype.name !== "Sub-task" && !issue.fields.parent
+        );
+      });
+
+      // For each top-level issue, find its children
+      const issuesWithChildren = await Promise.all(
+        topLevelIssues.map(async (issue: any) => {
+          const children = await this.getChildrenForIssue(issue.key);
+          return {
+            key: issue.key,
+            summary: issue.fields.summary || "",
+            type: issue.fields.issuetype.name || "",
+            children: children,
+            childCount: children.length,
+          };
+        })
+      );
+
+      return issuesWithChildren;
     } catch (error) {
       console.error("Error in getLiteQuery:", error);
       throw error;
+    }
+  }
+
+  async getChildrenForIssue(parentKey: string): Promise<LiteJiraIssue[]> {
+    try {
+      const domain = process.env.JIRA_DOMAIN;
+      // Query for issues where the parent field matches the parentKey
+      const jql = `parent = "${parentKey}" ORDER BY created ASC`;
+      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype`;
+
+      let response = await this.fetchRequest(url);
+
+      // Handle pagination if there are more than 50 children
+      if (response.total > 50) {
+        let startAt = 50;
+        while (startAt < response.total) {
+          console.log(
+            `Fetching next 50 children of ${response.total}, startAt: ${startAt}`
+          );
+          let nextResponse = await this.fetchRequest(
+            `${url}&startAt=${startAt}`
+          );
+          response.issues = response.issues.concat(nextResponse.issues);
+          startAt += 50;
+        }
+      }
+
+      // Transform children to LiteJiraIssue format (children don't have their own children in this context)
+      return response.issues.map((issue: any) => ({
+        key: issue.key,
+        summary: issue.fields.summary || "",
+        type: issue.fields.issuetype.name || "",
+        children: [], // Children don't have nested children in this implementation
+        childCount: 0,
+      }));
+    } catch (error) {
+      console.error(`Error fetching children for issue ${parentKey}:`, error);
+      return [];
     }
   }
 }
