@@ -11,17 +11,43 @@ export interface TempoAccount {
 }
 
 export interface TempoWorklog {
-  id: number;
-  issueKey: string;
-  timeSpentSeconds: number;
-  dateCreated: string;
-  dateUpdated: string;
-  author: {
-    name: string;
-    displayName: string;
+  tempoWorklogId: number;
+  issue?: {
+    id: number;
+    self: string;
   };
-  workDescription?: string;
-  accountKey?: string;
+  author: {
+    accountId: string;
+    self: string;
+  };
+  timeSpentSeconds: number;
+  billableSeconds: number;
+  startDate: string;
+  startTime: number;
+  startDateTimeUtc: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+  self: string;
+  attributes?: {
+    self: string;
+    values: Array<{
+      key: string;
+      value: string;
+    }>;
+  };
+}
+
+export interface TempoWorklogResponse {
+  metadata: {
+    count: number;
+    limit: number;
+    next?: string;
+    offset: number;
+    previous?: string;
+  };
+  results: TempoWorklog[];
+  self: string;
 }
 
 export default class TempoReportGraphManager {
@@ -38,7 +64,7 @@ export default class TempoReportGraphManager {
       const allAccounts: TempoAccount[] = [];
       let hasMorePages = true;
       let offset = 0;
-      const limit = 50; // Default page size for Tempo API
+      const limit = 1000; // Increased from 50 to 1000 for better performance
       let pageCount = 0;
 
       console.log("Starting pagination fetch for Tempo accounts...");
@@ -166,6 +192,80 @@ export default class TempoReportGraphManager {
     // TODO: Implement real Tempo worklogs API call
     // This will be implemented in the next phase
     return [];
+  }
+
+  async getWorklogsByAccount(accountKey: string): Promise<TempoWorklog[]> {
+    try {
+      const allWorklogs: TempoWorklog[] = [];
+      let hasMorePages = true;
+      let offset = 0;
+      const limit = 1000; // Increased from 50 to 1000 for better performance
+      let pageCount = 0;
+
+      console.log(
+        `Starting pagination fetch for Tempo worklogs for account: ${accountKey}`
+      );
+
+      while (hasMorePages) {
+        pageCount++;
+        console.log(`\n--- Worklogs Page ${pageCount} ---`);
+        console.log(
+          `Making API call: /4/worklogs/account/${accountKey}?limit=${limit}&offset=${offset}`
+        );
+
+        const response = (await this.makeTempoApiCall(
+          `/4/worklogs/account/${accountKey}?limit=${limit}&offset=${offset}`
+        )) as TempoWorklogResponse;
+
+        console.log(
+          "Raw worklogs API response:",
+          JSON.stringify(response, null, 2)
+        );
+
+        if (!response || !response.results) {
+          console.error("Unexpected worklogs response structure:", response);
+          throw new Error("Unexpected worklogs API response structure");
+        }
+
+        const worklogs = response.results;
+        const currentPageSize = worklogs.length;
+        const totalCount = response.metadata?.count || 0;
+
+        console.log(`Worklogs in this page: ${currentPageSize}`);
+        console.log(`Total count from API: ${totalCount}`);
+        console.log(`Current offset: ${offset}`);
+
+        // Check if there's a next page
+        hasMorePages = !!response.metadata?.next;
+        console.log(`Has more pages: ${hasMorePages}`);
+
+        allWorklogs.push(...worklogs);
+
+        // Move to next page
+        offset += currentPageSize;
+        console.log(`New offset for next page: ${offset}`);
+
+        // Safety check to prevent infinite loops
+        if (offset > 10000) {
+          console.warn(
+            "Pagination safety limit reached, stopping at 10,000 worklogs"
+          );
+          break;
+        }
+      }
+
+      console.log(`\n=== Worklogs Pagination Complete ===`);
+      console.log(`Total pages fetched: ${pageCount}`);
+      console.log(`Total worklogs collected: ${allWorklogs.length}`);
+
+      return allWorklogs;
+    } catch (error) {
+      console.error(
+        `Error fetching worklogs for account ${accountKey} from Tempo API:`,
+        error
+      );
+      throw error;
+    }
   }
 
   private async makeTempoApiCall(endpoint: string): Promise<any> {

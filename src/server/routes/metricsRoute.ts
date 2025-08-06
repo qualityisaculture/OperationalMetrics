@@ -1,5 +1,6 @@
 const express = require("express");
 const metricsRoute = express.Router();
+import { Request, Response } from "express";
 import Jira from "../../server/Jira";
 import JiraRequester from "../JiraRequester";
 import BurnupGraphManager from "../graphManagers/BurnupGraphManager";
@@ -379,6 +380,32 @@ metricsRoute.get(
         console.error("Error fetching Tempo accounts:", error);
         res.json({
           message: "Error fetching Tempo accounts data",
+          data: JSON.stringify([]),
+        });
+      });
+  }
+);
+
+metricsRoute.get(
+  "/tempoWorklogs/:accountKey",
+  (req: Request, res: Response) => {
+    const accountKey = req.params.accountKey;
+
+    tempoReportGraphManager
+      .getWorklogsByAccount(accountKey)
+      .then((worklogs) => {
+        res.json({
+          message: "Tempo worklogs data fetched successfully",
+          data: JSON.stringify(worklogs),
+        });
+      })
+      .catch((error) => {
+        console.error(
+          `Error fetching Tempo worklogs for account ${accountKey}:`,
+          error
+        );
+        res.json({
+          message: `Error fetching Tempo worklogs data for account ${accountKey}`,
           data: JSON.stringify([]),
         });
       });
