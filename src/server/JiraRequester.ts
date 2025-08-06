@@ -312,24 +312,83 @@ export default class JiraRequester {
         );
       });
 
-      // For each top-level issue, find its children
-      const issuesWithChildren = await Promise.all(
-        topLevelIssues.map(async (issue: any) => {
-          const children = await this.getChildrenForIssue(issue.key);
-          return {
-            key: issue.key,
-            summary: issue.fields.summary || "",
-            type: issue.fields.issuetype.name || "",
-            children: children,
-            childCount: children.length,
-          };
-        })
-      );
+      // Get all children for all top-level issues in a single request
+      const topLevelKeys = topLevelIssues.map((issue: any) => issue.key);
+      const allChildren = await this.getAllChildrenForIssues(topLevelKeys);
+
+      // Allocate children to their correct parents
+      const issuesWithChildren = topLevelIssues.map((issue: any) => {
+        const children = allChildren
+          .filter((child: any) => child.parentKey === issue.key)
+          .map((child: any) => ({
+            key: child.key,
+            summary: child.summary,
+            type: child.type,
+            children: [], // Children don't have nested children in this implementation
+            childCount: 0,
+          }));
+
+        return {
+          key: issue.key,
+          summary: issue.fields.summary || "",
+          type: issue.fields.issuetype.name || "",
+          children: children,
+          childCount: children.length,
+        };
+      });
 
       return issuesWithChildren;
     } catch (error) {
       console.error("Error in getLiteQuery:", error);
       throw error;
+    }
+  }
+
+  async getAllChildrenForIssues(parentKeys: string[]): Promise<any[]> {
+    try {
+      if (parentKeys.length === 0) {
+        return [];
+      }
+
+      const domain = process.env.JIRA_DOMAIN;
+      // Create a single JQL query to get all children for all parent keys
+      const parentConditions = parentKeys
+        .map((key) => `parent = "${key}"`)
+        .join(" OR ");
+      const jql = `(${parentConditions}) ORDER BY created ASC`;
+      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,parent`;
+
+      console.log(
+        `Fetching all children for ${parentKeys.length} parent issues`
+      );
+
+      let response = await this.fetchRequest(url);
+
+      // Handle pagination if there are more than 50 children
+      if (response.total > 50) {
+        let startAt = 50;
+        while (startAt < response.total) {
+          console.log(
+            `Fetching next 50 children of ${response.total}, startAt: ${startAt}`
+          );
+          let nextResponse = await this.fetchRequest(
+            `${url}&startAt=${startAt}`
+          );
+          response.issues = response.issues.concat(nextResponse.issues);
+          startAt += 50;
+        }
+      }
+
+      // Transform children and include parent key for allocation
+      return response.issues.map((issue: any) => ({
+        key: issue.key,
+        summary: issue.fields.summary || "",
+        type: issue.fields.issuetype.name || "",
+        parentKey: issue.fields.parent?.key || "",
+      }));
+    } catch (error) {
+      console.error(`Error fetching children for issues:`, error);
+      return [];
     }
   }
 
