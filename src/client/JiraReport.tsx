@@ -1,20 +1,16 @@
 import React from "react";
+import { Table, Card, Spin, Alert, Button, Space, Typography, Tag } from "antd";
 import {
-  Table,
-  Card,
-  Spin,
-  Alert,
-  Button,
-  Space,
-  Typography,
-  Tag,
-  Modal,
-} from "antd";
-import { JiraProject } from "../server/graphManagers/JiraReportGraphManager";
+  JiraProject,
+  JiraIssue,
+} from "../server/graphManagers/JiraReportGraphManager";
 import {
   ReloadOutlined,
   ProjectOutlined,
   InfoCircleOutlined,
+  ArrowLeftOutlined,
+  StarOutlined,
+  StarFilled,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 
@@ -27,7 +23,10 @@ interface State {
   isLoading: boolean;
   error: string | null;
   selectedProject: JiraProject | null;
-  isModalVisible: boolean;
+  projectIssues: JiraIssue[];
+  issuesLoading: boolean;
+  issuesError: string | null;
+  favoriteProjects: Set<string>;
 }
 
 export default class JiraReport extends React.Component<Props, State> {
@@ -38,13 +37,84 @@ export default class JiraReport extends React.Component<Props, State> {
       isLoading: false,
       error: null,
       selectedProject: null,
-      isModalVisible: false,
+      projectIssues: [],
+      issuesLoading: false,
+      issuesError: null,
+      favoriteProjects: new Set(this.loadFavoritesFromStorage()),
     };
   }
 
   componentDidMount() {
     this.loadProjects();
   }
+
+  loadFavoritesFromStorage = (): string[] => {
+    try {
+      const favorites = localStorage.getItem("jiraReport_favorites");
+      return favorites ? JSON.parse(favorites) : [];
+    } catch (error) {
+      console.error("Error loading favorites from localStorage:", error);
+      return [];
+    }
+  };
+
+  saveFavoritesToStorage = (favorites: string[]) => {
+    try {
+      localStorage.setItem("jiraReport_favorites", JSON.stringify(favorites));
+    } catch (error) {
+      console.error("Error saving favorites to localStorage:", error);
+    }
+  };
+
+  toggleFavorite = (projectKey: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent row click when clicking star
+
+    this.setState((prevState) => {
+      const newFavorites = new Set(prevState.favoriteProjects);
+
+      if (newFavorites.has(projectKey)) {
+        newFavorites.delete(projectKey);
+      } else {
+        newFavorites.add(projectKey);
+      }
+
+      // Save to localStorage
+      this.saveFavoritesToStorage(Array.from(newFavorites));
+
+      return { favoriteProjects: newFavorites };
+    });
+  };
+
+  getSortedProjects = () => {
+    const { projects, favoriteProjects } = this.state;
+
+    // Create two arrays: favorites and non-favorites
+    const favoriteProjectsList = projects.filter((project) =>
+      favoriteProjects.has(project.key)
+    );
+    const nonFavoriteProjectsList = projects.filter(
+      (project) => !favoriteProjects.has(project.key)
+    );
+
+    // Sort each group by project key
+    favoriteProjectsList.sort((a, b) => a.key.localeCompare(b.key));
+    nonFavoriteProjectsList.sort((a, b) => a.key.localeCompare(b.key));
+
+    // Return favorites first, then non-favorites
+    return [...favoriteProjectsList, ...nonFavoriteProjectsList];
+  };
+
+  getOptimalPageSize = () => {
+    const { favoriteProjects } = this.state;
+    const favoriteCount = favoriteProjects.size;
+
+    // If there are favorites, ensure they all fit on the first page
+    if (favoriteCount > 0) {
+      return Math.max(10, favoriteCount + 5); // Show all favorites plus some extra
+    }
+
+    return 10; // Default page size
+  };
 
   loadProjects = async () => {
     this.setState({ isLoading: true, error: null });
@@ -70,32 +140,93 @@ export default class JiraReport extends React.Component<Props, State> {
     }
   };
 
-  showProjectDetails = (project: JiraProject) => {
-    this.setState({
-      selectedProject: project,
-      isModalVisible: true,
-    });
+  loadProjectIssues = async (projectKey: string) => {
+    this.setState({ issuesLoading: true, issuesError: null });
+
+    try {
+      const response = await fetch(
+        `/api/jiraReport/project/${projectKey}/issues`
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        const issues: JiraIssue[] = JSON.parse(data.data);
+        this.setState({ projectIssues: issues, issuesLoading: false });
+      } else {
+        this.setState({
+          issuesError: data.message || "Failed to load project issues",
+          issuesLoading: false,
+        });
+      }
+    } catch (error) {
+      this.setState({
+        issuesError: "Network error while loading project issues",
+        isLoading: false,
+      });
+    }
   };
 
-  handleModalClose = () => {
+  handleProjectClick = async (project: JiraProject) => {
+    this.setState({
+      selectedProject: project,
+      projectIssues: [],
+      issuesLoading: false,
+      issuesError: null,
+    });
+
+    // Load the project issues
+    await this.loadProjectIssues(project.key);
+  };
+
+  handleBackToProjects = () => {
     this.setState({
       selectedProject: null,
-      isModalVisible: false,
+      projectIssues: [],
+      issuesLoading: false,
+      issuesError: null,
     });
   };
 
   render() {
-    const { projects, isLoading, error, selectedProject, isModalVisible } =
-      this.state;
+    const {
+      projects,
+      isLoading,
+      error,
+      selectedProject,
+      projectIssues,
+      issuesLoading,
+      issuesError,
+      favoriteProjects,
+    } = this.state;
 
-    const columns: ColumnsType<JiraProject> = [
+    const sortedProjects = this.getSortedProjects();
+
+    const projectColumns: ColumnsType<JiraProject> = [
+      {
+        title: "Favorite",
+        key: "favorite",
+        width: 60,
+        render: (_, record) => (
+          <Button
+            type="text"
+            icon={
+              favoriteProjects.has(record.key) ? (
+                <StarFilled style={{ color: "#faad14" }} />
+              ) : (
+                <StarOutlined />
+              )
+            }
+            onClick={(e) => this.toggleFavorite(record.key, e)}
+            style={{ padding: 0, border: "none" }}
+          />
+        ),
+      },
       {
         title: "Project Key",
         dataIndex: "key",
         key: "key",
         render: (key: string) => <Tag color="green">{key}</Tag>,
         sorter: (a, b) => a.key.localeCompare(b.key),
-        defaultSortOrder: "ascend",
       },
       {
         title: "Project Name",
@@ -119,17 +250,39 @@ export default class JiraReport extends React.Component<Props, State> {
         render: (id: string) => <Tag color="blue">{id}</Tag>,
         sorter: (a, b) => a.id.localeCompare(b.id),
       },
+    ];
+
+    const issueColumns: ColumnsType<JiraIssue> = [
       {
-        title: "Actions",
-        key: "actions",
-        render: (_, record) => (
-          <Button
-            type="link"
-            icon={<InfoCircleOutlined />}
-            onClick={() => this.showProjectDetails(record)}
-          >
-            Details
-          </Button>
+        title: "Issue Key",
+        dataIndex: "key",
+        key: "key",
+        render: (key: string) => <Tag color="orange">{key}</Tag>,
+        sorter: (a, b) => a.key.localeCompare(b.key),
+      },
+      {
+        title: "Summary",
+        dataIndex: "summary",
+        key: "summary",
+        render: (summary: string) => <Text>{summary}</Text>,
+        sorter: (a, b) => a.summary.localeCompare(b.summary),
+      },
+      {
+        title: "Children",
+        dataIndex: "children",
+        key: "children",
+        render: (children: string[]) => (
+          <Space>
+            {children.length > 0 ? (
+              children.map((child) => (
+                <Tag key={child} color="purple">
+                  {child}
+                </Tag>
+              ))
+            ) : (
+              <Text type="secondary">No children</Text>
+            )}
+          </Space>
         ),
       },
     ];
@@ -175,90 +328,149 @@ export default class JiraReport extends React.Component<Props, State> {
             >
               Refresh
             </Button>
+            {favoriteProjects.size > 0 && (
+              <Text type="secondary">
+                <StarFilled style={{ color: "#faad14", marginRight: "4px" }} />
+                {favoriteProjects.size} favorite
+                {favoriteProjects.size !== 1 ? "s" : ""}
+              </Text>
+            )}
           </Space>
         </div>
 
-        <Card
-          title={
-            <Space>
-              <ProjectOutlined />
-              Projects ({projects.length})
-            </Space>
-          }
-          extra={
-            <Text type="secondary">
-              Last updated: {new Date().toLocaleString()}
-            </Text>
-          }
-        >
-          <Table
-            columns={columns}
-            dataSource={projects}
-            rowKey="id"
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) =>
-                `${range[0]}-${range[1]} of ${total} projects`,
-            }}
-            onRow={(record) => ({
-              onClick: () => this.showProjectDetails(record),
-              style: { cursor: "pointer" },
-            })}
-          />
-        </Card>
-
-        <Modal
-          title={
-            <Space>
-              <ProjectOutlined />
-              Project Details
-            </Space>
-          }
-          open={isModalVisible}
-          onCancel={this.handleModalClose}
-          footer={[
-            <Button key="close" onClick={this.handleModalClose}>
-              Close
-            </Button>,
-          ]}
-        >
-          {selectedProject && (
-            <div>
-              <Space
-                direction="vertical"
-                size="large"
-                style={{ width: "100%" }}
-              >
-                <div>
-                  <Title level={4}>{selectedProject.name}</Title>
-                  <Space>
-                    <Tag color="blue">ID: {selectedProject.id}</Tag>
-                    <Tag color="green">Key: {selectedProject.key}</Tag>
-                  </Space>
-                </div>
-
-                <div>
-                  <Text strong>Project Information:</Text>
-                  <div style={{ marginTop: "8px" }}>
-                    <Text>• Project Name: {selectedProject.name}</Text>
-                    <br />
-                    <Text>• Project Key: {selectedProject.key}</Text>
-                    <br />
-                    <Text>• Project ID: {selectedProject.id}</Text>
-                  </div>
-                </div>
-
-                <div>
+        {!selectedProject ? (
+          // Projects View
+          <Card
+            title={
+              <Space>
+                <ProjectOutlined />
+                Projects ({projects.length})
+                {favoriteProjects.size > 0 && (
                   <Text type="secondary">
-                    Click "Close" to return to the project list.
+                    • {favoriteProjects.size} starred
                   </Text>
-                </div>
+                )}
+              </Space>
+            }
+            extra={
+              <Text type="secondary">
+                Last updated: {new Date().toLocaleString()}
+              </Text>
+            }
+          >
+            <Table
+              key={`projects-table-${favoriteProjects.size}`} // Force re-render when favorites change
+              columns={projectColumns}
+              dataSource={sortedProjects}
+              rowKey="id"
+              pagination={{
+                pageSize: this.getOptimalPageSize(),
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) =>
+                  `${range[0]}-${range[1]} of ${total} projects`,
+                defaultCurrent: 1, // Always start on first page
+              }}
+              onRow={(record) => ({
+                onClick: () => this.handleProjectClick(record),
+                style: { cursor: "pointer" },
+              })}
+            />
+          </Card>
+        ) : (
+          // Project Issues View
+          <div>
+            <div style={{ marginBottom: "16px" }}>
+              <Space align="center">
+                <Button
+                  icon={<ArrowLeftOutlined />}
+                  onClick={this.handleBackToProjects}
+                  style={{ marginRight: "16px" }}
+                >
+                  Back to Projects
+                </Button>
+                <Title level={4} style={{ margin: 0, flex: 1 }}>
+                  <ProjectOutlined style={{ marginRight: "8px" }} />
+                  {selectedProject.name} ({selectedProject.key}) - Issues
+                </Title>
+                <Button
+                  type="text"
+                  icon={
+                    favoriteProjects.has(selectedProject.key) ? (
+                      <StarFilled style={{ color: "#faad14" }} />
+                    ) : (
+                      <StarOutlined />
+                    )
+                  }
+                  onClick={(e) => this.toggleFavorite(selectedProject.key, e)}
+                  style={{ padding: 0, border: "none" }}
+                >
+                  {favoriteProjects.has(selectedProject.key)
+                    ? "Unstar"
+                    : "Star"}{" "}
+                  Project
+                </Button>
               </Space>
             </div>
-          )}
-        </Modal>
+
+            {issuesLoading && (
+              <div style={{ textAlign: "center", padding: "20px" }}>
+                <Spin size="large" />
+                <div style={{ marginTop: "16px" }}>
+                  <Text>Loading project issues...</Text>
+                </div>
+              </div>
+            )}
+
+            {issuesError && (
+              <Alert
+                message="Error"
+                description={issuesError}
+                type="error"
+                showIcon
+                style={{ marginBottom: "16px" }}
+              />
+            )}
+
+            {!issuesLoading && !issuesError && (
+              <Card
+                title={
+                  <Space>
+                    <InfoCircleOutlined />
+                    Project Issues ({projectIssues.length})
+                  </Space>
+                }
+                extra={
+                  <Text type="secondary">
+                    Last updated: {new Date().toLocaleString()}
+                  </Text>
+                }
+              >
+                <Table
+                  columns={issueColumns}
+                  dataSource={projectIssues}
+                  rowKey="key"
+                  pagination={{
+                    pageSize: 10,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total, range) =>
+                      `${range[0]}-${range[1]} of ${total} issues`,
+                  }}
+                />
+              </Card>
+            )}
+
+            {!issuesLoading && !issuesError && projectIssues.length === 0 && (
+              <Alert
+                message="No Issues Found"
+                description="No issues were found for this project."
+                type="info"
+                showIcon
+              />
+            )}
+          </div>
+        )}
       </div>
     );
   }

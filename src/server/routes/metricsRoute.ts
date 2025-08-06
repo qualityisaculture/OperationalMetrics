@@ -529,4 +529,35 @@ metricsRoute.get(
   }
 );
 
+// API route for Jira Report project issues
+metricsRoute.get(
+  "/jiraReport/project/:projectKey/issues",
+  (req: Request, res: TR<{ message: string; data: string }>) => {
+    const projectKey = req.params.projectKey;
+    console.log(
+      `Jira Report project issues endpoint called for project: ${projectKey}`
+    );
+
+    jiraReportGraphManager
+      .getProjectIssues(projectKey)
+      .then((issues) => {
+        console.log(`Found ${issues.length} issues for project ${projectKey}`);
+        res.json({
+          message: `Jira issues for project ${projectKey} fetched successfully`,
+          data: JSON.stringify(issues),
+        });
+      })
+      .catch((error) => {
+        console.error(
+          `Error fetching issues for project ${projectKey}:`,
+          error
+        );
+        res.json({
+          message: `Error fetching issues for project ${projectKey}`,
+          data: JSON.stringify([]),
+        });
+      });
+  }
+);
+
 export { metricsRoute };

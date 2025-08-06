@@ -14,6 +14,12 @@ export type EssentialJiraData = {
   };
 }[];
 
+export type LiteJiraIssue = {
+  key: string;
+  summary: string;
+  children: string[];
+};
+
 export default class JiraRequester {
   jiraMap: Map<string, Jira>;
   constructor() {
@@ -231,5 +237,42 @@ export default class JiraRequester {
       key: project.key,
       name: project.name,
     }));
+  }
+
+  async getLiteQuery(query: string): Promise<LiteJiraIssue[]> {
+    try {
+      const domain = process.env.JIRA_DOMAIN;
+      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,subtasks`;
+      console.log(`Fetching lite data for ${url}`);
+
+      let response = await this.fetchRequest(url);
+
+      // Handle pagination if there are more than 50 issues
+      if (response.total > 50) {
+        let startAt = 50;
+        while (startAt < response.total) {
+          console.log(
+            `Fetching next 50 issues of ${response.total}, startAt: ${startAt}`
+          );
+          let nextResponse = await this.fetchRequest(
+            `${url}&startAt=${startAt}`
+          );
+          response.issues = response.issues.concat(nextResponse.issues);
+          startAt += 50;
+        }
+      }
+
+      // Transform to minimal data structure
+      return response.issues.map((issue: any) => ({
+        key: issue.key,
+        summary: issue.fields.summary || "",
+        children: issue.fields.subtasks
+          ? issue.fields.subtasks.map((subtask: any) => subtask.key)
+          : [],
+      }));
+    } catch (error) {
+      console.error("Error in getLiteQuery:", error);
+      throw error;
+    }
   }
 }
