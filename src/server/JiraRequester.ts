@@ -129,11 +129,21 @@ export default class JiraRequester {
     if (keys.length === 0) {
       return [];
     }
+    const fields = ["key", "summary", "resolutiondate", "fixVersions"];
+    return await this.getBatchedJiraData(keys, fields);
+  }
+
+  async getBatchedJiraData(keys: string[], fields: string[]): Promise<any[]> {
+    if (keys.length === 0) {
+      return [];
+    }
+
     let allIssues: any[] = [];
     for (let i = 0; i < keys.length; i += 50) {
       let batchKeys = keys.slice(i, i + 50);
       let jql = batchKeys.map((key) => `key=${key}`).join(" OR ");
-      const query = `${jql}&fields=key,summary,resolutiondate,fixVersions`;
+      const fieldsString = fields.join(",");
+      const query = `${jql}&fields=${fieldsString}`;
       let data = await this.requestDataFromServer(query);
       allIssues = allIssues.concat(data.issues);
     }

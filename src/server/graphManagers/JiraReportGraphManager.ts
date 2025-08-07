@@ -856,12 +856,18 @@ export default class JiraReportGraphManager {
         `Fetching detailed info for ${issueKeys.length} issues: ${issueKeys.join(", ")}`
       );
 
-      // Create a JQL query to get issue details including type and time fields
-      const jql = issueKeys.map((key) => `key = "${key}"`).join(" OR ");
-      const domain = process.env.JIRA_DOMAIN;
-      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,timeoriginalestimate,timespent`;
-
-      const response = await this.jiraRequester.fetchRequest(url);
+      // Use the new batched method to get issue details including type and time fields
+      const fields = [
+        "key",
+        "summary",
+        "issuetype",
+        "timeoriginalestimate",
+        "timespent",
+      ];
+      const response = await this.jiraRequester.getBatchedJiraData(
+        issueKeys,
+        fields
+      );
 
       const issueDetails = new Map<
         string,
@@ -872,7 +878,7 @@ export default class JiraReportGraphManager {
           timeSpent: number | null;
         }
       >();
-      for (const issue of response.issues) {
+      for (const issue of response) {
         // Convert seconds to days (7.5 hours per day)
         const originalEstimate = issue.fields.timeoriginalestimate
           ? issue.fields.timeoriginalestimate / 3600 / 7.5
