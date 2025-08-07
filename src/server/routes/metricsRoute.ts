@@ -529,32 +529,164 @@ metricsRoute.get(
   }
 );
 
-// API route for Jira Report project issues
+// API route for Jira Report project workstreams
 metricsRoute.get(
-  "/jiraReport/project/:projectKey/issues",
+  "/jiraReport/project/:projectKey/workstreams",
   (req: Request, res: TR<{ message: string; data: string }>) => {
     const projectKey = req.params.projectKey;
     console.log(
-      `Jira Report project issues endpoint called for project: ${projectKey}`
+      `Jira Report project workstreams endpoint called for project: ${projectKey}`
     );
 
     jiraReportGraphManager
-      .getProjectIssues(projectKey)
-      .then((issues) => {
-        console.log(`Found ${issues.length} issues for project ${projectKey}`);
+      .getProjectWorkstreams(projectKey)
+      .then((workstreams) => {
+        console.log(
+          `Found ${workstreams.length} workstreams for project ${projectKey}`
+        );
         res.json({
-          message: `Jira issues for project ${projectKey} fetched successfully`,
-          data: JSON.stringify(issues),
+          message: `Workstreams for project ${projectKey} fetched successfully`,
+          data: JSON.stringify(workstreams),
         });
       })
       .catch((error) => {
         console.error(
-          `Error fetching issues for project ${projectKey}:`,
+          `Error fetching workstreams for project ${projectKey}:`,
           error
         );
         res.json({
-          message: `Error fetching issues for project ${projectKey}`,
+          message: `Error fetching workstreams for project ${projectKey}`,
           data: JSON.stringify([]),
+        });
+      });
+  }
+);
+
+// API route for getting all issues in a workstream (with complete recursive data)
+metricsRoute.get(
+  "/jiraReport/workstream/:workstreamKey/issues",
+  (req: Request, res: TR<{ message: string; data: string }>) => {
+    const workstreamKey = req.params.workstreamKey;
+    console.log(
+      `Jira Report workstream issues endpoint called for workstream: ${workstreamKey}`
+    );
+
+    jiraReportGraphManager
+      .getWorkstreamIssues(workstreamKey)
+      .then((workstreamWithIssues) => {
+        console.log(
+          `Fetched complete issue tree for workstream ${workstreamKey}`
+        );
+
+        // Log the structure being sent to frontend
+        console.log(
+          `\n=== SENDING WORKSTREAM DATA TO FRONTEND FOR ${workstreamKey} ===`
+        );
+        console.log(
+          `Workstream: ${workstreamWithIssues.key} - ${workstreamWithIssues.summary}`
+        );
+        console.log(
+          `Total issues in workstream: ${workstreamWithIssues.children.length}`
+        );
+        console.log(`=== END WORKSTREAM DATA ===\n`);
+
+        res.json({
+          message: `Complete issue tree for workstream ${workstreamKey} fetched successfully`,
+          data: JSON.stringify(workstreamWithIssues),
+        });
+      })
+      .catch((error) => {
+        console.error(
+          `Error fetching issues for workstream ${workstreamKey}:`,
+          error
+        );
+        res.json({
+          message: `Error fetching issues for workstream ${workstreamKey}: ${error.message}`,
+          data: JSON.stringify(null),
+        });
+      });
+  }
+);
+
+// New API route for getting issue children (Phase 3)
+metricsRoute.get(
+  "/jiraReport/issue/:issueKey/children",
+  (req: Request, res: TR<{ message: string; data: string }>) => {
+    const issueKey = req.params.issueKey;
+    console.log(
+      `Jira Report issue children endpoint called for issue: ${issueKey}`
+    );
+
+    jiraReportGraphManager
+      .getIssueChildren(issueKey)
+      .then((children) => {
+        console.log(`Found ${children.length} children for issue ${issueKey}`);
+        res.json({
+          message: `Children for issue ${issueKey} fetched successfully`,
+          data: JSON.stringify(children),
+        });
+      })
+      .catch((error) => {
+        console.error(`Error fetching children for issue ${issueKey}:`, error);
+        res.json({
+          message: `Error fetching children for issue ${issueKey}: ${error.message}`,
+          data: JSON.stringify([]),
+        });
+      });
+  }
+);
+
+// New API route for getting issue with all descendants (Phase 3)
+metricsRoute.get(
+  "/jiraReport/issue/:issueKey/with-children",
+  (req: Request, res: TR<{ message: string; data: string }>) => {
+    const issueKey = req.params.issueKey;
+    console.log(
+      `Jira Report issue with all children endpoint called for issue: ${issueKey}`
+    );
+
+    jiraReportGraphManager
+      .getIssueWithAllChildren(issueKey)
+      .then((issueWithChildren) => {
+        console.log(`Fetched issue ${issueKey} with all descendants`);
+
+        // Log the structure being sent to frontend
+        console.log(`\n=== SENDING TO FRONTEND FOR ${issueKey} ===`);
+        console.log(
+          `Root issue: ${issueWithChildren.key} - ${issueWithChildren.summary}`
+        );
+        console.log(
+          `Total children at root level: ${issueWithChildren.children.length}`
+        );
+
+        // Count total issues in the tree
+        const countIssuesInTree = (issue: any): number => {
+          let count = 1; // Count this issue
+          if (issue.children && issue.children.length > 0) {
+            for (const child of issue.children) {
+              count += countIssuesInTree(child);
+            }
+          }
+          return count;
+        };
+
+        const totalIssuesInTree = countIssuesInTree(issueWithChildren);
+        console.log(`Total issues in complete tree: ${totalIssuesInTree}`);
+        console.log(`=== END FRONTEND DATA ===\n`);
+
+        res.json({
+          message: `Issue ${issueKey} with all descendants fetched successfully`,
+          data: JSON.stringify(issueWithChildren),
+        });
+      })
+      .catch((error) => {
+        console.error(
+          `Error fetching issue ${issueKey} with all children:`,
+          error
+        );
+        res.json({
+          message: `Error fetching issue ${issueKey} with all children: ${error.message}`,
+          data: JSON.stringify(null),
         });
       });
   }

@@ -1,5 +1,15 @@
 import React from "react";
-import { Table, Card, Spin, Alert, Button, Space, Typography, Tag } from "antd";
+import {
+  Table,
+  Card,
+  Spin,
+  Alert,
+  Button,
+  Space,
+  Typography,
+  Tag,
+  Breadcrumb,
+} from "antd";
 import {
   JiraProject,
   JiraIssue,
@@ -11,6 +21,7 @@ import {
   ArrowLeftOutlined,
   StarOutlined,
   StarFilled,
+  HomeOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 
@@ -27,6 +38,16 @@ interface State {
   issuesLoading: boolean;
   issuesError: string | null;
   favoriteProjects: Set<string>;
+  // New state for recursive navigation
+  navigationStack: Array<{
+    type: "project" | "issue";
+    key: string;
+    name: string;
+    data: JiraIssue[];
+  }>;
+  currentIssues: JiraIssue[];
+  currentIssuesLoading: boolean;
+  currentIssuesError: string | null;
 }
 
 export default class JiraReport extends React.Component<Props, State> {
@@ -41,6 +62,11 @@ export default class JiraReport extends React.Component<Props, State> {
       issuesLoading: false,
       issuesError: null,
       favoriteProjects: new Set(this.loadFavoritesFromStorage()),
+      // New state for recursive navigation
+      navigationStack: [],
+      currentIssues: [],
+      currentIssuesLoading: false,
+      currentIssuesError: null,
     };
   }
 
@@ -140,28 +166,32 @@ export default class JiraReport extends React.Component<Props, State> {
     }
   };
 
-  loadProjectIssues = async (projectKey: string) => {
+  loadProjectWorkstreams = async (projectKey: string) => {
     this.setState({ issuesLoading: true, issuesError: null });
 
     try {
       const response = await fetch(
-        `/api/jiraReport/project/${projectKey}/issues`
+        `/api/jiraReport/project/${projectKey}/workstreams`
       );
       const data = await response.json();
 
       if (response.ok) {
-        const issues: JiraIssue[] = JSON.parse(data.data);
-        this.setState({ projectIssues: issues, issuesLoading: false });
+        const workstreams: JiraIssue[] = JSON.parse(data.data);
+        this.setState({
+          projectIssues: workstreams,
+          issuesLoading: false,
+          currentIssues: workstreams, // Set current issues to workstreams initially
+        });
       } else {
         this.setState({
-          issuesError: data.message || "Failed to load project issues",
+          issuesError: data.message || "Failed to load project workstreams",
           issuesLoading: false,
         });
       }
     } catch (error) {
       this.setState({
-        issuesError: "Network error while loading project issues",
-        isLoading: false,
+        issuesError: "Network error while loading project workstreams",
+        issuesLoading: false,
       });
     }
   };
@@ -172,11 +202,159 @@ export default class JiraReport extends React.Component<Props, State> {
       projectIssues: [],
       issuesLoading: false,
       issuesError: null,
+      // Initialize navigation stack with project
+      navigationStack: [
+        {
+          type: "project",
+          key: project.key,
+          name: project.name,
+          data: [],
+        },
+      ],
+      currentIssues: [],
+      currentIssuesLoading: false,
+      currentIssuesError: null,
     });
 
-    // Load the project issues
-    await this.loadProjectIssues(project.key);
+    // Load the project workstreams
+    await this.loadProjectWorkstreams(project.key);
   };
+
+  // Simplified method to handle workstream click for navigation
+  handleWorkstreamClick = async (workstream: JiraIssue) => {
+    // Only navigate if the workstream has children
+    if (workstream.childCount === 0) {
+      return; // No children, don't navigate
+    }
+
+    console.log(`\n=== FRONTEND: Clicking on workstream ${workstream.key} ===`);
+    console.log(
+      `Workstream: ${workstream.key} - ${workstream.summary} (${workstream.type})`
+    );
+    console.log(`Child count: ${workstream.childCount}`);
+
+    this.setState({ currentIssuesLoading: true, currentIssuesError: null });
+
+    try {
+      // Get all issues for this workstream (with complete recursive data)
+      const response = await fetch(
+        `/api/jiraReport/workstream/${workstream.key}/issues`
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        const workstreamWithIssues: JiraIssue = JSON.parse(data.data);
+
+        console.log(
+          `\n=== FRONTEND: Received workstream data for ${workstream.key} ===`
+        );
+        console.log("Complete workstream tree:", workstreamWithIssues);
+
+        // Add to navigation stack with the issues from the workstream
+        const newNavigationItem = {
+          type: "issue" as const,
+          key: workstream.key,
+          name: workstream.summary,
+          data: workstreamWithIssues.children, // All issues in the workstream
+        };
+
+        console.log(
+          `Adding workstream to navigation stack:`,
+          newNavigationItem
+        );
+
+        this.setState((prevState) => ({
+          navigationStack: [...prevState.navigationStack, newNavigationItem],
+          currentIssues: workstreamWithIssues.children,
+          currentIssuesLoading: false,
+        }));
+
+        console.log(
+          `=== FRONTEND: Workstream navigation complete for ${workstream.key} ===\n`
+        );
+      } else {
+        console.error(
+          `FRONTEND: API error for workstream ${workstream.key}:`,
+          data.message
+        );
+        this.setState({
+          currentIssuesError:
+            data.message || "Failed to load workstream issues",
+          currentIssuesLoading: false,
+        });
+      }
+    } catch (error) {
+      console.error(
+        `FRONTEND: Network error for workstream ${workstream.key}:`,
+        error
+      );
+      this.setState({
+        currentIssuesError: "Network error while loading workstream issues",
+        currentIssuesLoading: false,
+      });
+    }
+  };
+
+  // Handle issue clicks by navigating through existing tree data (no API calls)
+  handleIssueClick = (issue: JiraIssue) => {
+    // Only navigate if the issue has children
+    if (issue.childCount === 0) {
+      return; // No children, don't navigate
+    }
+
+    console.log(
+      `\n=== FRONTEND: Clicking on issue ${issue.key} (using existing data) ===`
+    );
+    console.log(`Issue: ${issue.key} - ${issue.summary} (${issue.type})`);
+    console.log(`Child count: ${issue.childCount}`);
+
+    // Find the issue in the current level's data to get its children
+    const issueWithChildren = this.findIssueInCurrentData(issue.key);
+
+    if (
+      issueWithChildren &&
+      issueWithChildren.children &&
+      issueWithChildren.children.length > 0
+    ) {
+      console.log(
+        `Found children for issue ${issue.key} in existing data:`,
+        issueWithChildren.children
+      );
+
+      // Add to navigation stack with the children from the existing data
+      const newNavigationItem = {
+        type: "issue" as const,
+        key: issue.key,
+        name: issue.summary,
+        data: issueWithChildren.children,
+      };
+
+      console.log(`Adding issue to navigation stack:`, newNavigationItem);
+
+      this.setState((prevState) => ({
+        navigationStack: [...prevState.navigationStack, newNavigationItem],
+        currentIssues: issueWithChildren.children,
+        currentIssuesLoading: false,
+        currentIssuesError: null,
+      }));
+
+      console.log(
+        `=== FRONTEND: Issue navigation complete for ${issue.key} (using existing data) ===\n`
+      );
+    } else {
+      console.log(`No children found for issue ${issue.key} in existing data`);
+    }
+  };
+
+  // Helper method to find an issue in the current data
+  private findIssueInCurrentData(issueKey: string): JiraIssue | null {
+    for (const issue of this.state.currentIssues) {
+      if (issue.key === issueKey) {
+        return issue;
+      }
+    }
+    return null;
+  }
 
   handleBackToProjects = () => {
     this.setState({
@@ -184,6 +362,41 @@ export default class JiraReport extends React.Component<Props, State> {
       projectIssues: [],
       issuesLoading: false,
       issuesError: null,
+      navigationStack: [],
+      currentIssues: [],
+      currentIssuesLoading: false,
+      currentIssuesError: null,
+    });
+  };
+
+  // New method to handle breadcrumb navigation
+  handleBreadcrumbClick = (index: number) => {
+    if (index === -1) {
+      // Home clicked - go back to projects
+      this.handleBackToProjects();
+      return;
+    }
+
+    if (index === 0) {
+      // Project level clicked - show project issues
+      this.setState((prevState) => ({
+        navigationStack: [prevState.navigationStack[0]],
+        currentIssues: prevState.projectIssues,
+        currentIssuesLoading: false,
+        currentIssuesError: null,
+      }));
+      return;
+    }
+
+    // Navigate to specific level
+    const targetStack = this.state.navigationStack.slice(0, index + 1);
+    const targetItem = targetStack[targetStack.length - 1];
+
+    this.setState({
+      navigationStack: targetStack,
+      currentIssues: targetItem.data,
+      currentIssuesLoading: false,
+      currentIssuesError: null,
     });
   };
 
@@ -197,6 +410,10 @@ export default class JiraReport extends React.Component<Props, State> {
       issuesLoading,
       issuesError,
       favoriteProjects,
+      navigationStack,
+      currentIssues,
+      currentIssuesLoading,
+      currentIssuesError,
     } = this.state;
 
     const sortedProjects = this.getSortedProjects();
@@ -234,7 +451,6 @@ export default class JiraReport extends React.Component<Props, State> {
         key: "name",
         render: (name: string) => <Text strong>{name}</Text>,
         sorter: (a, b) => a.name.localeCompare(b.name),
-        filterable: true,
         onFilter: (value, record) =>
           record.name.toLowerCase().includes((value as string).toLowerCase()),
         filterSearch: true,
@@ -259,7 +475,7 @@ export default class JiraReport extends React.Component<Props, State> {
         key: "key",
         render: (key: string, record: JiraIssue) => (
           <a
-            href={record.url}
+            href={`https://lendscape.atlassian.net/browse/${key}`}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()} // Prevent row click when clicking link
@@ -400,7 +616,7 @@ export default class JiraReport extends React.Component<Props, State> {
             />
           </Card>
         ) : (
-          // Project Issues View
+          // Project Issues View with Navigation
           <div>
             <div style={{ marginBottom: "16px" }}>
               <Space align="center">
@@ -413,7 +629,7 @@ export default class JiraReport extends React.Component<Props, State> {
                 </Button>
                 <Title level={4} style={{ margin: 0, flex: 1 }}>
                   <ProjectOutlined style={{ marginRight: "8px" }} />
-                  {selectedProject.name} ({selectedProject.key}) - Issues
+                  {selectedProject.name} ({selectedProject.key}) - Workstreams
                 </Title>
                 <Button
                   type="text"
@@ -435,31 +651,102 @@ export default class JiraReport extends React.Component<Props, State> {
               </Space>
             </div>
 
+            {/* Breadcrumb Navigation */}
+            {navigationStack.length > 0 && (
+              <div style={{ marginBottom: "16px" }}>
+                <Breadcrumb>
+                  <Breadcrumb.Item>
+                    <Button
+                      type="link"
+                      icon={<HomeOutlined />}
+                      onClick={() => this.handleBreadcrumbClick(-1)}
+                      style={{ padding: 0, height: "auto" }}
+                    >
+                      Projects
+                    </Button>
+                  </Breadcrumb.Item>
+                  {navigationStack.map((item, index) => (
+                    <Breadcrumb.Item key={item.key}>
+                      <Button
+                        type="link"
+                        onClick={() => this.handleBreadcrumbClick(index)}
+                        style={{ padding: 0, height: "auto" }}
+                      >
+                        {item.type === "project" ? (
+                          <ProjectOutlined style={{ marginRight: "4px" }} />
+                        ) : (
+                          <InfoCircleOutlined style={{ marginRight: "4px" }} />
+                        )}
+                        {item.name}
+                      </Button>
+                    </Breadcrumb.Item>
+                  ))}
+                </Breadcrumb>
+              </div>
+            )}
+
+            {/* Loading State for Issues */}
             {issuesLoading && (
-              <div style={{ textAlign: "center", padding: "20px" }}>
+              <div style={{ textAlign: "center", padding: "50px" }}>
                 <Spin size="large" />
                 <div style={{ marginTop: "16px" }}>
-                  <Text>Loading project issues...</Text>
+                  Loading project workstreams...
                 </div>
               </div>
             )}
 
+            {/* Error State for Issues */}
             {issuesError && (
               <Alert
                 message="Error"
                 description={issuesError}
                 type="error"
                 showIcon
-                style={{ marginBottom: "16px" }}
+                style={{ margin: "16px" }}
+                action={
+                  <Button
+                    size="small"
+                    danger
+                    onClick={() =>
+                      this.loadProjectWorkstreams(selectedProject.key)
+                    }
+                  >
+                    Retry
+                  </Button>
+                }
               />
             )}
 
+            {/* Loading State for Current Issues */}
+            {currentIssuesLoading && (
+              <div style={{ textAlign: "center", padding: "20px" }}>
+                <Spin />
+                <div style={{ marginTop: "8px" }}>
+                  Loading workstream issues...
+                </div>
+              </div>
+            )}
+
+            {/* Error State for Current Issues */}
+            {currentIssuesError && (
+              <Alert
+                message="Error"
+                description={currentIssuesError}
+                type="error"
+                showIcon
+                style={{ margin: "16px" }}
+              />
+            )}
+
+            {/* Issues Table */}
             {!issuesLoading && !issuesError && (
               <Card
                 title={
                   <Space>
                     <InfoCircleOutlined />
-                    Project Issues ({projectIssues.length})
+                    {navigationStack.length > 1
+                      ? `Issues in ${navigationStack[navigationStack.length - 1].name}`
+                      : `Project Workstreams (${projectIssues.length})`}
                   </Space>
                 }
                 extra={
@@ -470,27 +757,62 @@ export default class JiraReport extends React.Component<Props, State> {
               >
                 <Table
                   columns={issueColumns}
-                  dataSource={projectIssues}
+                  dataSource={
+                    navigationStack.length > 1 ? currentIssues : projectIssues
+                  }
                   rowKey="key"
                   pagination={{
                     pageSize: 10,
                     showSizeChanger: true,
                     showQuickJumper: true,
                     showTotal: (total, range) =>
-                      `${range[0]}-${range[1]} of ${total} issues`,
+                      `${range[0]}-${range[1]} of ${total} ${navigationStack.length > 1 ? "issues" : "workstreams"}`,
                   }}
+                  onRow={(record) => ({
+                    onClick: () => {
+                      // If we're at the project level (showing workstreams), use workstream handler
+                      if (this.state.navigationStack.length === 1) {
+                        this.handleWorkstreamClick(record);
+                      } else {
+                        // If we're at the workstream level or deeper (showing issues), use issue handler
+                        this.handleIssueClick(record);
+                      }
+                    },
+                    style: {
+                      cursor: record.childCount > 0 ? "pointer" : "default",
+                      backgroundColor:
+                        record.childCount > 0 ? "#fafafa" : "transparent",
+                    },
+                  })}
                 />
               </Card>
             )}
 
-            {!issuesLoading && !issuesError && projectIssues.length === 0 && (
-              <Alert
-                message="No Issues Found"
-                description="No issues were found for this project."
-                type="info"
-                showIcon
-              />
-            )}
+            {/* No Issues Found */}
+            {!issuesLoading &&
+              !issuesError &&
+              projectIssues.length === 0 &&
+              navigationStack.length === 1 && (
+                <Alert
+                  message="No Workstreams Found"
+                  description="No workstreams were found for this project."
+                  type="info"
+                  showIcon
+                />
+              )}
+
+            {/* No Children Found */}
+            {!currentIssuesLoading &&
+              !currentIssuesError &&
+              currentIssues.length === 0 &&
+              navigationStack.length > 1 && (
+                <Alert
+                  message="No Issues Found"
+                  description="This workstream has no issues."
+                  type="info"
+                  showIcon
+                />
+              )}
           </div>
         )}
       </div>
