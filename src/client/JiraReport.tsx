@@ -523,6 +523,36 @@ export default class JiraReport extends React.Component<Props, State> {
         ),
         sorter: (a, b) => a.childCount - b.childCount,
       },
+      {
+        title: "Original Estimate",
+        dataIndex: "originalEstimate",
+        key: "originalEstimate",
+        render: (estimate: number | null | undefined) => (
+          <Text>
+            {estimate !== null && estimate !== undefined ? (
+              <Tag color="green">{estimate.toFixed(1)} days</Tag>
+            ) : (
+              <Text type="secondary">-</Text>
+            )}
+          </Text>
+        ),
+        sorter: (a, b) => (a.originalEstimate || 0) - (b.originalEstimate || 0),
+      },
+      {
+        title: "Time Spent",
+        dataIndex: "timeSpent",
+        key: "timeSpent",
+        render: (timeSpent: number | null | undefined) => (
+          <Text>
+            {timeSpent !== null && timeSpent !== undefined ? (
+              <Tag color="blue">{timeSpent.toFixed(1)} days</Tag>
+            ) : (
+              <Text type="secondary">-</Text>
+            )}
+          </Text>
+        ),
+        sorter: (a, b) => (a.timeSpent || 0) - (b.timeSpent || 0),
+      },
     ];
 
     if (isLoading) {

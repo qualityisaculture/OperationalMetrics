@@ -12,6 +12,8 @@ export interface JiraIssue {
   type: string;
   children: JiraIssue[];
   childCount: number;
+  originalEstimate?: number | null; // in days
+  timeSpent?: number | null; // in days
 }
 
 // Cache for storing project data to avoid repeated API calls
@@ -707,7 +709,15 @@ export default class JiraReportGraphManager {
   private async buildTreeRecursivelyWithDetails(
     issueKey: string,
     allLevelsData: Map<string, string[]>,
-    issueDetails: Map<string, { summary: string; type: string }>
+    issueDetails: Map<
+      string,
+      {
+        summary: string;
+        type: string;
+        originalEstimate: number | null;
+        timeSpent: number | null;
+      }
+    >
   ): Promise<JiraIssue> {
     const childKeys = allLevelsData.get(issueKey) || [];
 
@@ -717,16 +727,24 @@ export default class JiraReportGraphManager {
 
     let issueSummary: string;
     let issueType: string;
+    let originalEstimate: number | null;
+    let timeSpent: number | null;
 
     if (cachedResult) {
       issueSummary = cachedResult.issue.summary;
       issueType = cachedResult.issue.type;
+      originalEstimate = cachedResult.issue.originalEstimate || null;
+      timeSpent = cachedResult.issue.timeSpent || null;
     } else if (fetchedDetails) {
       issueSummary = fetchedDetails.summary;
       issueType = fetchedDetails.type;
+      originalEstimate = fetchedDetails.originalEstimate;
+      timeSpent = fetchedDetails.timeSpent;
     } else {
       issueSummary = `Issue ${issueKey}`;
       issueType = "Unknown";
+      originalEstimate = null;
+      timeSpent = null;
     }
 
     if (childKeys.length === 0) {
@@ -737,6 +755,8 @@ export default class JiraReportGraphManager {
         type: issueType,
         children: [],
         childCount: 0,
+        originalEstimate: originalEstimate,
+        timeSpent: timeSpent,
       };
     }
 
@@ -757,13 +777,23 @@ export default class JiraReportGraphManager {
       type: issueType,
       children: children,
       childCount: children.length,
+      originalEstimate: originalEstimate,
+      timeSpent: timeSpent,
     };
   }
 
   // Helper method to get issue details for children not in cache
-  private async getIssueDetailsForKeys(
-    issueKeys: string[]
-  ): Promise<Map<string, { summary: string; type: string }>> {
+  private async getIssueDetailsForKeys(issueKeys: string[]): Promise<
+    Map<
+      string,
+      {
+        summary: string;
+        type: string;
+        originalEstimate: number | null;
+        timeSpent: number | null;
+      }
+    >
+  > {
     if (issueKeys.length === 0) {
       return new Map();
     }
@@ -777,11 +807,21 @@ export default class JiraReportGraphManager {
       const essentialData =
         await this.jiraRequester.getEssentialJiraDataFromKeys(issueKeys);
 
-      const issueDetails = new Map<string, { summary: string; type: string }>();
+      const issueDetails = new Map<
+        string,
+        {
+          summary: string;
+          type: string;
+          originalEstimate: number | null;
+          timeSpent: number | null;
+        }
+      >();
       for (const issue of essentialData) {
         issueDetails.set(issue.key, {
           summary: issue.fields.summary || `Issue ${issue.key}`,
-          type: "Unknown", // We don't have issue type in essential data, but we can get it from the original children data
+          type: "Unknown", // We don't have issue type in essential data
+          originalEstimate: null, // We don't have time data in essential data
+          timeSpent: null,
         });
       }
 
@@ -796,9 +836,17 @@ export default class JiraReportGraphManager {
   }
 
   // Phase 3: Enhanced issue details with proper type information
-  private async getIssueDetailsWithTypes(
-    issueKeys: string[]
-  ): Promise<Map<string, { summary: string; type: string }>> {
+  private async getIssueDetailsWithTypes(issueKeys: string[]): Promise<
+    Map<
+      string,
+      {
+        summary: string;
+        type: string;
+        originalEstimate: number | null;
+        timeSpent: number | null;
+      }
+    >
+  > {
     if (issueKeys.length === 0) {
       return new Map();
     }
@@ -808,18 +856,36 @@ export default class JiraReportGraphManager {
         `Fetching detailed info for ${issueKeys.length} issues: ${issueKeys.join(", ")}`
       );
 
-      // Create a JQL query to get issue details including type
+      // Create a JQL query to get issue details including type and time fields
       const jql = issueKeys.map((key) => `key = "${key}"`).join(" OR ");
       const domain = process.env.JIRA_DOMAIN;
-      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype`;
+      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,timeoriginalestimate,timespent`;
 
       const response = await this.jiraRequester.fetchRequest(url);
 
-      const issueDetails = new Map<string, { summary: string; type: string }>();
+      const issueDetails = new Map<
+        string,
+        {
+          summary: string;
+          type: string;
+          originalEstimate: number | null;
+          timeSpent: number | null;
+        }
+      >();
       for (const issue of response.issues) {
+        // Convert seconds to days (7.5 hours per day)
+        const originalEstimate = issue.fields.timeoriginalestimate
+          ? issue.fields.timeoriginalestimate / 3600 / 7.5
+          : null;
+        const timeSpent = issue.fields.timespent
+          ? issue.fields.timespent / 3600 / 7.5
+          : null;
+
         issueDetails.set(issue.key, {
           summary: issue.fields.summary || `Issue ${issue.key}`,
           type: issue.fields.issuetype?.name || "Unknown",
+          originalEstimate: originalEstimate,
+          timeSpent: timeSpent,
         });
       }
 
@@ -832,8 +898,9 @@ export default class JiraReportGraphManager {
         `Could not fetch detailed info for issues: ${issueKeys.join(", ")}`,
         error
       );
+      throw error;
       // Fallback to essential data
-      return this.getIssueDetailsForKeys(issueKeys);
+      // return this.getIssueDetailsForKeys(issueKeys);
     }
   }
 
