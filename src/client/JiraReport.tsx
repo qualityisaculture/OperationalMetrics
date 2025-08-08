@@ -636,6 +636,18 @@ export default class JiraReport extends React.Component<Props, State> {
           </a>
         ),
         sorter: (a, b) => a.key.localeCompare(b.key),
+        onFilter: (value, record) =>
+          record.key.toLowerCase().includes((value as string).toLowerCase()),
+        filterSearch: true,
+        filters: (() => {
+          // Get unique issue keys from the current data
+          const currentData =
+            navigationStack.length > 1 ? currentIssues : projectIssues;
+          const uniqueKeys = [
+            ...new Set(currentData.map((issue) => issue.key)),
+          ].sort();
+          return uniqueKeys.map((key) => ({ text: key, value: key }));
+        })(),
       },
       {
         title: "Issue Type",
