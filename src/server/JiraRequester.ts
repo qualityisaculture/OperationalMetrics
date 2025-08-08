@@ -322,32 +322,14 @@ export default class JiraRequester {
         );
       });
 
-      // Get all children for all top-level issues in a single request
-      const topLevelKeys = topLevelIssues.map((issue: any) => issue.key);
-      const allChildren = await this.getAllChildrenForIssues(topLevelKeys);
-
-      // Allocate children to their correct parents
-      const issuesWithChildren = topLevelIssues.map((issue: any) => {
-        const children = allChildren
-          .filter((child: any) => child.parentKey === issue.key)
-          .map((child: any) => ({
-            key: child.key,
-            summary: child.summary,
-            type: child.type,
-            children: [], // Children don't have nested children in this implementation
-            childCount: 0,
-          }));
-
-        return {
-          key: issue.key,
-          summary: issue.fields.summary || "",
-          type: issue.fields.issuetype.name || "",
-          children: children,
-          childCount: children.length,
-        };
-      });
-
-      return issuesWithChildren;
+      // Return issues without children data for faster loading
+      return topLevelIssues.map((issue: any) => ({
+        key: issue.key,
+        summary: issue.fields.summary || "",
+        type: issue.fields.issuetype.name || "",
+        children: [], // No children data
+        childCount: 0, // No child count
+      }));
     } catch (error) {
       console.error("Error in getLiteQuery:", error);
       throw error;

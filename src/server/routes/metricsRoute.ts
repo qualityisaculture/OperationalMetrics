@@ -564,11 +564,11 @@ metricsRoute.get(
 
 // API route for getting all issues in a workstream (with complete recursive data)
 metricsRoute.get(
-  "/jiraReport/workstream/:workstreamKey/issues",
+  "/jiraReport/workstream/:workstreamKey/workstream",
   (req: Request, res: TR<{ message: string; data: string }>) => {
     const workstreamKey = req.params.workstreamKey;
     console.log(
-      `Jira Report workstream issues endpoint called for workstream: ${workstreamKey}`
+      `Jira Report workstream endpoint called for workstream: ${workstreamKey}`
     );
 
     jiraReportGraphManager

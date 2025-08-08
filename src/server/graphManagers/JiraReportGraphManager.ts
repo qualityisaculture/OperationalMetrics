@@ -260,7 +260,7 @@ export default class JiraReportGraphManager {
       // Use the original JQL query that was working - get all issues for the project
       const jql = `project = "${projectKey}" ORDER BY created DESC`;
 
-      // Use the lite query method to get workstream data
+      // Use the simplified lite query method to get workstream data without children for faster loading
       const workstreams = await this.jiraRequester.getLiteQuery(jql);
 
       // Cache the results

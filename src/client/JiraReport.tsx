@@ -286,23 +286,17 @@ export default class JiraReport extends React.Component<Props, State> {
 
   // Simplified method to handle workstream click for navigation
   handleWorkstreamClick = async (workstream: JiraIssue) => {
-    // Only navigate if the workstream has children
-    if (workstream.childCount === 0) {
-      return; // No children, don't navigate
-    }
-
     console.log(`\n=== FRONTEND: Clicking on workstream ${workstream.key} ===`);
     console.log(
       `Workstream: ${workstream.key} - ${workstream.summary} (${workstream.type})`
     );
-    console.log(`Child count: ${workstream.childCount}`);
 
     this.setState({ currentIssuesLoading: true, currentIssuesError: null });
 
     try {
       // Get all issues for this workstream (with complete recursive data)
       const response = await fetch(
-        `/api/jiraReport/workstream/${workstream.key}/issues`
+        `/api/jiraReport/workstream/${workstream.key}/workstream`
       );
       const data = await response.json();
 
@@ -313,6 +307,15 @@ export default class JiraReport extends React.Component<Props, State> {
           `\n=== FRONTEND: Received workstream data for ${workstream.key} ===`
         );
         console.log("Complete workstream tree:", workstreamWithIssues);
+
+        // Check if the workstream has children
+        if (workstreamWithIssues.children.length === 0) {
+          console.log(
+            `Workstream ${workstream.key} has no children, not navigating`
+          );
+          this.setState({ currentIssuesLoading: false });
+          return;
+        }
 
         // Process the workstream data to add aggregated values to Items
         const processedWorkstreamData =
@@ -362,8 +365,7 @@ export default class JiraReport extends React.Component<Props, State> {
           data.message
         );
         this.setState({
-          currentIssuesError:
-            data.message || "Failed to load workstream issues",
+          currentIssuesError: data.message || "Failed to load workstream data",
           currentIssuesLoading: false,
         });
       }
@@ -373,7 +375,7 @@ export default class JiraReport extends React.Component<Props, State> {
         error
       );
       this.setState({
-        currentIssuesError: "Network error while loading workstream issues",
+        currentIssuesError: "Network error while loading workstream data",
         currentIssuesLoading: false,
       });
     }
@@ -624,21 +626,26 @@ export default class JiraReport extends React.Component<Props, State> {
         render: (summary: string) => <Text>{summary}</Text>,
         sorter: (a, b) => a.summary.localeCompare(b.summary),
       },
-      {
-        title: "Children",
-        dataIndex: "childCount",
-        key: "children",
-        render: (childCount: number) => (
-          <Text>
-            {childCount > 0 ? (
-              <Tag color="purple">{childCount}</Tag>
-            ) : (
-              <Text type="secondary">0</Text>
-            )}
-          </Text>
-        ),
-        sorter: (a, b) => a.childCount - b.childCount,
-      },
+      // Only show Children column when not viewing workstreams (when we have child count data)
+      ...(navigationStack.length > 1
+        ? [
+            {
+              title: "Children",
+              dataIndex: "childCount",
+              key: "children",
+              render: (childCount: number) => (
+                <Text>
+                  {childCount > 0 ? (
+                    <Tag color="purple">{childCount}</Tag>
+                  ) : (
+                    <Text type="secondary">0</Text>
+                  )}
+                </Text>
+              ),
+              sorter: (a, b) => a.childCount - b.childCount,
+            },
+          ]
+        : []),
       {
         title: "Original Estimate",
         dataIndex: "originalEstimate",
@@ -926,7 +933,7 @@ export default class JiraReport extends React.Component<Props, State> {
               <div style={{ textAlign: "center", padding: "20px" }}>
                 <Spin />
                 <div style={{ marginTop: "8px" }}>
-                  Loading workstream issues...
+                  Loading workstream data...
                 </div>
               </div>
             )}
@@ -994,9 +1001,18 @@ export default class JiraReport extends React.Component<Props, State> {
                       }
                     },
                     style: {
-                      cursor: record.childCount > 0 ? "pointer" : "default",
+                      // For workstreams (navigationStack.length === 1), always show as clickable
+                      // For issues (navigationStack.length > 1), only show as clickable if they have children
+                      cursor:
+                        this.state.navigationStack.length === 1 ||
+                        record.childCount > 0
+                          ? "pointer"
+                          : "default",
                       backgroundColor:
-                        record.childCount > 0 ? "#fafafa" : "transparent",
+                        this.state.navigationStack.length === 1 ||
+                        record.childCount > 0
+                          ? "#fafafa"
+                          : "transparent",
                     },
                   })}
                 />
