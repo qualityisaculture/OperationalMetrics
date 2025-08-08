@@ -628,6 +628,67 @@ export default class JiraReport extends React.Component<Props, State> {
         onFilter: (value, record) => record.type === value,
       },
       {
+        title: "Status",
+        dataIndex: "status",
+        key: "status",
+        render: (status: string) => {
+          // Handle undefined or empty status
+          if (!status || status === "Unknown") {
+            return <Tag color="default">Unknown</Tag>;
+          }
+
+          // Define color mapping for different statuses
+          const getStatusColor = (status: string) => {
+            const statusLower = status.toLowerCase();
+            if (
+              statusLower.includes("done") ||
+              statusLower.includes("closed") ||
+              statusLower.includes("resolved")
+            ) {
+              return "green";
+            } else if (
+              statusLower.includes("in progress") ||
+              statusLower.includes("development")
+            ) {
+              return "blue";
+            } else if (
+              statusLower.includes("review") ||
+              statusLower.includes("testing")
+            ) {
+              return "purple";
+            } else if (
+              statusLower.includes("blocked") ||
+              statusLower.includes("on hold")
+            ) {
+              return "red";
+            } else if (
+              statusLower.includes("backlog") ||
+              statusLower.includes("to do")
+            ) {
+              return "default";
+            } else {
+              return "orange";
+            }
+          };
+
+          return <Tag color={getStatusColor(status)}>{status}</Tag>;
+        },
+        sorter: (a, b) => (a.status || "").localeCompare(b.status || ""),
+        filters: (() => {
+          // Get unique statuses from the current data
+          const uniqueStatuses = [
+            ...new Set(
+              projectIssues.map((issue) => issue.status).filter(Boolean)
+            ),
+          ].sort();
+          return uniqueStatuses.map((status) => ({
+            text: status,
+            value: status,
+          }));
+        })(),
+        onFilter: (value, record) => record.status === value,
+      },
+      {
         title: "Summary",
         dataIndex: "summary",
         key: "summary",

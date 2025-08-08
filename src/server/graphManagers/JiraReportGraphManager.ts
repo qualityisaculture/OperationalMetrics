@@ -10,6 +10,7 @@ export interface JiraIssue {
   key: string;
   summary: string;
   type: string;
+  status: string;
   children: JiraIssue[];
   childCount: number;
   originalEstimate?: number | null; // in days
@@ -392,6 +393,7 @@ export default class JiraReportGraphManager {
         key: child.key,
         summary: child.summary,
         type: child.type,
+        status: child.status,
         children: [],
         childCount: 0,
         originalEstimate: null,
@@ -924,6 +926,7 @@ export default class JiraReportGraphManager {
       {
         summary: string;
         type: string;
+        status: string;
         originalEstimate: number | null;
         timeSpent: number | null;
         timeRemaining: number | null;
@@ -938,6 +941,7 @@ export default class JiraReportGraphManager {
 
     let issueSummary: string;
     let issueType: string;
+    let issueStatus: string;
     let originalEstimate: number | null;
     let timeSpent: number | null;
     let timeRemaining: number | null;
@@ -945,18 +949,21 @@ export default class JiraReportGraphManager {
     if (cachedResult) {
       issueSummary = cachedResult.issue.summary;
       issueType = cachedResult.issue.type;
+      issueStatus = cachedResult.issue.status;
       originalEstimate = cachedResult.issue.originalEstimate || null;
       timeSpent = cachedResult.issue.timeSpent || null;
       timeRemaining = cachedResult.issue.timeRemaining || null;
     } else if (fetchedDetails) {
       issueSummary = fetchedDetails.summary;
       issueType = fetchedDetails.type;
+      issueStatus = fetchedDetails.status;
       originalEstimate = fetchedDetails.originalEstimate;
       timeSpent = fetchedDetails.timeSpent;
       timeRemaining = fetchedDetails.timeRemaining;
     } else {
       issueSummary = `Issue ${issueKey}`;
       issueType = "Unknown";
+      issueStatus = "Unknown";
       originalEstimate = null;
       timeSpent = null;
       timeRemaining = null;
@@ -968,6 +975,7 @@ export default class JiraReportGraphManager {
         key: issueKey,
         summary: issueSummary,
         type: issueType,
+        status: issueStatus,
         children: [],
         childCount: 0,
         originalEstimate: originalEstimate,
@@ -991,6 +999,7 @@ export default class JiraReportGraphManager {
       key: issueKey,
       summary: issueSummary,
       type: issueType,
+      status: issueStatus,
       children: children,
       childCount: children.length,
       originalEstimate: originalEstimate,
@@ -1062,6 +1071,7 @@ export default class JiraReportGraphManager {
       {
         summary: string;
         type: string;
+        status: string;
         originalEstimate: number | null;
         timeSpent: number | null;
         timeRemaining: number | null;
@@ -1082,6 +1092,7 @@ export default class JiraReportGraphManager {
         "key",
         "summary",
         "issuetype",
+        "status",
         "timeoriginalestimate",
         "timespent",
         "timeestimate",
@@ -1096,6 +1107,7 @@ export default class JiraReportGraphManager {
         {
           summary: string;
           type: string;
+          status: string;
           originalEstimate: number | null;
           timeSpent: number | null;
           timeRemaining: number | null;
@@ -1116,6 +1128,7 @@ export default class JiraReportGraphManager {
         issueDetails.set(issue.key, {
           summary: issue.fields.summary || `Issue ${issue.key}`,
           type: issue.fields.issuetype?.name || "Unknown",
+          status: issue.fields.status?.name || "Unknown",
           originalEstimate: originalEstimate,
           timeSpent: timeSpent,
           timeRemaining: timeRemaining,
@@ -1156,6 +1169,7 @@ export default class JiraReportGraphManager {
         key: child.key,
         summary: child.summary,
         type: child.type,
+        status: child.status,
         children: [], // We don't fetch nested children here
         childCount: 0, // We don't know the child count without fetching
       }));

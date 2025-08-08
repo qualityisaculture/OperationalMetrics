@@ -18,6 +18,7 @@ export type LiteJiraIssue = {
   key: string;
   summary: string;
   type: string;
+  status: string;
   children: LiteJiraIssue[];
   childCount: number;
 };
@@ -26,6 +27,7 @@ export class JiraLite {
   key: string;
   summary: string;
   type: string;
+  status: string;
   children: JiraLite[];
   childCount: number;
 
@@ -33,11 +35,13 @@ export class JiraLite {
     key: string,
     summary: string,
     type: string,
+    status: string,
     children: JiraLite[] = []
   ) {
     this.key = key;
     this.summary = summary;
     this.type = type;
+    this.status = status;
     this.children = children;
     this.childCount = children.length;
   }
@@ -45,10 +49,16 @@ export class JiraLite {
   static fromLiteJiraIssue(issue: LiteJiraIssue): JiraLite {
     const children = issue.children.map((child) =>
       typeof child === "string"
-        ? new JiraLite(child, "", "", [])
+        ? new JiraLite(child, "", "", "", [])
         : JiraLite.fromLiteJiraIssue(child)
     );
-    return new JiraLite(issue.key, issue.summary, issue.type, children);
+    return new JiraLite(
+      issue.key,
+      issue.summary,
+      issue.type,
+      issue.status,
+      children
+    );
   }
 
   toLiteJiraIssue(): LiteJiraIssue {
@@ -56,6 +66,7 @@ export class JiraLite {
       key: this.key,
       summary: this.summary,
       type: this.type,
+      status: this.status,
       children: this.children.map((child) => child.toLiteJiraIssue()),
       childCount: this.childCount,
     };
@@ -294,7 +305,7 @@ export default class JiraRequester {
   async getLiteQuery(query: string): Promise<LiteJiraIssue[]> {
     try {
       const domain = process.env.JIRA_DOMAIN;
-      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,issuetype`;
+      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,issuetype,status`;
       console.log(`Fetching lite data for ${url}`);
 
       let response = await this.fetchRequest(url);
@@ -327,6 +338,7 @@ export default class JiraRequester {
         key: issue.key,
         summary: issue.fields.summary || "",
         type: issue.fields.issuetype.name || "",
+        status: issue.fields.status?.name || "",
         children: [], // No children data
         childCount: 0, // No child count
       }));
@@ -348,7 +360,7 @@ export default class JiraRequester {
         .map((key) => `parent = "${key}"`)
         .join(" OR ");
       const jql = `(${parentConditions}) ORDER BY created ASC`;
-      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,parent`;
+      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,parent,status`;
 
       console.log(
         `Fetching all children for ${parentKeys.length} parent issues`
@@ -376,6 +388,7 @@ export default class JiraRequester {
         key: issue.key,
         summary: issue.fields.summary || "",
         type: issue.fields.issuetype.name || "",
+        status: issue.fields.status?.name || "",
         parentKey: issue.fields.parent?.key || "",
       }));
     } catch (error) {
@@ -389,7 +402,7 @@ export default class JiraRequester {
       const domain = process.env.JIRA_DOMAIN;
       // Query for issues where the parent field matches the parentKey
       const jql = `parent = "${parentKey}" ORDER BY created ASC`;
-      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype`;
+      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,status`;
 
       let response = await this.fetchRequest(url);
 
@@ -413,6 +426,7 @@ export default class JiraRequester {
         key: issue.key,
         summary: issue.fields.summary || "",
         type: issue.fields.issuetype.name || "",
+        status: issue.fields.status?.name || "",
         children: [], // Children don't have nested children in this implementation
         childCount: 0,
       }));
