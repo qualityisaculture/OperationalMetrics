@@ -43,7 +43,7 @@ interface State {
   projectIssues: JiraIssue[];
   issuesLoading: boolean;
   issuesError: string | null;
-  favoriteProjects: Set<string>;
+  favoriteItems: Set<string>; // Changed from favoriteProjects to favoriteItems
   // New state for recursive navigation
   navigationStack: Array<{
     type: "project" | "issue";
@@ -102,7 +102,7 @@ export default class JiraReport extends React.Component<Props, State> {
       projectIssues: [],
       issuesLoading: false,
       issuesError: null,
-      favoriteProjects: new Set(this.loadFavoritesFromStorage()),
+      favoriteItems: new Set(this.loadFavoritesFromStorage()),
       // New state for recursive navigation
       navigationStack: [],
       currentIssues: [],
@@ -117,7 +117,7 @@ export default class JiraReport extends React.Component<Props, State> {
 
   loadFavoritesFromStorage = (): string[] => {
     try {
-      const favorites = localStorage.getItem("jiraReport_favorites");
+      const favorites = localStorage.getItem("jiraReport_favoriteItems");
       return favorites ? JSON.parse(favorites) : [];
     } catch (error) {
       console.error("Error loading favorites from localStorage:", error);
@@ -127,40 +127,43 @@ export default class JiraReport extends React.Component<Props, State> {
 
   saveFavoritesToStorage = (favorites: string[]) => {
     try {
-      localStorage.setItem("jiraReport_favorites", JSON.stringify(favorites));
+      localStorage.setItem(
+        "jiraReport_favoriteItems",
+        JSON.stringify(favorites)
+      );
     } catch (error) {
       console.error("Error saving favorites to localStorage:", error);
     }
   };
 
-  toggleFavorite = (projectKey: string, event: React.MouseEvent) => {
+  toggleFavorite = (itemKey: string, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent row click when clicking star
 
     this.setState((prevState) => {
-      const newFavorites = new Set(prevState.favoriteProjects);
+      const newFavorites = new Set(prevState.favoriteItems);
 
-      if (newFavorites.has(projectKey)) {
-        newFavorites.delete(projectKey);
+      if (newFavorites.has(itemKey)) {
+        newFavorites.delete(itemKey);
       } else {
-        newFavorites.add(projectKey);
+        newFavorites.add(itemKey);
       }
 
       // Save to localStorage
       this.saveFavoritesToStorage(Array.from(newFavorites));
 
-      return { favoriteProjects: newFavorites };
+      return { favoriteItems: newFavorites };
     });
   };
 
   getSortedProjects = () => {
-    const { projects, favoriteProjects } = this.state;
+    const { projects, favoriteItems } = this.state;
 
     // Create two arrays: favorites and non-favorites
     const favoriteProjectsList = projects.filter((project) =>
-      favoriteProjects.has(project.key)
+      favoriteItems.has(project.key)
     );
     const nonFavoriteProjectsList = projects.filter(
-      (project) => !favoriteProjects.has(project.key)
+      (project) => !favoriteItems.has(project.key)
     );
 
     // Sort each group by project key
@@ -171,9 +174,29 @@ export default class JiraReport extends React.Component<Props, State> {
     return [...favoriteProjectsList, ...nonFavoriteProjectsList];
   };
 
+  // Generic sorting function that works for any items (projects or issues)
+  getSortedItems = <T extends { key: string }>(items: T[]): T[] => {
+    const { favoriteItems } = this.state;
+
+    // Create two arrays: favorites and non-favorites
+    const favoriteItemsList = items.filter((item) =>
+      favoriteItems.has(item.key)
+    );
+    const nonFavoriteItemsList = items.filter(
+      (item) => !favoriteItems.has(item.key)
+    );
+
+    // Sort each group by key
+    favoriteItemsList.sort((a, b) => a.key.localeCompare(b.key));
+    nonFavoriteItemsList.sort((a, b) => a.key.localeCompare(b.key));
+
+    // Return favorites first, then non-favorites
+    return [...favoriteItemsList, ...nonFavoriteItemsList];
+  };
+
   getOptimalPageSize = () => {
-    const { favoriteProjects } = this.state;
-    const favoriteCount = favoriteProjects.size;
+    const { favoriteItems } = this.state;
+    const favoriteCount = favoriteItems.size;
 
     // If there are favorites, ensure they all fit on the first page
     if (favoriteCount > 0) {
@@ -483,7 +506,7 @@ export default class JiraReport extends React.Component<Props, State> {
       projectIssues,
       issuesLoading,
       issuesError,
-      favoriteProjects,
+      favoriteItems,
       navigationStack,
       currentIssues,
       currentIssuesLoading,
@@ -501,7 +524,7 @@ export default class JiraReport extends React.Component<Props, State> {
           <Button
             type="text"
             icon={
-              favoriteProjects.has(record.key) ? (
+              favoriteItems.has(record.key) ? (
                 <StarFilled style={{ color: "#faad14" }} />
               ) : (
                 <StarOutlined />
@@ -543,6 +566,25 @@ export default class JiraReport extends React.Component<Props, State> {
     ];
 
     const issueColumns: ColumnsType<JiraIssueWithAggregated> = [
+      {
+        title: "Favorite",
+        key: "favorite",
+        width: 60,
+        render: (_, record) => (
+          <Button
+            type="text"
+            icon={
+              favoriteItems.has(record.key) ? (
+                <StarFilled style={{ color: "#faad14" }} />
+              ) : (
+                <StarOutlined />
+              )
+            }
+            onClick={(e) => this.toggleFavorite(record.key, e)}
+            style={{ padding: 0, border: "none" }}
+          />
+        ),
+      },
       {
         title: "Issue Key",
         dataIndex: "key",
@@ -732,11 +774,11 @@ export default class JiraReport extends React.Component<Props, State> {
             >
               Refresh
             </Button>
-            {favoriteProjects.size > 0 && (
+            {favoriteItems.size > 0 && (
               <Text type="secondary">
                 <StarFilled style={{ color: "#faad14", marginRight: "4px" }} />
-                {favoriteProjects.size} favorite
-                {favoriteProjects.size !== 1 ? "s" : ""}
+                {favoriteItems.size} favorite
+                {favoriteItems.size !== 1 ? "s" : ""}
               </Text>
             )}
           </Space>
@@ -749,10 +791,8 @@ export default class JiraReport extends React.Component<Props, State> {
               <Space>
                 <ProjectOutlined />
                 Projects ({projects.length})
-                {favoriteProjects.size > 0 && (
-                  <Text type="secondary">
-                    • {favoriteProjects.size} starred
-                  </Text>
+                {favoriteItems.size > 0 && (
+                  <Text type="secondary">• {favoriteItems.size} starred</Text>
                 )}
               </Space>
             }
@@ -763,7 +803,7 @@ export default class JiraReport extends React.Component<Props, State> {
             }
           >
             <Table
-              key={`projects-table-${favoriteProjects.size}`} // Force re-render when favorites change
+              key={`projects-table-${favoriteItems.size}`} // Force re-render when favorites change
               columns={projectColumns}
               dataSource={sortedProjects}
               rowKey="id"
@@ -800,7 +840,7 @@ export default class JiraReport extends React.Component<Props, State> {
                 <Button
                   type="text"
                   icon={
-                    favoriteProjects.has(selectedProject.key) ? (
+                    favoriteItems.has(selectedProject.key) ? (
                       <StarFilled style={{ color: "#faad14" }} />
                     ) : (
                       <StarOutlined />
@@ -809,9 +849,7 @@ export default class JiraReport extends React.Component<Props, State> {
                   onClick={(e) => this.toggleFavorite(selectedProject.key, e)}
                   style={{ padding: 0, border: "none" }}
                 >
-                  {favoriteProjects.has(selectedProject.key)
-                    ? "Unstar"
-                    : "Star"}{" "}
+                  {favoriteItems.has(selectedProject.key) ? "Unstar" : "Star"}{" "}
                   Project
                 </Button>
               </Space>
@@ -922,15 +960,18 @@ export default class JiraReport extends React.Component<Props, State> {
                 }
               >
                 <Table
+                  key={`issues-table-${favoriteItems.size}-${navigationStack.length}`} // Force re-render when favorites change
                   columns={issueColumns}
                   dataSource={
                     navigationStack.length > 1
-                      ? currentIssues
-                      : projectIssues.map((issue) => ({
-                          ...issue,
-                          aggregatedOriginalEstimate: undefined,
-                          aggregatedTimeSpent: undefined,
-                        }))
+                      ? this.getSortedItems(currentIssues)
+                      : this.getSortedItems(
+                          projectIssues.map((issue) => ({
+                            ...issue,
+                            aggregatedOriginalEstimate: undefined,
+                            aggregatedTimeSpent: undefined,
+                          }))
+                        )
                   }
                   rowKey="key"
                   pagination={{

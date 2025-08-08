@@ -352,12 +352,6 @@ export default class JiraReportGraphManager {
       `\n=== Starting batched children fetch for issue ${issue.key} ===`
     );
 
-    // If the issue has no children, return it as is
-    if (issue.childCount === 0) {
-      console.log(`Issue ${issue.key} has no children, returning as leaf node`);
-      return issue;
-    }
-
     try {
       // Phase 1: Collect all issue keys at each level
       const allLevelsData = await this.collectAllLevelsBatched([issue.key]);
