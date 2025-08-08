@@ -55,6 +55,15 @@ interface State {
   currentIssues: JiraIssueWithAggregated[];
   currentIssuesLoading: boolean;
   currentIssuesError: string | null;
+  // New state to track loaded workstream aggregated data
+  loadedWorkstreamData: Map<
+    string,
+    {
+      aggregatedOriginalEstimate: number;
+      aggregatedTimeSpent: number;
+      aggregatedTimeRemaining: number;
+    }
+  >;
 }
 
 // Utility function to recursively calculate aggregated estimates and time spent
@@ -114,6 +123,8 @@ export default class JiraReport extends React.Component<Props, State> {
       currentIssues: [],
       currentIssuesLoading: false,
       currentIssuesError: null,
+      // New state to track loaded workstream aggregated data
+      loadedWorkstreamData: new Map(),
     };
   }
 
@@ -332,6 +343,15 @@ export default class JiraReport extends React.Component<Props, State> {
         );
         console.log("Processed workstream tree:", processedWorkstreamData);
 
+        // Store the aggregated workstream data for future display
+        const workstreamAggregatedData = {
+          aggregatedOriginalEstimate:
+            processedWorkstreamData.aggregatedOriginalEstimate ?? 0,
+          aggregatedTimeSpent: processedWorkstreamData.aggregatedTimeSpent ?? 0,
+          aggregatedTimeRemaining:
+            processedWorkstreamData.aggregatedTimeRemaining ?? 0,
+        };
+
         // Process each child (Item) to add aggregated values
         const processedChildren = workstreamWithIssues.children.map((item) => {
           const aggregatedValues = calculateAggregatedValues(item);
@@ -361,6 +381,11 @@ export default class JiraReport extends React.Component<Props, State> {
           navigationStack: [...prevState.navigationStack, newNavigationItem],
           currentIssues: processedChildren,
           currentIssuesLoading: false,
+          // Store the aggregated workstream data
+          loadedWorkstreamData: new Map(prevState.loadedWorkstreamData).set(
+            workstream.key,
+            workstreamAggregatedData
+          ),
         }));
 
         console.log(
@@ -723,24 +748,23 @@ export default class JiraReport extends React.Component<Props, State> {
           estimate: number | null | undefined,
           record: JiraIssueWithAggregated
         ) => {
-          // If we're viewing Items (workstream data), show aggregated values
-          const isViewingItems = navigationStack.length > 1;
-          const valueToShow =
-            isViewingItems && record.aggregatedOriginalEstimate !== undefined
-              ? record.aggregatedOriginalEstimate
-              : estimate;
+          // Show aggregated values if available (either for workstreams or items)
+          const hasAggregatedData =
+            record.aggregatedOriginalEstimate !== undefined;
+          const valueToShow = hasAggregatedData
+            ? record.aggregatedOriginalEstimate
+            : estimate;
 
           return (
             <Text>
               {valueToShow !== null && valueToShow !== undefined ? (
                 <Tag color="green">
                   {valueToShow.toFixed(1)} days
-                  {isViewingItems &&
-                    record.aggregatedOriginalEstimate !== undefined && (
-                      <Text type="secondary" style={{ marginLeft: "4px" }}>
-                        (agg)
-                      </Text>
-                    )}
+                  {hasAggregatedData && (
+                    <Text type="secondary" style={{ marginLeft: "4px" }}>
+                      (agg)
+                    </Text>
+                  )}
                 </Tag>
               ) : (
                 <Text type="secondary">-</Text>
@@ -749,13 +773,12 @@ export default class JiraReport extends React.Component<Props, State> {
           );
         },
         sorter: (a, b) => {
-          const isViewingItems = navigationStack.length > 1;
           const aValue =
-            isViewingItems && a.aggregatedOriginalEstimate !== undefined
+            a.aggregatedOriginalEstimate !== undefined
               ? a.aggregatedOriginalEstimate
               : a.originalEstimate || 0;
           const bValue =
-            isViewingItems && b.aggregatedOriginalEstimate !== undefined
+            b.aggregatedOriginalEstimate !== undefined
               ? b.aggregatedOriginalEstimate
               : b.originalEstimate || 0;
           return aValue - bValue;
@@ -769,24 +792,22 @@ export default class JiraReport extends React.Component<Props, State> {
           timeSpent: number | null | undefined,
           record: JiraIssueWithAggregated
         ) => {
-          // If we're viewing Items (workstream data), show aggregated values
-          const isViewingItems = navigationStack.length > 1;
-          const valueToShow =
-            isViewingItems && record.aggregatedTimeSpent !== undefined
-              ? record.aggregatedTimeSpent
-              : timeSpent;
+          // Show aggregated values if available (either for workstreams or items)
+          const hasAggregatedData = record.aggregatedTimeSpent !== undefined;
+          const valueToShow = hasAggregatedData
+            ? record.aggregatedTimeSpent
+            : timeSpent;
 
           return (
             <Text>
               {valueToShow !== null && valueToShow !== undefined ? (
                 <Tag color="blue">
                   {valueToShow.toFixed(1)} days
-                  {isViewingItems &&
-                    record.aggregatedTimeSpent !== undefined && (
-                      <Text type="secondary" style={{ marginLeft: "4px" }}>
-                        (agg)
-                      </Text>
-                    )}
+                  {hasAggregatedData && (
+                    <Text type="secondary" style={{ marginLeft: "4px" }}>
+                      (agg)
+                    </Text>
+                  )}
                 </Tag>
               ) : (
                 <Text type="secondary">-</Text>
@@ -795,13 +816,12 @@ export default class JiraReport extends React.Component<Props, State> {
           );
         },
         sorter: (a, b) => {
-          const isViewingItems = navigationStack.length > 1;
           const aValue =
-            isViewingItems && a.aggregatedTimeSpent !== undefined
+            a.aggregatedTimeSpent !== undefined
               ? a.aggregatedTimeSpent
               : a.timeSpent || 0;
           const bValue =
-            isViewingItems && b.aggregatedTimeSpent !== undefined
+            b.aggregatedTimeSpent !== undefined
               ? b.aggregatedTimeSpent
               : b.timeSpent || 0;
           return aValue - bValue;
@@ -815,24 +835,23 @@ export default class JiraReport extends React.Component<Props, State> {
           timeRemaining: number | null | undefined,
           record: JiraIssueWithAggregated
         ) => {
-          // If we're viewing Items (workstream data), show aggregated values
-          const isViewingItems = navigationStack.length > 1;
-          const valueToShow =
-            isViewingItems && record.aggregatedTimeRemaining !== undefined
-              ? record.aggregatedTimeRemaining
-              : timeRemaining;
+          // Show aggregated values if available (either for workstreams or items)
+          const hasAggregatedData =
+            record.aggregatedTimeRemaining !== undefined;
+          const valueToShow = hasAggregatedData
+            ? record.aggregatedTimeRemaining
+            : timeRemaining;
 
           return (
             <Text>
               {valueToShow !== null && valueToShow !== undefined ? (
                 <Tag color="red">
                   {valueToShow.toFixed(1)} days
-                  {isViewingItems &&
-                    record.aggregatedTimeRemaining !== undefined && (
-                      <Text type="secondary" style={{ marginLeft: "4px" }}>
-                        (agg)
-                      </Text>
-                    )}
+                  {hasAggregatedData && (
+                    <Text type="secondary" style={{ marginLeft: "4px" }}>
+                      (agg)
+                    </Text>
+                  )}
                 </Tag>
               ) : (
                 <Text type="secondary">-</Text>
@@ -841,13 +860,12 @@ export default class JiraReport extends React.Component<Props, State> {
           );
         },
         sorter: (a, b) => {
-          const isViewingItems = navigationStack.length > 1;
           const aValue =
-            isViewingItems && a.aggregatedTimeRemaining !== undefined
+            a.aggregatedTimeRemaining !== undefined
               ? a.aggregatedTimeRemaining
               : a.timeRemaining || 0;
           const bValue =
-            isViewingItems && b.aggregatedTimeRemaining !== undefined
+            b.aggregatedTimeRemaining !== undefined
               ? b.aggregatedTimeRemaining
               : b.timeRemaining || 0;
           return aValue - bValue;
@@ -857,14 +875,13 @@ export default class JiraReport extends React.Component<Props, State> {
         title: "Total Forecast (Actual + ETC)",
         key: "totalForecast",
         render: (_, record: JiraIssueWithAggregated) => {
-          // If we're viewing Items (workstream data), show aggregated values
-          const isViewingItems = navigationStack.length > 1;
+          // Show aggregated values if available (either for workstreams or items)
           const timeSpent =
-            isViewingItems && record.aggregatedTimeSpent !== undefined
+            record.aggregatedTimeSpent !== undefined
               ? record.aggregatedTimeSpent
               : record.timeSpent || 0;
           const timeRemaining =
-            isViewingItems && record.aggregatedTimeRemaining !== undefined
+            record.aggregatedTimeRemaining !== undefined
               ? record.aggregatedTimeRemaining
               : record.timeRemaining || 0;
 
@@ -875,13 +892,12 @@ export default class JiraReport extends React.Component<Props, State> {
               {totalForecast > 0 ? (
                 <Tag color="purple">
                   {totalForecast.toFixed(1)} days
-                  {isViewingItems &&
-                    (record.aggregatedTimeSpent !== undefined ||
-                      record.aggregatedTimeRemaining !== undefined) && (
-                      <Text type="secondary" style={{ marginLeft: "4px" }}>
-                        (agg)
-                      </Text>
-                    )}
+                  {(record.aggregatedTimeSpent !== undefined ||
+                    record.aggregatedTimeRemaining !== undefined) && (
+                    <Text type="secondary" style={{ marginLeft: "4px" }}>
+                      (agg)
+                    </Text>
+                  )}
                 </Tag>
               ) : (
                 <Text type="secondary">-</Text>
@@ -890,23 +906,22 @@ export default class JiraReport extends React.Component<Props, State> {
           );
         },
         sorter: (a, b) => {
-          const isViewingItems = navigationStack.length > 1;
           const aTimeSpent =
-            isViewingItems && a.aggregatedTimeSpent !== undefined
+            a.aggregatedTimeSpent !== undefined
               ? a.aggregatedTimeSpent
               : a.timeSpent || 0;
           const aTimeRemaining =
-            isViewingItems && a.aggregatedTimeRemaining !== undefined
+            a.aggregatedTimeRemaining !== undefined
               ? a.aggregatedTimeRemaining
               : a.timeRemaining || 0;
           const aTotal = aTimeSpent + aTimeRemaining;
 
           const bTimeSpent =
-            isViewingItems && b.aggregatedTimeSpent !== undefined
+            b.aggregatedTimeSpent !== undefined
               ? b.aggregatedTimeSpent
               : b.timeSpent || 0;
           const bTimeRemaining =
-            isViewingItems && b.aggregatedTimeRemaining !== undefined
+            b.aggregatedTimeRemaining !== undefined
               ? b.aggregatedTimeRemaining
               : b.timeRemaining || 0;
           const bTotal = bTimeSpent + bTimeRemaining;
@@ -918,18 +933,17 @@ export default class JiraReport extends React.Component<Props, State> {
         title: "Variance (Days)",
         key: "varianceDays",
         render: (_, record: JiraIssueWithAggregated) => {
-          // If we're viewing Items (workstream data), show aggregated values
-          const isViewingItems = navigationStack.length > 1;
+          // Show aggregated values if available (either for workstreams or items)
           const originalEstimate =
-            isViewingItems && record.aggregatedOriginalEstimate !== undefined
+            record.aggregatedOriginalEstimate !== undefined
               ? record.aggregatedOriginalEstimate
               : record.originalEstimate || 0;
           const timeSpent =
-            isViewingItems && record.aggregatedTimeSpent !== undefined
+            record.aggregatedTimeSpent !== undefined
               ? record.aggregatedTimeSpent
               : record.timeSpent || 0;
           const timeRemaining =
-            isViewingItems && record.aggregatedTimeRemaining !== undefined
+            record.aggregatedTimeRemaining !== undefined
               ? record.aggregatedTimeRemaining
               : record.timeRemaining || 0;
 
@@ -945,14 +959,13 @@ export default class JiraReport extends React.Component<Props, State> {
                 <Tag color={color}>
                   {variance > 0 ? "+" : ""}
                   {variance.toFixed(1)} days
-                  {isViewingItems &&
-                    (record.aggregatedOriginalEstimate !== undefined ||
-                      record.aggregatedTimeSpent !== undefined ||
-                      record.aggregatedTimeRemaining !== undefined) && (
-                      <Text type="secondary" style={{ marginLeft: "4px" }}>
-                        (agg)
-                      </Text>
-                    )}
+                  {(record.aggregatedOriginalEstimate !== undefined ||
+                    record.aggregatedTimeSpent !== undefined ||
+                    record.aggregatedTimeRemaining !== undefined) && (
+                    <Text type="secondary" style={{ marginLeft: "4px" }}>
+                      (agg)
+                    </Text>
+                  )}
                 </Tag>
               </Text>
             );
@@ -961,31 +974,30 @@ export default class JiraReport extends React.Component<Props, State> {
           return <Text type="secondary">-</Text>;
         },
         sorter: (a, b) => {
-          const isViewingItems = navigationStack.length > 1;
           const aOriginalEstimate =
-            isViewingItems && a.aggregatedOriginalEstimate !== undefined
+            a.aggregatedOriginalEstimate !== undefined
               ? a.aggregatedOriginalEstimate
               : a.originalEstimate || 0;
           const aTimeSpent =
-            isViewingItems && a.aggregatedTimeSpent !== undefined
+            a.aggregatedTimeSpent !== undefined
               ? a.aggregatedTimeSpent
               : a.timeSpent || 0;
           const aTimeRemaining =
-            isViewingItems && a.aggregatedTimeRemaining !== undefined
+            a.aggregatedTimeRemaining !== undefined
               ? a.aggregatedTimeRemaining
               : a.timeRemaining || 0;
           const aVariance = aTimeSpent + aTimeRemaining - aOriginalEstimate;
 
           const bOriginalEstimate =
-            isViewingItems && b.aggregatedOriginalEstimate !== undefined
+            b.aggregatedOriginalEstimate !== undefined
               ? b.aggregatedOriginalEstimate
               : b.originalEstimate || 0;
           const bTimeSpent =
-            isViewingItems && b.aggregatedTimeSpent !== undefined
+            b.aggregatedTimeSpent !== undefined
               ? b.aggregatedTimeSpent
               : b.timeSpent || 0;
           const bTimeRemaining =
-            isViewingItems && b.aggregatedTimeRemaining !== undefined
+            b.aggregatedTimeRemaining !== undefined
               ? b.aggregatedTimeRemaining
               : b.timeRemaining || 0;
           const bVariance = bTimeSpent + bTimeRemaining - bOriginalEstimate;
@@ -997,18 +1009,17 @@ export default class JiraReport extends React.Component<Props, State> {
         title: "Variance (%)",
         key: "variancePercent",
         render: (_, record: JiraIssueWithAggregated) => {
-          // If we're viewing Items (workstream data), show aggregated values
-          const isViewingItems = navigationStack.length > 1;
+          // Show aggregated values if available (either for workstreams or items)
           const originalEstimate =
-            isViewingItems && record.aggregatedOriginalEstimate !== undefined
+            record.aggregatedOriginalEstimate !== undefined
               ? record.aggregatedOriginalEstimate
               : record.originalEstimate || 0;
           const timeSpent =
-            isViewingItems && record.aggregatedTimeSpent !== undefined
+            record.aggregatedTimeSpent !== undefined
               ? record.aggregatedTimeSpent
               : record.timeSpent || 0;
           const timeRemaining =
-            isViewingItems && record.aggregatedTimeRemaining !== undefined
+            record.aggregatedTimeRemaining !== undefined
               ? record.aggregatedTimeRemaining
               : record.timeRemaining || 0;
 
@@ -1029,14 +1040,13 @@ export default class JiraReport extends React.Component<Props, State> {
                 <Tag color={color}>
                   {variancePercent > 0 ? "+" : ""}
                   {variancePercent.toFixed(1)}%
-                  {isViewingItems &&
-                    (record.aggregatedOriginalEstimate !== undefined ||
-                      record.aggregatedTimeSpent !== undefined ||
-                      record.aggregatedTimeRemaining !== undefined) && (
-                      <Text type="secondary" style={{ marginLeft: "4px" }}>
-                        (agg)
-                      </Text>
-                    )}
+                  {(record.aggregatedOriginalEstimate !== undefined ||
+                    record.aggregatedTimeSpent !== undefined ||
+                    record.aggregatedTimeRemaining !== undefined) && (
+                    <Text type="secondary" style={{ marginLeft: "4px" }}>
+                      (agg)
+                    </Text>
+                  )}
                 </Tag>
               </Text>
             );
@@ -1045,17 +1055,16 @@ export default class JiraReport extends React.Component<Props, State> {
           return <Text type="secondary">-</Text>;
         },
         sorter: (a, b) => {
-          const isViewingItems = navigationStack.length > 1;
           const aOriginalEstimate =
-            isViewingItems && a.aggregatedOriginalEstimate !== undefined
+            a.aggregatedOriginalEstimate !== undefined
               ? a.aggregatedOriginalEstimate
               : a.originalEstimate || 0;
           const aTimeSpent =
-            isViewingItems && a.aggregatedTimeSpent !== undefined
+            a.aggregatedTimeSpent !== undefined
               ? a.aggregatedTimeSpent
               : a.timeSpent || 0;
           const aTimeRemaining =
-            isViewingItems && a.aggregatedTimeRemaining !== undefined
+            a.aggregatedTimeRemaining !== undefined
               ? a.aggregatedTimeRemaining
               : a.timeRemaining || 0;
           const aVariancePercent =
@@ -1066,15 +1075,15 @@ export default class JiraReport extends React.Component<Props, State> {
               : 0;
 
           const bOriginalEstimate =
-            isViewingItems && b.aggregatedOriginalEstimate !== undefined
+            b.aggregatedOriginalEstimate !== undefined
               ? b.aggregatedOriginalEstimate
               : b.originalEstimate || 0;
           const bTimeSpent =
-            isViewingItems && b.aggregatedTimeSpent !== undefined
+            b.aggregatedTimeSpent !== undefined
               ? b.aggregatedTimeSpent
               : b.timeSpent || 0;
           const bTimeRemaining =
-            isViewingItems && b.aggregatedTimeRemaining !== undefined
+            b.aggregatedTimeRemaining !== undefined
               ? b.aggregatedTimeRemaining
               : b.timeRemaining || 0;
           const bVariancePercent =
@@ -1316,18 +1325,26 @@ export default class JiraReport extends React.Component<Props, State> {
                 }
               >
                 <Table
-                  key={`issues-table-${favoriteItems.size}-${navigationStack.length}`} // Force re-render when favorites change
+                  key={`issues-table-${favoriteItems.size}-${navigationStack.length}-${this.state.loadedWorkstreamData.size}`} // Force re-render when favorites change or aggregated data is loaded
                   columns={issueColumns}
                   dataSource={
                     navigationStack.length > 1
                       ? this.getSortedItems(currentIssues)
                       : this.getSortedItems(
-                          projectIssues.map((issue) => ({
-                            ...issue,
-                            aggregatedOriginalEstimate: undefined,
-                            aggregatedTimeSpent: undefined,
-                            aggregatedTimeRemaining: undefined,
-                          }))
+                          projectIssues.map((issue) => {
+                            // Check if we have loaded aggregated data for this workstream
+                            const loadedData =
+                              this.state.loadedWorkstreamData.get(issue.key);
+                            return {
+                              ...issue,
+                              aggregatedOriginalEstimate:
+                                loadedData?.aggregatedOriginalEstimate,
+                              aggregatedTimeSpent:
+                                loadedData?.aggregatedTimeSpent,
+                              aggregatedTimeRemaining:
+                                loadedData?.aggregatedTimeRemaining,
+                            };
+                          })
                         )
                   }
                   rowKey="key"
