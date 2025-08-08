@@ -27,6 +27,12 @@ import type { ColumnsType } from "antd/es/table";
 
 const { Title, Text } = Typography;
 
+// Extended interface for JiraIssue with aggregated values
+interface JiraIssueWithAggregated extends JiraIssue {
+  aggregatedOriginalEstimate?: number;
+  aggregatedTimeSpent?: number;
+}
+
 interface Props {}
 
 interface State {
@@ -43,12 +49,47 @@ interface State {
     type: "project" | "issue";
     key: string;
     name: string;
-    data: JiraIssue[];
+    data: JiraIssueWithAggregated[];
   }>;
-  currentIssues: JiraIssue[];
+  currentIssues: JiraIssueWithAggregated[];
   currentIssuesLoading: boolean;
   currentIssuesError: string | null;
 }
+
+// Utility function to recursively calculate aggregated estimates and time spent
+const calculateAggregatedValues = (
+  issue: JiraIssue
+): {
+  aggregatedOriginalEstimate: number;
+  aggregatedTimeSpent: number;
+} => {
+  let totalOriginalEstimate = issue.originalEstimate || 0;
+  let totalTimeSpent = issue.timeSpent || 0;
+
+  // Recursively sum up all children's values
+  for (const child of issue.children) {
+    const childValues = calculateAggregatedValues(child);
+    totalOriginalEstimate += childValues.aggregatedOriginalEstimate;
+    totalTimeSpent += childValues.aggregatedTimeSpent;
+  }
+
+  return {
+    aggregatedOriginalEstimate: totalOriginalEstimate,
+    aggregatedTimeSpent: totalTimeSpent,
+  };
+};
+
+// Utility function to process workstream data and add aggregated values to Items
+const processWorkstreamData = (
+  workstreamData: JiraIssue
+): JiraIssueWithAggregated => {
+  const aggregatedValues = calculateAggregatedValues(workstreamData);
+  return {
+    ...workstreamData,
+    aggregatedOriginalEstimate: aggregatedValues.aggregatedOriginalEstimate,
+    aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
+  };
+};
 
 export default class JiraReport extends React.Component<Props, State> {
   constructor(props: Props) {
@@ -180,7 +221,7 @@ export default class JiraReport extends React.Component<Props, State> {
         this.setState({
           projectIssues: workstreams,
           issuesLoading: false,
-          currentIssues: workstreams, // Set current issues to workstreams initially
+          currentIssues: [], // Initialize as empty, will be set when navigating
         });
       } else {
         this.setState({
@@ -250,12 +291,32 @@ export default class JiraReport extends React.Component<Props, State> {
         );
         console.log("Complete workstream tree:", workstreamWithIssues);
 
-        // Add to navigation stack with the issues from the workstream
+        // Process the workstream data to add aggregated values to Items
+        const processedWorkstreamData =
+          processWorkstreamData(workstreamWithIssues);
+
+        console.log(
+          `\n=== FRONTEND: Processed workstream data with aggregated values ===`
+        );
+        console.log("Processed workstream tree:", processedWorkstreamData);
+
+        // Process each child (Item) to add aggregated values
+        const processedChildren = workstreamWithIssues.children.map((item) => {
+          const aggregatedValues = calculateAggregatedValues(item);
+          return {
+            ...item,
+            aggregatedOriginalEstimate:
+              aggregatedValues.aggregatedOriginalEstimate,
+            aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
+          };
+        });
+
+        // Add to navigation stack with the processed issues from the workstream
         const newNavigationItem = {
           type: "issue" as const,
           key: workstream.key,
           name: workstream.summary,
-          data: workstreamWithIssues.children, // All issues in the workstream
+          data: processedChildren, // All issues in the workstream with aggregated values
         };
 
         console.log(
@@ -265,7 +326,7 @@ export default class JiraReport extends React.Component<Props, State> {
 
         this.setState((prevState) => ({
           navigationStack: [...prevState.navigationStack, newNavigationItem],
-          currentIssues: workstreamWithIssues.children,
+          currentIssues: processedChildren,
           currentIssuesLoading: false,
         }));
 
@@ -296,7 +357,7 @@ export default class JiraReport extends React.Component<Props, State> {
   };
 
   // Handle issue clicks by navigating through existing tree data (no API calls)
-  handleIssueClick = (issue: JiraIssue) => {
+  handleIssueClick = (issue: JiraIssueWithAggregated) => {
     // Only navigate if the issue has children
     if (issue.childCount === 0) {
       return; // No children, don't navigate
@@ -321,19 +382,30 @@ export default class JiraReport extends React.Component<Props, State> {
         issueWithChildren.children
       );
 
+      // Process each child to add aggregated values
+      const processedChildren = issueWithChildren.children.map((child) => {
+        const aggregatedValues = calculateAggregatedValues(child);
+        return {
+          ...child,
+          aggregatedOriginalEstimate:
+            aggregatedValues.aggregatedOriginalEstimate,
+          aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
+        };
+      });
+
       // Add to navigation stack with the children from the existing data
       const newNavigationItem = {
         type: "issue" as const,
         key: issue.key,
         name: issue.summary,
-        data: issueWithChildren.children,
+        data: processedChildren,
       };
 
       console.log(`Adding issue to navigation stack:`, newNavigationItem);
 
       this.setState((prevState) => ({
         navigationStack: [...prevState.navigationStack, newNavigationItem],
-        currentIssues: issueWithChildren.children,
+        currentIssues: processedChildren,
         currentIssuesLoading: false,
         currentIssuesError: null,
       }));
@@ -347,7 +419,9 @@ export default class JiraReport extends React.Component<Props, State> {
   };
 
   // Helper method to find an issue in the current data
-  private findIssueInCurrentData(issueKey: string): JiraIssue | null {
+  private findIssueInCurrentData(
+    issueKey: string
+  ): JiraIssueWithAggregated | null {
     for (const issue of this.state.currentIssues) {
       if (issue.key === issueKey) {
         return issue;
@@ -381,7 +455,7 @@ export default class JiraReport extends React.Component<Props, State> {
       // Project level clicked - show project issues
       this.setState((prevState) => ({
         navigationStack: [prevState.navigationStack[0]],
-        currentIssues: prevState.projectIssues,
+        currentIssues: [], // Reset to empty, will be populated when navigating to workstreams
         currentIssuesLoading: false,
         currentIssuesError: null,
       }));
@@ -468,12 +542,12 @@ export default class JiraReport extends React.Component<Props, State> {
       },
     ];
 
-    const issueColumns: ColumnsType<JiraIssue> = [
+    const issueColumns: ColumnsType<JiraIssueWithAggregated> = [
       {
         title: "Issue Key",
         dataIndex: "key",
         key: "key",
-        render: (key: string, record: JiraIssue) => (
+        render: (key: string, record: JiraIssueWithAggregated) => (
           <a
             href={`https://lendscape.atlassian.net/browse/${key}`}
             target="_blank"
@@ -527,31 +601,93 @@ export default class JiraReport extends React.Component<Props, State> {
         title: "Original Estimate",
         dataIndex: "originalEstimate",
         key: "originalEstimate",
-        render: (estimate: number | null | undefined) => (
-          <Text>
-            {estimate !== null && estimate !== undefined ? (
-              <Tag color="green">{estimate.toFixed(1)} days</Tag>
-            ) : (
-              <Text type="secondary">-</Text>
-            )}
-          </Text>
-        ),
-        sorter: (a, b) => (a.originalEstimate || 0) - (b.originalEstimate || 0),
+        render: (
+          estimate: number | null | undefined,
+          record: JiraIssueWithAggregated
+        ) => {
+          // If we're viewing Items (workstream data), show aggregated values
+          const isViewingItems = navigationStack.length > 1;
+          const valueToShow =
+            isViewingItems && record.aggregatedOriginalEstimate !== undefined
+              ? record.aggregatedOriginalEstimate
+              : estimate;
+
+          return (
+            <Text>
+              {valueToShow !== null && valueToShow !== undefined ? (
+                <Tag color="green">
+                  {valueToShow.toFixed(1)} days
+                  {isViewingItems &&
+                    record.aggregatedOriginalEstimate !== undefined && (
+                      <Text type="secondary" style={{ marginLeft: "4px" }}>
+                        (agg)
+                      </Text>
+                    )}
+                </Tag>
+              ) : (
+                <Text type="secondary">-</Text>
+              )}
+            </Text>
+          );
+        },
+        sorter: (a, b) => {
+          const isViewingItems = navigationStack.length > 1;
+          const aValue =
+            isViewingItems && a.aggregatedOriginalEstimate !== undefined
+              ? a.aggregatedOriginalEstimate
+              : a.originalEstimate || 0;
+          const bValue =
+            isViewingItems && b.aggregatedOriginalEstimate !== undefined
+              ? b.aggregatedOriginalEstimate
+              : b.originalEstimate || 0;
+          return aValue - bValue;
+        },
       },
       {
         title: "Time Spent",
         dataIndex: "timeSpent",
         key: "timeSpent",
-        render: (timeSpent: number | null | undefined) => (
-          <Text>
-            {timeSpent !== null && timeSpent !== undefined ? (
-              <Tag color="blue">{timeSpent.toFixed(1)} days</Tag>
-            ) : (
-              <Text type="secondary">-</Text>
-            )}
-          </Text>
-        ),
-        sorter: (a, b) => (a.timeSpent || 0) - (b.timeSpent || 0),
+        render: (
+          timeSpent: number | null | undefined,
+          record: JiraIssueWithAggregated
+        ) => {
+          // If we're viewing Items (workstream data), show aggregated values
+          const isViewingItems = navigationStack.length > 1;
+          const valueToShow =
+            isViewingItems && record.aggregatedTimeSpent !== undefined
+              ? record.aggregatedTimeSpent
+              : timeSpent;
+
+          return (
+            <Text>
+              {valueToShow !== null && valueToShow !== undefined ? (
+                <Tag color="blue">
+                  {valueToShow.toFixed(1)} days
+                  {isViewingItems &&
+                    record.aggregatedTimeSpent !== undefined && (
+                      <Text type="secondary" style={{ marginLeft: "4px" }}>
+                        (agg)
+                      </Text>
+                    )}
+                </Tag>
+              ) : (
+                <Text type="secondary">-</Text>
+              )}
+            </Text>
+          );
+        },
+        sorter: (a, b) => {
+          const isViewingItems = navigationStack.length > 1;
+          const aValue =
+            isViewingItems && a.aggregatedTimeSpent !== undefined
+              ? a.aggregatedTimeSpent
+              : a.timeSpent || 0;
+          const bValue =
+            isViewingItems && b.aggregatedTimeSpent !== undefined
+              ? b.aggregatedTimeSpent
+              : b.timeSpent || 0;
+          return aValue - bValue;
+        },
       },
     ];
 
@@ -788,7 +924,13 @@ export default class JiraReport extends React.Component<Props, State> {
                 <Table
                   columns={issueColumns}
                   dataSource={
-                    navigationStack.length > 1 ? currentIssues : projectIssues
+                    navigationStack.length > 1
+                      ? currentIssues
+                      : projectIssues.map((issue) => ({
+                          ...issue,
+                          aggregatedOriginalEstimate: undefined,
+                          aggregatedTimeSpent: undefined,
+                        }))
                   }
                   rowKey="key"
                   pagination={{
@@ -805,7 +947,9 @@ export default class JiraReport extends React.Component<Props, State> {
                         this.handleWorkstreamClick(record);
                       } else {
                         // If we're at the workstream level or deeper (showing issues), use issue handler
-                        this.handleIssueClick(record);
+                        this.handleIssueClick(
+                          record as JiraIssueWithAggregated
+                        );
                       }
                     },
                     style: {
