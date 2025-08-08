@@ -853,6 +853,240 @@ export default class JiraReport extends React.Component<Props, State> {
           return aValue - bValue;
         },
       },
+      {
+        title: "Total Forecast (Actual + ETC)",
+        key: "totalForecast",
+        render: (_, record: JiraIssueWithAggregated) => {
+          // If we're viewing Items (workstream data), show aggregated values
+          const isViewingItems = navigationStack.length > 1;
+          const timeSpent =
+            isViewingItems && record.aggregatedTimeSpent !== undefined
+              ? record.aggregatedTimeSpent
+              : record.timeSpent || 0;
+          const timeRemaining =
+            isViewingItems && record.aggregatedTimeRemaining !== undefined
+              ? record.aggregatedTimeRemaining
+              : record.timeRemaining || 0;
+
+          const totalForecast = timeSpent + timeRemaining;
+
+          return (
+            <Text>
+              {totalForecast > 0 ? (
+                <Tag color="purple">
+                  {totalForecast.toFixed(1)} days
+                  {isViewingItems &&
+                    (record.aggregatedTimeSpent !== undefined ||
+                      record.aggregatedTimeRemaining !== undefined) && (
+                      <Text type="secondary" style={{ marginLeft: "4px" }}>
+                        (agg)
+                      </Text>
+                    )}
+                </Tag>
+              ) : (
+                <Text type="secondary">-</Text>
+              )}
+            </Text>
+          );
+        },
+        sorter: (a, b) => {
+          const isViewingItems = navigationStack.length > 1;
+          const aTimeSpent =
+            isViewingItems && a.aggregatedTimeSpent !== undefined
+              ? a.aggregatedTimeSpent
+              : a.timeSpent || 0;
+          const aTimeRemaining =
+            isViewingItems && a.aggregatedTimeRemaining !== undefined
+              ? a.aggregatedTimeRemaining
+              : a.timeRemaining || 0;
+          const aTotal = aTimeSpent + aTimeRemaining;
+
+          const bTimeSpent =
+            isViewingItems && b.aggregatedTimeSpent !== undefined
+              ? b.aggregatedTimeSpent
+              : b.timeSpent || 0;
+          const bTimeRemaining =
+            isViewingItems && b.aggregatedTimeRemaining !== undefined
+              ? b.aggregatedTimeRemaining
+              : b.timeRemaining || 0;
+          const bTotal = bTimeSpent + bTimeRemaining;
+
+          return aTotal - bTotal;
+        },
+      },
+      {
+        title: "Variance (Days)",
+        key: "varianceDays",
+        render: (_, record: JiraIssueWithAggregated) => {
+          // If we're viewing Items (workstream data), show aggregated values
+          const isViewingItems = navigationStack.length > 1;
+          const originalEstimate =
+            isViewingItems && record.aggregatedOriginalEstimate !== undefined
+              ? record.aggregatedOriginalEstimate
+              : record.originalEstimate || 0;
+          const timeSpent =
+            isViewingItems && record.aggregatedTimeSpent !== undefined
+              ? record.aggregatedTimeSpent
+              : record.timeSpent || 0;
+          const timeRemaining =
+            isViewingItems && record.aggregatedTimeRemaining !== undefined
+              ? record.aggregatedTimeRemaining
+              : record.timeRemaining || 0;
+
+          const totalForecast = timeSpent + timeRemaining;
+          const variance = totalForecast - originalEstimate;
+
+          // Only show variance if we have both estimate and forecast
+          if (originalEstimate > 0 || totalForecast > 0) {
+            const color =
+              variance > 0 ? "red" : variance < 0 ? "green" : "default";
+            return (
+              <Text>
+                <Tag color={color}>
+                  {variance > 0 ? "+" : ""}
+                  {variance.toFixed(1)} days
+                  {isViewingItems &&
+                    (record.aggregatedOriginalEstimate !== undefined ||
+                      record.aggregatedTimeSpent !== undefined ||
+                      record.aggregatedTimeRemaining !== undefined) && (
+                      <Text type="secondary" style={{ marginLeft: "4px" }}>
+                        (agg)
+                      </Text>
+                    )}
+                </Tag>
+              </Text>
+            );
+          }
+
+          return <Text type="secondary">-</Text>;
+        },
+        sorter: (a, b) => {
+          const isViewingItems = navigationStack.length > 1;
+          const aOriginalEstimate =
+            isViewingItems && a.aggregatedOriginalEstimate !== undefined
+              ? a.aggregatedOriginalEstimate
+              : a.originalEstimate || 0;
+          const aTimeSpent =
+            isViewingItems && a.aggregatedTimeSpent !== undefined
+              ? a.aggregatedTimeSpent
+              : a.timeSpent || 0;
+          const aTimeRemaining =
+            isViewingItems && a.aggregatedTimeRemaining !== undefined
+              ? a.aggregatedTimeRemaining
+              : a.timeRemaining || 0;
+          const aVariance = aTimeSpent + aTimeRemaining - aOriginalEstimate;
+
+          const bOriginalEstimate =
+            isViewingItems && b.aggregatedOriginalEstimate !== undefined
+              ? b.aggregatedOriginalEstimate
+              : b.originalEstimate || 0;
+          const bTimeSpent =
+            isViewingItems && b.aggregatedTimeSpent !== undefined
+              ? b.aggregatedTimeSpent
+              : b.timeSpent || 0;
+          const bTimeRemaining =
+            isViewingItems && b.aggregatedTimeRemaining !== undefined
+              ? b.aggregatedTimeRemaining
+              : b.timeRemaining || 0;
+          const bVariance = bTimeSpent + bTimeRemaining - bOriginalEstimate;
+
+          return aVariance - bVariance;
+        },
+      },
+      {
+        title: "Variance (%)",
+        key: "variancePercent",
+        render: (_, record: JiraIssueWithAggregated) => {
+          // If we're viewing Items (workstream data), show aggregated values
+          const isViewingItems = navigationStack.length > 1;
+          const originalEstimate =
+            isViewingItems && record.aggregatedOriginalEstimate !== undefined
+              ? record.aggregatedOriginalEstimate
+              : record.originalEstimate || 0;
+          const timeSpent =
+            isViewingItems && record.aggregatedTimeSpent !== undefined
+              ? record.aggregatedTimeSpent
+              : record.timeSpent || 0;
+          const timeRemaining =
+            isViewingItems && record.aggregatedTimeRemaining !== undefined
+              ? record.aggregatedTimeRemaining
+              : record.timeRemaining || 0;
+
+          const totalForecast = timeSpent + timeRemaining;
+          const variance = totalForecast - originalEstimate;
+
+          // Only show variance percentage if we have an original estimate
+          if (originalEstimate > 0) {
+            const variancePercent = (variance / originalEstimate) * 100;
+            const color =
+              variancePercent > 0
+                ? "red"
+                : variancePercent < 0
+                  ? "green"
+                  : "default";
+            return (
+              <Text>
+                <Tag color={color}>
+                  {variancePercent > 0 ? "+" : ""}
+                  {variancePercent.toFixed(1)}%
+                  {isViewingItems &&
+                    (record.aggregatedOriginalEstimate !== undefined ||
+                      record.aggregatedTimeSpent !== undefined ||
+                      record.aggregatedTimeRemaining !== undefined) && (
+                      <Text type="secondary" style={{ marginLeft: "4px" }}>
+                        (agg)
+                      </Text>
+                    )}
+                </Tag>
+              </Text>
+            );
+          }
+
+          return <Text type="secondary">-</Text>;
+        },
+        sorter: (a, b) => {
+          const isViewingItems = navigationStack.length > 1;
+          const aOriginalEstimate =
+            isViewingItems && a.aggregatedOriginalEstimate !== undefined
+              ? a.aggregatedOriginalEstimate
+              : a.originalEstimate || 0;
+          const aTimeSpent =
+            isViewingItems && a.aggregatedTimeSpent !== undefined
+              ? a.aggregatedTimeSpent
+              : a.timeSpent || 0;
+          const aTimeRemaining =
+            isViewingItems && a.aggregatedTimeRemaining !== undefined
+              ? a.aggregatedTimeRemaining
+              : a.timeRemaining || 0;
+          const aVariancePercent =
+            aOriginalEstimate > 0
+              ? ((aTimeSpent + aTimeRemaining - aOriginalEstimate) /
+                  aOriginalEstimate) *
+                100
+              : 0;
+
+          const bOriginalEstimate =
+            isViewingItems && b.aggregatedOriginalEstimate !== undefined
+              ? b.aggregatedOriginalEstimate
+              : b.originalEstimate || 0;
+          const bTimeSpent =
+            isViewingItems && b.aggregatedTimeSpent !== undefined
+              ? b.aggregatedTimeSpent
+              : b.timeSpent || 0;
+          const bTimeRemaining =
+            isViewingItems && b.aggregatedTimeRemaining !== undefined
+              ? b.aggregatedTimeRemaining
+              : b.timeRemaining || 0;
+          const bVariancePercent =
+            bOriginalEstimate > 0
+              ? ((bTimeSpent + bTimeRemaining - bOriginalEstimate) /
+                  bOriginalEstimate) *
+                100
+              : 0;
+
+          return aVariancePercent - bVariancePercent;
+        },
+      },
     ];
 
     if (isLoading) {
@@ -1098,7 +1332,7 @@ export default class JiraReport extends React.Component<Props, State> {
                   }
                   rowKey="key"
                   pagination={{
-                    pageSize: 10,
+                    pageSize: 50,
                     showSizeChanger: true,
                     showQuickJumper: true,
                     showTotal: (total, range) =>
