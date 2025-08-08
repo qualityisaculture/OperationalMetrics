@@ -88,6 +88,7 @@ interface State {
   detailedData: { [key: string]: number };
   categoryTotalHours: number;
   accountCategoryIndex: number;
+  accountNameIndex: number;
   loggedHoursIndex: number;
   fullNameIndex: number;
   issueKeyIndex: number;
@@ -97,6 +98,8 @@ interface State {
   dateIndex: number;
   rawData: any[];
   headers: string[];
+  // New state for filtered data that respects all filters
+  filteredData: any[];
   viewMode: "name" | "issue" | "type";
   detailedByName: { [key: string]: number };
   detailedByIssue: { [key: string]: number };
@@ -142,6 +145,15 @@ interface State {
   currentSheetName: string;
   // New state for excluding holiday and absence data
   excludeHolidayAbsence: boolean;
+  // New state for excluding future data
+  excludeFutureData: boolean;
+  // New state for hierarchical category data
+  groupedDataByCategory: {
+    [category: string]: {
+      totalHours: number;
+      accounts: { [accountName: string]: number };
+    };
+  };
 }
 
 export default class TempoAnalyzer extends React.Component<Props, State> {
@@ -158,6 +170,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       detailedData: {},
       categoryTotalHours: 0,
       accountCategoryIndex: -1,
+      accountNameIndex: -1,
       loggedHoursIndex: -1,
       fullNameIndex: -1,
       issueKeyIndex: -1,
@@ -167,6 +180,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       dateIndex: -1,
       rawData: [],
       headers: [],
+      // New state for filtered data that respects all filters
+      filteredData: [],
       viewMode: "name",
       detailedByName: {},
       detailedByIssue: {},
@@ -196,8 +211,65 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       currentSheetName: "",
       // New state for excluding holiday and absence data
       excludeHolidayAbsence: false,
+      // New state for excluding future data
+      excludeFutureData: true,
+      // New state for hierarchical category data
+      groupedDataByCategory: {},
     };
   }
+
+  // New method to apply all filters to the raw data
+  applyFilters = (tableData: any[]) => {
+    const {
+      excludeHolidayAbsence,
+      excludeFutureData,
+      issueKeyIndex,
+      dateIndex,
+    } = this.state;
+
+    let filteredData = [...tableData];
+
+    // Filter out holiday and absence data if the toggle is enabled
+    if (excludeHolidayAbsence && issueKeyIndex !== -1) {
+      const holidayAbsenceIssueKeys =
+        ISSUE_KEY_EXCEPTIONS.find(
+          (exp) => exp.categorySuffix === "Holiday & Absence"
+        )?.issueKeys || [];
+
+      if (holidayAbsenceIssueKeys.length > 0) {
+        filteredData = filteredData.filter((row) => {
+          const issueKey = row[issueKeyIndex.toString()];
+          return !holidayAbsenceIssueKeys.includes(issueKey);
+        });
+      }
+    }
+
+    // Filter out future data if the toggle is enabled
+    if (excludeFutureData && dateIndex !== -1) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to start of today
+
+      filteredData = filteredData.filter((row) => {
+        const workDate = row[dateIndex.toString()];
+        if (!workDate) return true; // Keep rows without date
+
+        try {
+          // Parse the date in format "2025-08-29 08:00"
+          const dateStr = String(workDate).trim();
+          const dateOnly = dateStr.split(" ")[0]; // Extract just the date part
+          const rowDate = new Date(dateOnly);
+          rowDate.setHours(0, 0, 0, 0); // Set to start of day for comparison
+
+          return rowDate <= today;
+        } catch (error) {
+          // If date parsing fails, keep the row
+          return true;
+        }
+      });
+    }
+
+    return filteredData;
+  };
 
   processData = (tableData: any[], headers: string[]) => {
     // Find the column indices for Account Category and Logged Hours
@@ -205,6 +277,14 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       (header) =>
         header.toLowerCase().includes("account category") ||
         header.toLowerCase().includes("accountcategory")
+    );
+    const accountNameIndex = headers.findIndex(
+      (header) =>
+        header.toLowerCase().includes("account name") ||
+        header.toLowerCase().includes("accountname") ||
+        (header.toLowerCase().includes("name") &&
+          !header.toLowerCase().includes("full name") &&
+          !header.toLowerCase().includes("fullname"))
     );
     const loggedHoursIndex = headers.findIndex(
       (header) =>
@@ -253,6 +333,12 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       return;
     }
 
+    if (accountNameIndex === -1) {
+      message.warning(
+        "Could not find 'Account Name' column. Account Name breakdown will not be available."
+      );
+    }
+
     if (fullNameIndex === -1) {
       message.warning(
         "Could not find 'Full Name' column. Full Name view will not be available."
@@ -292,6 +378,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     // Store the column indices for later use
     this.setState({
       accountCategoryIndex,
+      accountNameIndex,
       loggedHoursIndex,
       fullNameIndex,
       issueKeyIndex,
@@ -303,36 +390,28 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       headers,
     });
 
-    // Filter out holiday and absence data if the toggle is enabled
-    let filteredData = tableData;
-    if (this.state.excludeHolidayAbsence && issueKeyIndex !== -1) {
-      const holidayAbsenceIssueKeys =
-        ISSUE_KEY_EXCEPTIONS.find(
-          (exp) => exp.categorySuffix === "Holiday & Absence"
-        )?.issueKeys || [];
+    // Apply all filters to create the filtered dataset
+    const filteredData = this.applyFilters(tableData);
 
-      if (holidayAbsenceIssueKeys.length > 0) {
-        filteredData = tableData.filter((row) => {
-          const issueKey = row[issueKeyIndex.toString()];
-          return !holidayAbsenceIssueKeys.includes(issueKey);
-        });
+    // Store the filtered data
+    this.setState({
+      filteredData: filteredData,
+    });
 
-        const excludedCount = tableData.length - filteredData.length;
-        if (excludedCount > 0) {
-          message.info(
-            `Excluded ${excludedCount} holiday/absence entries from analysis`
-          );
-        }
-      }
-    }
-
-    // Group by Account Category and sum Logged Hours
+    // Group by Account Category and sum Logged Hours using filtered data
     const grouped: { [key: string]: number } = {};
     const groupedByName: { [key: string]: number } = {};
+    const groupedDataByCategory: {
+      [category: string]: {
+        totalHours: number;
+        accounts: { [accountName: string]: number };
+      };
+    } = {};
     let totalHours = 0;
 
     filteredData.forEach((row) => {
       const accountCategory = row[accountCategoryIndex.toString()];
+      const accountName = row[accountNameIndex.toString()];
       const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
       const issueKey =
         issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
@@ -354,6 +433,22 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
 
           grouped[finalCategory] = (grouped[finalCategory] || 0) + loggedHours;
           totalHours += loggedHours;
+
+          if (accountName) {
+            const account = String(accountName).trim();
+            if (account) {
+              if (!groupedDataByCategory[finalCategory]) {
+                groupedDataByCategory[finalCategory] = {
+                  totalHours: 0,
+                  accounts: {},
+                };
+              }
+              groupedDataByCategory[finalCategory].totalHours += loggedHours;
+              groupedDataByCategory[finalCategory].accounts[account] =
+                (groupedDataByCategory[finalCategory].accounts[account] || 0) +
+                loggedHours;
+            }
+          }
         }
       }
 
@@ -370,6 +465,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       groupedData: grouped,
       groupedByName: groupedByName,
       totalHours: totalHours,
+      groupedDataByCategory: groupedDataByCategory,
     });
   };
 
@@ -439,6 +535,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
           excelData: [],
           columns: [],
           rawData: [],
+          filteredData: [],
           headers: [],
           groupedData: {},
           groupedByName: {},
@@ -452,6 +549,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
           selectedUserCategory: null,
           userCategoryIssueData: {},
           userCategoryIssueTotal: 0,
+          groupedDataByCategory: {},
+          excludeFutureData: true,
         });
       }
     });
@@ -498,6 +597,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
             excelData: [],
             columns: [],
             rawData: [],
+            filteredData: [],
             headers: [],
             groupedData: {},
             groupedByName: {},
@@ -505,6 +605,14 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
             selectedCategory: null,
             detailedData: {},
             categoryTotalHours: 0,
+            selectedUser: null,
+            userCategoryData: {},
+            userTotalHours: 0,
+            selectedUserCategory: null,
+            userCategoryIssueData: {},
+            userCategoryIssueTotal: 0,
+            groupedDataByCategory: {},
+            excludeFutureData: true,
           });
         }
       }
@@ -513,7 +621,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
 
   handleRowClick = (category: string) => {
     const {
-      rawData,
+      filteredData,
       accountCategoryIndex,
       loggedHoursIndex,
       fullNameIndex,
@@ -559,7 +667,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     } = {};
     let categoryTotal = 0;
 
-    rawData.forEach((row) => {
+    filteredData.forEach((row) => {
       const rowCategory = row[accountCategoryIndex.toString()];
       const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
 
@@ -737,7 +845,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
 
   handleUserClick = (userName: string) => {
     const {
-      rawData,
+      filteredData,
       accountCategoryIndex,
       loggedHoursIndex,
       fullNameIndex,
@@ -755,7 +863,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     const userCategoryData: { [key: string]: number } = {};
     let userTotal = 0;
 
-    rawData.forEach((row) => {
+    filteredData.forEach((row) => {
       const rowFullName = row[fullNameIndex.toString()];
       const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
       const issueKey =
@@ -795,7 +903,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
 
   handleUserCategoryClick = (category: string) => {
     const {
-      rawData,
+      filteredData,
       accountCategoryIndex,
       loggedHoursIndex,
       fullNameIndex,
@@ -840,7 +948,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     } = {};
     let userCategoryIssueTotal = 0;
 
-    rawData.forEach((row) => {
+    filteredData.forEach((row) => {
       const rowFullName = row[fullNameIndex.toString()];
       const rowCategory = row[accountCategoryIndex.toString()];
       const rowIssueKey = row[issueKeyIndex.toString()];
@@ -983,7 +1091,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
 
   handleIssueKeyClick = (issueKey: string) => {
     const {
-      rawData,
+      filteredData,
       accountCategoryIndex,
       loggedHoursIndex,
       fullNameIndex,
@@ -1020,7 +1128,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     const userData: { [key: string]: number } = {};
     let issueTotal = 0;
 
-    rawData.forEach((row) => {
+    filteredData.forEach((row) => {
       const rowCategory = row[accountCategoryIndex.toString()];
       const rowIssueKey = row[issueKeyIndex.toString()];
       const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
@@ -1093,7 +1201,23 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     this.setState({ excludeHolidayAbsence: checked }, () => {
       // Reprocess the data with the new filter setting
       if (this.state.rawData.length > 0) {
-        this.processData(this.state.rawData, this.state.headers);
+        const filteredData = this.applyFilters(this.state.rawData);
+        this.setState({ filteredData }, () => {
+          this.processData(this.state.rawData, this.state.headers);
+        });
+      }
+    });
+  };
+
+  // New method to handle future data exclusion toggle
+  handleExcludeFutureDataChange = (checked: boolean) => {
+    this.setState({ excludeFutureData: checked }, () => {
+      // Reprocess the data with the new filter setting
+      if (this.state.rawData.length > 0) {
+        const filteredData = this.applyFilters(this.state.rawData);
+        this.setState({ filteredData }, () => {
+          this.processData(this.state.rawData, this.state.headers);
+        });
       }
     });
   };
@@ -1188,18 +1312,14 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
             (prevState) => {
               const updatedSheets = [...prevState.sheets, ...allNewSheets];
 
-              // Select the new Worklogs sheets by default
+              // Only select the new Worklogs sheets, unselect all existing ones
               const newSheetNames = allNewSheets.map(
                 (sheet) => `${sheet.fileName}|${sheet.name}`
               );
-              const updatedSelectedSheets = [
-                ...prevState.selectedSheets,
-                ...newSheetNames,
-              ];
 
               return {
                 sheets: updatedSheets,
-                selectedSheets: updatedSelectedSheets,
+                selectedSheets: newSheetNames, // Only select new sheets
                 isLoading: false,
               };
             },
@@ -1303,18 +1423,14 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
           (prevState) => {
             const updatedSheets = [...prevState.sheets, ...newSheets];
 
-            // Select the new Worklogs sheets by default
+            // Only select the new Worklogs sheets, unselect all existing ones
             const newSheetNames = newSheets.map(
               (sheet) => `${sheet.fileName}|${sheet.name}`
             );
-            const updatedSelectedSheets = [
-              ...prevState.selectedSheets,
-              ...newSheetNames,
-            ];
 
             return {
               sheets: updatedSheets,
-              selectedSheets: updatedSelectedSheets,
+              selectedSheets: newSheetNames, // Only select new sheets
               isLoading: false,
             };
           },
@@ -1378,6 +1494,9 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       sheets,
       selectedSheets,
       excludeHolidayAbsence,
+      excludeFutureData,
+      groupedDataByCategory,
+      filteredData,
     } = this.state;
 
     return (
@@ -1574,6 +1693,15 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                     >
                       Exclude Holiday & Absence data (ABS-56, ABS-58, ABS-57)
                     </Checkbox>
+                    <br />
+                    <Checkbox
+                      checked={excludeFutureData}
+                      onChange={(e) =>
+                        this.handleExcludeFutureDataChange(e.target.checked)
+                      }
+                    >
+                      Exclude future data (after today)
+                    </Checkbox>
                   </div>
                 </Space>
               </div>
@@ -1635,17 +1763,57 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                       title={`Hours by ${summaryViewMode === "category" ? "Account Category" : "Full Name"} (Click a row to drill down)`}
                     >
                       <Table
-                        dataSource={Object.entries(
+                        dataSource={
                           summaryViewMode === "category"
-                            ? groupedData
-                            : groupedByName
-                        ).map(([item, hours], index) => ({
-                          key: index,
-                          item: item,
-                          hours: hours,
-                          chargeableDays: hours / 7.5,
-                          percentage: ((hours / totalHours) * 100).toFixed(1),
-                        }))}
+                            ? Object.entries(groupedDataByCategory).map(
+                                ([category, data], index) => ({
+                                  key: `category-${index}`,
+                                  item: category,
+                                  hours: data.totalHours,
+                                  chargeableDays: data.totalHours / 7.5,
+                                  percentage: (
+                                    (data.totalHours / totalHours) *
+                                    100
+                                  ).toFixed(1),
+                                  children: Object.entries(data.accounts).map(
+                                    (
+                                      [accountName, accountHours],
+                                      accountIndex
+                                    ) => ({
+                                      key: `account-${index}-${accountIndex}`,
+                                      item: accountName,
+                                      hours: accountHours as number,
+                                      chargeableDays:
+                                        (accountHours as number) / 7.5,
+                                      percentage: (
+                                        ((accountHours as number) /
+                                          totalHours) *
+                                        100
+                                      ).toFixed(1),
+                                      subPercentage: (
+                                        ((accountHours as number) /
+                                          data.totalHours) *
+                                        100
+                                      ).toFixed(1),
+                                      isAccount: true,
+                                    })
+                                  ),
+                                })
+                              )
+                            : Object.entries(groupedByName).map(
+                                ([item, hours], index) => ({
+                                  key: index,
+                                  item: item,
+                                  hours: hours,
+                                  chargeableDays: hours / 7.5,
+                                  percentage: (
+                                    (hours / totalHours) *
+                                    100
+                                  ).toFixed(1),
+                                  children: undefined,
+                                })
+                              )
+                        }
                         columns={[
                           {
                             title:
@@ -1654,7 +1822,12 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                                 : "Full Name",
                             dataIndex: "item",
                             key: "item",
-                            render: (text) => <Text strong>{text}</Text>,
+                            render: (text, record: any) => (
+                              <Text strong={!record.isAccount}>
+                                {record.isAccount && "  "}
+                                {text}
+                              </Text>
+                            ),
                           },
                           {
                             title: "Logged Hours",
@@ -1680,19 +1853,41 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                             title: "Percentage",
                             dataIndex: "percentage",
                             key: "percentage",
-                            render: (text) => (
-                              <Text type="secondary">{text}%</Text>
+                            render: (text, record: any) => (
+                              <Text type="secondary">
+                                {text}%
+                                {record.isAccount &&
+                                  record.subPercentage &&
+                                  ` (${record.subPercentage}%)`}
+                              </Text>
                             ),
                           },
                         ]}
                         pagination={false}
                         size="small"
-                        onRow={(record) => ({
-                          onClick: () =>
-                            summaryViewMode === "category"
-                              ? this.handleRowClick(record.item)
-                              : this.handleUserClick(record.item),
-                          style: { cursor: "pointer" },
+                        expandable={
+                          summaryViewMode === "category"
+                            ? {
+                                defaultExpandAllRows: false,
+                                expandRowByClick: false,
+                              }
+                            : undefined
+                        }
+                        onRow={(record: any) => ({
+                          onClick: () => {
+                            if (
+                              summaryViewMode === "category" &&
+                              !record.isAccount
+                            ) {
+                              this.handleRowClick(record.item);
+                            } else if (summaryViewMode === "name") {
+                              this.handleUserClick(record.item);
+                            }
+                          },
+                          style: {
+                            cursor: record.isAccount ? "default" : "pointer",
+                            fontWeight: record.isAccount ? "normal" : "bold",
+                          },
                         })}
                       />
                     </Card>
@@ -2245,8 +2440,13 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                             title: "Percentage",
                             dataIndex: "percentage",
                             key: "percentage",
-                            render: (text) => (
-                              <Text type="secondary">{text}%</Text>
+                            render: (text, record: any) => (
+                              <Text type="secondary">
+                                {text}%
+                                {record.isAccount &&
+                                  record.subPercentage &&
+                                  ` (${record.subPercentage}%)`}
+                              </Text>
                             ),
                           },
                         ]}
@@ -2390,17 +2590,18 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
             )}
 
             {/* Raw Data in Expandable Section */}
-            {excelData.length > 0 && (
+            {filteredData.length > 0 && (
               <Collapse>
-                <Panel header="Raw Data (Click to expand)" key="1">
+                <Panel header="Filtered Data (Click to expand)" key="1">
                   <div>
                     <Text type="secondary">
-                      Showing {excelData.length} rows from the first sheet
+                      Showing {filteredData.length} rows (filtered from{" "}
+                      {this.state.rawData.length} total rows)
                     </Text>
                     <div style={{ marginTop: "16px" }}>
                       <Table
                         columns={columns}
-                        dataSource={excelData}
+                        dataSource={filteredData}
                         scroll={{ x: true }}
                         pagination={{
                           pageSize: 20,
