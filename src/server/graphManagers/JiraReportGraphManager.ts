@@ -22,7 +22,7 @@ class ProjectCache {
     string,
     { project: JiraProject; issues: JiraIssue[]; lastUpdated: Date }
   > = new Map();
-  private readonly CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+  private readonly CACHE_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 
   setProjectData(
     projectKey: string,
@@ -109,19 +109,133 @@ class ProjectCache {
   }
 }
 
+// Cache for storing all projects list
+class ProjectsListCache {
+  private projects: JiraProject[] | null = null;
+  private lastUpdated: Date | null = null;
+  private readonly CACHE_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
+
+  setProjects(projects: JiraProject[]): void {
+    this.projects = projects;
+    this.lastUpdated = new Date();
+  }
+
+  getProjects(): JiraProject[] | null {
+    if (!this.projects || !this.lastUpdated) return null;
+
+    const isExpired =
+      Date.now() - this.lastUpdated.getTime() > this.CACHE_DURATION_MS;
+    if (isExpired) {
+      this.projects = null;
+      this.lastUpdated = null;
+      return null;
+    }
+
+    return this.projects;
+  }
+
+  clearCache(): void {
+    this.projects = null;
+    this.lastUpdated = null;
+  }
+}
+
+// Cache for storing individual workstream issues with complete tree structure
+class WorkstreamCache {
+  private workstreams: Map<
+    string,
+    { workstream: JiraIssue; lastUpdated: Date }
+  > = new Map();
+  private readonly CACHE_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
+
+  setWorkstream(workstreamKey: string, workstream: JiraIssue): void {
+    this.workstreams.set(workstreamKey, {
+      workstream,
+      lastUpdated: new Date(),
+    });
+  }
+
+  getWorkstream(workstreamKey: string): JiraIssue | null {
+    const cached = this.workstreams.get(workstreamKey);
+    if (!cached) return null;
+
+    const isExpired =
+      Date.now() - cached.lastUpdated.getTime() > this.CACHE_DURATION_MS;
+    if (isExpired) {
+      this.workstreams.delete(workstreamKey);
+      return null;
+    }
+
+    return cached.workstream;
+  }
+
+  clearCache(): void {
+    this.workstreams.clear();
+  }
+
+  getCacheStatistics(): {
+    totalCachedWorkstreams: number;
+    cacheHitRate: number;
+    oldestEntry: Date | null;
+    newestEntry: Date | null;
+  } {
+    const now = Date.now();
+    let expiredCount = 0;
+    let oldestTime = now;
+    let newestTime = 0;
+
+    for (const [_, data] of this.workstreams) {
+      const isExpired =
+        now - data.lastUpdated.getTime() > this.CACHE_DURATION_MS;
+      if (isExpired) {
+        expiredCount++;
+      }
+
+      const timestamp = data.lastUpdated.getTime();
+      if (timestamp < oldestTime) oldestTime = timestamp;
+      if (timestamp > newestTime) newestTime = timestamp;
+    }
+
+    const validEntries = this.workstreams.size - expiredCount;
+    const cacheHitRate =
+      this.workstreams.size > 0
+        ? (validEntries / this.workstreams.size) * 100
+        : 0;
+
+    return {
+      totalCachedWorkstreams: this.workstreams.size,
+      cacheHitRate: Math.round(cacheHitRate * 100) / 100,
+      oldestEntry: oldestTime !== now ? new Date(oldestTime) : null,
+      newestEntry: newestTime !== 0 ? new Date(newestTime) : null,
+    };
+  }
+}
+
 export default class JiraReportGraphManager {
   jiraRequester: JiraRequester;
   private projectCache: ProjectCache;
+  private projectsListCache: ProjectsListCache;
+  private workstreamCache: WorkstreamCache;
 
   constructor(jiraRequester: JiraRequester) {
     this.jiraRequester = jiraRequester;
     this.projectCache = new ProjectCache();
+    this.projectsListCache = new ProjectsListCache();
+    this.workstreamCache = new WorkstreamCache();
   }
 
   // Clear architecture: Projects → Workstreams → Issues
   async getProjects(): Promise<JiraProject[]> {
     try {
+      const cachedProjects = this.projectsListCache.getProjects();
+      if (cachedProjects) {
+        console.log(`Using cached projects from Jira...`);
+        return cachedProjects;
+      }
+
+      console.log(`Cache miss for projects, fetching from Jira...`);
       const projects = await this.jiraRequester.getProjects();
+      this.projectsListCache.setProjects(projects);
       return projects;
     } catch (error) {
       console.error("Error fetching projects from Jira:", error);
@@ -176,7 +290,22 @@ export default class JiraReportGraphManager {
         `\n=== Fetching complete issue tree for workstream ${workstreamKey} ===`
       );
 
-      // First, try to find the workstream in our cache
+      // First, try to find the workstream in our workstream cache
+      const cachedWorkstream =
+        this.workstreamCache.getWorkstream(workstreamKey);
+      if (cachedWorkstream) {
+        console.log(
+          `Found complete workstream ${workstreamKey} in cache, returning cached data`
+        );
+        console.log(
+          `\n=== RETURNING CACHED WORKSTREAM TREE STRUCTURE FOR ${workstreamKey} ===`
+        );
+        this.logTreeStructure(cachedWorkstream, 0);
+        console.log(`=== END CACHED WORKSTREAM TREE STRUCTURE ===\n`);
+        return cachedWorkstream;
+      }
+
+      // If not in workstream cache, try to find in project cache
       const cachedResult = this.findIssueInCache(workstreamKey);
       if (!cachedResult) {
         throw new Error(
@@ -192,6 +321,15 @@ export default class JiraReportGraphManager {
       // Use the batched approach to get all issues recursively
       const workstreamWithAllIssues =
         await this.getIssueWithAllChildrenBatched(issue);
+
+      // Cache the complete workstream tree
+      this.workstreamCache.setWorkstream(
+        workstreamKey,
+        workstreamWithAllIssues
+      );
+      console.log(
+        `Cached complete workstream tree for ${workstreamKey} with ${workstreamWithAllIssues.children.length} immediate children`
+      );
 
       console.log(
         `=== Completed fetching issue tree for workstream ${workstreamKey} ===\n`
@@ -380,6 +518,31 @@ export default class JiraReportGraphManager {
   // New method to clear cache (useful for testing or manual refresh)
   clearCache(): void {
     this.projectCache.clearCache();
+    this.projectsListCache.clearCache();
+    this.workstreamCache.clearCache();
+  }
+
+  // New method to clear specific caches
+  clearProjectCache(): void {
+    this.projectCache.clearCache();
+  }
+
+  clearProjectsListCache(): void {
+    this.projectsListCache.clearCache();
+  }
+
+  clearWorkstreamCache(): void {
+    this.workstreamCache.clearCache();
+  }
+
+  // New method to get workstream cache statistics
+  getWorkstreamCacheStatistics(): {
+    totalCachedWorkstreams: number;
+    cacheHitRate: number;
+    oldestEntry: Date | null;
+    newestEntry: Date | null;
+  } {
+    return this.workstreamCache.getCacheStatistics();
   }
 
   // Final enhancement: Get detailed statistics about the recursive fetching process
@@ -389,6 +552,16 @@ export default class JiraReportGraphManager {
     totalCacheSize: number;
     oldestEntry: Date | null;
     newestEntry: Date | null;
+    projectsListCache: {
+      hasCachedProjects: boolean;
+      lastUpdated: Date | null;
+    };
+    workstreamCache: {
+      totalCachedWorkstreams: number;
+      cacheHitRate: number;
+      oldestEntry: Date | null;
+      newestEntry: Date | null;
+    };
   } {
     const projects = this.projectCache["projects"];
     const now = Date.now();
@@ -400,6 +573,11 @@ export default class JiraReportGraphManager {
         totalCacheSize: 0,
         oldestEntry: null,
         newestEntry: null,
+        projectsListCache: {
+          hasCachedProjects: this.projectsListCache.getProjects() !== null,
+          lastUpdated: null,
+        },
+        workstreamCache: this.workstreamCache.getCacheStatistics(),
       };
     }
 
@@ -424,19 +602,45 @@ export default class JiraReportGraphManager {
     const cacheHitRate =
       projects.size > 0 ? (validEntries / projects.size) * 100 : 0;
 
+    // Get projects list cache info
+    const cachedProjects = this.projectsListCache.getProjects();
+    const projectsListCacheInfo = {
+      hasCachedProjects: cachedProjects !== null,
+      lastUpdated: null as Date | null,
+    };
+
+    // Get workstream cache statistics
+    const workstreamCacheStats = this.workstreamCache.getCacheStatistics();
+
     return {
       totalCachedProjects: projects.size,
       cacheHitRate: Math.round(cacheHitRate * 100) / 100,
       totalCacheSize: projects.size,
       oldestEntry: oldestTime !== now ? new Date(oldestTime) : null,
       newestEntry: newestTime !== 0 ? new Date(newestTime) : null,
+      projectsListCache: projectsListCacheInfo,
+      workstreamCache: workstreamCacheStats,
     };
   }
 
   // Phase 2: Recursive issue discovery
   async getIssueWithAllChildren(issueKey: string): Promise<JiraIssue> {
     try {
-      // First, try to find the issue in our cache
+      // First, try to find the issue in our workstream cache (for complete trees)
+      const cachedWorkstream = this.workstreamCache.getWorkstream(issueKey);
+      if (cachedWorkstream) {
+        console.log(
+          `Found complete issue tree for ${issueKey} in workstream cache, returning cached data`
+        );
+        console.log(
+          `\n=== RETURNING CACHED TREE STRUCTURE FOR ${issueKey} ===`
+        );
+        this.logTreeStructure(cachedWorkstream, 0);
+        console.log(`=== END CACHED TREE STRUCTURE ===\n`);
+        return cachedWorkstream;
+      }
+
+      // Then, try to find the issue in our project cache
       const cachedResult = this.findIssueInCache(issueKey);
       if (!cachedResult) {
         throw new Error(
@@ -470,6 +674,14 @@ export default class JiraReportGraphManager {
       // Use the new batched approach instead of individual calls
       const issueWithAllChildren =
         await this.getIssueWithAllChildrenBatched(issue);
+
+      // Cache the complete tree if this is a workstream-level issue
+      if (issue.children && issue.children.length > 0) {
+        this.workstreamCache.setWorkstream(issueKey, issueWithAllChildren);
+        console.log(
+          `Cached complete tree for issue ${issueKey} in workstream cache`
+        );
+      }
 
       console.log(`\n=== RETURNING FETCHED TREE STRUCTURE FOR ${issueKey} ===`);
       this.logTreeStructure(issueWithAllChildren, 0);
