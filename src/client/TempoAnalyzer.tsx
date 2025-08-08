@@ -154,6 +154,8 @@ interface State {
       accounts: { [accountName: string]: number };
     };
   };
+  // New state for tracking which rows to show in the expandable table
+  displayedRows: any[];
 }
 
 export default class TempoAnalyzer extends React.Component<Props, State> {
@@ -215,6 +217,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       excludeFutureData: true,
       // New state for hierarchical category data
       groupedDataByCategory: {},
+      // New state for tracking which rows to show in the expandable table
+      displayedRows: [],
     };
   }
 
@@ -666,6 +670,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       }>;
     } = {};
     let categoryTotal = 0;
+    const categoryRows: any[] = []; // Collect rows for this category
 
     filteredData.forEach((row) => {
       const rowCategory = row[accountCategoryIndex.toString()];
@@ -690,6 +695,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
         }
 
         categoryTotal += loggedHours;
+        categoryRows.push(row); // Add this row to the category rows
 
         // Group by Full Name if available
         if (fullNameIndex !== -1) {
@@ -813,6 +819,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       detailedByIssueWithType,
       detailedByType,
       issueWorkDescriptions,
+      displayedRows: categoryRows,
     });
   };
 
@@ -827,6 +834,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       selectedUserCategory: null,
       userCategoryIssueData: {},
       userCategoryIssueTotal: 0,
+      displayedRows: [],
     });
   };
 
@@ -862,6 +870,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     // Filter data for the selected user and group by Account Category
     const userCategoryData: { [key: string]: number } = {};
     let userTotal = 0;
+    const userRows: any[] = []; // Collect rows for this user
 
     filteredData.forEach((row) => {
       const rowFullName = row[fullNameIndex.toString()];
@@ -871,6 +880,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
 
       if (String(rowFullName).trim() === userName) {
         userTotal += loggedHours;
+        userRows.push(row); // Add this row to the user rows
 
         // Group by Account Category
         const accountCategory = row[accountCategoryIndex.toString()];
@@ -898,6 +908,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       selectedUser: userName,
       userCategoryData: userCategoryData,
       userTotalHours: userTotal,
+      displayedRows: userRows,
     });
   };
 
@@ -947,6 +958,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       }>;
     } = {};
     let userCategoryIssueTotal = 0;
+    const userCategoryRows: any[] = []; // Collect rows for this user category
 
     filteredData.forEach((row) => {
       const rowFullName = row[fullNameIndex.toString()];
@@ -972,6 +984,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
         }
 
         userCategoryIssueTotal += loggedHours;
+        userCategoryRows.push(row); // Add this row to the user category rows
 
         // Group by Issue Key
         if (rowIssueKey) {
@@ -1046,6 +1059,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       userCategoryIssueDataWithType: userCategoryIssueDataWithType,
       userCategoryIssueWorkDescriptions: userCategoryIssueWorkDescriptions,
       userCategoryIssueTotal: userCategoryIssueTotal,
+      displayedRows: userCategoryRows,
     });
   };
 
@@ -1127,6 +1141,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     // Filter data for the specific issue key and group by Full Name
     const userData: { [key: string]: number } = {};
     let issueTotal = 0;
+    const issueRows: any[] = []; // Collect rows for this issue key
 
     filteredData.forEach((row) => {
       const rowCategory = row[accountCategoryIndex.toString()];
@@ -1143,6 +1158,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
         }
 
         issueTotal += loggedHours;
+        issueRows.push(row); // Add this row to the issue rows
 
         // Group by Full Name
         if (fullNameIndex !== -1) {
@@ -1161,6 +1177,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       selectedIssueKey: issueKey,
       issueUserData: userData,
       issueTotalHours: issueTotal,
+      displayedRows: issueRows,
     });
   };
 
@@ -1169,6 +1186,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       selectedIssueKey: null,
       issueUserData: {},
       issueTotalHours: 0,
+      displayedRows: [],
     });
   };
 
@@ -1460,6 +1478,28 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     reader.readAsArrayBuffer(file);
   };
 
+  // New method to get the title for the displayed rows based on current context
+  getDisplayedRowsTitle = () => {
+    const {
+      selectedCategory,
+      selectedUser,
+      selectedUserCategory,
+      selectedIssueKey,
+    } = this.state;
+
+    if (selectedIssueKey) {
+      return `${selectedIssueKey} - User Breakdown Data`;
+    } else if (selectedUserCategory) {
+      return `${selectedUser} - ${selectedUserCategory} - Issue Data`;
+    } else if (selectedUser) {
+      return `${selectedUser} - Category Breakdown Data`;
+    } else if (selectedCategory) {
+      return `${selectedCategory} - Breakdown Data`;
+    } else {
+      return "Filtered Data";
+    }
+  };
+
   render() {
     const {
       excelData,
@@ -1497,6 +1537,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       excludeFutureData,
       groupedDataByCategory,
       filteredData,
+      displayedRows,
     } = this.state;
 
     return (
@@ -2590,18 +2631,21 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
             )}
 
             {/* Raw Data in Expandable Section */}
-            {filteredData.length > 0 && (
+            {displayedRows.length > 0 && (
               <Collapse>
-                <Panel header="Filtered Data (Click to expand)" key="1">
+                <Panel
+                  header={`${this.getDisplayedRowsTitle()} (Click to expand)`}
+                  key="1"
+                >
                   <div>
                     <Text type="secondary">
-                      Showing {filteredData.length} rows (filtered from{" "}
-                      {this.state.rawData.length} total rows)
+                      Showing {displayedRows.length} rows for the current
+                      selection
                     </Text>
                     <div style={{ marginTop: "16px" }}>
                       <Table
                         columns={columns}
-                        dataSource={filteredData}
+                        dataSource={displayedRows}
                         scroll={{ x: true }}
                         pagination={{
                           pageSize: 20,
