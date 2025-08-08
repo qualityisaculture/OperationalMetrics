@@ -31,6 +31,7 @@ const { Title, Text } = Typography;
 interface JiraIssueWithAggregated extends JiraIssue {
   aggregatedOriginalEstimate?: number;
   aggregatedTimeSpent?: number;
+  aggregatedTimeRemaining?: number;
 }
 
 interface Props {}
@@ -62,20 +63,24 @@ const calculateAggregatedValues = (
 ): {
   aggregatedOriginalEstimate: number;
   aggregatedTimeSpent: number;
+  aggregatedTimeRemaining: number;
 } => {
-  let totalOriginalEstimate = issue.originalEstimate || 0;
-  let totalTimeSpent = issue.timeSpent || 0;
+  let totalOriginalEstimate = issue.originalEstimate ?? 0;
+  let totalTimeSpent = issue.timeSpent ?? 0;
+  let totalTimeRemaining = issue.timeRemaining ?? 0;
 
   // Recursively sum up all children's values
   for (const child of issue.children) {
     const childValues = calculateAggregatedValues(child);
     totalOriginalEstimate += childValues.aggregatedOriginalEstimate;
     totalTimeSpent += childValues.aggregatedTimeSpent;
+    totalTimeRemaining += childValues.aggregatedTimeRemaining;
   }
 
   return {
     aggregatedOriginalEstimate: totalOriginalEstimate,
     aggregatedTimeSpent: totalTimeSpent,
+    aggregatedTimeRemaining: totalTimeRemaining,
   };
 };
 
@@ -88,6 +93,7 @@ const processWorkstreamData = (
     ...workstreamData,
     aggregatedOriginalEstimate: aggregatedValues.aggregatedOriginalEstimate,
     aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
+    aggregatedTimeRemaining: aggregatedValues.aggregatedTimeRemaining,
   };
 };
 
@@ -334,6 +340,7 @@ export default class JiraReport extends React.Component<Props, State> {
             aggregatedOriginalEstimate:
               aggregatedValues.aggregatedOriginalEstimate,
             aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
+            aggregatedTimeRemaining: aggregatedValues.aggregatedTimeRemaining,
           };
         });
 
@@ -415,6 +422,7 @@ export default class JiraReport extends React.Component<Props, State> {
           aggregatedOriginalEstimate:
             aggregatedValues.aggregatedOriginalEstimate,
           aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
+          aggregatedTimeRemaining: aggregatedValues.aggregatedTimeRemaining,
         };
       });
 
@@ -738,6 +746,52 @@ export default class JiraReport extends React.Component<Props, State> {
           return aValue - bValue;
         },
       },
+      {
+        title: "Time Remaining",
+        dataIndex: "timeRemaining",
+        key: "timeRemaining",
+        render: (
+          timeRemaining: number | null | undefined,
+          record: JiraIssueWithAggregated
+        ) => {
+          // If we're viewing Items (workstream data), show aggregated values
+          const isViewingItems = navigationStack.length > 1;
+          const valueToShow =
+            isViewingItems && record.aggregatedTimeRemaining !== undefined
+              ? record.aggregatedTimeRemaining
+              : timeRemaining;
+
+          return (
+            <Text>
+              {valueToShow !== null && valueToShow !== undefined ? (
+                <Tag color="red">
+                  {valueToShow.toFixed(1)} days
+                  {isViewingItems &&
+                    record.aggregatedTimeRemaining !== undefined && (
+                      <Text type="secondary" style={{ marginLeft: "4px" }}>
+                        (agg)
+                      </Text>
+                    )}
+                </Tag>
+              ) : (
+                <Text type="secondary">-</Text>
+              )}
+            </Text>
+          );
+        },
+        sorter: (a, b) => {
+          const isViewingItems = navigationStack.length > 1;
+          const aValue =
+            isViewingItems && a.aggregatedTimeRemaining !== undefined
+              ? a.aggregatedTimeRemaining
+              : a.timeRemaining || 0;
+          const bValue =
+            isViewingItems && b.aggregatedTimeRemaining !== undefined
+              ? b.aggregatedTimeRemaining
+              : b.timeRemaining || 0;
+          return aValue - bValue;
+        },
+      },
     ];
 
     if (isLoading) {
@@ -977,6 +1031,7 @@ export default class JiraReport extends React.Component<Props, State> {
                             ...issue,
                             aggregatedOriginalEstimate: undefined,
                             aggregatedTimeSpent: undefined,
+                            aggregatedTimeRemaining: undefined,
                           }))
                         )
                   }

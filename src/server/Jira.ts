@@ -23,6 +23,7 @@ export type JiraJsonFields = {
   summary: string;
   timeoriginalestimate?: number;
   timespent?: number;
+  timeestimate?: number;
   updated: string;
   customfield_10085?: { id: number; value: string }; // Account field
 };
@@ -58,6 +59,7 @@ export default class Jira {
     summary: string;
     timeoriginalestimateInDays: number | null;
     timespent: number | null;
+    timeestimateInDays: number | null;
     updated: string;
     url: string;
     account: string;
@@ -101,6 +103,9 @@ export default class Jira {
         : null,
       timespent: json.fields.timespent
         ? json.fields.timespent / 3600 / 7.5
+        : null,
+      timeestimateInDays: json.fields.timeestimate
+        ? json.fields.timeestimate / 3600 / 7.5
         : null,
       updated: json.fields.updated,
       url: `${domain}/browse/${json.key}`,
@@ -187,6 +192,9 @@ export default class Jira {
   }
   getTimeSpent(): number | null {
     return this.fields.timespent || null;
+  }
+  getTimeRemaining(): number | null {
+    return this.fields.timeestimateInDays || null;
   }
   getUrl() {
     return this.fields.url;

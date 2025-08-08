@@ -9,6 +9,7 @@ export type EstimateData = {
   statusTimes: StatusDays[];
   originalEstimate: number | null;
   timeSpent: number | null;
+  timeRemaining: number | null;
 };
 
 export type EstimateDataArray = EstimateData[];
@@ -37,6 +38,7 @@ export default class EstimatesGraphManager {
           statusTimes: jira.getStatusDays(),
           originalEstimate: jira.getOriginalEstimate(),
           timeSpent: jira.getTimeSpent(),
+          timeRemaining: jira.getTimeRemaining(),
         };
       }),
     };

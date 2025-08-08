@@ -14,6 +14,7 @@ export interface JiraIssue {
   childCount: number;
   originalEstimate?: number | null; // in days
   timeSpent?: number | null; // in days
+  timeRemaining?: number | null; // in days
 }
 
 // Cache for storing project data to avoid repeated API calls
@@ -393,6 +394,9 @@ export default class JiraReportGraphManager {
         type: child.type,
         children: [],
         childCount: 0,
+        originalEstimate: null,
+        timeSpent: null,
+        timeRemaining: null,
       }));
 
       return {
@@ -922,6 +926,7 @@ export default class JiraReportGraphManager {
         type: string;
         originalEstimate: number | null;
         timeSpent: number | null;
+        timeRemaining: number | null;
       }
     >
   ): Promise<JiraIssue> {
@@ -935,22 +940,26 @@ export default class JiraReportGraphManager {
     let issueType: string;
     let originalEstimate: number | null;
     let timeSpent: number | null;
+    let timeRemaining: number | null;
 
     if (cachedResult) {
       issueSummary = cachedResult.issue.summary;
       issueType = cachedResult.issue.type;
       originalEstimate = cachedResult.issue.originalEstimate || null;
       timeSpent = cachedResult.issue.timeSpent || null;
+      timeRemaining = cachedResult.issue.timeRemaining || null;
     } else if (fetchedDetails) {
       issueSummary = fetchedDetails.summary;
       issueType = fetchedDetails.type;
       originalEstimate = fetchedDetails.originalEstimate;
       timeSpent = fetchedDetails.timeSpent;
+      timeRemaining = fetchedDetails.timeRemaining;
     } else {
       issueSummary = `Issue ${issueKey}`;
       issueType = "Unknown";
       originalEstimate = null;
       timeSpent = null;
+      timeRemaining = null;
     }
 
     if (childKeys.length === 0) {
@@ -963,6 +972,7 @@ export default class JiraReportGraphManager {
         childCount: 0,
         originalEstimate: originalEstimate,
         timeSpent: timeSpent,
+        timeRemaining: timeRemaining,
       };
     }
 
@@ -985,6 +995,7 @@ export default class JiraReportGraphManager {
       childCount: children.length,
       originalEstimate: originalEstimate,
       timeSpent: timeSpent,
+      timeRemaining: timeRemaining,
     };
   }
 
@@ -997,6 +1008,7 @@ export default class JiraReportGraphManager {
         type: string;
         originalEstimate: number | null;
         timeSpent: number | null;
+        timeRemaining: number | null;
       }
     >
   > {
@@ -1020,6 +1032,7 @@ export default class JiraReportGraphManager {
           type: string;
           originalEstimate: number | null;
           timeSpent: number | null;
+          timeRemaining: number | null;
         }
       >();
       for (const issue of essentialData) {
@@ -1028,6 +1041,7 @@ export default class JiraReportGraphManager {
           type: "Unknown", // We don't have issue type in essential data
           originalEstimate: null, // We don't have time data in essential data
           timeSpent: null,
+          timeRemaining: null,
         });
       }
 
@@ -1050,6 +1064,7 @@ export default class JiraReportGraphManager {
         type: string;
         originalEstimate: number | null;
         timeSpent: number | null;
+        timeRemaining: number | null;
       }
     >
   > {
@@ -1069,6 +1084,7 @@ export default class JiraReportGraphManager {
         "issuetype",
         "timeoriginalestimate",
         "timespent",
+        "timeestimate",
       ];
       const response = await this.jiraRequester.getBatchedJiraData(
         issueKeys,
@@ -1082,6 +1098,7 @@ export default class JiraReportGraphManager {
           type: string;
           originalEstimate: number | null;
           timeSpent: number | null;
+          timeRemaining: number | null;
         }
       >();
       for (const issue of response) {
@@ -1092,12 +1109,16 @@ export default class JiraReportGraphManager {
         const timeSpent = issue.fields.timespent
           ? issue.fields.timespent / 3600 / 7.5
           : null;
+        const timeRemaining = issue.fields.timeestimate
+          ? issue.fields.timeestimate / 3600 / 7.5
+          : null;
 
         issueDetails.set(issue.key, {
           summary: issue.fields.summary || `Issue ${issue.key}`,
           type: issue.fields.issuetype?.name || "Unknown",
           originalEstimate: originalEstimate,
           timeSpent: timeSpent,
+          timeRemaining: timeRemaining,
         });
       }
 
