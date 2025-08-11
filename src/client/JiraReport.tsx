@@ -738,7 +738,8 @@ export default class JiraReport extends React.Component<Props, State> {
         title: "Issue Type",
         dataIndex: "type",
         key: "type",
-        defaultSortOrder: "descend",
+        defaultSortOrder:
+          this.state.navigationStack.length === 1 ? "descend" : undefined,
         render: (type: string, record: JiraIssueWithAggregated) => {
           // Only apply special styling at the project workstreams level (navigationStack.length === 1)
           if (this.state.navigationStack.length === 1) {
@@ -766,8 +767,10 @@ export default class JiraReport extends React.Component<Props, State> {
         sorter: (a, b) => a.type.localeCompare(b.type),
         filters: (() => {
           // Get unique issue types from the current data
+          const currentData =
+            navigationStack.length > 1 ? currentIssues : projectIssues;
           const uniqueTypes = [
-            ...new Set(projectIssues.map((issue) => issue.type)),
+            ...new Set(currentData.map((issue) => issue.type)),
           ].sort();
           return uniqueTypes.map((type) => ({ text: type, value: type }));
         })(),
