@@ -788,21 +788,7 @@ export default class JiraReportGraphManager {
   // Phase 2: Recursive issue discovery
   async getIssueWithAllChildren(issueKey: string): Promise<JiraIssue> {
     try {
-      // First, try to find the issue in our workstream cache (for complete trees)
-      const cachedWorkstream = this.workstreamCache.getWorkstream(issueKey);
-      if (cachedWorkstream) {
-        console.log(
-          `Found complete issue tree for ${issueKey} in workstream cache, returning cached data`
-        );
-        console.log(
-          `\n=== RETURNING CACHED TREE STRUCTURE FOR ${issueKey} ===`
-        );
-        this.logTreeStructure(cachedWorkstream, 0);
-        console.log(`=== END CACHED TREE STRUCTURE ===\n`);
-        return cachedWorkstream;
-      }
-
-      // Then, try to find the issue in our project cache
+      // Try to find the issue in our project cache
       const cachedResult = this.findIssueInCache(issueKey);
       if (!cachedResult) {
         throw new Error(
@@ -833,17 +819,9 @@ export default class JiraReportGraphManager {
         `Complete tree for issue ${issueKey} not in cache, fetching recursively...`
       );
 
-      // Use the new batched approach instead of individual calls
-      const issueWithAllChildren =
+      // Use the batched approach to fetch all children
+      const issueWithAllChildren = 
         await this.getIssueWithAllChildrenBatched(issue);
-
-      // Cache the complete tree if this is a workstream-level issue
-      if (issue.children && issue.children.length > 0) {
-        this.workstreamCache.setWorkstream(issueKey, issueWithAllChildren);
-        console.log(
-          `Cached complete tree for issue ${issueKey} in workstream cache`
-        );
-      }
 
       console.log(`\n=== RETURNING FETCHED TREE STRUCTURE FOR ${issueKey} ===`);
       this.logTreeStructure(issueWithAllChildren, 0);
