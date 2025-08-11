@@ -517,35 +517,30 @@ export default class JiraReportGraphManager {
   private async getIssueWithAllChildrenBatched(
     issue: JiraIssue
   ): Promise<JiraIssue> {
-    console.log(
-      `\n=== Starting batched children fetch for issue ${issue.key} ===`
-    );
+    console.log(`\n=== Starting unified fetch for issue ${issue.key} ===`);
 
     try {
-      // Phase 1: Collect all issue keys at each level
-      const allLevelsData = await this.collectAllLevelsBatched([issue.key]);
+      // Phase 1: Collect all issue data and hierarchy in one go.
+      const { allIssues, hierarchy } =
+        await this.collectAllIssueDataAndHierarchy(issue);
 
-      // Phase 2: Build the complete tree structure
-      const issueWithAllChildren = await this.buildTreeFromBatchedData(
-        issue,
-        allLevelsData
+      // Phase 2: Build the complete tree structure from the collected data.
+      const issueWithAllChildren = this.buildTreeFromCollectedData(
+        issue.key,
+        allIssues,
+        hierarchy
       );
 
-      console.log(
-        `=== Completed batched children fetch for issue ${issue.key} ===\n`
-      );
+      console.log(`=== Completed unified fetch for issue ${issue.key} ===\n`);
       return issueWithAllChildren;
     } catch (error) {
-      console.error(
-        `Error in batched children fetch for issue ${issue.key}:`,
-        error
-      );
-
+      console.error(`Error in unified fetch for issue ${issue.key}:`, error);
+      throw error;
       // Fallback to simple approach if batched approach fails
-      console.log(
-        `Falling back to simple children fetch for issue ${issue.key}`
-      );
-      return await this.getIssueWithSimpleChildren(issue);
+      // console.log(
+      //   `Falling back to simple children fetch for issue ${issue.key}`
+      // );
+      // return await this.getIssueWithSimpleChildren(issue);
     }
   }
 
@@ -563,9 +558,9 @@ export default class JiraReportGraphManager {
         status: child.status,
         children: [],
         childCount: 0,
-        originalEstimate: null,
-        timeSpent: null,
-        timeRemaining: null,
+        originalEstimate: child.originalEstimate || null,
+        timeSpent: child.timeSpent || null,
+        timeRemaining: child.timeRemaining || null,
       }));
 
       return {
@@ -966,14 +961,19 @@ export default class JiraReportGraphManager {
     return false;
   }
 
-  // Phase 1: Batched recursive issue discovery
-  private async collectAllLevelsBatched(
-    rootIssueKeys: string[]
-  ): Promise<Map<string, string[]>> {
-    const allLevelsData = new Map<string, string[]>(); // parentKey -> childKeys[]
-    let currentLevelKeys = rootIssueKeys;
+  // Phase 1: Unified recursive issue discovery and data fetching
+  private async collectAllIssueDataAndHierarchy(rootIssue: JiraIssue): Promise<{
+    allIssues: Map<string, JiraIssue>;
+    hierarchy: Map<string, string[]>;
+  }> {
+    const allIssues = new Map<string, JiraIssue>();
+    const hierarchy = new Map<string, string[]>();
+    let currentLevelKeys = [rootIssue.key];
     let levelNumber = 0;
     let totalApiCalls = 0;
+
+    // The root issue is already passed in with full details
+    allIssues.set(rootIssue.key, rootIssue);
 
     console.log(`\n--- Starting level-by-level collection ---`);
     console.log(
@@ -1020,6 +1020,7 @@ export default class JiraReportGraphManager {
       );
 
       // Make a single batch API call for all issues at this level
+      // This call now fetches all required fields, not just keys.
       const batchStartTime = Date.now();
       const childrenData =
         await this.jiraRequester.getAllChildrenForIssues(currentLevelKeys);
@@ -1051,16 +1052,27 @@ export default class JiraReportGraphManager {
 
       for (const child of childrenData) {
         const parentKey = child.parentKey;
+        if (!parentKey) continue; // Should not happen in this context
+
         if (!childrenByParent.has(parentKey)) {
           childrenByParent.set(parentKey, []);
         }
         childrenByParent.get(parentKey)!.push(child.key);
         nextLevelKeys.push(child.key);
+
+        // Store the full child issue details
+        if (!allIssues.has(child.key)) {
+          allIssues.set(child.key, {
+            ...child,
+            children: [],
+            childCount: 0,
+          });
+        }
       }
 
       // Store this level's data
       for (const [parentKey, childKeys] of childrenByParent) {
-        allLevelsData.set(parentKey, childKeys);
+        hierarchy.set(parentKey, childKeys);
         console.log(
           `Level ${levelNumber}: ${parentKey} has ${childKeys.length} children: ${childKeys.join(", ")}`
         );
@@ -1100,14 +1112,12 @@ export default class JiraReportGraphManager {
     console.log(`\n--- Level-by-level collection completed ---`);
     console.log(`Total API calls made: ${totalApiCalls}`);
     console.log(`Total levels processed: ${levelNumber}`);
-    console.log(
-      `Total parent-child relationships found: ${allLevelsData.size}`
-    );
+    console.log(`Total parent-child relationships found: ${hierarchy.size}`);
 
     // Send final progress update for level collection
     this.updateProgress(
       "level_collection_complete",
-      `Level-by-level collection completed: ${totalApiCalls} API calls, ${levelNumber} levels, ${allLevelsData.size} relationships`,
+      `Level-by-level collection completed: ${totalApiCalls} API calls, ${levelNumber} levels, ${hierarchy.size} relationships`,
       {
         currentLevel: levelNumber,
         totalLevels: levelNumber,
@@ -1121,321 +1131,38 @@ export default class JiraReportGraphManager {
       }
     );
 
-    return allLevelsData;
+    return { allIssues, hierarchy };
   }
 
-  // Phase 2: Enhanced tree building with issue details
-  private async buildTreeFromBatchedData(
-    issue: JiraIssue,
-    allLevelsData: Map<string, string[]>
-  ): Promise<JiraIssue> {
-    console.log(`\n--- Building tree structure for issue ${issue.key} ---`);
-
-    // Send progress update for starting tree building
-    this.updateProgress(
-      "tree_building_start",
-      `Building tree structure for issue ${issue.key}`,
-      {
-        currentPhase: "tree_building",
-        phaseProgress: 0,
-        phaseTotal: 3,
+  // Phase 2: Simplified tree building from pre-fetched data
+  private buildTreeFromCollectedData(
+    rootIssueKey: string,
+    allIssues: Map<string, JiraIssue>,
+    hierarchy: Map<string, string[]>
+  ): JiraIssue {
+    const buildRecursively = (issueKey: string): JiraIssue => {
+      const issueData = allIssues.get(issueKey);
+      if (!issueData) {
+        // This should not happen if data collection was successful
+        console.error(`Data for issue ${issueKey} was not collected.`);
+        throw `Data for issue ${issueKey} was not collected`;
       }
-    );
 
-    // Collect all issue keys that we need details for
-    const allIssueKeys = new Set<string>();
-    allIssueKeys.add(issue.key);
+      const childKeys = hierarchy.get(issueKey) || [];
+      const children = childKeys.map((key) => buildRecursively(key));
 
-    for (const [parentKey, childKeys] of allLevelsData) {
-      allIssueKeys.add(parentKey);
-      childKeys.forEach((key) => allIssueKeys.add(key));
-    }
-
-    console.log(`Need details for ${allIssueKeys.size} total issues`);
-
-    // Send progress update for issue collection
-    this.updateProgress(
-      "collecting_issues",
-      `Collected ${allIssueKeys.size} total issues to process`,
-      {
-        currentPhase: "tree_building",
-        phaseProgress: 1,
-        phaseTotal: 3,
-        totalIssues: allIssueKeys.size,
-      }
-    );
-
-    // Get details for all issues not in cache
-    const missingKeys = Array.from(allIssueKeys).filter(
-      (key) => !this.findIssueInCache(key)
-    );
-    const issueDetails = await this.getIssueDetailsWithTypes(missingKeys);
-
-    console.log(`Fetched details for ${issueDetails.size} missing issues`);
-
-    // Send progress update for issue details fetching
-    this.updateProgress(
-      "fetching_details",
-      `Fetched details for ${issueDetails.size} missing issues`,
-      {
-        currentPhase: "tree_building",
-        phaseProgress: 2,
-        phaseTotal: 3,
-      }
-    );
-
-    // Recursively build the tree using the batched data and issue details
-    const issueWithChildren = await this.buildTreeRecursivelyWithDetails(
-      issue.key,
-      allLevelsData,
-      issueDetails
-    );
-
-    // Send progress update for tree completion
-    this.updateProgress(
-      "tree_complete",
-      `Tree structure completed for issue ${issue.key}`,
-      {
-        currentPhase: "tree_building",
-        phaseProgress: 3,
-        phaseTotal: 3,
-      }
-    );
-
-    console.log(`--- Tree structure completed for issue ${issue.key} ---`);
-    return issueWithChildren;
-  }
-
-  private async buildTreeRecursivelyWithDetails(
-    issueKey: string,
-    allLevelsData: Map<string, string[]>,
-    issueDetails: Map<
-      string,
-      {
-        summary: string;
-        type: string;
-        status: string;
-        originalEstimate: number | null;
-        timeSpent: number | null;
-        timeRemaining: number | null;
-      }
-    >
-  ): Promise<JiraIssue> {
-    const childKeys = allLevelsData.get(issueKey) || [];
-
-    // Get issue details from cache or fetched details
-    const cachedResult = this.findIssueInCache(issueKey);
-    const fetchedDetails = issueDetails.get(issueKey);
-
-    let issueSummary: string;
-    let issueType: string;
-    let issueStatus: string;
-    let originalEstimate: number | null;
-    let timeSpent: number | null;
-    let timeRemaining: number | null;
-
-    if (cachedResult) {
-      issueSummary = cachedResult.issue.summary;
-      issueType = cachedResult.issue.type;
-      issueStatus = cachedResult.issue.status;
-      originalEstimate = cachedResult.issue.originalEstimate || null;
-      timeSpent = cachedResult.issue.timeSpent || null;
-      timeRemaining = cachedResult.issue.timeRemaining || null;
-    } else if (fetchedDetails) {
-      issueSummary = fetchedDetails.summary;
-      issueType = fetchedDetails.type;
-      issueStatus = fetchedDetails.status;
-      originalEstimate = fetchedDetails.originalEstimate;
-      timeSpent = fetchedDetails.timeSpent;
-      timeRemaining = fetchedDetails.timeRemaining;
-    } else {
-      issueSummary = `Issue ${issueKey}`;
-      issueType = "Unknown";
-      issueStatus = "Unknown";
-      originalEstimate = null;
-      timeSpent = null;
-      timeRemaining = null;
-    }
-
-    if (childKeys.length === 0) {
-      // This is a leaf node
+      // Return a copy of the issue data with the children populated
       return {
-        key: issueKey,
-        summary: issueSummary,
-        type: issueType,
-        status: issueStatus,
-        children: [],
-        childCount: 0,
-        originalEstimate: originalEstimate,
-        timeSpent: timeSpent,
-        timeRemaining: timeRemaining,
+        ...issueData,
+        children,
+        childCount: children.length,
       };
-    }
-
-    // This issue has children - recursively build the tree
-    const children = await Promise.all(
-      childKeys.map((childKey) =>
-        this.buildTreeRecursivelyWithDetails(
-          childKey,
-          allLevelsData,
-          issueDetails
-        )
-      )
-    );
-
-    return {
-      key: issueKey,
-      summary: issueSummary,
-      type: issueType,
-      status: issueStatus,
-      children: children,
-      childCount: children.length,
-      originalEstimate: originalEstimate,
-      timeSpent: timeSpent,
-      timeRemaining: timeRemaining,
     };
-  }
 
-  // Helper method to get issue details for children not in cache
-  private async getIssueDetailsForKeys(issueKeys: string[]): Promise<
-    Map<
-      string,
-      {
-        summary: string;
-        type: string;
-        originalEstimate: number | null;
-        timeSpent: number | null;
-        timeRemaining: number | null;
-      }
-    >
-  > {
-    if (issueKeys.length === 0) {
-      return new Map();
-    }
-
-    try {
-      console.log(
-        `Fetching details for ${issueKeys.length} issues not in cache: ${issueKeys.join(", ")}`
-      );
-
-      // Use the existing method to get essential data for these keys
-      const essentialData =
-        await this.jiraRequester.getEssentialJiraDataFromKeys(issueKeys);
-
-      const issueDetails = new Map<
-        string,
-        {
-          summary: string;
-          type: string;
-          originalEstimate: number | null;
-          timeSpent: number | null;
-          timeRemaining: number | null;
-        }
-      >();
-      for (const issue of essentialData) {
-        issueDetails.set(issue.key, {
-          summary: issue.fields.summary || `Issue ${issue.key}`,
-          type: "Unknown", // We don't have issue type in essential data
-          originalEstimate: null, // We don't have time data in essential data
-          timeSpent: null,
-          timeRemaining: null,
-        });
-      }
-
-      return issueDetails;
-    } catch (error) {
-      console.warn(
-        `Could not fetch details for issues: ${issueKeys.join(", ")}`,
-        error
-      );
-      return new Map();
-    }
-  }
-
-  // Phase 3: Enhanced issue details with proper type information
-  private async getIssueDetailsWithTypes(issueKeys: string[]): Promise<
-    Map<
-      string,
-      {
-        summary: string;
-        type: string;
-        status: string;
-        originalEstimate: number | null;
-        timeSpent: number | null;
-        timeRemaining: number | null;
-      }
-    >
-  > {
-    if (issueKeys.length === 0) {
-      return new Map();
-    }
-
-    try {
-      console.log(
-        `Fetching detailed info for ${issueKeys.length} issues: ${issueKeys.join(", ")}`
-      );
-
-      // Use the new batched method to get issue details including type and time fields
-      const fields = [
-        "key",
-        "summary",
-        "issuetype",
-        "status",
-        "timeoriginalestimate",
-        "timespent",
-        "timeestimate",
-      ];
-      const response = await this.jiraRequester.getBatchedJiraData(
-        issueKeys,
-        fields
-      );
-
-      const issueDetails = new Map<
-        string,
-        {
-          summary: string;
-          type: string;
-          status: string;
-          originalEstimate: number | null;
-          timeSpent: number | null;
-          timeRemaining: number | null;
-        }
-      >();
-      for (const issue of response) {
-        // Convert seconds to days (7.5 hours per day)
-        const originalEstimate = issue.fields.timeoriginalestimate
-          ? issue.fields.timeoriginalestimate / 3600 / 7.5
-          : null;
-        const timeSpent = issue.fields.timespent
-          ? issue.fields.timespent / 3600 / 7.5
-          : null;
-        const timeRemaining = issue.fields.timeestimate
-          ? issue.fields.timeestimate / 3600 / 7.5
-          : null;
-
-        issueDetails.set(issue.key, {
-          summary: issue.fields.summary || `Issue ${issue.key}`,
-          type: issue.fields.issuetype?.name || "Unknown",
-          status: issue.fields.status?.name || "Unknown",
-          originalEstimate: originalEstimate,
-          timeSpent: timeSpent,
-          timeRemaining: timeRemaining,
-        });
-      }
-
-      console.log(
-        `Successfully fetched details for ${issueDetails.size} issues`
-      );
-      return issueDetails;
-    } catch (error) {
-      console.warn(
-        `Could not fetch detailed info for issues: ${issueKeys.join(", ")}`,
-        error
-      );
-      throw error;
-      // Fallback to essential data
-      // return this.getIssueDetailsForKeys(issueKeys);
-    }
+    console.log(`\n--- Building tree structure for issue ${rootIssueKey} ---`);
+    const fullTree = buildRecursively(rootIssueKey);
+    console.log(`--- Tree structure completed for issue ${rootIssueKey} ---`);
+    return fullTree;
   }
 
   // Helper method to get a specific level of children for an issue
@@ -1460,6 +1187,9 @@ export default class JiraReportGraphManager {
         status: child.status,
         children: [], // We don't fetch nested children here
         childCount: 0, // We don't know the child count without fetching
+        originalEstimate: child.originalEstimate || null,
+        timeSpent: child.timeSpent || null,
+        timeRemaining: child.timeRemaining || null,
       }));
     } catch (error) {
       console.error(`Error getting children for issue ${issueKey}:`, error);

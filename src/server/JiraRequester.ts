@@ -21,6 +21,9 @@ export type LiteJiraIssue = {
   status: string;
   children: LiteJiraIssue[];
   childCount: number;
+  originalEstimate?: number | null; // in days
+  timeSpent?: number | null; // in days
+  timeRemaining?: number | null; // in days
 };
 
 export class JiraLite {
@@ -354,46 +357,51 @@ export default class JiraRequester {
         return [];
       }
 
-      const domain = process.env.JIRA_DOMAIN;
-      // Create a single JQL query to get all children for all parent keys
-      const parentConditions = parentKeys
-        .map((key) => `parent = "${key}"`)
-        .join(" OR ");
-      const jql = `(${parentConditions}) ORDER BY created ASC`;
-      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,parent,status`;
+      const allChildren: any[] = [];
+      const batchSize = 50; // Process 50 parents at a time
 
-      console.log(
-        `Fetching all children for ${parentKeys.length} parent issues`
-      );
+      for (let i = 0; i < parentKeys.length; i += batchSize) {
+        const parentBatch = parentKeys.slice(i, i + batchSize);
 
-      let response = await this.fetchRequest(url);
+        const parentConditions = parentBatch
+          .map((key) => `parent = "${key}"`)
+          .join(" OR ");
 
-      // Handle pagination if there are more than 50 children
-      if (response.total > 50) {
-        let startAt = 50;
-        while (startAt < response.total) {
-          console.log(
-            `Fetching next 50 children of ${response.total}, startAt: ${startAt}`
-          );
-          let nextResponse = await this.fetchRequest(
-            `${url}&startAt=${startAt}`
-          );
-          response.issues = response.issues.concat(nextResponse.issues);
-          startAt += 50;
-        }
+        const jql = `(${parentConditions}) ORDER BY created ASC`;
+        const fields =
+          "key,summary,issuetype,parent,status,timeoriginalestimate,timespent,timeestimate";
+        const queryWithFields = `${jql}&fields=${fields}`;
+
+        console.log(
+          `Fetching children for batch of ${parentBatch.length} parent issues (total ${parentKeys.length})`
+        );
+
+        const response = await this.requestDataFromServer(queryWithFields);
+
+        const children = response.issues.map((issue: any) => ({
+          key: issue.key,
+          summary: issue.fields.summary || "",
+          type: issue.fields.issuetype.name || "",
+          status: issue.fields.status?.name || "",
+          parentKey: issue.fields.parent?.key || "",
+          originalEstimate: issue.fields.timeoriginalestimate
+            ? issue.fields.timeoriginalestimate / 3600 / 7.5
+            : null,
+          timeSpent: issue.fields.timespent
+            ? issue.fields.timespent / 3600 / 7.5
+            : null,
+          timeRemaining: issue.fields.timeestimate
+            ? issue.fields.timeestimate / 3600 / 7.5
+            : null,
+        }));
+
+        allChildren.push(...children);
       }
 
-      // Transform children and include parent key for allocation
-      return response.issues.map((issue: any) => ({
-        key: issue.key,
-        summary: issue.fields.summary || "",
-        type: issue.fields.issuetype.name || "",
-        status: issue.fields.status?.name || "",
-        parentKey: issue.fields.parent?.key || "",
-      }));
+      return allChildren;
     } catch (error) {
       console.error(`Error fetching children for issues:`, error);
-      return [];
+      throw error;
     }
   }
 
@@ -402,7 +410,7 @@ export default class JiraRequester {
       const domain = process.env.JIRA_DOMAIN;
       // Query for issues where the parent field matches the parentKey
       const jql = `parent = "${parentKey}" ORDER BY created ASC`;
-      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,status`;
+      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,status,timeoriginalestimate,timespent,timeestimate`;
 
       let response = await this.fetchRequest(url);
 
@@ -429,6 +437,15 @@ export default class JiraRequester {
         status: issue.fields.status?.name || "",
         children: [], // Children don't have nested children in this implementation
         childCount: 0,
+        originalEstimate: issue.fields.timeoriginalestimate
+          ? issue.fields.timeoriginalestimate / 3600 / 7.5
+          : null,
+        timeSpent: issue.fields.timespent
+          ? issue.fields.timespent / 3600 / 7.5
+          : null,
+        timeRemaining: issue.fields.timeestimate
+          ? issue.fields.timeestimate / 3600 / 7.5
+          : null,
       }));
     } catch (error) {
       console.error(`Error fetching children for issue ${parentKey}:`, error);
