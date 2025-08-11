@@ -1544,7 +1544,7 @@ export default class JiraReport extends React.Component<Props, State> {
             )}
 
             {/* Issues Table */}
-            {!issuesLoading && !issuesError && (
+            {!issuesLoading && !issuesError && !currentIssuesLoading && (
               <Card
                 title={
                   <Space>
