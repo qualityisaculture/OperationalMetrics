@@ -178,7 +178,21 @@ class WorkstreamCache {
 
   getWorkstream(workstreamKey: string): JiraIssue | null {
     const cached = this.workstreams.get(workstreamKey);
-    if (!cached) return null;
+    if (!cached) {
+      const cachedKeys = Array.from(this.workstreams.keys());
+      if (cachedKeys.length > 0) {
+        console.log(
+          `WorkstreamCache miss for key: ${workstreamKey}. Keys in cache: [${cachedKeys.join(
+            ", "
+          )}]`
+        );
+      } else {
+        console.log(
+          `WorkstreamCache miss for key: ${workstreamKey}. Cache is empty.`
+        );
+      }
+      return null;
+    }
 
     const isExpired =
       Date.now() - cached.lastUpdated.getTime() > this.CACHE_DURATION_MS;
@@ -237,7 +251,7 @@ export default class JiraReportGraphManager {
   private projectCache: ProjectCache;
   private projectsListCache: ProjectsListCache;
   private workstreamCache: WorkstreamCache;
-  private sendProgress: (response: SSEResponse) => void;
+  private sendProgress: ((response: SSEResponse) => void) | undefined;
   private lastProgress: any = {
     currentLevel: 0,
     totalLevels: 0,
@@ -258,7 +272,7 @@ export default class JiraReportGraphManager {
     this.projectCache = new ProjectCache();
     this.projectsListCache = new ProjectsListCache();
     this.workstreamCache = new WorkstreamCache();
-    this.sendProgress = sendProgress || (() => {});
+    this.sendProgress = sendProgress;
 
     // Start cache cleanup interval
     setInterval(() => this.cleanupCache(), this.CACHE_CLEANUP_INTERVAL);
@@ -273,12 +287,14 @@ export default class JiraReportGraphManager {
       };
     }
 
-    this.sendProgress({
-      status: "processing",
-      step: step as any,
-      message,
-      progress: this.lastProgress,
-    });
+    if (this.sendProgress) {
+      this.sendProgress({
+        status: "processing",
+        step: step as any,
+        message,
+        progress: this.lastProgress,
+      });
+    }
   }
 
   // Clear architecture: Projects → Workstreams → Issues
@@ -341,7 +357,11 @@ export default class JiraReportGraphManager {
   }
 
   // Get all issues for a specific workstream (with complete recursive data)
-  async getWorkstreamIssues(workstreamKey: string): Promise<JiraIssue> {
+  async getWorkstreamIssues(
+    workstreamKey: string,
+    sendProgress?: (response: SSEResponse) => void
+  ): Promise<JiraIssue> {
+    this.sendProgress = sendProgress;
     try {
       console.log(
         `\n=== Fetching complete issue tree for workstream ${workstreamKey} ===`
@@ -465,8 +485,10 @@ export default class JiraReportGraphManager {
       );
 
       // Use the batched approach to get all issues recursively
-      const workstreamWithAllIssues =
-        await this.getIssueWithAllChildrenBatched(issue);
+      const workstreamWithAllIssues = await this.getIssueWithAllChildrenBatched(
+        issue,
+        sendProgress
+      );
 
       // Cache the complete workstream tree
       this.workstreamCache.setWorkstream(
@@ -515,14 +537,16 @@ export default class JiraReportGraphManager {
 
   // Phase 4: Performance optimization and enhanced caching
   private async getIssueWithAllChildrenBatched(
-    issue: JiraIssue
+    issue: JiraIssue,
+    sendProgress?: (response: SSEResponse) => void
   ): Promise<JiraIssue> {
+    this.sendProgress = sendProgress;
     console.log(`\n=== Starting unified fetch for issue ${issue.key} ===`);
 
     try {
       // Phase 1: Collect all issue data and hierarchy in one go.
       const { allIssues, hierarchy } =
-        await this.collectAllIssueDataAndHierarchy(issue);
+        await this.collectAllIssueDataAndHierarchy(issue, sendProgress);
 
       // Phase 2: Build the complete tree structure from the collected data.
       const issueWithAllChildren = this.buildTreeFromCollectedData(
@@ -694,6 +718,7 @@ export default class JiraReportGraphManager {
   }
 
   clearWorkstreamCache(): void {
+    console.log("Clearing workstream cache");
     this.workstreamCache.clearCache();
   }
 
@@ -786,7 +811,11 @@ export default class JiraReportGraphManager {
   }
 
   // Phase 2: Recursive issue discovery
-  async getIssueWithAllChildren(issueKey: string): Promise<JiraIssue> {
+  async getIssueWithAllChildren(
+    issueKey: string,
+    sendProgress?: (response: SSEResponse) => void
+  ): Promise<JiraIssue> {
+    this.sendProgress = sendProgress;
     try {
       // Try to find the issue in our project cache
       const cachedResult = this.findIssueInCache(issueKey);
@@ -820,8 +849,10 @@ export default class JiraReportGraphManager {
       );
 
       // Use the batched approach to fetch all children
-      const issueWithAllChildren = 
-        await this.getIssueWithAllChildrenBatched(issue);
+      const issueWithAllChildren = await this.getIssueWithAllChildrenBatched(
+        issue,
+        sendProgress
+      );
 
       console.log(`\n=== RETURNING FETCHED TREE STRUCTURE FOR ${issueKey} ===`);
       this.logTreeStructure(issueWithAllChildren, 0);
@@ -940,10 +971,14 @@ export default class JiraReportGraphManager {
   }
 
   // Phase 1: Unified recursive issue discovery and data fetching
-  private async collectAllIssueDataAndHierarchy(rootIssue: JiraIssue): Promise<{
+  private async collectAllIssueDataAndHierarchy(
+    rootIssue: JiraIssue,
+    sendProgress?: (response: SSEResponse) => void
+  ): Promise<{
     allIssues: Map<string, JiraIssue>;
     hierarchy: Map<string, string[]>;
   }> {
+    this.sendProgress = sendProgress;
     const allIssues = new Map<string, JiraIssue>();
     const hierarchy = new Map<string, string[]>();
     let currentLevelKeys = [rootIssue.key];

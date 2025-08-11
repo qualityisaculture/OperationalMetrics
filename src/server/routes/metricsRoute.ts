@@ -576,15 +576,6 @@ metricsRoute.get(
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    // Create a new JiraReportGraphManager with progress callback
-    const jiraReportGraphManager = new JiraReportGraphManager(
-      jiraRequester,
-      (progress) => {
-        console.log("Sending progress update:", progress);
-        res.write(`data: ${JSON.stringify(progress)}\n\n`);
-      }
-    );
-
     // Send initial processing message
     res.write(
       `data: ${JSON.stringify({
@@ -606,7 +597,9 @@ metricsRoute.get(
     );
 
     jiraReportGraphManager
-      .getWorkstreamIssues(workstreamKey)
+      .getWorkstreamIssues(workstreamKey, (progress) => {
+        res.write(`data: ${JSON.stringify(progress)}\n\n`);
+      })
       .then((workstreamWithIssues) => {
         console.log(
           `Fetched complete issue tree for workstream ${workstreamKey}`
@@ -689,7 +682,10 @@ metricsRoute.get(
     );
 
     jiraReportGraphManager
-      .getIssueWithAllChildren(issueKey)
+      .getIssueWithAllChildren(issueKey, (progress) => {
+        // In a non-SSE context, you might log this or handle it differently
+        console.log("Progress update:", progress);
+      })
       .then((issueWithChildren) => {
         console.log(`Fetched issue ${issueKey} with all descendants`);
 
