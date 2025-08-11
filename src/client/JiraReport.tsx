@@ -9,6 +9,7 @@ import {
   Typography,
   Tag,
   Breadcrumb,
+  Tooltip,
 } from "antd";
 import {
   JiraProject,
@@ -22,6 +23,7 @@ import {
   StarOutlined,
   StarFilled,
   HomeOutlined,
+  ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 
@@ -653,7 +655,31 @@ export default class JiraReport extends React.Component<Props, State> {
         title: "Issue Type",
         dataIndex: "type",
         key: "type",
-        render: (type: string) => <Tag color="blue">{type}</Tag>,
+        defaultSortOrder: "descend",
+        render: (type: string, record: JiraIssueWithAggregated) => {
+          // Only apply special styling at the project workstreams level (navigationStack.length === 1)
+          if (this.state.navigationStack.length === 1) {
+            const isWorkstream = type.toLowerCase().includes("workstream");
+
+            if (isWorkstream) {
+              return <Tag color="blue">{type}</Tag>;
+            } else {
+              return (
+                <Tooltip
+                  title="Only issues of type 'Workstream' should be at this level of the Project. You should probably move this issue inside an existing Workstream."
+                  placement="top"
+                >
+                  <Tag color="red" icon={<ExclamationCircleOutlined />}>
+                    {type}
+                  </Tag>
+                </Tooltip>
+              );
+            }
+          }
+
+          // At other levels, show normal blue tags
+          return <Tag color="blue">{type}</Tag>;
+        },
         sorter: (a, b) => a.type.localeCompare(b.type),
         filters: (() => {
           // Get unique issue types from the current data
@@ -753,7 +779,7 @@ export default class JiraReport extends React.Component<Props, State> {
           ]
         : []),
       {
-        title: "Original Estimate",
+        title: "Baseline Estimate",
         dataIndex: "originalEstimate",
         key: "originalEstimate",
         render: (
@@ -797,7 +823,7 @@ export default class JiraReport extends React.Component<Props, State> {
         },
       },
       {
-        title: "Time Spent",
+        title: "Actual Days Logged",
         dataIndex: "timeSpent",
         key: "timeSpent",
         render: (
@@ -840,7 +866,7 @@ export default class JiraReport extends React.Component<Props, State> {
         },
       },
       {
-        title: "Time Remaining",
+        title: "Estimate to Complete",
         dataIndex: "timeRemaining",
         key: "timeRemaining",
         render: (
