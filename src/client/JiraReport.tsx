@@ -66,6 +66,20 @@ interface State {
       aggregatedTimeRemaining: number;
     }
   >;
+  // New state for progress tracking
+  progressStatus: string;
+  progressDetails?: {
+    currentLevel: number;
+    totalLevels: number;
+    currentIssues: string[];
+    totalIssues: number;
+    apiCallsMade: number;
+    totalApiCalls: number;
+    currentPhase: string;
+    phaseProgress: number;
+    phaseTotal: number;
+  };
+  currentStep?: string;
 }
 
 // Utility function to recursively calculate aggregated estimates and time spent
@@ -127,6 +141,10 @@ export default class JiraReport extends React.Component<Props, State> {
       currentIssuesError: null,
       // New state to track loaded workstream aggregated data
       loadedWorkstreamData: new Map(),
+      // New state for progress tracking
+      progressStatus: "Idle",
+      progressDetails: undefined,
+      currentStep: undefined,
     };
   }
 
@@ -310,99 +328,149 @@ export default class JiraReport extends React.Component<Props, State> {
       `Workstream: ${workstream.key} - ${workstream.summary} (${workstream.type})`
     );
 
-    this.setState({ currentIssuesLoading: true, currentIssuesError: null });
+    this.setState({
+      currentIssuesLoading: true,
+      currentIssuesError: null,
+      progressStatus: "Starting to fetch workstream data...",
+      progressDetails: undefined,
+      currentStep: undefined,
+    });
 
     try {
-      // Get all issues for this workstream (with complete recursive data)
-      const response = await fetch(
+      // Use SSE to get real-time progress updates
+      const eventSource = new EventSource(
         `/api/jiraReport/workstream/${workstream.key}/workstream`
       );
-      const data = await response.json();
 
-      if (response.ok) {
-        const workstreamWithIssues: JiraIssue = JSON.parse(data.data);
+      eventSource.onmessage = (event) => {
+        const response = JSON.parse(event.data);
 
-        console.log(
-          `\n=== FRONTEND: Received workstream data for ${workstream.key} ===`
-        );
-        console.log("Complete workstream tree:", workstreamWithIssues);
+        if (response.status === "processing") {
+          this.setState({
+            progressStatus: response.message || "Processing...",
+            progressDetails: response.progress,
+            currentStep: response.step,
+          });
+        } else if (response.status === "complete" && response.data) {
+          const workstreamWithIssues: JiraIssue = JSON.parse(response.data);
 
-        // Check if the workstream has children
-        if (workstreamWithIssues.children.length === 0) {
           console.log(
-            `Workstream ${workstream.key} has no children, not navigating`
+            `\n=== FRONTEND: Received workstream data for ${workstream.key} ===`
           );
-          this.setState({ currentIssuesLoading: false });
-          return;
-        }
+          console.log("Complete workstream tree:", workstreamWithIssues);
 
-        // Process the workstream data to add aggregated values to Items
-        const processedWorkstreamData =
-          processWorkstreamData(workstreamWithIssues);
+          // Check if the workstream has children
+          if (workstreamWithIssues.children.length === 0) {
+            console.log(
+              `Workstream ${workstream.key} has no children, not navigating`
+            );
+            this.setState({
+              currentIssuesLoading: false,
+              progressStatus: "Idle",
+              progressDetails: undefined,
+              currentStep: undefined,
+            });
+            eventSource.close();
+            return;
+          }
 
-        console.log(
-          `\n=== FRONTEND: Processed workstream data with aggregated values ===`
-        );
-        console.log("Processed workstream tree:", processedWorkstreamData);
+          // Process the workstream data to add aggregated values to Items
+          const processedWorkstreamData =
+            processWorkstreamData(workstreamWithIssues);
 
-        // Store the aggregated workstream data for future display
-        const workstreamAggregatedData = {
-          aggregatedOriginalEstimate:
-            processedWorkstreamData.aggregatedOriginalEstimate ?? 0,
-          aggregatedTimeSpent: processedWorkstreamData.aggregatedTimeSpent ?? 0,
-          aggregatedTimeRemaining:
-            processedWorkstreamData.aggregatedTimeRemaining ?? 0,
-        };
+          console.log(
+            `\n=== FRONTEND: Processed workstream data with aggregated values ===`
+          );
+          console.log("Processed workstream tree:", processedWorkstreamData);
 
-        // Process each child (Item) to add aggregated values
-        const processedChildren = workstreamWithIssues.children.map((item) => {
-          const aggregatedValues = calculateAggregatedValues(item);
-          return {
-            ...item,
+          // Store the aggregated workstream data for future display
+          const workstreamAggregatedData = {
             aggregatedOriginalEstimate:
-              aggregatedValues.aggregatedOriginalEstimate,
-            aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
-            aggregatedTimeRemaining: aggregatedValues.aggregatedTimeRemaining,
+              processedWorkstreamData.aggregatedOriginalEstimate ?? 0,
+            aggregatedTimeSpent:
+              processedWorkstreamData.aggregatedTimeSpent ?? 0,
+            aggregatedTimeRemaining:
+              processedWorkstreamData.aggregatedTimeRemaining ?? 0,
           };
-        });
 
-        // Add to navigation stack with the processed issues from the workstream
-        const newNavigationItem = {
-          type: "issue" as const,
-          key: workstream.key,
-          name: workstream.summary,
-          data: processedChildren, // All issues in the workstream with aggregated values
-        };
+          // Process each child (Item) to add aggregated values
+          const processedChildren = workstreamWithIssues.children.map(
+            (item) => {
+              const aggregatedValues = calculateAggregatedValues(item);
+              return {
+                ...item,
+                aggregatedOriginalEstimate:
+                  aggregatedValues.aggregatedOriginalEstimate,
+                aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
+                aggregatedTimeRemaining:
+                  aggregatedValues.aggregatedTimeRemaining,
+              };
+            }
+          );
 
-        console.log(
-          `Adding workstream to navigation stack:`,
-          newNavigationItem
-        );
+          // Add to navigation stack with the processed issues from the workstream
+          const newNavigationItem = {
+            type: "issue" as const,
+            key: workstream.key,
+            name: workstream.summary,
+            data: processedChildren, // All issues in the workstream with aggregated values
+          };
 
-        this.setState((prevState) => ({
-          navigationStack: [...prevState.navigationStack, newNavigationItem],
-          currentIssues: processedChildren,
-          currentIssuesLoading: false,
-          // Store the aggregated workstream data
-          loadedWorkstreamData: new Map(prevState.loadedWorkstreamData).set(
-            workstream.key,
-            workstreamAggregatedData
-          ),
-        }));
+          console.log(
+            `Adding workstream to navigation stack:`,
+            newNavigationItem
+          );
 
-        console.log(
-          `=== FRONTEND: Workstream navigation complete for ${workstream.key} ===\n`
-        );
-      } else {
+          this.setState((prevState) => ({
+            navigationStack: [...prevState.navigationStack, newNavigationItem],
+            currentIssues: processedChildren,
+            currentIssuesLoading: false,
+            // Store the aggregated workstream data
+            loadedWorkstreamData: new Map(prevState.loadedWorkstreamData).set(
+              workstream.key,
+              workstreamAggregatedData
+            ),
+            // Reset progress tracking
+            progressStatus: "Idle",
+            progressDetails: undefined,
+            currentStep: undefined,
+          }));
+
+          console.log(
+            `=== FRONTEND: Workstream navigation complete for ${workstream.key} ===\n`
+          );
+
+          eventSource.close();
+        } else if (response.status === "error") {
+          console.error(
+            `FRONTEND: API error for workstream ${workstream.key}:`,
+            response.message
+          );
+          this.setState({
+            currentIssuesError:
+              response.message || "Failed to load workstream data",
+            currentIssuesLoading: false,
+            progressStatus: "Error occurred",
+            progressDetails: undefined,
+            currentStep: undefined,
+          });
+          eventSource.close();
+        }
+      };
+
+      eventSource.onerror = () => {
         console.error(
-          `FRONTEND: API error for workstream ${workstream.key}:`,
-          data.message
+          `FRONTEND: SSE connection error for workstream ${workstream.key}`
         );
         this.setState({
-          currentIssuesError: data.message || "Failed to load workstream data",
+          currentIssuesError: "Connection error while loading workstream data",
           currentIssuesLoading: false,
+          progressStatus: "Connection error",
+          progressDetails: undefined,
+          currentStep: undefined,
         });
-      }
+        eventSource.close();
+      };
     } catch (error) {
       console.error(
         `FRONTEND: Network error for workstream ${workstream.key}:`,
@@ -411,6 +479,9 @@ export default class JiraReport extends React.Component<Props, State> {
       this.setState({
         currentIssuesError: "Network error while loading workstream data",
         currentIssuesLoading: false,
+        progressStatus: "Network error",
+        progressDetails: undefined,
+        currentStep: undefined,
       });
     }
   };
@@ -500,6 +571,10 @@ export default class JiraReport extends React.Component<Props, State> {
       currentIssues: [],
       currentIssuesLoading: false,
       currentIssuesError: null,
+      // Reset progress tracking
+      progressStatus: "Idle",
+      progressDetails: undefined,
+      currentStep: undefined,
     });
   };
 
@@ -518,6 +593,10 @@ export default class JiraReport extends React.Component<Props, State> {
         currentIssues: [], // Reset to empty, will be populated when navigating to workstreams
         currentIssuesLoading: false,
         currentIssuesError: null,
+        // Reset progress tracking
+        progressStatus: "Idle",
+        progressDetails: undefined,
+        currentStep: undefined,
       }));
       return;
     }
@@ -531,6 +610,10 @@ export default class JiraReport extends React.Component<Props, State> {
       currentIssues: targetItem.data,
       currentIssuesLoading: false,
       currentIssuesError: null,
+      // Reset progress tracking
+      progressStatus: "Idle",
+      progressDetails: undefined,
+      currentStep: undefined,
     });
   };
 
@@ -1329,8 +1412,123 @@ export default class JiraReport extends React.Component<Props, State> {
               <div style={{ textAlign: "center", padding: "20px" }}>
                 <Spin />
                 <div style={{ marginTop: "8px" }}>
-                  Loading workstream data...
+                  {this.state.progressStatus}
                 </div>
+
+                {/* Detailed Progress Information */}
+                {this.state.progressDetails && (
+                  <div
+                    style={{
+                      marginTop: "16px",
+                      textAlign: "left",
+                      maxWidth: "600px",
+                      margin: "16px auto",
+                    }}
+                  >
+                    <Card size="small" title="Progress Details">
+                      {/* Current Phase */}
+                      <div style={{ marginBottom: "12px" }}>
+                        <Text strong>Current Phase: </Text>
+                        <Tag color="blue">
+                          {this.state.progressDetails.currentPhase}
+                        </Tag>
+                        <Text type="secondary" style={{ marginLeft: "8px" }}>
+                          {this.state.progressDetails.phaseProgress} /{" "}
+                          {this.state.progressDetails.phaseTotal}
+                        </Text>
+                      </div>
+
+                      {/* Level Information */}
+                      {this.state.progressDetails.currentLevel > 0 && (
+                        <div style={{ marginBottom: "12px" }}>
+                          <Text strong>Processing Level: </Text>
+                          <Tag color="green">
+                            {this.state.progressDetails.currentLevel}
+                          </Tag>
+                          {this.state.progressDetails.totalLevels > 0 && (
+                            <Text
+                              type="secondary"
+                              style={{ marginLeft: "8px" }}
+                            >
+                              of {this.state.progressDetails.totalLevels}
+                            </Text>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Issue Counts */}
+                      {this.state.progressDetails.totalIssues > 0 && (
+                        <div style={{ marginBottom: "12px" }}>
+                          <Text strong>Issues in Current Level: </Text>
+                          <Tag color="orange">
+                            {this.state.progressDetails.totalIssues}
+                          </Tag>
+                          {this.state.progressDetails.currentIssues.length >
+                            0 && (
+                            <div
+                              style={{
+                                marginTop: "4px",
+                                fontSize: "12px",
+                                color: "#666",
+                              }}
+                            >
+                              {this.state.progressDetails.currentIssues
+                                .slice(0, 5)
+                                .join(", ")}
+                              {this.state.progressDetails.currentIssues.length >
+                                5 && "..."}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* API Call Progress */}
+                      {this.state.progressDetails.apiCallsMade > 0 && (
+                        <div style={{ marginBottom: "12px" }}>
+                          <Text strong>API Calls Made: </Text>
+                          <Tag color="purple">
+                            {this.state.progressDetails.apiCallsMade}
+                          </Tag>
+                          {this.state.progressDetails.totalApiCalls > 0 && (
+                            <Text
+                              type="secondary"
+                              style={{ marginLeft: "8px" }}
+                            >
+                              of {this.state.progressDetails.totalApiCalls}
+                            </Text>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Progress Bar for Current Phase */}
+                      {this.state.progressDetails.phaseTotal > 1 && (
+                        <div style={{ marginTop: "16px" }}>
+                          <Text strong>Phase Progress:</Text>
+                          <div style={{ marginTop: "8px" }}>
+                            <div
+                              style={{
+                                width: "100%",
+                                height: "8px",
+                                backgroundColor: "#f0f0f0",
+                                borderRadius: "4px",
+                                overflow: "hidden",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: `${(this.state.progressDetails.phaseProgress / this.state.progressDetails.phaseTotal) * 100}%`,
+                                  height: "100%",
+                                  backgroundColor: "#1890ff",
+                                  transition: "width 0.3s ease",
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </Card>
+                  </div>
+                )}
               </div>
             )}
 

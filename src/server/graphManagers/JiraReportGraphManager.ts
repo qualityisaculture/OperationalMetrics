@@ -1,5 +1,24 @@
 import JiraRequester, { LiteJiraIssue } from "../JiraRequester";
 
+// Add SSE response types for progress tracking
+export type SSEResponse = {
+  status: "processing" | "complete" | "error";
+  step?: string;
+  message?: string;
+  data?: string;
+  progress?: {
+    currentLevel: number;
+    totalLevels: number;
+    currentIssues: string[];
+    totalIssues: number;
+    apiCallsMade: number;
+    totalApiCalls: number;
+    currentPhase: string;
+    phaseProgress: number;
+    phaseTotal: number;
+  };
+};
+
 export interface JiraProject {
   id: string;
   key: string;
@@ -218,12 +237,48 @@ export default class JiraReportGraphManager {
   private projectCache: ProjectCache;
   private projectsListCache: ProjectsListCache;
   private workstreamCache: WorkstreamCache;
+  private sendProgress: (response: SSEResponse) => void;
+  private lastProgress: any = {
+    currentLevel: 0,
+    totalLevels: 0,
+    currentIssues: [],
+    totalIssues: 0,
+    apiCallsMade: 0,
+    totalApiCalls: 0,
+    currentPhase: "",
+    phaseProgress: 0,
+    phaseTotal: 0,
+  };
 
-  constructor(jiraRequester: JiraRequester) {
+  constructor(
+    jiraRequester: JiraRequester,
+    sendProgress?: (response: SSEResponse) => void
+  ) {
     this.jiraRequester = jiraRequester;
     this.projectCache = new ProjectCache();
     this.projectsListCache = new ProjectsListCache();
     this.workstreamCache = new WorkstreamCache();
+    this.sendProgress = sendProgress || (() => {});
+
+    // Start cache cleanup interval
+    setInterval(() => this.cleanupCache(), this.CACHE_CLEANUP_INTERVAL);
+  }
+
+  private updateProgress(step: string, message: string, progress?: any) {
+    // Keep track of the last progress data
+    if (progress) {
+      this.lastProgress = {
+        ...this.lastProgress,
+        ...progress,
+      };
+    }
+
+    this.sendProgress({
+      status: "processing",
+      step: step as any,
+      message,
+      progress: this.lastProgress,
+    });
   }
 
   // Clear architecture: Projects → Workstreams → Issues
@@ -292,6 +347,23 @@ export default class JiraReportGraphManager {
         `\n=== Fetching complete issue tree for workstream ${workstreamKey} ===`
       );
 
+      // Send initial progress update
+      this.updateProgress(
+        "starting",
+        `Starting to fetch complete issue tree for workstream ${workstreamKey}`,
+        {
+          currentLevel: 0,
+          totalLevels: 0,
+          currentIssues: [],
+          totalIssues: 0,
+          apiCallsMade: 0,
+          totalApiCalls: 0,
+          currentPhase: "initializing",
+          phaseProgress: 0,
+          phaseTotal: 1,
+        }
+      );
+
       // First, try to find the workstream in our workstream cache
       const cachedWorkstream =
         this.workstreamCache.getWorkstream(workstreamKey);
@@ -299,6 +371,18 @@ export default class JiraReportGraphManager {
         console.log(
           `Found complete workstream ${workstreamKey} in cache, returning cached data`
         );
+
+        // Send cache hit progress update
+        this.updateProgress(
+          "cache_hit",
+          `Found workstream ${workstreamKey} in cache, returning cached data`,
+          {
+            currentPhase: "cache_hit",
+            phaseProgress: 1,
+            phaseTotal: 1,
+          }
+        );
+
         console.log(
           `\n=== RETURNING CACHED WORKSTREAM TREE STRUCTURE FOR ${workstreamKey} ===`
         );
@@ -308,16 +392,76 @@ export default class JiraReportGraphManager {
       }
 
       // If not in workstream cache, try to find in project cache
+      this.updateProgress(
+        "searching_cache",
+        `Searching for workstream ${workstreamKey} in project cache...`,
+        {
+          currentPhase: "searching_cache",
+          phaseProgress: 0,
+          phaseTotal: 1,
+        }
+      );
+
+      let issue: JiraIssue;
+      let projectKey: string;
+
       const cachedResult = this.findIssueInCache(workstreamKey);
-      if (!cachedResult) {
-        throw new Error(
-          `Workstream ${workstreamKey} not found in any cached project. Please load the project first.`
+      if (cachedResult) {
+        // Found in project cache
+        issue = cachedResult.issue;
+        projectKey = cachedResult.projectKey;
+        console.log(
+          `Found workstream ${workstreamKey} in project ${projectKey} cache, fetching all children recursively...`
         );
+      } else {
+        // Not found in cache, fetch directly from Jira
+        console.log(
+          `Workstream ${workstreamKey} not found in cache, fetching directly from Jira...`
+        );
+
+        this.updateProgress(
+          "fetching_from_jira",
+          `Workstream ${workstreamKey} not found in cache, fetching directly from Jira...`,
+          {
+            currentPhase: "fetching_from_jira",
+            phaseProgress: 0,
+            phaseTotal: 1,
+          }
+        );
+
+        // Fetch the workstream directly from Jira
+        const workstreamData =
+          await this.jiraRequester.getEssentialJiraDataFromKeys([
+            workstreamKey,
+          ]);
+        if (workstreamData.length === 0) {
+          throw new Error(`Workstream ${workstreamKey} not found in Jira`);
+        }
+
+        const jiraIssue = workstreamData[0];
+        issue = {
+          key: workstreamKey,
+          summary: jiraIssue.fields.summary || `Issue ${workstreamKey}`,
+          type: "Workstream", // Assume it's a workstream if we're calling this method
+          status: "Unknown",
+          children: [],
+          childCount: 0,
+          originalEstimate: null,
+          timeSpent: null,
+          timeRemaining: null,
+        };
+        projectKey = "Unknown"; // We don't know the project for direct fetches
       }
 
-      const { issue, projectKey } = cachedResult;
-      console.log(
-        `Found workstream ${workstreamKey} in project ${projectKey}, fetching all children recursively...`
+      // Send progress update for starting batched approach
+      this.updateProgress(
+        "starting_batched",
+        `Starting recursive children fetch for workstream ${workstreamKey}...`,
+        {
+          currentPhase: "fetching_children",
+          phaseProgress: 0,
+          phaseTotal: 1,
+        }
       );
 
       // Use the batched approach to get all issues recursively
@@ -333,6 +477,17 @@ export default class JiraReportGraphManager {
         `Cached complete workstream tree for ${workstreamKey} with ${workstreamWithAllIssues.children.length} immediate children`
       );
 
+      // Send completion progress update
+      this.updateProgress(
+        "complete",
+        `Completed fetching issue tree for workstream ${workstreamKey}`,
+        {
+          currentPhase: "complete",
+          phaseProgress: 1,
+          phaseTotal: 1,
+        }
+      );
+
       console.log(
         `=== Completed fetching issue tree for workstream ${workstreamKey} ===\n`
       );
@@ -342,6 +497,18 @@ export default class JiraReportGraphManager {
         `Error fetching issues for workstream ${workstreamKey}:`,
         error
       );
+
+      // Send error progress update
+      this.updateProgress(
+        "error",
+        `Error fetching issues for workstream ${workstreamKey}: ${error.message}`,
+        {
+          currentPhase: "error",
+          phaseProgress: 0,
+          phaseTotal: 1,
+        }
+      );
+
       throw error;
     }
   }
@@ -813,11 +980,43 @@ export default class JiraReportGraphManager {
       `Level ${levelNumber}: Root issues: ${currentLevelKeys.join(", ")}`
     );
 
+    // Send initial progress update for level collection
+    this.updateProgress(
+      "level_collection_start",
+      "Starting level-by-level collection of all issues",
+      {
+        currentLevel: levelNumber,
+        totalLevels: 0, // We don't know yet
+        currentIssues: currentLevelKeys,
+        totalIssues: currentLevelKeys.length,
+        apiCallsMade: 0,
+        totalApiCalls: 0,
+        currentPhase: "level_collection",
+        phaseProgress: 0,
+        phaseTotal: 1,
+      }
+    );
+
     while (currentLevelKeys.length > 0) {
       levelNumber++;
       console.log(`\n--- Processing Level ${levelNumber} ---`);
       console.log(
         `Level ${levelNumber}: Fetching children for ${currentLevelKeys.length} issues: ${currentLevelKeys.join(", ")}`
+      );
+
+      // Send progress update for current level
+      this.updateProgress(
+        "processing_level",
+        `Processing Level ${levelNumber}: Fetching children for ${currentLevelKeys.length} issues`,
+        {
+          currentLevel: levelNumber,
+          currentIssues: currentLevelKeys,
+          totalIssues: currentLevelKeys.length,
+          apiCallsMade: totalApiCalls,
+          currentPhase: "level_collection",
+          phaseProgress: levelNumber,
+          phaseTotal: levelNumber + 1, // Estimate
+        }
       );
 
       // Make a single batch API call for all issues at this level
@@ -832,6 +1031,18 @@ export default class JiraReportGraphManager {
       );
       console.log(
         `Level ${levelNumber}: Found ${childrenData.length} total children`
+      );
+
+      // Send progress update for API call completion
+      this.updateProgress(
+        "api_call_complete",
+        `Level ${levelNumber}: Batch API call completed, found ${childrenData.length} children`,
+        {
+          apiCallsMade: totalApiCalls,
+          currentPhase: "level_collection",
+          phaseProgress: levelNumber,
+          phaseTotal: levelNumber + 1,
+        }
       );
 
       // Group children by their parent
@@ -859,6 +1070,21 @@ export default class JiraReportGraphManager {
         `Level ${levelNumber}: Next level will have ${nextLevelKeys.length} issues to process`
       );
 
+      // Send progress update for level completion
+      this.updateProgress(
+        "level_complete",
+        `Level ${levelNumber} completed, next level will have ${nextLevelKeys.length} issues`,
+        {
+          currentLevel: levelNumber,
+          currentIssues: nextLevelKeys,
+          totalIssues: nextLevelKeys.length,
+          apiCallsMade: totalApiCalls,
+          currentPhase: "level_collection",
+          phaseProgress: levelNumber,
+          phaseTotal: levelNumber + 1,
+        }
+      );
+
       // Prepare for next level
       currentLevelKeys = nextLevelKeys;
 
@@ -878,6 +1104,23 @@ export default class JiraReportGraphManager {
       `Total parent-child relationships found: ${allLevelsData.size}`
     );
 
+    // Send final progress update for level collection
+    this.updateProgress(
+      "level_collection_complete",
+      `Level-by-level collection completed: ${totalApiCalls} API calls, ${levelNumber} levels, ${allLevelsData.size} relationships`,
+      {
+        currentLevel: levelNumber,
+        totalLevels: levelNumber,
+        currentIssues: [],
+        totalIssues: 0,
+        apiCallsMade: totalApiCalls,
+        totalApiCalls: totalApiCalls,
+        currentPhase: "level_collection_complete",
+        phaseProgress: 1,
+        phaseTotal: 1,
+      }
+    );
+
     return allLevelsData;
   }
 
@@ -887,6 +1130,17 @@ export default class JiraReportGraphManager {
     allLevelsData: Map<string, string[]>
   ): Promise<JiraIssue> {
     console.log(`\n--- Building tree structure for issue ${issue.key} ---`);
+
+    // Send progress update for starting tree building
+    this.updateProgress(
+      "tree_building_start",
+      `Building tree structure for issue ${issue.key}`,
+      {
+        currentPhase: "tree_building",
+        phaseProgress: 0,
+        phaseTotal: 3,
+      }
+    );
 
     // Collect all issue keys that we need details for
     const allIssueKeys = new Set<string>();
@@ -899,6 +1153,18 @@ export default class JiraReportGraphManager {
 
     console.log(`Need details for ${allIssueKeys.size} total issues`);
 
+    // Send progress update for issue collection
+    this.updateProgress(
+      "collecting_issues",
+      `Collected ${allIssueKeys.size} total issues to process`,
+      {
+        currentPhase: "tree_building",
+        phaseProgress: 1,
+        phaseTotal: 3,
+        totalIssues: allIssueKeys.size,
+      }
+    );
+
     // Get details for all issues not in cache
     const missingKeys = Array.from(allIssueKeys).filter(
       (key) => !this.findIssueInCache(key)
@@ -907,11 +1173,33 @@ export default class JiraReportGraphManager {
 
     console.log(`Fetched details for ${issueDetails.size} missing issues`);
 
+    // Send progress update for issue details fetching
+    this.updateProgress(
+      "fetching_details",
+      `Fetched details for ${issueDetails.size} missing issues`,
+      {
+        currentPhase: "tree_building",
+        phaseProgress: 2,
+        phaseTotal: 3,
+      }
+    );
+
     // Recursively build the tree using the batched data and issue details
     const issueWithChildren = await this.buildTreeRecursivelyWithDetails(
       issue.key,
       allLevelsData,
       issueDetails
+    );
+
+    // Send progress update for tree completion
+    this.updateProgress(
+      "tree_complete",
+      `Tree structure completed for issue ${issue.key}`,
+      {
+        currentPhase: "tree_building",
+        phaseProgress: 3,
+        phaseTotal: 3,
+      }
     );
 
     console.log(`--- Tree structure completed for issue ${issue.key} ---`);

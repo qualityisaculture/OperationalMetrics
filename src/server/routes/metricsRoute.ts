@@ -571,6 +571,40 @@ metricsRoute.get(
       `Jira Report workstream endpoint called for workstream: ${workstreamKey}`
     );
 
+    // Set headers for SSE
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    // Create a new JiraReportGraphManager with progress callback
+    const jiraReportGraphManager = new JiraReportGraphManager(
+      jiraRequester,
+      (progress) => {
+        console.log("Sending progress update:", progress);
+        res.write(`data: ${JSON.stringify(progress)}\n\n`);
+      }
+    );
+
+    // Send initial processing message
+    res.write(
+      `data: ${JSON.stringify({
+        status: "processing",
+        step: "initializing",
+        message: `Starting to fetch complete issue tree for workstream ${workstreamKey}...`,
+        progress: {
+          currentLevel: 0,
+          totalLevels: 0,
+          currentIssues: [],
+          totalIssues: 0,
+          apiCallsMade: 0,
+          totalApiCalls: 0,
+          currentPhase: "initializing",
+          phaseProgress: 0,
+          phaseTotal: 1,
+        },
+      })}\n\n`
+    );
+
     jiraReportGraphManager
       .getWorkstreamIssues(workstreamKey)
       .then((workstreamWithIssues) => {
@@ -590,20 +624,29 @@ metricsRoute.get(
         );
         console.log(`=== END WORKSTREAM DATA ===\n`);
 
-        res.json({
-          message: `Complete issue tree for workstream ${workstreamKey} fetched successfully`,
-          data: JSON.stringify(workstreamWithIssues),
-        });
+        // Send completion message with data
+        res.write(
+          `data: ${JSON.stringify({
+            status: "complete",
+            data: JSON.stringify(workstreamWithIssues),
+          })}\n\n`
+        );
+        res.end();
       })
       .catch((error) => {
         console.error(
           `Error fetching issues for workstream ${workstreamKey}:`,
           error
         );
-        res.json({
-          message: `Error fetching issues for workstream ${workstreamKey}: ${error.message}`,
-          data: JSON.stringify(null),
-        });
+
+        // Send error message
+        res.write(
+          `data: ${JSON.stringify({
+            status: "error",
+            message: `Error fetching issues for workstream ${workstreamKey}: ${error.message}`,
+          })}\n\n`
+        );
+        res.end();
       });
   }
 );
