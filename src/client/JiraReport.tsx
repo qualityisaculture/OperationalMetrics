@@ -721,16 +721,18 @@ export default class JiraReport extends React.Component<Props, State> {
     try {
       for (let i = 0; i < totalWorkstreams; i++) {
         const workstream = this.state.projectIssues[i];
-        
+
         // Update progress
         this.setState((prevState) => ({
           requestAllProgress: Math.round(((i + 1) / totalWorkstreams) * 100),
-          requestAllDetails: prevState.requestAllDetails ? {
-            ...prevState.requestAllDetails,
-            currentPhase: `Requesting: ${workstream.key} - ${workstream.summary}`,
-            phaseProgress: i + 1,
-            phaseTotal: totalWorkstreams,
-          } : undefined,
+          requestAllDetails: prevState.requestAllDetails
+            ? {
+                ...prevState.requestAllDetails,
+                currentPhase: `Requesting: ${workstream.key} - ${workstream.summary}`,
+                phaseProgress: i + 1,
+                phaseTotal: totalWorkstreams,
+              }
+            : undefined,
         }));
 
         try {
@@ -744,22 +746,26 @@ export default class JiraReport extends React.Component<Props, State> {
               const response = JSON.parse(event.data);
 
               if (response.status === "complete" && response.data) {
-                const workstreamWithIssues: JiraIssue = JSON.parse(response.data);
-                
-                                 // Update the loaded workstream data
-                 const aggregatedValues = calculateAggregatedValues(workstreamWithIssues);
+                const workstreamWithIssues: JiraIssue = JSON.parse(
+                  response.data
+                );
+
+                // Update the loaded workstream data
+                const aggregatedValues =
+                  calculateAggregatedValues(workstreamWithIssues);
                 this.setState((prevState) => ({
-                  loadedWorkstreamData: new Map(prevState.loadedWorkstreamData).set(
-                    workstream.key,
-                    aggregatedValues
-                  ),
+                  loadedWorkstreamData: new Map(
+                    prevState.loadedWorkstreamData
+                  ).set(workstream.key, aggregatedValues),
                 }));
-                
+
                 eventSource.close();
                 resolve();
               } else if (response.status === "error") {
                 eventSource.close();
-                reject(new Error(response.message || "Failed to load workstream"));
+                reject(
+                  new Error(response.message || "Failed to load workstream")
+                );
               }
             };
 
@@ -798,7 +804,6 @@ export default class JiraReport extends React.Component<Props, State> {
       setTimeout(() => {
         this.hideRequestAllModal();
       }, 2000);
-
     } catch (error) {
       console.error("Error in requestAllWorkstreams:", error);
       this.setState({
@@ -1664,22 +1669,24 @@ export default class JiraReport extends React.Component<Props, State> {
                 title={
                   <Space>
                     <InfoCircleOutlined />
-                    {navigationStack.length > 1
-                      ? `Issues in ${navigationStack[navigationStack.length - 1].name}`
-                      : (
-                        <Space>
-                          <span>Project Workstreams ({projectIssues.length})</span>
-                          {navigationStack.length === 1 && (
-                            <Button
-                              type="primary"
-                              onClick={this.showRequestAllModal}
-                              size="small"
-                            >
-                              Request All
-                            </Button>
-                          )}
-                        </Space>
-                      )}
+                    {navigationStack.length > 1 ? (
+                      `Issues in ${navigationStack[navigationStack.length - 1].name}`
+                    ) : (
+                      <Space>
+                        <span>
+                          Project Workstreams ({projectIssues.length})
+                        </span>
+                        {navigationStack.length === 1 && (
+                          <Button
+                            type="primary"
+                            onClick={this.showRequestAllModal}
+                            size="small"
+                          >
+                            Request All
+                          </Button>
+                        )}
+                      </Space>
+                    )}
                   </Space>
                 }
                 extra={
@@ -1807,8 +1814,14 @@ export default class JiraReport extends React.Component<Props, State> {
               message="Warning"
               description={
                 <div>
-                  <p>This action will request data for <strong>{projectIssues.length}</strong> workstreams.</p>
-                  <p>This could take a very long time and may impact system performance.</p>
+                  <p>
+                    This action will request data for{" "}
+                    <strong>{projectIssues.length}</strong> workstreams.
+                  </p>
+                  <p>
+                    This could take a very long time and may impact system
+                    performance.
+                  </p>
                   <p>Are you sure you want to continue?</p>
                 </div>
               }
@@ -1825,17 +1838,16 @@ export default class JiraReport extends React.Component<Props, State> {
                 status={requestAllProgress === 100 ? "success" : "active"}
                 style={{ marginBottom: "16px" }}
               />
-              
+
               {requestAllDetails && (
                 <div style={{ marginBottom: "16px" }}>
                   <Text strong>Progress:</Text>
                   <br />
-                  <Text type="secondary">
-                    {requestAllDetails.currentPhase}
-                  </Text>
+                  <Text type="secondary">{requestAllDetails.currentPhase}</Text>
                   <br />
                   <Text type="secondary">
-                    {requestAllDetails.phaseProgress} of {requestAllDetails.phaseTotal} workstreams
+                    {requestAllDetails.phaseProgress} of{" "}
+                    {requestAllDetails.phaseTotal} workstreams
                   </Text>
                 </div>
               )}
