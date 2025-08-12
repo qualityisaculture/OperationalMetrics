@@ -149,6 +149,35 @@ export default class JiraReport extends React.Component<Props, State> {
     };
   }
 
+  // Helper method to determine cell spanning for workstream data columns
+  private getWorkstreamDataCellSpan = (
+    record: JiraIssueWithAggregated,
+    isFirstColumn: boolean = false
+  ) => {
+    // At Project Workstreams level, check if we have no data
+    if (this.state.navigationStack.length === 1) {
+      const hasAggregatedData = record.aggregatedOriginalEstimate !== undefined;
+      const valueToShow = hasAggregatedData
+        ? record.aggregatedOriginalEstimate
+        : record.originalEstimate;
+
+      if (
+        valueToShow === null ||
+        valueToShow === undefined ||
+        valueToShow === 0
+      ) {
+        if (isFirstColumn) {
+          // Span across all 6 columns (Baseline Estimate, Actual Days Logged, Estimate to Complete, Total Forecast, Variance Days, Variance %)
+          return { colSpan: 6 };
+        } else {
+          // Hide this column when the first column spans across
+          return { colSpan: 0 };
+        }
+      }
+    }
+    return {};
+  };
+
   componentDidMount() {
     this.loadProjects();
   }
@@ -869,6 +898,8 @@ export default class JiraReport extends React.Component<Props, State> {
         title: "Baseline Estimate",
         dataIndex: "originalEstimate",
         key: "originalEstimate",
+        onCell: (record: JiraIssueWithAggregated) =>
+          this.getWorkstreamDataCellSpan(record, true),
         render: (
           estimate: number | null | undefined,
           record: JiraIssueWithAggregated
@@ -879,6 +910,23 @@ export default class JiraReport extends React.Component<Props, State> {
           const valueToShow = hasAggregatedData
             ? record.aggregatedOriginalEstimate
             : estimate;
+
+          // At Project Workstreams level, show message if no data
+          if (
+            this.state.navigationStack.length === 1 &&
+            (valueToShow === null ||
+              valueToShow === undefined ||
+              valueToShow === 0)
+          ) {
+            return (
+              <Text
+                type="secondary"
+                style={{ fontSize: "12px", fontStyle: "italic" }}
+              >
+                Click to request data for this workstream
+              </Text>
+            );
+          }
 
           return (
             <Text>
@@ -913,6 +961,8 @@ export default class JiraReport extends React.Component<Props, State> {
         title: "Actual Days Logged",
         dataIndex: "timeSpent",
         key: "timeSpent",
+        onCell: (record: JiraIssueWithAggregated) =>
+          this.getWorkstreamDataCellSpan(record, false),
         render: (
           timeSpent: number | null | undefined,
           record: JiraIssueWithAggregated
@@ -956,6 +1006,8 @@ export default class JiraReport extends React.Component<Props, State> {
         title: "Estimate to Complete",
         dataIndex: "timeRemaining",
         key: "timeRemaining",
+        onCell: (record: JiraIssueWithAggregated) =>
+          this.getWorkstreamDataCellSpan(record, false),
         render: (
           timeRemaining: number | null | undefined,
           record: JiraIssueWithAggregated
@@ -999,6 +1051,8 @@ export default class JiraReport extends React.Component<Props, State> {
       {
         title: "Total Forecast (Actual + ETC)",
         key: "totalForecast",
+        onCell: (record: JiraIssueWithAggregated) =>
+          this.getWorkstreamDataCellSpan(record, false),
         render: (_, record: JiraIssueWithAggregated) => {
           // Show aggregated values if available (either for workstreams or items)
           const timeSpent =
@@ -1057,6 +1111,8 @@ export default class JiraReport extends React.Component<Props, State> {
       {
         title: "Variance (Days)",
         key: "varianceDays",
+        onCell: (record: JiraIssueWithAggregated) =>
+          this.getWorkstreamDataCellSpan(record, false),
         render: (_, record: JiraIssueWithAggregated) => {
           // Show aggregated values if available (either for workstreams or items)
           const originalEstimate =
@@ -1133,6 +1189,8 @@ export default class JiraReport extends React.Component<Props, State> {
       {
         title: "Variance (%)",
         key: "variancePercent",
+        onCell: (record: JiraIssueWithAggregated) =>
+          this.getWorkstreamDataCellSpan(record, false),
         render: (_, record: JiraIssueWithAggregated) => {
           // Show aggregated values if available (either for workstreams or items)
           const originalEstimate =
@@ -1165,8 +1223,7 @@ export default class JiraReport extends React.Component<Props, State> {
                 <Tag color={color}>
                   {variancePercent > 0 ? "+" : ""}
                   {variancePercent.toFixed(1)}%
-                  {(record.aggregatedOriginalEstimate !== undefined ||
-                    record.aggregatedTimeSpent !== undefined ||
+                  {(record.aggregatedTimeSpent !== undefined ||
                     record.aggregatedTimeRemaining !== undefined) && (
                     <Text type="secondary" style={{ marginLeft: "4px" }}>
                       (agg)
