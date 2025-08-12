@@ -17,6 +17,7 @@ import {
   List,
   Select,
   Checkbox,
+  DatePicker,
 } from "antd";
 import {
   UploadOutlined,
@@ -145,8 +146,8 @@ interface State {
   currentSheetName: string;
   // New state for excluding holiday and absence data
   excludeHolidayAbsence: boolean;
-  // New state for excluding future data
-  excludeFutureData: boolean;
+  // New state for excluding data after a specific date
+  excludeAfterDate: Date | null;
   // New state for hierarchical category data
   groupedDataByCategory: {
     [category: string]: {
@@ -213,8 +214,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       currentSheetName: "",
       // New state for excluding holiday and absence data
       excludeHolidayAbsence: false,
-      // New state for excluding future data
-      excludeFutureData: true,
+      // New state for excluding data after a specific date
+      excludeAfterDate: null,
       // New state for hierarchical category data
       groupedDataByCategory: {},
       // New state for tracking which rows to show in the expandable table
@@ -226,7 +227,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
   applyFilters = (tableData: any[]) => {
     const {
       excludeHolidayAbsence,
-      excludeFutureData,
+      excludeAfterDate,
       issueKeyIndex,
       dateIndex,
     } = this.state;
@@ -248,10 +249,10 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       }
     }
 
-    // Filter out future data if the toggle is enabled
-    if (excludeFutureData && dateIndex !== -1) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Set to start of today
+    // Filter out data after the selected date if a date is selected
+    if (excludeAfterDate && dateIndex !== -1) {
+      const cutoffDate = new Date(excludeAfterDate);
+      cutoffDate.setHours(0, 0, 0, 0); // Set to start of the selected date
 
       filteredData = filteredData.filter((row) => {
         const workDate = row[dateIndex.toString()];
@@ -264,7 +265,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
           const rowDate = new Date(dateOnly);
           rowDate.setHours(0, 0, 0, 0); // Set to start of day for comparison
 
-          return rowDate <= today;
+          return rowDate <= cutoffDate;
         } catch (error) {
           // If date parsing fails, keep the row
           return true;
@@ -554,7 +555,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
           userCategoryIssueData: {},
           userCategoryIssueTotal: 0,
           groupedDataByCategory: {},
-          excludeFutureData: true,
+                      excludeAfterDate: null,
         });
       }
     });
@@ -616,7 +617,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
             userCategoryIssueData: {},
             userCategoryIssueTotal: 0,
             groupedDataByCategory: {},
-            excludeFutureData: true,
+            excludeAfterDate: null,
           });
         }
       }
@@ -1227,9 +1228,9 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     });
   };
 
-  // New method to handle future data exclusion toggle
-  handleExcludeFutureDataChange = (checked: boolean) => {
-    this.setState({ excludeFutureData: checked }, () => {
+  // New method to handle date-based data exclusion
+  handleExcludeAfterDateChange = (date: any) => {
+    this.setState({ excludeAfterDate: date }, () => {
       // Reprocess the data with the new filter setting
       if (this.state.rawData.length > 0) {
         const filteredData = this.applyFilters(this.state.rawData);
@@ -1534,7 +1535,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       sheets,
       selectedSheets,
       excludeHolidayAbsence,
-      excludeFutureData,
+      excludeAfterDate,
       groupedDataByCategory,
       filteredData,
       displayedRows,
@@ -1735,14 +1736,20 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                       Exclude Holiday & Absence data (ABS-56, ABS-58, ABS-57)
                     </Checkbox>
                     <br />
-                    <Checkbox
-                      checked={excludeFutureData}
-                      onChange={(e) =>
-                        this.handleExcludeFutureDataChange(e.target.checked)
-                      }
-                    >
-                      Exclude future data (after today)
-                    </Checkbox>
+                    <div>
+                      <Text strong>Exclude data after:</Text>
+                      <br />
+                      <DatePicker
+                        value={excludeAfterDate}
+                        onChange={this.handleExcludeAfterDateChange}
+                        placeholder="Select cutoff date"
+                        allowClear
+                        style={{ marginTop: "4px" }}
+                      />
+                      <Text type="secondary" style={{ marginLeft: "8px" }}>
+                        Any data from 00:00 on the day after the selected date will be excluded
+                      </Text>
+                    </div>
                   </div>
                 </Space>
               </div>
