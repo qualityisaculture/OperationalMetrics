@@ -1,5 +1,5 @@
 import React from "react";
-const google = globalThis.google;
+import GoogleChartsManager from "./components/GoogleChartsManager";
 
 export type GoogleDataTableType = {
   data: [
@@ -67,6 +67,7 @@ const DEFAULT_LABELS = {
 };
 
 interface ChartState {
+  isGoogleChartsLoaded: boolean;
   clickedPoints: { date: Date; value: number; type: "done" | "scope" }[];
   doneTrendLineData: (number | null)[];
   scopeTrendLineData: (number | null)[];
@@ -79,6 +80,7 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
     super(props);
     this.randomId = Math.random().toString(36).substring(7);
     this.state = {
+      isGoogleChartsLoaded: false,
       clickedPoints: [],
       doneTrendLineData: [],
       scopeTrendLineData: [],
@@ -121,11 +123,12 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
 
   componentDidUpdate(prevProps, prevState) {
     if (
-      prevProps.burnupDataArray !== this.props.burnupDataArray ||
-      prevProps.showDev !== this.props.showDev ||
-      prevProps.showTest !== this.props.showTest ||
-      prevProps.showStory !== this.props.showStory ||
-      prevProps.showTimeSpent !== this.props.showTimeSpent
+      this.state.isGoogleChartsLoaded &&
+      (prevProps.burnupDataArray !== this.props.burnupDataArray ||
+        prevProps.showDev !== this.props.showDev ||
+        prevProps.showTest !== this.props.showTest ||
+        prevProps.showStory !== this.props.showStory ||
+        prevProps.showTimeSpent !== this.props.showTimeSpent)
     ) {
       if (!this.props.burnupDataArray) {
         return;
@@ -133,8 +136,9 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       this.updateTrendLines();
       this.drawChart();
     } else if (
-      prevState.doneTrendLineData !== this.state.doneTrendLineData ||
-      prevState.scopeTrendLineData !== this.state.scopeTrendLineData
+      this.state.isGoogleChartsLoaded &&
+      (prevState.doneTrendLineData !== this.state.doneTrendLineData ||
+        prevState.scopeTrendLineData !== this.state.scopeTrendLineData)
     ) {
       if (!this.props.burnupDataArray) {
         return;
@@ -144,9 +148,16 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
   }
 
   componentDidMount() {
-    if (this.props.burnupDataArray && this.props.burnupDataArray.length > 0) {
-      this.drawChart();
-    }
+    GoogleChartsManager.getInstance().load(() => {
+      this.setState({ isGoogleChartsLoaded: true }, () => {
+        if (
+          this.props.burnupDataArray &&
+          this.props.burnupDataArray.length > 0
+        ) {
+          this.drawChart();
+        }
+      });
+    });
   }
 
   calculateTrendLine = (

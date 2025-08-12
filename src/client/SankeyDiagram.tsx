@@ -1,5 +1,5 @@
 import React from "react";
-const google = globalThis.google;
+import GoogleChartsManager from "./components/GoogleChartsManager";
 
 export type SankeyLink = {
   label: string;
@@ -11,7 +11,9 @@ interface ChartProps {
   links: SankeyLink[];
   onClick: (source: string) => void;
 }
-interface ChartState {}
+interface ChartState {
+  isGoogleChartsLoaded: boolean;
+}
 export default class SankeyDiagram extends React.Component<
   ChartProps,
   ChartState
@@ -20,10 +22,19 @@ export default class SankeyDiagram extends React.Component<
   constructor(props) {
     super(props);
     this.randomId = Math.random().toString(36).substring(7);
+    this.state = {
+      isGoogleChartsLoaded: false,
+    };
+  }
+
+  componentDidMount() {
+    GoogleChartsManager.getInstance().load(() => {
+      this.setState({ isGoogleChartsLoaded: true });
+    });
   }
 
   componentDidUpdate(prevProps) {
-    if (prevProps !== this.props) {
+    if (this.state.isGoogleChartsLoaded && prevProps !== this.props) {
       if (!this.props.links) {
         return;
       }

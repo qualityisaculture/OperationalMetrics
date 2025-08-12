@@ -1,6 +1,6 @@
-const google = globalThis.google;
 import React from "react";
 import { WithWildcards } from "../Types";
+import GoogleChartsManager from "./components/GoogleChartsManager";
 
 export type ColumnType = {
   type: string;
@@ -18,7 +18,9 @@ interface ChartProps {
   data: CategoryData;
   extraOptions?: any;
 }
-interface ChartState {}
+interface ChartState {
+  isGoogleChartsLoaded: boolean;
+}
 
 export default class ColumnChart extends React.Component<
   ChartProps,
@@ -28,10 +30,19 @@ export default class ColumnChart extends React.Component<
   constructor(props) {
     super(props);
     this.randomId = Math.random().toString(36).substring(7);
+    this.state = {
+      isGoogleChartsLoaded: false,
+    };
+  }
+
+  componentDidMount() {
+    GoogleChartsManager.getInstance().load(() => {
+      this.setState({ isGoogleChartsLoaded: true });
+    });
   }
 
   componentDidUpdate(prevProps) {
-    if (prevProps !== this.props) {
+    if (this.state.isGoogleChartsLoaded && prevProps !== this.props) {
       if (!this.props.data) {
         return;
       }
