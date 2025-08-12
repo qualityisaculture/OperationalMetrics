@@ -319,34 +319,44 @@ export default class JiraReportGraphManager {
   // Get workstreams for a specific project
   async getProjectWorkstreams(projectKey: string): Promise<JiraIssue[]> {
     try {
-      // Check cache first
+      let workstreams: JiraIssue[];
       const cached = this.projectCache.getProjectData(projectKey);
+
       if (cached) {
         console.log(`Using cached workstreams for project ${projectKey}`);
-        return cached.issues;
-      }
-
-      console.log(
-        `Cache miss for project ${projectKey}, fetching workstreams from Jira...`
-      );
-
-      // Use the original JQL query that was working - get all issues for the project
-      const jql = `project = "${projectKey}" ORDER BY created DESC`;
-
-      // Use the simplified lite query method to get workstream data without children for faster loading
-      const workstreams = await this.jiraRequester.getLiteQuery(jql);
-
-      // Cache the results
-      const projects = await this.getProjects();
-      const project = projects.find((p) => p.key === projectKey);
-      if (project) {
-        this.projectCache.setProjectData(projectKey, project, workstreams);
+        workstreams = cached.issues;
+      } else {
         console.log(
-          `Cached workstreams for project ${projectKey} with ${workstreams.length} workstreams`
+          `Cache miss for project ${projectKey}, fetching workstreams from Jira...`
         );
+        const jql = `project = "${projectKey}" ORDER BY created DESC`;
+        workstreams = await this.jiraRequester.getLiteQuery(jql);
+
+        const projects = await this.getProjects();
+        const project = projects.find((p) => p.key === projectKey);
+        if (project) {
+          this.projectCache.setProjectData(projectKey, project, workstreams);
+          console.log(
+            `Cached workstreams for project ${projectKey} with ${workstreams.length} workstreams`
+          );
+        }
       }
 
-      return workstreams;
+      // For each workstream, check if a fully cached version is available
+      const workstreamsWithData = workstreams.map((workstream) => {
+        const cachedWorkstream = this.workstreamCache.getWorkstream(
+          workstream.key
+        );
+        if (cachedWorkstream) {
+          console.log(
+            `Returning fully cached workstream for ${workstream.key}`
+          );
+          return cachedWorkstream;
+        }
+        return workstream;
+      });
+
+      return workstreamsWithData;
     } catch (error) {
       console.error(
         `Error fetching workstreams for project ${projectKey}:`,

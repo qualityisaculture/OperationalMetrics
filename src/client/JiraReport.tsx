@@ -44,7 +44,7 @@ interface State {
   isLoading: boolean;
   error: string | null;
   selectedProject: JiraProject | null;
-  projectIssues: JiraIssue[];
+  projectIssues: JiraIssueWithAggregated[];
   issuesLoading: boolean;
   issuesError: string | null;
   favoriteItems: Set<string>; // Changed from favoriteProjects to favoriteItems
@@ -297,6 +297,29 @@ export default class JiraReport extends React.Component<Props, State> {
     }
   };
 
+  // New method to process workstreams and calculate aggregated values for cached data
+  processCachedWorkstreams = (workstreams: JiraIssue[]) => {
+    const processedWorkstreams = workstreams.map((workstream) => {
+      // Check if the workstream has children, indicating it's a full, cached workstream
+      if (workstream.children && workstream.children.length > 0) {
+        const aggregatedValues = calculateAggregatedValues(workstream);
+        return {
+          ...workstream,
+          aggregatedOriginalEstimate:
+            aggregatedValues.aggregatedOriginalEstimate,
+          aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
+          aggregatedTimeRemaining: aggregatedValues.aggregatedTimeRemaining,
+        };
+      }
+      return workstream; // Return as is if not cached
+    });
+
+    this.setState({
+      projectIssues: processedWorkstreams,
+      issuesLoading: false,
+    });
+  };
+
   loadProjectWorkstreams = async (projectKey: string) => {
     this.setState({ issuesLoading: true, issuesError: null });
 
@@ -308,11 +331,7 @@ export default class JiraReport extends React.Component<Props, State> {
 
       if (response.ok) {
         const workstreams: JiraIssue[] = JSON.parse(data.data);
-        this.setState({
-          projectIssues: workstreams,
-          issuesLoading: false,
-          currentIssues: [], // Initialize as empty, will be set when navigating
-        });
+        this.processCachedWorkstreams(workstreams); // Process workstreams for cached data
       } else {
         this.setState({
           issuesError: data.message || "Failed to load project workstreams",
@@ -1514,18 +1533,22 @@ export default class JiraReport extends React.Component<Props, State> {
                       ? this.getSortedItems(currentIssues)
                       : this.getSortedItems(
                           projectIssues.map((issue) => {
-                            // Check if we have loaded aggregated data for this workstream
+                            // Check if we have more recently loaded aggregated data for this workstream
                             const loadedData =
                               this.state.loadedWorkstreamData.get(issue.key);
-                            return {
-                              ...issue,
-                              aggregatedOriginalEstimate:
-                                loadedData?.aggregatedOriginalEstimate,
-                              aggregatedTimeSpent:
-                                loadedData?.aggregatedTimeSpent,
-                              aggregatedTimeRemaining:
-                                loadedData?.aggregatedTimeRemaining,
-                            };
+
+                            // If more recent data is loaded, use it. Otherwise, use what's already in the issue.
+                            return loadedData
+                              ? {
+                                  ...issue,
+                                  aggregatedOriginalEstimate:
+                                    loadedData.aggregatedOriginalEstimate,
+                                  aggregatedTimeSpent:
+                                    loadedData.aggregatedTimeSpent,
+                                  aggregatedTimeRemaining:
+                                    loadedData.aggregatedTimeRemaining,
+                                }
+                              : issue;
                           })
                         )
                   }
