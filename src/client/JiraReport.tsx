@@ -11,6 +11,7 @@ import {
   Breadcrumb,
   Tooltip,
 } from "antd";
+import { LoadingIndicator } from "./components";
 import {
   JiraProject,
   JiraIssue,
@@ -1224,10 +1225,13 @@ export default class JiraReport extends React.Component<Props, State> {
 
     if (isLoading) {
       return (
-        <div style={{ textAlign: "center", padding: "50px" }}>
-          <Spin size="large" />
-          <div style={{ marginTop: "16px" }}>Loading Jira projects...</div>
-        </div>
+        <LoadingIndicator
+          loading={isLoading}
+          message="Loading Jira projects..."
+          size="large"
+          style={{ padding: "50px" }}
+          showProgressDetails={false}
+        />
       );
     }
 
@@ -1379,14 +1383,13 @@ export default class JiraReport extends React.Component<Props, State> {
             )}
 
             {/* Loading State for Issues */}
-            {issuesLoading && (
-              <div style={{ textAlign: "center", padding: "50px" }}>
-                <Spin size="large" />
-                <div style={{ marginTop: "16px" }}>
-                  Loading project workstreams...
-                </div>
-              </div>
-            )}
+            <LoadingIndicator
+              loading={issuesLoading}
+              message="Loading project workstreams..."
+              size="large"
+              style={{ padding: "50px" }}
+              showProgressDetails={false}
+            />
 
             {/* Error State for Issues */}
             {issuesError && (
@@ -1411,129 +1414,12 @@ export default class JiraReport extends React.Component<Props, State> {
             )}
 
             {/* Loading State for Current Issues */}
-            {currentIssuesLoading && (
-              <div style={{ textAlign: "center", padding: "20px" }}>
-                <Spin />
-                <div style={{ marginTop: "8px" }}>
-                  {this.state.progressStatus}
-                </div>
-
-                {/* Detailed Progress Information */}
-                {this.state.progressDetails && (
-                  <div
-                    style={{
-                      marginTop: "16px",
-                      textAlign: "left",
-                      maxWidth: "600px",
-                      margin: "16px auto",
-                    }}
-                  >
-                    <Card size="small" title="Progress Details">
-                      {/* Current Phase */}
-                      <div style={{ marginBottom: "12px" }}>
-                        <Text strong>Current Phase: </Text>
-                        <Tag color="blue">
-                          {this.state.progressDetails.currentPhase}
-                        </Tag>
-                        <Text type="secondary" style={{ marginLeft: "8px" }}>
-                          {this.state.progressDetails.phaseProgress} /{" "}
-                          {this.state.progressDetails.phaseTotal}
-                        </Text>
-                      </div>
-
-                      {/* Level Information */}
-                      {this.state.progressDetails.currentLevel > 0 && (
-                        <div style={{ marginBottom: "12px" }}>
-                          <Text strong>Processing Level: </Text>
-                          <Tag color="green">
-                            {this.state.progressDetails.currentLevel}
-                          </Tag>
-                          {this.state.progressDetails.totalLevels > 0 && (
-                            <Text
-                              type="secondary"
-                              style={{ marginLeft: "8px" }}
-                            >
-                              of {this.state.progressDetails.totalLevels}
-                            </Text>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Issue Counts */}
-                      {this.state.progressDetails.totalIssues > 0 && (
-                        <div style={{ marginBottom: "12px" }}>
-                          <Text strong>Issues in Current Level: </Text>
-                          <Tag color="orange">
-                            {this.state.progressDetails.totalIssues}
-                          </Tag>
-                          {this.state.progressDetails.currentIssues.length >
-                            0 && (
-                            <div
-                              style={{
-                                marginTop: "4px",
-                                fontSize: "12px",
-                                color: "#666",
-                              }}
-                            >
-                              {this.state.progressDetails.currentIssues
-                                .slice(0, 5)
-                                .join(", ")}
-                              {this.state.progressDetails.currentIssues.length >
-                                5 && "..."}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* API Call Progress */}
-                      {this.state.progressDetails.apiCallsMade > 0 && (
-                        <div style={{ marginBottom: "12px" }}>
-                          <Text strong>API Calls Made: </Text>
-                          <Tag color="purple">
-                            {this.state.progressDetails.apiCallsMade}
-                          </Tag>
-                          {this.state.progressDetails.totalApiCalls > 0 && (
-                            <Text
-                              type="secondary"
-                              style={{ marginLeft: "8px" }}
-                            >
-                              of {this.state.progressDetails.totalApiCalls}
-                            </Text>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Progress Bar for Current Phase */}
-                      {this.state.progressDetails.phaseTotal > 1 && (
-                        <div style={{ marginTop: "16px" }}>
-                          <Text strong>Phase Progress:</Text>
-                          <div style={{ marginTop: "8px" }}>
-                            <div
-                              style={{
-                                width: "100%",
-                                height: "8px",
-                                backgroundColor: "#f0f0f0",
-                                borderRadius: "4px",
-                                overflow: "hidden",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: `${(this.state.progressDetails.phaseProgress / this.state.progressDetails.phaseTotal) * 100}%`,
-                                  height: "100%",
-                                  backgroundColor: "#1890ff",
-                                  transition: "width 0.3s ease",
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </Card>
-                  </div>
-                )}
-              </div>
-            )}
+            <LoadingIndicator
+              loading={currentIssuesLoading}
+              message={this.state.progressStatus}
+              progressDetails={this.state.progressDetails}
+              size="default"
+            />
 
             {/* Error State for Current Issues */}
             {currentIssuesError && (
