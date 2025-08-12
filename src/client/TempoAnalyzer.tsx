@@ -101,13 +101,14 @@ interface State {
   headers: string[];
   // New state for filtered data that respects all filters
   filteredData: any[];
-  viewMode: "name" | "issue" | "type";
+  viewMode: "name" | "issue" | "type" | "account";
   detailedByName: { [key: string]: number };
   detailedByIssue: { [key: string]: number };
   detailedByIssueWithType: {
     [key: string]: { hours: number; type: string; summary: string };
   };
   detailedByType: { [key: string]: number };
+  detailedByAccount: { [key: string]: number };
   issueWorkDescriptions: {
     [key: string]: Array<{
       description: string;
@@ -190,6 +191,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       detailedByIssue: {},
       detailedByIssueWithType: {},
       detailedByType: {},
+      detailedByAccount: {},
       issueWorkDescriptions: {},
       selectedIssueKey: null,
       issueUserData: {},
@@ -555,7 +557,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
           userCategoryIssueData: {},
           userCategoryIssueTotal: 0,
           groupedDataByCategory: {},
-                      excludeAfterDate: null,
+          excludeAfterDate: null,
         });
       }
     });
@@ -628,6 +630,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     const {
       filteredData,
       accountCategoryIndex,
+      accountNameIndex,
       loggedHoursIndex,
       fullNameIndex,
       issueKeyIndex,
@@ -663,6 +666,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       [key: string]: { hours: number; type: string; summary: string };
     } = {};
     const detailedByType: { [key: string]: number } = {};
+    const detailedByAccount: { [key: string]: number } = {};
     const issueWorkDescriptions: {
       [key: string]: Array<{
         description: string;
@@ -792,17 +796,31 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
             }
           }
         }
+
+        // Group by Account Name if available
+        if (accountNameIndex !== -1) {
+          const accountName = row[accountNameIndex.toString()];
+          if (accountName) {
+            const account = String(accountName).trim();
+            if (account) {
+              detailedByAccount[account] =
+                (detailedByAccount[account] || 0) + loggedHours;
+            }
+          }
+        }
       }
     });
 
     // Determine which view to show by default
-    let defaultViewMode: "name" | "issue" | "type" = "issue";
+    let defaultViewMode: "name" | "issue" | "type" | "account" = "issue";
     if (fullNameIndex === -1 && issueKeyIndex !== -1) {
       defaultViewMode = "issue";
     } else if (fullNameIndex !== -1 && issueKeyIndex !== -1) {
       defaultViewMode = "issue"; // Default to issue view if both are available
     } else if (fullNameIndex !== -1 && issueKeyIndex === -1) {
       defaultViewMode = "name"; // Default to name view if only name is available
+    } else if (accountNameIndex !== -1) {
+      defaultViewMode = "account"; // Default to account view if account name is available
     }
 
     this.setState({
@@ -812,13 +830,16 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
           ? detailedByName
           : defaultViewMode === "issue"
             ? detailedByIssue
-            : detailedByType,
+            : defaultViewMode === "account"
+              ? detailedByAccount
+              : detailedByType,
       categoryTotalHours: categoryTotal,
       viewMode: defaultViewMode,
       detailedByName,
       detailedByIssue,
       detailedByIssueWithType,
       detailedByType,
+      detailedByAccount,
       issueWorkDescriptions,
       displayedRows: categoryRows,
     });
@@ -829,6 +850,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       selectedCategory: null,
       detailedData: {},
       categoryTotalHours: 0,
+      detailedByAccount: {},
       selectedUser: null,
       userCategoryData: {},
       userTotalHours: 0,
@@ -1064,9 +1086,15 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     });
   };
 
-  handleViewModeChange = (mode: "name" | "issue" | "type") => {
-    const { detailedByName, detailedByIssue, detailedByType, issueTypeIndex } =
-      this.state;
+  handleViewModeChange = (mode: "name" | "issue" | "type" | "account") => {
+    const {
+      detailedByName,
+      detailedByIssue,
+      detailedByType,
+      detailedByAccount,
+      issueTypeIndex,
+      accountNameIndex,
+    } = this.state;
 
     if (mode === "name" && Object.keys(detailedByName).length === 0) {
       message.warning("No Full Name data available for this category.");
@@ -1090,6 +1118,18 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       return;
     }
 
+    if (mode === "account" && Object.keys(detailedByAccount).length === 0) {
+      message.warning("No Account Name data available for this category.");
+      return;
+    }
+
+    if (mode === "account" && accountNameIndex === -1) {
+      message.warning(
+        "Account Name column not found. Cannot show Account Name breakdown."
+      );
+      return;
+    }
+
     this.setState({
       viewMode: mode,
       detailedData:
@@ -1097,7 +1137,9 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
           ? detailedByName
           : mode === "issue"
             ? detailedByIssue
-            : detailedByType,
+            : mode === "account"
+              ? detailedByAccount
+              : detailedByType,
       selectedIssueKey: null, // Reset issue key selection when switching views
       issueUserData: {},
       issueTotalHours: 0,
@@ -1747,7 +1789,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                         style={{ marginTop: "4px" }}
                       />
                       <Text type="secondary" style={{ marginLeft: "8px" }}>
-                        Any data from 00:00 on the day after the selected date will be excluded
+                        Any data from 00:00 on the day after the selected date
+                        will be excluded
                       </Text>
                     </div>
                   </div>
@@ -2292,6 +2335,10 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                           <BarChartOutlined style={{ marginRight: "4px" }} />
                           Issue Type
                         </Radio.Button>
+                        <Radio.Button value="account">
+                          <UserOutlined style={{ marginRight: "4px" }} />
+                          Account Name
+                        </Radio.Button>
                       </Radio.Group>
                     </div>
 
@@ -2314,7 +2361,9 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                                 ? "People"
                                 : this.state.viewMode === "type"
                                   ? "Types"
-                                  : "Issues"
+                                  : this.state.viewMode === "account"
+                                    ? "Accounts"
+                                    : "Issues"
                             }
                             value={Object.keys(detailedData).length}
                             suffix=""
@@ -2324,7 +2373,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                       <Col span={8}>
                         <Card>
                           <Statistic
-                            title={`Average per ${this.state.viewMode === "name" ? "Person" : this.state.viewMode === "type" ? "Type" : "Issue"}`}
+                            title={`Average per ${this.state.viewMode === "name" ? "Person" : this.state.viewMode === "type" ? "Type" : this.state.viewMode === "account" ? "Account" : "Issue"}`}
                             value={
                               categoryTotalHours /
                               Object.keys(detailedData).length
@@ -2337,7 +2386,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                     </Row>
 
                     <Card
-                      title={`${selectedCategory} - Hours by ${this.state.viewMode === "name" ? "Full Name" : this.state.viewMode === "issue" ? "Issue Key" : "Issue Type"}${this.state.viewMode === "issue" ? " (Click an issue to see user breakdown)" : ""}`}
+                      title={`${selectedCategory} - Hours by ${this.state.viewMode === "name" ? "Full Name" : this.state.viewMode === "issue" ? "Issue Key" : this.state.viewMode === "account" ? "Account Name" : "Issue Type"}${this.state.viewMode === "issue" ? " (Click an issue to see user breakdown)" : ""}`}
                     >
                       <Table
                         dataSource={
@@ -2369,18 +2418,31 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                                     ).toFixed(1),
                                   })
                                 )
-                              : Object.entries(detailedData).map(
-                                  ([item, hours], index) => ({
+                              : this.state.viewMode === "account"
+                                ? Object.entries(
+                                    this.state.detailedByAccount
+                                  ).map(([account, hours], index) => ({
                                     key: index,
-                                    item: item,
+                                    item: account,
                                     hours: hours,
                                     chargeableDays: hours / 7.5,
                                     percentage: (
                                       (hours / categoryTotalHours) *
                                       100
                                     ).toFixed(1),
-                                  })
-                                )
+                                  }))
+                                : Object.entries(detailedData).map(
+                                    ([item, hours], index) => ({
+                                      key: index,
+                                      item: item,
+                                      hours: hours,
+                                      chargeableDays: hours / 7.5,
+                                      percentage: (
+                                        (hours / categoryTotalHours) *
+                                        100
+                                      ).toFixed(1),
+                                    })
+                                  )
                         }
                         columns={[
                           {
@@ -2389,7 +2451,9 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                                 ? "Full Name"
                                 : this.state.viewMode === "issue"
                                   ? "Issue Key"
-                                  : "Issue Type",
+                                  : this.state.viewMode === "account"
+                                    ? "Account Name"
+                                    : "Issue Type",
                             dataIndex: "item",
                             key: "item",
                             render: (text) => {
