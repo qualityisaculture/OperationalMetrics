@@ -10,6 +10,8 @@ import {
   Tag,
   Breadcrumb,
   Tooltip,
+  Modal,
+  Progress,
 } from "antd";
 import { LoadingIndicator } from "./components";
 import {
@@ -81,6 +83,16 @@ interface State {
     phaseTotal: number;
   };
   currentStep?: string;
+  // New state for "Request All" functionality
+  isRequestAllModalVisible: boolean;
+  requestAllProgress: number;
+  requestAllDetails?: {
+    currentLevel: number;
+    totalLevels: number;
+    currentPhase: string;
+    phaseProgress: number;
+    phaseTotal: number;
+  };
 }
 
 // Utility function to recursively calculate aggregated estimates and time spent
@@ -146,6 +158,10 @@ export default class JiraReport extends React.Component<Props, State> {
       progressStatus: "Idle",
       progressDetails: undefined,
       currentStep: undefined,
+      // New state for "Request All" functionality
+      isRequestAllModalVisible: false,
+      requestAllProgress: 0,
+      requestAllDetails: undefined,
     };
   }
 
@@ -666,6 +682,137 @@ export default class JiraReport extends React.Component<Props, State> {
     });
   };
 
+  // New methods for "Request All" functionality
+  showRequestAllModal = () => {
+    this.setState({
+      isRequestAllModalVisible: true,
+      requestAllProgress: 0,
+      requestAllDetails: undefined,
+    });
+  };
+
+  hideRequestAllModal = () => {
+    this.setState({
+      isRequestAllModalVisible: false,
+      requestAllProgress: 0,
+      requestAllDetails: undefined,
+    });
+  };
+
+  requestAllWorkstreams = async () => {
+    if (!this.state.selectedProject || this.state.projectIssues.length === 0) {
+      return;
+    }
+
+    const totalWorkstreams = this.state.projectIssues.length;
+    let completed = 0;
+
+    this.setState({
+      requestAllProgress: 0,
+      requestAllDetails: {
+        currentLevel: 1,
+        totalLevels: 1,
+        currentPhase: "Requesting workstreams",
+        phaseProgress: 0,
+        phaseTotal: totalWorkstreams,
+      },
+    });
+
+    try {
+      for (let i = 0; i < totalWorkstreams; i++) {
+        const workstream = this.state.projectIssues[i];
+        
+        // Update progress
+        this.setState((prevState) => ({
+          requestAllProgress: Math.round(((i + 1) / totalWorkstreams) * 100),
+          requestAllDetails: prevState.requestAllDetails ? {
+            ...prevState.requestAllDetails,
+            currentPhase: `Requesting: ${workstream.key} - ${workstream.summary}`,
+            phaseProgress: i + 1,
+            phaseTotal: totalWorkstreams,
+          } : undefined,
+        }));
+
+        try {
+          // Use SSE to get real-time progress updates for this workstream
+          const eventSource = new EventSource(
+            `/api/jiraReport/workstream/${workstream.key}/workstream`
+          );
+
+          await new Promise<void>((resolve, reject) => {
+            eventSource.onmessage = (event) => {
+              const response = JSON.parse(event.data);
+
+              if (response.status === "complete" && response.data) {
+                const workstreamWithIssues: JiraIssue = JSON.parse(response.data);
+                
+                                 // Update the loaded workstream data
+                 const aggregatedValues = calculateAggregatedValues(workstreamWithIssues);
+                this.setState((prevState) => ({
+                  loadedWorkstreamData: new Map(prevState.loadedWorkstreamData).set(
+                    workstream.key,
+                    aggregatedValues
+                  ),
+                }));
+                
+                eventSource.close();
+                resolve();
+              } else if (response.status === "error") {
+                eventSource.close();
+                reject(new Error(response.message || "Failed to load workstream"));
+              }
+            };
+
+            eventSource.onerror = () => {
+              eventSource.close();
+              reject(new Error("EventSource error"));
+            };
+
+            // Set a timeout to prevent hanging
+            setTimeout(() => {
+              eventSource.close();
+              reject(new Error("Request timeout"));
+            }, 300000); // 5 minutes timeout
+          });
+
+          completed++;
+        } catch (error) {
+          console.error(`Failed to load workstream ${workstream.key}:`, error);
+          // Continue with next workstream even if one fails
+        }
+      }
+
+      // All workstreams processed
+      this.setState({
+        requestAllProgress: 100,
+        requestAllDetails: {
+          currentLevel: 1,
+          totalLevels: 1,
+          currentPhase: "Complete",
+          phaseProgress: totalWorkstreams,
+          phaseTotal: totalWorkstreams,
+        },
+      });
+
+      // Close modal after a short delay to show completion
+      setTimeout(() => {
+        this.hideRequestAllModal();
+      }, 2000);
+
+    } catch (error) {
+      console.error("Error in requestAllWorkstreams:", error);
+      this.setState({
+        requestAllDetails: {
+          currentLevel: 1,
+          totalLevels: 1,
+          currentPhase: "Error occurred",
+          phaseProgress: completed,
+          phaseTotal: totalWorkstreams,
+        },
+      });
+    }
+  };
+
   render() {
     const {
       projects,
@@ -680,6 +827,9 @@ export default class JiraReport extends React.Component<Props, State> {
       currentIssues,
       currentIssuesLoading,
       currentIssuesError,
+      isRequestAllModalVisible,
+      requestAllProgress,
+      requestAllDetails,
     } = this.state;
 
     const sortedProjects = this.getSortedProjects();
@@ -1516,7 +1666,20 @@ export default class JiraReport extends React.Component<Props, State> {
                     <InfoCircleOutlined />
                     {navigationStack.length > 1
                       ? `Issues in ${navigationStack[navigationStack.length - 1].name}`
-                      : `Project Workstreams (${projectIssues.length})`}
+                      : (
+                        <Space>
+                          <span>Project Workstreams ({projectIssues.length})</span>
+                          {navigationStack.length === 1 && (
+                            <Button
+                              type="primary"
+                              onClick={this.showRequestAllModal}
+                              size="small"
+                            >
+                              Request All
+                            </Button>
+                          )}
+                        </Space>
+                      )}
                   </Space>
                 }
                 extra={
@@ -1618,6 +1781,67 @@ export default class JiraReport extends React.Component<Props, State> {
               )}
           </div>
         )}
+
+        {/* Request All Workstreams Modal */}
+        <Modal
+          title="Request All Workstreams"
+          open={isRequestAllModalVisible}
+          onCancel={this.hideRequestAllModal}
+          footer={[
+            <Button key="cancel" onClick={this.hideRequestAllModal}>
+              Cancel
+            </Button>,
+            <Button
+              key="confirm"
+              type="primary"
+              onClick={this.requestAllWorkstreams}
+              disabled={requestAllProgress > 0 && requestAllProgress < 100}
+            >
+              {requestAllProgress === 0 ? "Start Requesting" : "Processing..."}
+            </Button>,
+          ]}
+          width={600}
+        >
+          <div style={{ marginBottom: "20px" }}>
+            <Alert
+              message="Warning"
+              description={
+                <div>
+                  <p>This action will request data for <strong>{projectIssues.length}</strong> workstreams.</p>
+                  <p>This could take a very long time and may impact system performance.</p>
+                  <p>Are you sure you want to continue?</p>
+                </div>
+              }
+              type="warning"
+              showIcon
+              style={{ marginBottom: "16px" }}
+            />
+          </div>
+
+          {requestAllProgress > 0 && (
+            <div>
+              <Progress
+                percent={requestAllProgress}
+                status={requestAllProgress === 100 ? "success" : "active"}
+                style={{ marginBottom: "16px" }}
+              />
+              
+              {requestAllDetails && (
+                <div style={{ marginBottom: "16px" }}>
+                  <Text strong>Progress:</Text>
+                  <br />
+                  <Text type="secondary">
+                    {requestAllDetails.currentPhase}
+                  </Text>
+                  <br />
+                  <Text type="secondary">
+                    {requestAllDetails.phaseProgress} of {requestAllDetails.phaseTotal} workstreams
+                  </Text>
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
       </div>
     );
   }
