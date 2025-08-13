@@ -2294,7 +2294,6 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                           key: index,
                           issueKey: issueKey,
                           type: data.type,
-                          typeOfWork: data.typeOfWork,
                           summary: data.summary,
                           hours: data.hours,
                           chargeableDays: data.hours / 7.5,
@@ -2325,12 +2324,6 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                             dataIndex: "type",
                             key: "type",
                             render: (text) => <Text>{text}</Text>,
-                          },
-                          {
-                            title: "Type of Work",
-                            dataIndex: "typeOfWork",
-                            key: "typeOfWork",
-                            render: (text) => <Text>{text || "N/A"}</Text>,
                           },
                           {
                             title: "Issue Summary",
@@ -2513,7 +2506,6 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                                   item: issueKey,
                                   hours: data.hours,
                                   type: data.type,
-                                  typeOfWork: data.typeOfWork,
                                   summary: data.summary,
                                   chargeableDays: data.hours / 7.5,
                                   percentage: (
@@ -2597,14 +2589,6 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                                   dataIndex: "type",
                                   key: "type",
                                   render: (text) => <Text>{text}</Text>,
-                                },
-                                {
-                                  title: "Type of Work",
-                                  dataIndex: "typeOfWork",
-                                  key: "typeOfWork",
-                                  render: (text) => (
-                                    <Text>{text || "N/A"}</Text>
-                                  ),
                                 },
                                 {
                                   title: "Issue Summary",
