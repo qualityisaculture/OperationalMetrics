@@ -21,6 +21,7 @@ export type LiteJiraIssue = {
   status: string;
   children: LiteJiraIssue[];
   childCount: number;
+  url: string;
   originalEstimate?: number | null; // in days
   timeSpent?: number | null; // in days
   timeRemaining?: number | null; // in days
@@ -33,12 +34,14 @@ export class JiraLite {
   status: string;
   children: JiraLite[];
   childCount: number;
+  url: string;
 
   constructor(
     key: string,
     summary: string,
     type: string,
     status: string,
+    url: string,
     children: JiraLite[] = []
   ) {
     this.key = key;
@@ -47,12 +50,13 @@ export class JiraLite {
     this.status = status;
     this.children = children;
     this.childCount = children.length;
+    this.url = url;
   }
 
   static fromLiteJiraIssue(issue: LiteJiraIssue): JiraLite {
     const children = issue.children.map((child) =>
       typeof child === "string"
-        ? new JiraLite(child, "", "", "", [])
+        ? new JiraLite(child, "", "", "", "", [])
         : JiraLite.fromLiteJiraIssue(child)
     );
     return new JiraLite(
@@ -60,6 +64,7 @@ export class JiraLite {
       issue.summary,
       issue.type,
       issue.status,
+      issue.url,
       children
     );
   }
@@ -72,6 +77,7 @@ export class JiraLite {
       status: this.status,
       children: this.children.map((child) => child.toLiteJiraIssue()),
       childCount: this.childCount,
+      url: this.url,
     };
   }
 }
@@ -344,6 +350,7 @@ export default class JiraRequester {
         status: issue.fields.status?.name || "",
         children: [], // No children data
         childCount: 0, // No child count
+        url: `${process.env.JIRA_DOMAIN}/browse/${issue.key}`,
       }));
     } catch (error) {
       console.error("Error in getLiteQuery:", error);
@@ -384,6 +391,7 @@ export default class JiraRequester {
           type: issue.fields.issuetype.name || "",
           status: issue.fields.status?.name || "",
           parentKey: issue.fields.parent?.key || "",
+          url: `${process.env.JIRA_DOMAIN}/browse/${issue.key}`,
           originalEstimate: issue.fields.timeoriginalestimate
             ? issue.fields.timeoriginalestimate / 3600 / 7.5
             : null,
@@ -437,6 +445,7 @@ export default class JiraRequester {
         status: issue.fields.status?.name || "",
         children: [], // Children don't have nested children in this implementation
         childCount: 0,
+        url: `${process.env.JIRA_DOMAIN}/browse/${issue.key}`,
         originalEstimate: issue.fields.timeoriginalestimate
           ? issue.fields.timeoriginalestimate / 3600 / 7.5
           : null,

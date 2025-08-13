@@ -1,6 +1,6 @@
 import React from "react";
 import { Table, Card, Alert, Space } from "antd";
-import { LiteJiraIssue } from "../types";
+import { LiteJiraIssue } from "../../../server/JiraRequester";
 import { TABLE_COLUMNS } from "../constants";
 
 interface DataTableProps {

@@ -51,7 +51,7 @@ export const getIssueColumns = (
     key: "key",
     render: (key: string, record: JiraIssueWithAggregated) => (
       <a
-        href={`https://lendscape.atlassian.net/browse/${key}`}
+        href={record.url}
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()} // Prevent row click when clicking link

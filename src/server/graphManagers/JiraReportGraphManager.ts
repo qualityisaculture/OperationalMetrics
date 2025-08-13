@@ -476,6 +476,7 @@ export default class JiraReportGraphManager {
           status: "Unknown",
           children: [],
           childCount: 0,
+          url: `${process.env.JIRA_DOMAIN}/browse/${workstreamKey}`,
           originalEstimate: null,
           timeSpent: null,
           timeRemaining: null,
@@ -592,6 +593,7 @@ export default class JiraReportGraphManager {
         status: child.status,
         children: [],
         childCount: 0,
+        url: child.url,
         originalEstimate: child.originalEstimate || null,
         timeSpent: child.timeSpent || null,
         timeRemaining: child.timeRemaining || null,
@@ -1212,6 +1214,7 @@ export default class JiraReportGraphManager {
         status: child.status,
         children: [], // We don't fetch nested children here
         childCount: 0, // We don't know the child count without fetching
+        url: child.url,
         originalEstimate: child.originalEstimate || null,
         timeSpent: child.timeSpent || null,
         timeRemaining: child.timeRemaining || null,
