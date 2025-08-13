@@ -13,13 +13,14 @@ import { RawDataTable } from "./components/RawDataTable";
 import { WorkDescriptionModal } from "./components/WorkDescriptionModal";
 
 const TempoAnalyzer: React.FC<Props> = () => {
-  const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
   const {
     sheets,
     isLoading,
     handleFileUpload,
     handleMultipleFileUpload,
     removeSheet,
+    selectedSheets,
+    setSelectedSheets,
   } = useExcelProcessor();
   const analyzer = useTempoAnalyzer(sheets, selectedSheets);
 

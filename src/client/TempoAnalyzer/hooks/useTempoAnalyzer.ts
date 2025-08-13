@@ -61,7 +61,7 @@ export const useTempoAnalyzer = (
     selectedWorkDescriptions: [],
     selectedWorkDescriptionTitle: "",
     selectedWorkDescriptionDetails: [],
-    excludeHolidayAbsence: false,
+    excludeHolidayAbsence: true,
     excludeAfterDate: null,
     groupedDataByCategory: {},
     displayedRows: [],
@@ -74,6 +74,12 @@ export const useTempoAnalyzer = (
       clearData();
     }
   }, [selectedSheets, sheets]);
+
+  useEffect(() => {
+    if (analyzerState.rawData.length > 0) {
+      processData(analyzerState.rawData, analyzerState.headers);
+    }
+  }, [analyzerState.excludeHolidayAbsence, analyzerState.excludeAfterDate]);
 
   const applyFilters = (tableData: any[]) => {
     const {
@@ -1060,20 +1066,10 @@ export const useTempoAnalyzer = (
       ...prevState,
       excludeHolidayAbsence: checked,
     }));
-    if (analyzerState.rawData.length > 0) {
-      const filteredData = applyFilters(analyzerState.rawData);
-      setAnalyzerState((prevState) => ({ ...prevState, filteredData }));
-      processData(analyzerState.rawData, analyzerState.headers);
-    }
   };
 
   const handleExcludeAfterDateChange = (date: any) => {
     setAnalyzerState((prevState) => ({ ...prevState, excludeAfterDate: date }));
-    if (analyzerState.rawData.length > 0) {
-      const filteredData = applyFilters(analyzerState.rawData);
-      setAnalyzerState((prevState) => ({ ...prevState, filteredData }));
-      processData(analyzerState.rawData, analyzerState.headers);
-    }
   };
 
   const getDisplayedRowsTitle = () => {

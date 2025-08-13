@@ -6,6 +6,7 @@ import { SheetData } from "../types";
 export const useExcelProcessor = () => {
   const [sheets, setSheets] = useState<SheetData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
 
   const handleMultipleFileUpload = (fileList: File[]) => {
     setIsLoading(true);
@@ -86,6 +87,7 @@ export const useExcelProcessor = () => {
         processedCount++;
         if (processedCount === totalFiles) {
           setSheets((prevSheets) => [...prevSheets, ...allNewSheets]);
+          setSelectedSheets(allNewSheets.map((s) => `${s.fileName}|${s.name}`));
           setIsLoading(false);
           message.success(
             `Successfully processed ${totalFiles} file(s). Found ${allNewSheets.length} Worklogs sheets.`
@@ -168,6 +170,7 @@ export const useExcelProcessor = () => {
         }
 
         setSheets((prevSheets) => [...prevSheets, ...newSheets]);
+        setSelectedSheets(newSheets.map((s) => `${s.fileName}|${s.name}`));
         message.success(
           `Successfully loaded Worklogs sheet from "${file.name}"`
         );
@@ -208,5 +211,7 @@ export const useExcelProcessor = () => {
     handleFileUpload,
     handleMultipleFileUpload,
     removeSheet,
+    selectedSheets,
+    setSelectedSheets,
   };
 };
