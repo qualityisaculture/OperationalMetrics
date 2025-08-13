@@ -1,10 +1,6 @@
 import React from "react";
-import { Table, Card, Space, Typography } from "antd";
-import { InfoCircleOutlined } from "@ant-design/icons";
 import { JiraIssueWithAggregated } from "../types";
-import { getIssueColumns } from "./tables/issueColumns";
-
-const { Text } = Typography;
+import { UnifiedIssuesTable } from "../../components/tables/UnifiedIssuesTable";
 
 interface Props {
   currentIssues: JiraIssueWithAggregated[];
@@ -33,49 +29,32 @@ export const IssuesTable: React.FC<Props> = ({
   handleIssueClick,
   toggleFavorite,
 }) => {
-  const issueColumns = getIssueColumns(
-    favoriteItems,
-    toggleFavorite,
-    navigationStack,
-    currentIssues,
-    [],
-    getWorkstreamDataCellSpan
-  );
-
   return (
-    <Card
-      title={
-        <Space>
-          <InfoCircleOutlined />
-          {`Issues in ${navigationStack[navigationStack.length - 1].name}`}
-        </Space>
-      }
-      extra={
-        <Text type="secondary">
-          Last updated: {new Date().toLocaleString()}
-        </Text>
-      }
-    >
-      <Table
-        key={`issues-table-${favoriteItems.size}-${navigationStack.length}`} // Force re-render when favorites change
-        columns={issueColumns}
-        dataSource={getSortedItems(currentIssues)}
-        rowKey="key"
-        pagination={{
-          pageSize: 50,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) =>
-            `${range[0]}-${range[1]} of ${total} issues`,
-        }}
-        onRow={(record) => ({
-          onClick: () => handleIssueClick(record),
-          style: {
-            cursor: record.childCount > 0 ? "pointer" : "default",
-            backgroundColor: record.childCount > 0 ? "#fafafa" : "transparent",
-          },
-        })}
-      />
-    </Card>
+    <UnifiedIssuesTable
+      title={`Issues in ${navigationStack[navigationStack.length - 1].name}`}
+      dataSource={currentIssues}
+      rowKey="key"
+      showFavoriteColumn={true}
+      favoriteItems={favoriteItems}
+      toggleFavorite={toggleFavorite}
+      navigationStack={navigationStack}
+      currentIssues={currentIssues}
+      getWorkstreamDataCellSpan={getWorkstreamDataCellSpan}
+      getSortedItems={getSortedItems}
+      pagination={{
+        pageSize: 50,
+        showSizeChanger: true,
+        showQuickJumper: true,
+        showTotal: (total, range) =>
+          `${range[0]}-${range[1]} of ${total} issues`,
+      }}
+      onRow={(record) => ({
+        onClick: () => handleIssueClick(record),
+        style: {
+          cursor: record.childCount > 0 ? "pointer" : "default",
+          backgroundColor: record.childCount > 0 ? "#fafafa" : "transparent",
+        },
+      })}
+    />
   );
 };

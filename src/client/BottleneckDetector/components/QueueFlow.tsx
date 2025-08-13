@@ -1,9 +1,10 @@
 import React from "react";
-import { Card, Typography, Space, List, Tag } from "antd";
+import { Card, Typography, Space, Tag } from "antd";
 import { Queue } from "../types";
 import { LiteJiraIssue } from "../../../server/JiraRequester";
+import { UnifiedIssuesTable } from "../../components/tables/UnifiedIssuesTable";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface QueueFlowProps {
   queues: Queue[];
@@ -50,76 +51,43 @@ export const QueueFlow: React.FC<QueueFlowProps> = ({ queues, issues }) => {
   // Sort queues by order
   const sortedQueues = [...queues].sort((a, b) => a.order - b.order);
 
-  const renderIssueItem = (issue: LiteJiraIssue) => (
-    <List.Item key={issue.key}>
-      <Space direction="vertical" size="small" style={{ width: "100%" }}>
+  const renderQueueSection = (
+    title: string,
+    dataSource: LiteJiraIssue[],
+    tagColor: string
+  ) => (
+    <UnifiedIssuesTable
+      title={
         <Space>
-          <Text strong>{issue.key}</Text>
-          <Tag color="blue">{issue.status}</Tag>
+          <Text strong>{title}</Text>
+          <Tag color={tagColor}>{dataSource.length}</Tag>
         </Space>
-        <Text>{issue.summary}</Text>
-        <Text type="secondary" style={{ fontSize: "12px" }}>
-          Type: {issue.type}
-        </Text>
-      </Space>
-    </List.Item>
+      }
+      dataSource={dataSource}
+      rowKey="key"
+      showFavoriteColumn={false}
+      pagination={{
+        pageSize: 10,
+        showSizeChanger: true,
+        showQuickJumper: true,
+      }}
+    />
   );
 
   return (
     <div style={{ overflowX: "auto", padding: "16px 0" }}>
       <div style={{ display: "flex", gap: "16px", minWidth: "max-content" }}>
         {/* Uncategorized Queue (always first) */}
-        <Card
-          title={
-            <Space>
-              <Text strong>Uncategorized</Text>
-              <Tag color="orange">
-                {queueIssues["uncategorized"]?.length || 0}
-              </Tag>
-            </Space>
-          }
-          style={{
-            minWidth: 300,
-            maxWidth: 300,
-            border: "2px dashed #d9d9d9",
-            backgroundColor: "#fafafa",
-          }}
-        >
-          <List
-            size="small"
-            dataSource={queueIssues["uncategorized"] || []}
-            renderItem={renderIssueItem}
-            locale={{ emptyText: "All issues categorized!" }}
-            style={{ maxHeight: 400, overflowY: "auto" }}
-          />
-        </Card>
+        {renderQueueSection(
+          "Uncategorized",
+          queueIssues["uncategorized"] || [],
+          "orange"
+        )}
 
         {/* User-defined queues */}
-        {sortedQueues.map((queue) => (
-          <Card
-            key={queue.id}
-            title={
-              <Space>
-                <Text strong>{queue.name}</Text>
-                <Tag color="green">{queueIssues[queue.id]?.length || 0}</Tag>
-              </Space>
-            }
-            style={{
-              minWidth: 300,
-              maxWidth: 300,
-              border: "2px solid #1890ff",
-              backgroundColor: "#f0f8ff",
-            }}
-          >
-            <List
-              size="small"
-              dataSource={queueIssues[queue.id] || []}
-              renderItem={renderIssueItem}
-              locale={{ emptyText: "No issues in this queue" }}
-              style={{ maxHeight: 400, overflowY: "auto" }}
-            />
-          </Card>
-        ))}
+        {sortedQueues.map((queue) =>
+          renderQueueSection(queue.name, queueIssues[queue.id] || [], "green")
+        )}
 
         {/* Empty state when no queues */}
         {queues.length === 0 && (
