@@ -165,9 +165,7 @@ export const getIssueColumns = (
     filters: (() => {
       // Get unique statuses from the current data
       const uniqueStatuses = [
-        ...new Set(
-          projectIssues.map((issue) => issue.status).filter(Boolean)
-        ),
+        ...new Set(projectIssues.map((issue) => issue.status).filter(Boolean)),
       ].sort();
       return uniqueStatuses.map((status) => ({
         text: status,
@@ -214,8 +212,7 @@ export const getIssueColumns = (
       record: JiraIssueWithAggregated
     ) => {
       // Show aggregated values if available (either for workstreams or items)
-      const hasAggregatedData =
-        record.aggregatedOriginalEstimate !== undefined;
+      const hasAggregatedData = record.aggregatedOriginalEstimate !== undefined;
       const valueToShow = hasAggregatedData
         ? record.aggregatedOriginalEstimate
         : estimate;
@@ -223,9 +220,7 @@ export const getIssueColumns = (
       // At Project Workstreams level, show message if no data
       if (
         navigationStack.length === 1 &&
-        (valueToShow === null ||
-          valueToShow === undefined ||
-          valueToShow === 0)
+        (valueToShow === null || valueToShow === undefined || valueToShow === 0)
       ) {
         return (
           <Text
@@ -322,8 +317,7 @@ export const getIssueColumns = (
       record: JiraIssueWithAggregated
     ) => {
       // Show aggregated values if available (either for workstreams or items)
-      const hasAggregatedData =
-        record.aggregatedTimeRemaining !== undefined;
+      const hasAggregatedData = record.aggregatedTimeRemaining !== undefined;
       const valueToShow = hasAggregatedData
         ? record.aggregatedTimeRemaining
         : timeRemaining;
@@ -442,8 +436,7 @@ export const getIssueColumns = (
 
       // Only show variance if we have both estimate and forecast
       if (originalEstimate > 0 || totalForecast > 0) {
-        const color =
-          variance > 0 ? "red" : variance < 0 ? "green" : "default";
+        const color = variance > 0 ? "red" : variance < 0 ? "green" : "default";
         return (
           <Text>
             <Tag color={color}>

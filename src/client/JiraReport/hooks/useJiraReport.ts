@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { JiraProject, JiraIssue } from "../../../server/graphManagers/JiraReportGraphManager";
+import {
+  JiraProject,
+  JiraIssue,
+} from "../../../server/graphManagers/JiraReportGraphManager";
 import { JiraIssueWithAggregated, JiraReportState } from "../types";
 import { calculateAggregatedValues, processWorkstreamData } from "../utils";
 
@@ -29,7 +32,8 @@ export const useJiraReport = () => {
   const getWorkstreamDataCellSpan = useCallback(
     (record: JiraIssueWithAggregated, isFirstColumn: boolean = false) => {
       if (state.navigationStack.length === 1) {
-        const hasAggregatedData = record.aggregatedOriginalEstimate !== undefined;
+        const hasAggregatedData =
+          record.aggregatedOriginalEstimate !== undefined;
         const valueToShow = hasAggregatedData
           ? record.aggregatedOriginalEstimate
           : record.originalEstimate;
@@ -384,7 +388,7 @@ export const useJiraReport = () => {
     }
   };
 
-    const findIssueInCurrentData = (
+  const findIssueInCurrentData = (
     issueKey: string
   ): JiraIssueWithAggregated | null => {
     for (const issue of state.currentIssues) {
@@ -393,7 +397,7 @@ export const useJiraReport = () => {
       }
     }
     return null;
-  }
+  };
 
   const handleIssueClick = (issue: JiraIssueWithAggregated) => {
     if (issue.childCount === 0) {

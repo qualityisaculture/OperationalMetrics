@@ -1,7 +1,5 @@
 export { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
-import {
-  JiraIssue,
-} from "../../server/graphManagers/JiraReportGraphManager";
+import { JiraIssue } from "../../server/graphManagers/JiraReportGraphManager";
 
 // Extended interface for JiraIssue with aggregated values
 export interface JiraIssueWithAggregated extends JiraIssue {

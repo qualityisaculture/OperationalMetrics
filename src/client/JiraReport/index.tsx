@@ -1,37 +1,20 @@
 import React from "react";
-import {
-  Table,
-  Card,
-  Spin,
-  Alert,
-  Button,
-  Space,
-  Typography,
-  Tag,
-  Breadcrumb,
-  Tooltip,
-  Modal,
-  Progress,
-} from "antd";
+import { Alert, Button, Space, Typography } from "antd";
 import { LoadingIndicator } from "../components";
-import {
-  JiraProject,
-  JiraIssue,
-} from "../../server/graphManagers/JiraReportGraphManager";
-import { JiraIssueWithAggregated, JiraReportState } from "./types";
 import { useJiraReport } from "./hooks/useJiraReport";
-import { getProjectColumns } from "./components/tables/projectColumns";
-import { getIssueColumns } from "./components/tables/issueColumns";
 import {
   ReloadOutlined,
   ProjectOutlined,
-  InfoCircleOutlined,
   ArrowLeftOutlined,
   StarOutlined,
   StarFilled,
-  HomeOutlined,
-  ExclamationCircleOutlined,
 } from "@ant-design/icons";
+import { ProjectsTable } from "./components/ProjectsTable";
+import { WorkstreamsTable } from "./components/WorkstreamsTable";
+import { IssuesTable } from "./components/IssuesTable";
+import { Breadcrumbs } from "./components/Breadcrumbs";
+import { RequestAllModal } from "./components/RequestAllModal";
+import { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
 
 const { Title, Text } = Typography;
 
@@ -52,6 +35,7 @@ const JiraReport: React.FC = () => {
     showRequestAllModal,
     hideRequestAllModal,
     requestAllWorkstreams,
+    loadProjectWorkstreams,
   } = useJiraReport();
 
   const {
@@ -73,21 +57,6 @@ const JiraReport: React.FC = () => {
     progressStatus,
     progressDetails,
   } = state;
-
-  const sortedProjects = getSortedProjects();
-  const projectColumns = getProjectColumns(
-    favoriteItems,
-    toggleFavorite,
-    projects
-  );
-  const issueColumns = getIssueColumns(
-    favoriteItems,
-    toggleFavorite,
-    navigationStack,
-    currentIssues,
-    projectIssues,
-    getWorkstreamDataCellSpan
-  );
 
   if (isLoading) {
     return (
@@ -144,44 +113,14 @@ const JiraReport: React.FC = () => {
       </div>
 
       {!selectedProject ? (
-        // Projects View
-        <Card
-          title={
-            <Space>
-              <ProjectOutlined />
-              Projects ({projects.length})
-              {favoriteItems.size > 0 && (
-                <Text type="secondary">• {favoriteItems.size} starred</Text>
-              )}
-            </Space>
-          }
-          extra={
-            <Text type="secondary">
-              Last updated: {new Date().toLocaleString()}
-            </Text>
-          }
-        >
-          <Table
-            key={`projects-table-${favoriteItems.size}`} // Force re-render when favorites change
-            columns={projectColumns}
-            dataSource={sortedProjects}
-            rowKey="id"
-            pagination={{
-              pageSize: getOptimalPageSize(),
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) =>
-                `${range[0]}-${range[1]} of ${total} projects`,
-              defaultCurrent: 1, // Always start on first page
-            }}
-            onRow={(record) => ({
-              onClick: () => handleProjectClick(record),
-              style: { cursor: "pointer" },
-            })}
-          />
-        </Card>
+        <ProjectsTable
+          projects={projects}
+          favoriteItems={favoriteItems}
+          toggleFavorite={toggleFavorite}
+          handleProjectClick={handleProjectClick}
+          getOptimalPageSize={getOptimalPageSize}
+        />
       ) : (
-        // Project Issues View with Navigation
         <div>
           <div style={{ marginBottom: "16px" }}>
             <Space align="center">
@@ -214,41 +153,13 @@ const JiraReport: React.FC = () => {
             </Space>
           </div>
 
-          {/* Breadcrumb Navigation */}
           {navigationStack.length > 0 && (
-            <div style={{ marginBottom: "16px" }}>
-              <Breadcrumb>
-                <Breadcrumb.Item>
-                  <Button
-                    type="link"
-                    icon={<HomeOutlined />}
-                    onClick={() => handleBreadcrumbClick(-1)}
-                    style={{ padding: 0, height: "auto" }}
-                  >
-                    Projects
-                  </Button>
-                </Breadcrumb.Item>
-                {navigationStack.map((item, index) => (
-                  <Breadcrumb.Item key={item.key}>
-                    <Button
-                      type="link"
-                      onClick={() => handleBreadcrumbClick(index)}
-                      style={{ padding: 0, height: "auto" }}
-                    >
-                      {item.type === "project" ? (
-                        <ProjectOutlined style={{ marginRight: "4px" }} />
-                      ) : (
-                        <InfoCircleOutlined style={{ marginRight: "4px" }} />
-                      )}
-                      {item.name}
-                    </Button>
-                  </Breadcrumb.Item>
-                ))}
-              </Breadcrumb>
-            </div>
+            <Breadcrumbs
+              navigationStack={navigationStack}
+              handleBreadcrumbClick={handleBreadcrumbClick}
+            />
           )}
 
-          {/* Loading State for Issues */}
           <LoadingIndicator
             loading={issuesLoading}
             message="Loading project workstreams..."
@@ -257,7 +168,6 @@ const JiraReport: React.FC = () => {
             showProgressDetails={false}
           />
 
-          {/* Error State for Issues */}
           {issuesError && (
             <Alert
               message="Error"
@@ -269,9 +179,7 @@ const JiraReport: React.FC = () => {
                 <Button
                   size="small"
                   danger
-                  onClick={() =>
-                    loadProjectWorkstreams(selectedProject.key)
-                  }
+                  onClick={() => loadProjectWorkstreams(selectedProject.key)}
                 >
                   Retry
                 </Button>
@@ -279,7 +187,6 @@ const JiraReport: React.FC = () => {
             />
           )}
 
-          {/* Loading State for Current Issues */}
           <LoadingIndicator
             loading={currentIssuesLoading}
             message={progressStatus}
@@ -287,7 +194,6 @@ const JiraReport: React.FC = () => {
             size="default"
           />
 
-          {/* Error State for Current Issues */}
           {currentIssuesError && (
             <Alert
               message="Error"
@@ -298,99 +204,33 @@ const JiraReport: React.FC = () => {
             />
           )}
 
-          {/* Issues Table */}
-          {!issuesLoading && !issuesError && !currentIssuesLoading && (
-            <Card
-              title={
-                <Space>
-                  <InfoCircleOutlined />
-                  {navigationStack.length > 1 ? (
-                    `Issues in ${navigationStack[navigationStack.length - 1].name}`
-                  ) : (
-                    <Space>
-                      <span>
-                        Project Workstreams ({projectIssues.length})
-                      </span>
-                      {navigationStack.length === 1 && (
-                        <Button
-                          type="primary"
-                          onClick={showRequestAllModal}
-                          size="small"
-                        >
-                          Request All
-                        </Button>
-                      )}
-                    </Space>
-                  )}
-                </Space>
-              }
-              extra={
-                <Text type="secondary">
-                  Last updated: {new Date().toLocaleString()}
-                </Text>
-              }
-            >
-              <Table
-                key={`issues-table-${favoriteItems.size}-${navigationStack.length}-${state.loadedWorkstreamData.size}`} // Force re-render when favorites change or aggregated data is loaded
-                columns={issueColumns}
-                dataSource={
-                  navigationStack.length > 1
-                    ? getSortedItems(currentIssues)
-                    : getSortedItems(
-                        projectIssues.map((issue) => {
-                          const loadedData =
-                            state.loadedWorkstreamData.get(issue.key);
-
-                          return loadedData
-                            ? {
-                                ...issue,
-                                aggregatedOriginalEstimate:
-                                  loadedData.aggregatedOriginalEstimate,
-                                aggregatedTimeSpent:
-                                  loadedData.aggregatedTimeSpent,
-                                aggregatedTimeRemaining:
-                                  loadedData.aggregatedTimeRemaining,
-                              }
-                            : issue;
-                        })
-                      )
-                }
-                rowKey="key"
-                pagination={{
-                  pageSize: 50,
-                  showSizeChanger: true,
-                  showQuickJumper: true,
-                  showTotal: (total, range) =>
-                    `${range[0]}-${range[1]} of ${total} ${navigationStack.length > 1 ? "issues" : "workstreams"}`,
-                }}
-                onRow={(record) => ({
-                  onClick: () => {
-                    if (navigationStack.length === 1) {
-                      handleWorkstreamClick(record);
-                    } else {
-                      handleIssueClick(
-                        record as JiraIssueWithAggregated
-                      );
-                    }
-                  },
-                  style: {
-                    cursor:
-                      navigationStack.length === 1 ||
-                      record.childCount > 0
-                        ? "pointer"
-                        : "default",
-                    backgroundColor:
-                      navigationStack.length === 1 ||
-                      record.childCount > 0
-                        ? "#fafafa"
-                        : "transparent",
-                  },
-                })}
+          {!issuesLoading &&
+            !issuesError &&
+            !currentIssuesLoading &&
+            (navigationStack.length > 1 ? (
+              <IssuesTable
+                currentIssues={currentIssues}
+                favoriteItems={favoriteItems}
+                navigationStack={navigationStack}
+                getSortedItems={getSortedItems}
+                getWorkstreamDataCellSpan={getWorkstreamDataCellSpan}
+                handleIssueClick={handleIssueClick}
+                toggleFavorite={toggleFavorite}
               />
-            </Card>
-          )}
+            ) : (
+              <WorkstreamsTable
+                projectIssues={projectIssues}
+                favoriteItems={favoriteItems}
+                navigationStack={navigationStack}
+                loadedWorkstreamData={state.loadedWorkstreamData}
+                getSortedItems={getSortedItems}
+                getWorkstreamDataCellSpan={getWorkstreamDataCellSpan}
+                handleWorkstreamClick={handleWorkstreamClick}
+                showRequestAllModal={showRequestAllModal}
+                toggleFavorite={toggleFavorite}
+              />
+            ))}
 
-          {/* No Issues Found */}
           {!issuesLoading &&
             !issuesError &&
             projectIssues.length === 0 &&
@@ -403,7 +243,6 @@ const JiraReport: React.FC = () => {
               />
             )}
 
-          {/* No Children Found */}
           {!currentIssuesLoading &&
             !currentIssuesError &&
             currentIssues.length === 0 &&
@@ -418,71 +257,14 @@ const JiraReport: React.FC = () => {
         </div>
       )}
 
-      {/* Request All Workstreams Modal */}
-      <Modal
-        title="Request All Workstreams"
-        open={isRequestAllModalVisible}
-        onCancel={hideRequestAllModal}
-        footer={[
-          <Button key="cancel" onClick={hideRequestAllModal}>
-            Cancel
-          </Button>,
-          <Button
-            key="confirm"
-            type="primary"
-            onClick={requestAllWorkstreams}
-            disabled={requestAllProgress > 0 && requestAllProgress < 100}
-          >
-            {requestAllProgress === 0 ? "Start Requesting" : "Processing..."}
-          </Button>,
-        ]}
-        width={600}
-      >
-        <div style={{ marginBottom: "20px" }}>
-          <Alert
-            message="Warning"
-            description={
-              <div>
-                <p>
-                  This action will request data for{" "}
-                  <strong>{projectIssues.length}</strong> workstreams.
-                </p>
-                <p>
-                  This could take a very long time and may impact system
-                  performance.
-                </p>
-                <p>Are you sure you want to continue?</p>
-              </div>
-            }
-            type="warning"
-            showIcon
-            style={{ marginBottom: "16px" }}
-          />
-        </div>
-
-        {requestAllProgress > 0 && (
-          <div>
-            <Progress
-              percent={requestAllProgress}
-              status={requestAllProgress === 100 ? "success" : "active"}
-              style={{ marginBottom: "16px" }}
-            />
-
-            {requestAllDetails && (
-              <div style={{ marginBottom: "16px" }}>
-                <Text strong>Progress:</Text>
-                <br />
-                <Text type="secondary">{requestAllDetails.currentPhase}</Text>
-                <br />
-                <Text type="secondary">
-                  {requestAllDetails.phaseProgress} of{" "}
-                  {requestAllDetails.phaseTotal} workstreams
-                </Text>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+      <RequestAllModal
+        isRequestAllModalVisible={isRequestAllModalVisible}
+        hideRequestAllModal={hideRequestAllModal}
+        requestAllWorkstreams={requestAllWorkstreams}
+        requestAllProgress={requestAllProgress}
+        projectIssues={projectIssues}
+        requestAllDetails={requestAllDetails}
+      />
     </div>
   );
 };
