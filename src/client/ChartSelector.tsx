@@ -14,6 +14,7 @@ import CreatedResolved from "./CreatedResolved";
 import TempoAnalyzer from "./TempoAnalyzer";
 import TempoReport from "./TempoReport";
 import JiraReport from "./JiraReport";
+import BottleneckDetector from "./BottleneckDetector";
 
 interface Props {}
 
@@ -31,7 +32,8 @@ interface State {
     | "createdResolved"
     | "tempoAnalyzer"
     | "tempoReport"
-    | "jiraReport";
+    | "jiraReport"
+    | "bottleneckDetector";
 }
 
 export default class ChartSelector extends React.Component<Props, State> {
@@ -86,6 +88,9 @@ export default class ChartSelector extends React.Component<Props, State> {
     let jiraReportStyle = {
       display: this.state.chart === "jiraReport" ? "block" : "none",
     };
+    let bottleneckDetectorStyle = {
+      display: this.state.chart === "bottleneckDetector" ? "block" : "none",
+    };
 
     return (
       <div>
@@ -109,6 +114,7 @@ export default class ChartSelector extends React.Component<Props, State> {
             <Radio.Button value="tempoAnalyzer">Tempo Analyzer</Radio.Button>
             <Radio.Button value="tempoReport">Tempo Report</Radio.Button>
             <Radio.Button value="jiraReport">Jira Report</Radio.Button>
+            <Radio.Button value="bottleneckDetector">Bottleneck Detector</Radio.Button>
           </Radio.Group>
         </div>
         <div>
@@ -150,6 +156,9 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={jiraReportStyle}>
             <JiraReport />
+          </div>
+          <div style={bottleneckDetectorStyle}>
+            <BottleneckDetector projectName="PROJECT" />
           </div>
         </div>
       </div>

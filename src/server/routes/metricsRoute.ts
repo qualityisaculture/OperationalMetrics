@@ -21,6 +21,7 @@ import CustomerSLAGraphManager from "../graphManagers/CustomerSLAGraphManager";
 import CreatedResolvedGraphManager from "../graphManagers/CreatedResolvedGraphManager";
 import TempoReportGraphManager from "../graphManagers/TempoReportGraphManager";
 import JiraReportGraphManager from "../graphManagers/JiraReportGraphManager";
+import BottleneckDetectorGraphManager from "../graphManagers/BottleneckDetectorGraphManager";
 
 async function getJiraData(issueKey: string) {}
 
@@ -39,6 +40,7 @@ const createdResolvedGraphManager = new CreatedResolvedGraphManager(
 );
 const tempoReportGraphManager = new TempoReportGraphManager();
 const jiraReportGraphManager = new JiraReportGraphManager(jiraRequester);
+const bottleneckDetectorGraphManager = new BottleneckDetectorGraphManager(jiraRequester);
 
 metricsRoute.get(
   "/cumulativeFlowDiagram",
@@ -726,6 +728,36 @@ metricsRoute.get(
         res.json({
           message: `Error fetching issue ${issueKey} with all children: ${error.message}`,
           data: JSON.stringify(null),
+        });
+      });
+  }
+);
+
+// Bottleneck Detector API route
+metricsRoute.get(
+  "/bottleneck-detector",
+  (
+    req: TRQ<{ project: string; jql: string }>,
+    res: TR<{ message: string; data: string }>
+  ) => {
+    const project = req.query.project;
+    const jql = req.query.jql;
+    
+    console.log(`Bottleneck Detector endpoint called for project: ${project} with JQL: ${jql}`);
+    
+    bottleneckDetectorGraphManager
+      .getBottleneckData(project, jql)
+      .then((data) => {
+        res.json({
+          message: "Bottleneck Detector data fetched successfully",
+          data: JSON.stringify(data)
+        });
+      })
+      .catch((error) => {
+        console.error("Error in Bottleneck Detector API:", error);
+        res.json({
+          message: `Error fetching Bottleneck Detector data: ${error.message}`,
+          data: JSON.stringify([])
         });
       });
   }
