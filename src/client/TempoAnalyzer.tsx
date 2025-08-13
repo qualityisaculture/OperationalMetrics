@@ -32,8 +32,14 @@ const { Title, Text } = Typography;
 const { Panel } = Collapse;
 const { Option } = Select;
 
+interface IssueKeyException {
+  issueKeys?: string[];
+  typeOfWork?: string;
+  categorySuffix: string;
+}
+
 // Configuration for issue keys that should be split into their own categories
-const ISSUE_KEY_EXCEPTIONS = [
+const ISSUE_KEY_EXCEPTIONS: IssueKeyException[] = [
   {
     issueKeys: ["ABS-56", "ABS-58", "ABS-57"],
     categorySuffix: "Holiday & Absence",
@@ -62,6 +68,10 @@ const ISSUE_KEY_EXCEPTIONS = [
   {
     issueKeys: ["STR-45"],
     categorySuffix: "XFT Reorg",
+  },
+  {
+    typeOfWork: "Functional feature investment",
+    categorySuffix: "Product",
   },
   // Add more exceptions here as needed:
   // { issueKeys: ["ABS-57", "ABS-58"], categorySuffix: "Sick Leave" },
@@ -106,7 +116,12 @@ interface State {
   detailedByName: { [key: string]: number };
   detailedByIssue: { [key: string]: number };
   detailedByIssueWithType: {
-    [key: string]: { hours: number; type: string; summary: string; typeOfWork: string };
+    [key: string]: {
+      hours: number;
+      type: string;
+      summary: string;
+      typeOfWork: string;
+    };
   };
   detailedByType: { [key: string]: number };
   detailedByAccount: { [key: string]: number };
@@ -128,7 +143,12 @@ interface State {
   selectedUserCategory: string | null;
   userCategoryIssueData: { [key: string]: number };
   userCategoryIssueDataWithType: {
-    [key: string]: { hours: number; type: string; summary: string; typeOfWork: string };
+    [key: string]: {
+      hours: number;
+      type: string;
+      summary: string;
+      typeOfWork: string;
+    };
   };
   userCategoryIssueTotal: number;
   userCategoryIssueWorkDescriptions: {
@@ -443,10 +463,21 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       if (accountCategory) {
         const category = String(accountCategory).trim();
         if (category) {
-          // Check if this issue key should be split into its own category
-          const exception = ISSUE_KEY_EXCEPTIONS.find((exp) =>
-            exp.issueKeys.includes(issueKey)
-          );
+          // Check if this issue key or type of work should be split into its own category
+          const exception = ISSUE_KEY_EXCEPTIONS.find((exp) => {
+            const issueKey =
+              issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
+            const typeOfWork =
+              typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : null;
+
+            if (exp.issueKeys && issueKey) {
+              return exp.issueKeys.includes(issueKey);
+            }
+            if (exp.typeOfWork && typeOfWork) {
+              return exp.typeOfWork === typeOfWork;
+            }
+            return false;
+          });
           let finalCategory = category;
 
           if (exception) {
@@ -665,11 +696,13 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     // Check if this is an exception category and extract the original category
     let originalCategory = category;
     let exceptionIssueKeys: string[] | null = null;
+    let exceptionTypeOfWork: string | null = null;
 
     for (const exception of ISSUE_KEY_EXCEPTIONS) {
       if (category.endsWith(` ${exception.categorySuffix}`)) {
         originalCategory = category.replace(` ${exception.categorySuffix}`, "");
-        exceptionIssueKeys = exception.issueKeys; // Include all issue keys in the exception group
+        exceptionIssueKeys = exception.issueKeys || []; // Include all issue keys in the exception group
+        exceptionTypeOfWork = exception.typeOfWork || null;
         break;
       }
     }
@@ -679,7 +712,12 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     const detailedByName: { [key: string]: number } = {};
     const detailedByIssue: { [key: string]: number } = {};
     const detailedByIssueWithType: {
-      [key: string]: { hours: number; type: string; summary: string; typeOfWork: string };
+      [key: string]: {
+        hours: number;
+        type: string;
+        summary: string;
+        typeOfWork: string;
+      };
     } = {};
     const detailedByType: { [key: string]: number } = {};
     const detailedByAccount: { [key: string]: number } = {};
@@ -698,20 +736,35 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
 
       if (String(rowCategory).trim() === originalCategory) {
-        // If this is an exception category, only include rows with any of the exception issue keys
+        const rowIssueKey = row[issueKeyIndex.toString()];
+        const typeOfWork =
+          typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : null;
+
+        // If this is an exception category, only include rows that match the exception criteria
         if (exceptionIssueKeys) {
-          const rowIssueKey = row[issueKeyIndex.toString()];
-          if (!exceptionIssueKeys.includes(rowIssueKey)) {
-            return; // Skip this row if it doesn't match any of the exception issue keys
+          let matches = false;
+          if (exceptionIssueKeys && exceptionIssueKeys.includes(rowIssueKey)) {
+            matches = true;
+          }
+          if (exceptionTypeOfWork && exceptionTypeOfWork === typeOfWork) {
+            matches = true;
+          }
+          if (!matches) {
+            return; // Skip if it doesn't match the exception criteria
           }
         } else {
-          // For regular categories, exclude rows that match any exception issue keys
-          const rowIssueKey = row[issueKeyIndex.toString()];
-          const isExceptionRow = ISSUE_KEY_EXCEPTIONS.some((exp) =>
-            exp.issueKeys.includes(rowIssueKey)
-          );
+          // For regular categories, exclude rows that match any exception criteria
+          const isExceptionRow = ISSUE_KEY_EXCEPTIONS.some((exp) => {
+            if (exp.issueKeys && exp.issueKeys.includes(rowIssueKey)) {
+              return true;
+            }
+            if (exp.typeOfWork && exp.typeOfWork === typeOfWork) {
+              return true;
+            }
+            return false;
+          });
           if (isExceptionRow) {
-            return; // Skip this row if it matches any exception issue key
+            return; // Skip this row if it matches any exception
           }
         }
 
@@ -753,9 +806,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
 
               // Also collect type of work information
               const typeOfWork =
-                typeOfWorkIndex !== -1
-                  ? row[typeOfWorkIndex.toString()]
-                  : "";
+                typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : "";
               const workType = String(typeOfWork).trim() || "";
 
               if (detailedByIssueWithType[key]) {
@@ -936,7 +987,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
           if (category) {
             // Check if this issue key should be split into its own category
             const exception = ISSUE_KEY_EXCEPTIONS.find((exp) =>
-              exp.issueKeys.includes(issueKey)
+              exp.issueKeys?.includes(issueKey)
             );
             let finalCategory = category;
 
@@ -987,7 +1038,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     for (const exception of ISSUE_KEY_EXCEPTIONS) {
       if (category.endsWith(` ${exception.categorySuffix}`)) {
         originalCategory = category.replace(` ${exception.categorySuffix}`, "");
-        exceptionIssueKeys = exception.issueKeys; // Include all issue keys in the exception group
+        exceptionIssueKeys = exception.issueKeys || []; // Include all issue keys in the exception group
         break;
       }
     }
@@ -996,7 +1047,12 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     const { typeOfWorkIndex } = this.state;
     const userCategoryIssueData: { [key: string]: number } = {};
     const userCategoryIssueDataWithType: {
-      [key: string]: { hours: number; type: string; summary: string; typeOfWork: string };
+      [key: string]: {
+        hours: number;
+        type: string;
+        summary: string;
+        typeOfWork: string;
+      };
     } = {};
     const userCategoryIssueWorkDescriptions: {
       [key: string]: Array<{
@@ -1018,13 +1074,13 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
         String(rowFullName).trim() === selectedUser &&
         String(rowCategory).trim() === originalCategory
       ) {
-        // If this is an exception category, only include rows with any of the exception issue keys
+        // If this is an exception category, only include rows that match the exception criteria
         if (exceptionIssueKeys && !exceptionIssueKeys.includes(rowIssueKey)) {
           return; // Skip this row if it doesn't match any of the exception issue keys
         } else if (!exceptionIssueKeys) {
           // For regular categories, exclude rows that match any exception issue keys
           const isExceptionRow = ISSUE_KEY_EXCEPTIONS.some((exp) =>
-            exp.issueKeys.includes(rowIssueKey)
+            exp.issueKeys?.includes(rowIssueKey)
           );
           if (isExceptionRow) {
             return; // Skip this row if it matches any exception issue key
@@ -1055,9 +1111,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
 
             // Also collect type of work information
             const typeOfWork =
-              typeOfWorkIndex !== -1
-                ? row[typeOfWorkIndex.toString()]
-                : "";
+              typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : "";
             const workType = String(typeOfWork).trim() || "";
 
             if (userCategoryIssueDataWithType[key]) {
@@ -1186,6 +1240,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       loggedHoursIndex,
       fullNameIndex,
       issueKeyIndex,
+      typeOfWorkIndex,
       selectedCategory,
     } = this.state;
 
@@ -1199,6 +1254,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     // Check if this is an exception category and extract the original category
     let originalCategory = selectedCategory;
     let exceptionIssueKeys: string[] | null = null;
+    let exceptionTypeOfWork: string | null = null;
 
     for (const exception of ISSUE_KEY_EXCEPTIONS) {
       if (
@@ -1209,7 +1265,8 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
           ` ${exception.categorySuffix}`,
           ""
         );
-        exceptionIssueKeys = exception.issueKeys; // Include all issue keys in the exception group
+        exceptionIssueKeys = exception.issueKeys || []; // Include all issue keys in the exception group
+        exceptionTypeOfWork = exception.typeOfWork || null;
         break;
       }
     }
@@ -1222,30 +1279,49 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     filteredData.forEach((row) => {
       const rowCategory = row[accountCategoryIndex.toString()];
       const rowIssueKey = row[issueKeyIndex.toString()];
+      const typeOfWork = row[typeOfWorkIndex.toString()];
+
       const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
 
       if (
         String(rowCategory).trim() === originalCategory &&
-        rowIssueKey === issueKey
+        String(rowIssueKey).trim() === issueKey
       ) {
-        // If this is an exception category, only include rows with any of the exception issue keys
-        if (exceptionIssueKeys && !exceptionIssueKeys.includes(rowIssueKey)) {
-          return; // Skip this row if it doesn't match any of the exception issue keys
-        }
+        // This logic remains the same as we are now at the issue level
+        const rowData = {
+          fullName: row[fullNameIndex.toString()],
+          loggedHours: parseFloat(row[loggedHoursIndex.toString()]) || 0,
+        };
+        issueRows.push(rowData); // Add this row to the issue rows
+      } else if (
+        String(rowCategory).trim() === originalCategory &&
+        exceptionIssueKeys &&
+        exceptionIssueKeys.includes(rowIssueKey)
+      ) {
+        // This logic remains the same as we are now at the issue level
+        const rowData = {
+          fullName: row[fullNameIndex.toString()],
+          loggedHours: parseFloat(row[loggedHoursIndex.toString()]) || 0,
+        };
+        issueRows.push(rowData); // Add this row to the issue rows
+      } else if (
+        String(rowCategory).trim() === originalCategory &&
+        exceptionTypeOfWork &&
+        exceptionTypeOfWork.includes(typeOfWork)
+      ) {
+        const rowData = {
+          fullName: row[fullNameIndex.toString()],
+          loggedHours: parseFloat(row[loggedHoursIndex.toString()]) || 0,
+        };
+        issueRows.push(rowData);
+      }
+    });
 
-        issueTotal += loggedHours;
-        issueRows.push(row); // Add this row to the issue rows
-
-        // Group by Full Name
-        if (fullNameIndex !== -1) {
-          const fullName = row[fullNameIndex.toString()];
-          if (fullName) {
-            const name = String(fullName).trim();
-            if (name) {
-              userData[name] = (userData[name] || 0) + loggedHours;
-            }
-          }
-        }
+    // Group by Full Name and sum Logged Hours
+    issueRows.forEach((row) => {
+      const fullName = String(row.fullName).trim();
+      if (fullName) {
+        userData[fullName] = (userData[fullName] || 0) + row.loggedHours;
       }
     });
 
@@ -2526,7 +2602,9 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                                   title: "Type of Work",
                                   dataIndex: "typeOfWork",
                                   key: "typeOfWork",
-                                  render: (text) => <Text>{text || "N/A"}</Text>,
+                                  render: (text) => (
+                                    <Text>{text || "N/A"}</Text>
+                                  ),
                                 },
                                 {
                                   title: "Issue Summary",
