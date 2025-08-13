@@ -1,5 +1,4 @@
-import JiraRequester from "../JiraRequester";
-import { LiteJiraIssue } from "../../client/BottleneckDetector/types";
+import JiraRequester, { LiteJiraIssue } from "../JiraRequester";
 
 export default class BottleneckDetectorGraphManager {
   private jiraRequester: JiraRequester;

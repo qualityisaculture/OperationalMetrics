@@ -1,6 +1,7 @@
 import React from "react";
 import { Card, Typography, Space, List, Tag } from "antd";
-import { Queue, LiteJiraIssue } from "../types";
+import { Queue } from "../types";
+import { LiteJiraIssue } from "../../../server/JiraRequester";
 
 const { Title, Text } = Typography;
 
@@ -55,17 +56,11 @@ export const QueueFlow: React.FC<QueueFlowProps> = ({ queues, issues }) => {
         <Space>
           <Text strong>{issue.key}</Text>
           <Tag color="blue">{issue.status}</Tag>
-          {issue.priority && <Tag color="red">{issue.priority}</Tag>}
         </Space>
         <Text>{issue.summary}</Text>
-        <Space size="small">
-          <Text type="secondary" style={{ fontSize: "12px" }}>
-            Assignee: {issue.assignee || "Unassigned"}
-          </Text>
-          <Text type="secondary" style={{ fontSize: "12px" }}>
-            Type: {issue.issueType}
-          </Text>
-        </Space>
+        <Text type="secondary" style={{ fontSize: "12px" }}>
+          Type: {issue.type}
+        </Text>
       </Space>
     </List.Item>
   );
@@ -116,11 +111,6 @@ export const QueueFlow: React.FC<QueueFlowProps> = ({ queues, issues }) => {
               backgroundColor: "#f0f8ff",
             }}
           >
-            <div style={{ marginBottom: 8 }}>
-              <Text type="secondary" style={{ fontSize: "12px" }}>
-                Statuses: {queue.statuses.join(", ") || "None assigned"}
-              </Text>
-            </div>
             <List
               size="small"
               dataSource={queueIssues[queue.id] || []}

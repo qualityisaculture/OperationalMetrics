@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Queue, LiteJiraIssue, UnassignedStatus } from "../types";
+import { Queue, UnassignedStatus } from "../types";
+import { LiteJiraIssue } from "../../../server/JiraRequester";
 
 const QUEUES_STORAGE_KEY = "bottleneck-detector-queues";
 
