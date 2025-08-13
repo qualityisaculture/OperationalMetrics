@@ -96,6 +96,7 @@ interface State {
   issueTypeIndex: number;
   issueSummaryIndex: number;
   workDescriptionIndex: number;
+  typeOfWorkIndex: number;
   dateIndex: number;
   rawData: any[];
   headers: string[];
@@ -105,7 +106,7 @@ interface State {
   detailedByName: { [key: string]: number };
   detailedByIssue: { [key: string]: number };
   detailedByIssueWithType: {
-    [key: string]: { hours: number; type: string; summary: string };
+    [key: string]: { hours: number; type: string; summary: string; typeOfWork: string };
   };
   detailedByType: { [key: string]: number };
   detailedByAccount: { [key: string]: number };
@@ -127,7 +128,7 @@ interface State {
   selectedUserCategory: string | null;
   userCategoryIssueData: { [key: string]: number };
   userCategoryIssueDataWithType: {
-    [key: string]: { hours: number; type: string; summary: string };
+    [key: string]: { hours: number; type: string; summary: string; typeOfWork: string };
   };
   userCategoryIssueTotal: number;
   userCategoryIssueWorkDescriptions: {
@@ -181,6 +182,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       issueTypeIndex: -1,
       issueSummaryIndex: -1,
       workDescriptionIndex: -1,
+      typeOfWorkIndex: -1,
       dateIndex: -1,
       rawData: [],
       headers: [],
@@ -327,6 +329,12 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
         header.toLowerCase().includes("workdescription") ||
         header.toLowerCase().includes("description")
     );
+    const typeOfWorkIndex = headers.findIndex(
+      (header) =>
+        header.toLowerCase().includes("type of work") ||
+        header.toLowerCase().includes("typeofwork") ||
+        header.toLowerCase().includes("work type")
+    );
     const dateIndex = headers.findIndex(
       (header) =>
         header.toLowerCase().includes("date") ||
@@ -376,6 +384,12 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       );
     }
 
+    if (typeOfWorkIndex === -1) {
+      message.warning(
+        "Could not find 'Type of Work' column. Type of Work information will not be available."
+      );
+    }
+
     if (dateIndex === -1) {
       message.warning(
         "Could not find 'Date' column. Date information will not be available."
@@ -392,6 +406,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
       issueTypeIndex,
       issueSummaryIndex,
       workDescriptionIndex,
+      typeOfWorkIndex,
       dateIndex,
       rawData: tableData,
       headers,
@@ -660,10 +675,11 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     }
 
     // Filter data for the selected category and group by Full Name
+    const { typeOfWorkIndex } = this.state;
     const detailedByName: { [key: string]: number } = {};
     const detailedByIssue: { [key: string]: number } = {};
     const detailedByIssueWithType: {
-      [key: string]: { hours: number; type: string; summary: string };
+      [key: string]: { hours: number; type: string; summary: string; typeOfWork: string };
     } = {};
     const detailedByType: { [key: string]: number } = {};
     const detailedByAccount: { [key: string]: number } = {};
@@ -735,6 +751,13 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                   : "";
               const summary = String(issueSummary).trim() || "";
 
+              // Also collect type of work information
+              const typeOfWork =
+                typeOfWorkIndex !== -1
+                  ? row[typeOfWorkIndex.toString()]
+                  : "";
+              const workType = String(typeOfWork).trim() || "";
+
               if (detailedByIssueWithType[key]) {
                 detailedByIssueWithType[key].hours += loggedHours;
               } else {
@@ -742,6 +765,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                   hours: loggedHours,
                   type: type,
                   summary: summary,
+                  typeOfWork: workType,
                 };
               }
 
@@ -969,9 +993,10 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
     }
 
     // Filter data for the specific user and category, then group by Issue Key
+    const { typeOfWorkIndex } = this.state;
     const userCategoryIssueData: { [key: string]: number } = {};
     const userCategoryIssueDataWithType: {
-      [key: string]: { hours: number; type: string; summary: string };
+      [key: string]: { hours: number; type: string; summary: string; typeOfWork: string };
     } = {};
     const userCategoryIssueWorkDescriptions: {
       [key: string]: Array<{
@@ -1028,6 +1053,13 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
               issueSummaryIndex !== -1 ? row[issueSummaryIndex.toString()] : "";
             const summary = String(issueSummary).trim() || "";
 
+            // Also collect type of work information
+            const typeOfWork =
+              typeOfWorkIndex !== -1
+                ? row[typeOfWorkIndex.toString()]
+                : "";
+            const workType = String(typeOfWork).trim() || "";
+
             if (userCategoryIssueDataWithType[key]) {
               userCategoryIssueDataWithType[key].hours += loggedHours;
             } else {
@@ -1035,6 +1067,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                 hours: loggedHours,
                 type: type,
                 summary: summary,
+                typeOfWork: workType,
               };
             }
 
@@ -2185,6 +2218,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                           key: index,
                           issueKey: issueKey,
                           type: data.type,
+                          typeOfWork: data.typeOfWork,
                           summary: data.summary,
                           hours: data.hours,
                           chargeableDays: data.hours / 7.5,
@@ -2215,6 +2249,12 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                             dataIndex: "type",
                             key: "type",
                             render: (text) => <Text>{text}</Text>,
+                          },
+                          {
+                            title: "Type of Work",
+                            dataIndex: "typeOfWork",
+                            key: "typeOfWork",
+                            render: (text) => <Text>{text || "N/A"}</Text>,
                           },
                           {
                             title: "Issue Summary",
@@ -2397,6 +2437,7 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                                   item: issueKey,
                                   hours: data.hours,
                                   type: data.type,
+                                  typeOfWork: data.typeOfWork,
                                   summary: data.summary,
                                   chargeableDays: data.hours / 7.5,
                                   percentage: (
@@ -2480,6 +2521,12 @@ export default class TempoAnalyzer extends React.Component<Props, State> {
                                   dataIndex: "type",
                                   key: "type",
                                   render: (text) => <Text>{text}</Text>,
+                                },
+                                {
+                                  title: "Type of Work",
+                                  dataIndex: "typeOfWork",
+                                  key: "typeOfWork",
+                                  render: (text) => <Text>{text || "N/A"}</Text>,
                                 },
                                 {
                                   title: "Issue Summary",
