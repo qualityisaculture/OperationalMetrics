@@ -153,9 +153,21 @@ export const useJiraReport = () => {
   };
 
   const processCachedWorkstreams = (workstreams: LiteJiraIssue[]) => {
+    console.log("processCachedWorkstreams called with:", {
+      workstreamsCount: workstreams.length,
+      sampleWorkstream: workstreams[0],
+      workstreamsWithChildren: workstreams.filter(
+        (w) => w.children && w.children.length > 0
+      ).length,
+    });
+
     const processedWorkstreams = workstreams.map((workstream) => {
       if (workstream.children && workstream.children.length > 0) {
         const aggregatedValues = calculateAggregatedValues(workstream);
+        console.log(
+          `Calculated aggregated values for ${workstream.key}:`,
+          aggregatedValues
+        );
         return {
           ...workstream,
           aggregatedOriginalEstimate:
@@ -164,11 +176,37 @@ export const useJiraReport = () => {
           aggregatedTimeRemaining: aggregatedValues.aggregatedTimeRemaining,
         };
       }
+      console.log(
+        `No children for workstream ${workstream.key}, skipping aggregated values`
+      );
       return workstream;
     });
+
+    // Also populate the loadedWorkstreamData state with the aggregated values
+    // Merge with existing loadedWorkstreamData instead of replacing it
+    const newLoadedWorkstreamData = new Map(state.loadedWorkstreamData);
+    processedWorkstreams.forEach((workstream) => {
+      if (workstream.aggregatedOriginalEstimate !== undefined) {
+        newLoadedWorkstreamData.set(workstream.key, {
+          aggregatedOriginalEstimate: workstream.aggregatedOriginalEstimate,
+          aggregatedTimeSpent: workstream.aggregatedTimeSpent,
+          aggregatedTimeRemaining: workstream.aggregatedTimeRemaining,
+        });
+      }
+    });
+
+    console.log("processCachedWorkstreams result:", {
+      processedWorkstreamsCount: processedWorkstreams.length,
+      existingLoadedWorkstreamDataSize: state.loadedWorkstreamData.size,
+      newLoadedWorkstreamDataSize: newLoadedWorkstreamData.size,
+      newLoadedWorkstreamDataKeys: Array.from(newLoadedWorkstreamData.keys()),
+      mergedDataSize: newLoadedWorkstreamData.size,
+    });
+
     setState((prevState) => ({
       ...prevState,
       projectIssues: processedWorkstreams,
+      loadedWorkstreamData: newLoadedWorkstreamData,
       issuesLoading: false,
     }));
   };
@@ -186,6 +224,23 @@ export const useJiraReport = () => {
       const data = await response.json();
       if (response.ok) {
         const workstreams: LiteJiraIssue[] = JSON.parse(data.data);
+        console.log(
+          "loadProjectWorkstreams: Received workstreams from backend:",
+          {
+            workstreamsCount: workstreams.length,
+            sampleWorkstream: workstreams[0],
+            workstreamsWithChildren: workstreams.filter(
+              (w) => w.children && w.children.length > 0
+            ).length,
+            workstreamsWithChildrenDetails: workstreams
+              .filter((w) => w.children && w.children.length > 0)
+              .map((w) => ({
+                key: w.key,
+                childrenCount: w.children.length,
+                hasAggregatedValues: w.aggregatedOriginalEstimate !== undefined,
+              })),
+          }
+        );
         processCachedWorkstreams(workstreams);
       } else {
         setState((prevState) => ({
@@ -482,12 +537,49 @@ export const useJiraReport = () => {
     }
 
     if (index === 0) {
+      // When going back to workstreams level, ensure loadedWorkstreamData is populated
+      console.log(
+        "handleBreadcrumbClick: Going back to workstreams level, repopulating loadedWorkstreamData"
+      );
+
+      // Start with existing loadedWorkstreamData to preserve individual workstream data
+      const newLoadedWorkstreamData = new Map(state.loadedWorkstreamData);
+
+      // Add aggregated values from projectIssues if they exist
+      state.projectIssues.forEach((workstream) => {
+        if (workstream.aggregatedOriginalEstimate !== undefined) {
+          newLoadedWorkstreamData.set(workstream.key, {
+            aggregatedOriginalEstimate: workstream.aggregatedOriginalEstimate,
+            aggregatedTimeSpent: workstream.aggregatedTimeSpent,
+            aggregatedTimeRemaining: workstream.aggregatedTimeRemaining,
+          });
+        }
+      });
+
+      console.log("handleBreadcrumbClick: Repopulated loadedWorkstreamData:", {
+        existingLoadedWorkstreamDataSize: state.loadedWorkstreamData.size,
+        projectIssuesWithAggregatedValues: state.projectIssues.filter(
+          (w) => w.aggregatedOriginalEstimate !== undefined
+        ).length,
+        newLoadedWorkstreamDataSize: newLoadedWorkstreamData.size,
+        newLoadedWorkstreamDataKeys: Array.from(newLoadedWorkstreamData.keys()),
+        preservedIndividualWorkstreamData: Array.from(
+          state.loadedWorkstreamData.keys()
+        ).filter(
+          (key) =>
+            !state.projectIssues.some(
+              (w) => w.key === key && w.aggregatedOriginalEstimate !== undefined
+            )
+        ),
+      });
+
       setState((prevState) => ({
         ...prevState,
         navigationStack: [prevState.navigationStack[0]],
         currentIssues: [],
         currentIssuesLoading: false,
         currentIssuesError: null,
+        loadedWorkstreamData: newLoadedWorkstreamData,
         progressStatus: "Idle",
         progressDetails: undefined,
         currentStep: undefined,
