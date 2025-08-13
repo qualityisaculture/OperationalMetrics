@@ -17,11 +17,11 @@ export default class BottleneckDetectorGraphManager {
         `BottleneckDetectorGraphManager: Executing JQL query for project ${project}: ${jql}`
       );
 
-      // Execute real JQL query through Jira API
-      const issues = await this.jiraRequester.getQuery(jql);
+      // Execute real JQL query through Jira API using the faster LiteJira method
+      const issues = await this.jiraRequester.getLiteQuery(jql);
 
-      // Transform the raw Jira API response to our LiteJiraIssue format
-      return this.transformToLiteJiraIssues(issues);
+      // The getLiteQuery already returns LiteJiraIssue format, so no transformation needed
+      return issues;
     } catch (error) {
       console.error(
         "Error in BottleneckDetectorGraphManager.getBottleneckData:",
@@ -29,18 +29,5 @@ export default class BottleneckDetectorGraphManager {
       );
       throw error;
     }
-  }
-
-  private transformToLiteJiraIssues(issues: any[]): LiteJiraIssue[] {
-    return issues.map((issue) => ({
-      key: issue.key,
-      summary: issue.fields.summary || "No Summary",
-      status: issue.fields.status?.name || "Unknown",
-      assignee: issue.fields.assignee?.displayName || "Unassigned",
-      created: issue.fields.created || new Date().toISOString(),
-      updated: issue.fields.updated || new Date().toISOString(),
-      priority: issue.fields.priority?.name || "No Priority",
-      issueType: issue.fields.issuetype?.name || "Unknown",
-    }));
   }
 }

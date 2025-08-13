@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { LiteJiraIssue, BottleneckDetectorResponse } from "../types";
 
 export const useBottleneckData = (projectName: string) => {
@@ -6,6 +6,16 @@ export const useBottleneckData = (projectName: string) => {
   const [data, setData] = useState<LiteJiraIssue[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [jqlQuery, setJqlQuery] = useState<string>("");
+
+  // Load saved query from localStorage on component mount
+  useEffect(() => {
+    const savedQuery = localStorage.getItem(
+      `bottleneckDetector_query_${projectName}`
+    );
+    if (savedQuery) {
+      setJqlQuery(savedQuery);
+    }
+  }, [projectName]);
 
   const fetchData = useCallback(
     async (query: string) => {
@@ -26,6 +36,9 @@ export const useBottleneckData = (projectName: string) => {
 
         setData(parsedData);
         setJqlQuery(query);
+
+        // Save the successful query to localStorage
+        localStorage.setItem(`bottleneckDetector_query_${projectName}`, query);
       } catch (err) {
         setError(
           err instanceof Error
@@ -44,7 +57,9 @@ export const useBottleneckData = (projectName: string) => {
     setData(null);
     setError(null);
     setJqlQuery("");
-  }, []);
+    // Clear the saved query from localStorage
+    localStorage.removeItem(`bottleneckDetector_query_${projectName}`);
+  }, [projectName]);
 
   return {
     isLoading,
