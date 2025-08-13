@@ -1,9 +1,9 @@
-import { JiraIssue } from "../../server/graphManagers/JiraReportGraphManager";
+import { LiteJiraIssue } from "../../server/graphManagers/JiraReportGraphManager";
 import { JiraIssueWithAggregated } from "./types";
 
 // Utility function to recursively calculate aggregated estimates and time spent
 export const calculateAggregatedValues = (
-  issue: JiraIssue
+  issue: LiteJiraIssue
 ): {
   aggregatedOriginalEstimate: number;
   aggregatedTimeSpent: number;
@@ -30,7 +30,7 @@ export const calculateAggregatedValues = (
 
 // Utility function to process workstream data and add aggregated values to Items
 export const processWorkstreamData = (
-  workstreamData: JiraIssue
+  workstreamData: LiteJiraIssue
 ): JiraIssueWithAggregated => {
   const aggregatedValues = calculateAggregatedValues(workstreamData);
   return {

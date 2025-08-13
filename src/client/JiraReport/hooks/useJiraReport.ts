@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   JiraProject,
-  JiraIssue,
+  LiteJiraIssue,
 } from "../../../server/graphManagers/JiraReportGraphManager";
 import { JiraIssueWithAggregated, JiraReportState } from "../types";
 import { calculateAggregatedValues, processWorkstreamData } from "../utils";
@@ -152,7 +152,7 @@ export const useJiraReport = () => {
     }
   };
 
-  const processCachedWorkstreams = (workstreams: JiraIssue[]) => {
+  const processCachedWorkstreams = (workstreams: LiteJiraIssue[]) => {
     const processedWorkstreams = workstreams.map((workstream) => {
       if (workstream.children && workstream.children.length > 0) {
         const aggregatedValues = calculateAggregatedValues(workstream);
@@ -185,7 +185,7 @@ export const useJiraReport = () => {
       );
       const data = await response.json();
       if (response.ok) {
-        const workstreams: JiraIssue[] = JSON.parse(data.data);
+        const workstreams: LiteJiraIssue[] = JSON.parse(data.data);
         processCachedWorkstreams(workstreams);
       } else {
         setState((prevState) => ({
@@ -225,7 +225,7 @@ export const useJiraReport = () => {
     await loadProjectWorkstreams(project.key);
   };
 
-  const handleWorkstreamClick = async (workstream: JiraIssue) => {
+  const handleWorkstreamClick = async (workstream: LiteJiraIssue) => {
     console.log(`\n=== FRONTEND: Clicking on workstream ${workstream.key} ===`);
     console.log(
       `Workstream: ${workstream.key} - ${workstream.summary} (${workstream.type})`
@@ -256,7 +256,7 @@ export const useJiraReport = () => {
             currentStep: response.step,
           }));
         } else if (response.status === "complete" && response.data) {
-          const workstreamWithIssues: JiraIssue = JSON.parse(response.data);
+          const workstreamWithIssues: LiteJiraIssue = JSON.parse(response.data);
 
           console.log(
             `\n=== FRONTEND: Received workstream data for ${workstream.key} ===`
@@ -575,7 +575,7 @@ export const useJiraReport = () => {
               const response = JSON.parse(event.data);
 
               if (response.status === "complete" && response.data) {
-                const workstreamWithIssues: JiraIssue = JSON.parse(
+                const workstreamWithIssues: LiteJiraIssue = JSON.parse(
                   response.data
                 );
 

@@ -25,30 +25,30 @@ export interface JiraProject {
   name: string;
 }
 
-export interface JiraIssue {
-  key: string;
-  summary: string;
-  type: string;
-  status: string;
-  children: JiraIssue[];
-  childCount: number;
-  originalEstimate?: number | null; // in days
-  timeSpent?: number | null; // in days
-  timeRemaining?: number | null; // in days
-}
+// export interface JiraIssue {
+//   key: string;
+//   summary: string;
+//   type: string;
+//   status: string;
+//   children: JiraIssue[];
+//   childCount: number;
+//   originalEstimate?: number | null; // in days
+//   timeSpent?: number | null; // in days
+//   timeRemaining?: number | null; // in days
+// }
 
 // Cache for storing project data to avoid repeated API calls
 class ProjectCache {
   private projects: Map<
     string,
-    { project: JiraProject; issues: JiraIssue[]; lastUpdated: Date }
+    { project: JiraProject; issues: LiteJiraIssue[]; lastUpdated: Date }
   > = new Map();
   private readonly CACHE_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 
   setProjectData(
     projectKey: string,
     project: JiraProject,
-    issues: JiraIssue[]
+    issues: LiteJiraIssue[]
   ): void {
     this.projects.set(projectKey, {
       project,
@@ -59,7 +59,7 @@ class ProjectCache {
 
   getProjectData(
     projectKey: string
-  ): { project: JiraProject; issues: JiraIssue[] } | null {
+  ): { project: JiraProject; issues: LiteJiraIssue[] } | null {
     const cached = this.projects.get(projectKey);
     if (!cached) return null;
 
@@ -95,7 +95,7 @@ class ProjectCache {
   // Find an issue across all cached projects
   findIssueAcrossProjects(
     issueKey: string
-  ): { issue: JiraIssue; projectKey: string } | null {
+  ): { issue: LiteJiraIssue; projectKey: string } | null {
     for (const [projectKey, data] of this.projects) {
       const isExpired =
         Date.now() - data.lastUpdated.getTime() > this.CACHE_DURATION_MS;
@@ -110,9 +110,9 @@ class ProjectCache {
   }
 
   private findIssueRecursively(
-    issues: JiraIssue[],
+    issues: LiteJiraIssue[],
     targetKey: string
-  ): JiraIssue | null {
+  ): LiteJiraIssue | null {
     for (const issue of issues) {
       if (issue.key === targetKey) {
         return issue;
@@ -165,18 +165,18 @@ class ProjectsListCache {
 class WorkstreamCache {
   private workstreams: Map<
     string,
-    { workstream: JiraIssue; lastUpdated: Date }
+    { workstream: LiteJiraIssue; lastUpdated: Date }
   > = new Map();
   private readonly CACHE_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 
-  setWorkstream(workstreamKey: string, workstream: JiraIssue): void {
+  setWorkstream(workstreamKey: string, workstream: LiteJiraIssue): void {
     this.workstreams.set(workstreamKey, {
       workstream,
       lastUpdated: new Date(),
     });
   }
 
-  getWorkstream(workstreamKey: string): JiraIssue | null {
+  getWorkstream(workstreamKey: string): LiteJiraIssue | null {
     const cached = this.workstreams.get(workstreamKey);
     if (!cached) {
       const cachedKeys = Array.from(this.workstreams.keys());
@@ -317,9 +317,9 @@ export default class JiraReportGraphManager {
   }
 
   // Get workstreams for a specific project
-  async getProjectWorkstreams(projectKey: string): Promise<JiraIssue[]> {
+  async getProjectWorkstreams(projectKey: string): Promise<LiteJiraIssue[]> {
     try {
-      let workstreams: JiraIssue[];
+      let workstreams: LiteJiraIssue[];
       const cached = this.projectCache.getProjectData(projectKey);
 
       if (cached) {
@@ -370,7 +370,7 @@ export default class JiraReportGraphManager {
   async getWorkstreamIssues(
     workstreamKey: string,
     sendProgress?: (response: SSEResponse) => void
-  ): Promise<JiraIssue> {
+  ): Promise<LiteJiraIssue> {
     this.sendProgress = sendProgress;
     try {
       console.log(
@@ -432,7 +432,7 @@ export default class JiraReportGraphManager {
         }
       );
 
-      let issue: JiraIssue;
+      let issue: LiteJiraIssue;
       let projectKey: string;
 
       const cachedResult = this.findIssueInCache(workstreamKey);
@@ -547,9 +547,9 @@ export default class JiraReportGraphManager {
 
   // Phase 4: Performance optimization and enhanced caching
   private async getIssueWithAllChildrenBatched(
-    issue: JiraIssue,
+    issue: LiteJiraIssue,
     sendProgress?: (response: SSEResponse) => void
-  ): Promise<JiraIssue> {
+  ): Promise<LiteJiraIssue> {
     this.sendProgress = sendProgress;
     console.log(`\n=== Starting unified fetch for issue ${issue.key} ===`);
 
@@ -580,8 +580,8 @@ export default class JiraReportGraphManager {
 
   // Fallback method for simple children fetching
   private async getIssueWithSimpleChildren(
-    issue: JiraIssue
-  ): Promise<JiraIssue> {
+    issue: LiteJiraIssue
+  ): Promise<LiteJiraIssue> {
     try {
       const children = await this.jiraRequester.getChildrenForIssue(issue.key);
 
@@ -659,7 +659,7 @@ export default class JiraReportGraphManager {
   }
 
   // Enhanced project issues loading with cache optimization
-  async getProjectIssues(projectKey: string): Promise<JiraIssue[]> {
+  async getProjectIssues(projectKey: string): Promise<LiteJiraIssue[]> {
     try {
       // Clean up cache periodically
       this.cleanupCache();
@@ -699,7 +699,7 @@ export default class JiraReportGraphManager {
   }
 
   // New method to get cached project data if available
-  getCachedProjectIssues(projectKey: string): JiraIssue[] | null {
+  getCachedProjectIssues(projectKey: string): LiteJiraIssue[] | null {
     const cached = this.projectCache.getProjectData(projectKey);
     return cached ? cached.issues : null;
   }
@@ -707,7 +707,7 @@ export default class JiraReportGraphManager {
   // New method to find an issue across all cached projects
   findIssueInCache(
     issueKey: string
-  ): { issue: JiraIssue; projectKey: string } | null {
+  ): { issue: LiteJiraIssue; projectKey: string } | null {
     return this.projectCache.findIssueAcrossProjects(issueKey);
   }
 
@@ -824,7 +824,7 @@ export default class JiraReportGraphManager {
   async getIssueWithAllChildren(
     issueKey: string,
     sendProgress?: (response: SSEResponse) => void
-  ): Promise<JiraIssue> {
+  ): Promise<LiteJiraIssue> {
     this.sendProgress = sendProgress;
     try {
       // Try to find the issue in our project cache
@@ -879,7 +879,7 @@ export default class JiraReportGraphManager {
   }
 
   // Helper method to log tree structure recursively
-  private logTreeStructure(issue: JiraIssue, depth: number): void {
+  private logTreeStructure(issue: LiteJiraIssue, depth: number): void {
     const indent = "  ".repeat(depth);
     console.log(
       `${indent}📋 ${issue.key} - ${issue.summary} (${issue.type}) - ${issue.children.length} children`
@@ -893,7 +893,7 @@ export default class JiraReportGraphManager {
   }
 
   // New method to find complete tree structure in cache
-  private findCompleteTreeInCache(issueKey: string): JiraIssue | null {
+  private findCompleteTreeInCache(issueKey: string): LiteJiraIssue | null {
     console.log(
       `\n=== Searching for complete tree of issue ${issueKey} in cache ===`
     );
@@ -947,10 +947,12 @@ export default class JiraReportGraphManager {
   }
 
   // Collect all issues in a tree recursively into a Map
-  private collectAllIssuesInTree(issues: JiraIssue[]): Map<string, JiraIssue> {
-    const allIssues = new Map<string, JiraIssue>();
+  private collectAllIssuesInTree(
+    issues: LiteJiraIssue[]
+  ): Map<string, LiteJiraIssue> {
+    const allIssues = new Map<string, LiteJiraIssue>();
 
-    const collectRecursively = (issueList: JiraIssue[]) => {
+    const collectRecursively = (issueList: LiteJiraIssue[]) => {
       for (const issue of issueList) {
         allIssues.set(issue.key, issue);
         if (issue.children && issue.children.length > 0) {
@@ -964,7 +966,7 @@ export default class JiraReportGraphManager {
   }
 
   // Check if an issue has a complete tree structure (children with their own children)
-  private hasCompleteTreeStructure(issue: JiraIssue): boolean {
+  private hasCompleteTreeStructure(issue: LiteJiraIssue): boolean {
     if (!issue.children || issue.children.length === 0) {
       return true; // Leaf node, considered complete
     }
@@ -982,14 +984,14 @@ export default class JiraReportGraphManager {
 
   // Phase 1: Unified recursive issue discovery and data fetching
   private async collectAllIssueDataAndHierarchy(
-    rootIssue: JiraIssue,
+    rootIssue: LiteJiraIssue,
     sendProgress?: (response: SSEResponse) => void
   ): Promise<{
-    allIssues: Map<string, JiraIssue>;
+    allIssues: Map<string, LiteJiraIssue>;
     hierarchy: Map<string, string[]>;
   }> {
     this.sendProgress = sendProgress;
-    const allIssues = new Map<string, JiraIssue>();
+    const allIssues = new Map<string, LiteJiraIssue>();
     const hierarchy = new Map<string, string[]>();
     let currentLevelKeys = [rootIssue.key];
     let levelNumber = 0;
@@ -1160,10 +1162,10 @@ export default class JiraReportGraphManager {
   // Phase 2: Simplified tree building from pre-fetched data
   private buildTreeFromCollectedData(
     rootIssueKey: string,
-    allIssues: Map<string, JiraIssue>,
+    allIssues: Map<string, LiteJiraIssue>,
     hierarchy: Map<string, string[]>
-  ): JiraIssue {
-    const buildRecursively = (issueKey: string): JiraIssue => {
+  ): LiteJiraIssue {
+    const buildRecursively = (issueKey: string): LiteJiraIssue => {
       const issueData = allIssues.get(issueKey);
       if (!issueData) {
         // This should not happen if data collection was successful
@@ -1189,7 +1191,7 @@ export default class JiraReportGraphManager {
   }
 
   // Helper method to get a specific level of children for an issue
-  async getIssueChildren(issueKey: string): Promise<JiraIssue[]> {
+  async getIssueChildren(issueKey: string): Promise<LiteJiraIssue[]> {
     try {
       // First, try to find the issue in our cache
       const cachedResult = this.findIssueInCache(issueKey);

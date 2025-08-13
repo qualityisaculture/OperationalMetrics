@@ -1,8 +1,8 @@
 import { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
-import { JiraIssue } from "../../server/graphManagers/JiraReportGraphManager";
+import { LiteJiraIssue } from "../../server/JiraRequester";
 
 // Extended interface for JiraIssue with aggregated values
-export interface JiraIssueWithAggregated extends JiraIssue {
+export interface JiraIssueWithAggregated extends LiteJiraIssue {
   aggregatedOriginalEstimate?: number;
   aggregatedTimeSpent?: number;
   aggregatedTimeRemaining?: number;
