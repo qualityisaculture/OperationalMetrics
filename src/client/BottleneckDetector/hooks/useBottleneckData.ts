@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
-import { LiteJiraIssue, BottleneckDetectorResponse } from "../types";
+import { BottleneckDetectorResponse } from "../types";
+import { LiteJiraIssue } from "../../../server/JiraRequester";
 
 export const useBottleneckData = (projectName: string) => {
   const [isLoading, setIsLoading] = useState(false);
