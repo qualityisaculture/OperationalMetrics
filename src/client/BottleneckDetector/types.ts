@@ -24,3 +24,21 @@ export interface BottleneckDetectorResponse {
   message: string;
   data: string; // JSON stringified LiteJiraIssue[]
 }
+
+// New types for queue-based system
+export interface Queue {
+  id: string;
+  name: string;
+  statuses: string[];
+  order: number;
+}
+
+export interface QueueIssue {
+  queueId: string;
+  issues: LiteJiraIssue[];
+}
+
+export interface UnassignedStatus {
+  status: string;
+  count: number;
+}
