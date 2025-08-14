@@ -8,6 +8,15 @@ export interface JiraIssueWithAggregated extends LiteJiraIssue {
   aggregatedTimeRemaining?: number;
 }
 
+// Interface for project-level aggregated data
+export interface ProjectAggregatedData {
+  totalOriginalEstimate: number;
+  totalTimeSpent: number;
+  totalTimeRemaining: number;
+  loadedWorkstreamCount: number;
+  totalWorkstreamCount: number;
+}
+
 export interface JiraReportState {
   projects: JiraProject[];
   isLoading: boolean;
@@ -36,6 +45,8 @@ export interface JiraReportState {
       aggregatedTimeRemaining: number;
     }
   >;
+  // New state for project-level aggregation
+  projectAggregatedData: ProjectAggregatedData | null;
   // New state for progress tracking
   progressStatus: string;
   progressDetails?: {

@@ -14,6 +14,7 @@ import { WorkstreamsTable } from "./components/WorkstreamsTable";
 import { IssuesTable } from "./components/IssuesTable";
 import { Breadcrumbs } from "./components/Breadcrumbs";
 import { RequestAllModal } from "./components/RequestAllModal";
+import { ProjectSummary } from "./components/ProjectSummary";
 import { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
 
 const { Title, Text } = Typography;
@@ -218,17 +219,23 @@ const JiraReport: React.FC = () => {
                 toggleFavorite={toggleFavorite}
               />
             ) : (
-              <WorkstreamsTable
-                projectIssues={projectIssues}
-                favoriteItems={favoriteItems}
-                navigationStack={navigationStack}
-                loadedWorkstreamData={state.loadedWorkstreamData}
-                getSortedItems={getSortedItems}
-                getWorkstreamDataCellSpan={getWorkstreamDataCellSpan}
-                handleWorkstreamClick={handleWorkstreamClick}
-                showRequestAllModal={showRequestAllModal}
-                toggleFavorite={toggleFavorite}
-              />
+              <>
+                <ProjectSummary
+                  projectAggregatedData={state.projectAggregatedData}
+                  projectName={selectedProject.name}
+                />
+                <WorkstreamsTable
+                  projectIssues={projectIssues}
+                  favoriteItems={favoriteItems}
+                  navigationStack={navigationStack}
+                  loadedWorkstreamData={state.loadedWorkstreamData}
+                  getSortedItems={getSortedItems}
+                  getWorkstreamDataCellSpan={getWorkstreamDataCellSpan}
+                  handleWorkstreamClick={handleWorkstreamClick}
+                  showRequestAllModal={showRequestAllModal}
+                  toggleFavorite={toggleFavorite}
+                />
+              </>
             ))}
 
           {!issuesLoading &&

@@ -45,12 +45,15 @@ export const WorkstreamsTable: React.FC<Props> = ({
   toggleFavorite,
 }) => {
   // Debug logging to see what data we're working with
-  console.log('WorkstreamsTable render:', {
+  console.log("WorkstreamsTable render:", {
     projectIssuesCount: projectIssues.length,
     loadedWorkstreamDataSize: loadedWorkstreamData.size,
     loadedWorkstreamDataKeys: Array.from(loadedWorkstreamData.keys()),
     sampleProjectIssue: projectIssues[0],
-    sampleLoadedData: loadedWorkstreamData.size > 0 ? Array.from(loadedWorkstreamData.entries())[0] : null
+    sampleLoadedData:
+      loadedWorkstreamData.size > 0
+        ? Array.from(loadedWorkstreamData.entries())[0]
+        : null,
   });
 
   const issueColumns = getIssueColumns(

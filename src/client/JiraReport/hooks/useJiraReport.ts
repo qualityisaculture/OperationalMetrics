@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   JiraProject,
-  LiteJiraIssue,
 } from "../../../server/graphManagers/JiraReportGraphManager";
+import { LiteJiraIssue } from "../../../server/JiraRequester";
 import { JiraIssueWithAggregated, JiraReportState } from "../types";
-import { calculateAggregatedValues, processWorkstreamData } from "../utils";
+import { calculateAggregatedValues, processWorkstreamData, calculateProjectAggregatedData } from "../utils";
 
 export const useJiraReport = () => {
   const [state, setState] = useState<JiraReportState>({
@@ -21,6 +21,7 @@ export const useJiraReport = () => {
     currentIssuesLoading: false,
     currentIssuesError: null,
     loadedWorkstreamData: new Map(),
+    projectAggregatedData: null,
     progressStatus: "Idle",
     progressDetails: undefined,
     currentStep: undefined,
@@ -161,7 +162,7 @@ export const useJiraReport = () => {
       ).length,
     });
 
-    const processedWorkstreams = workstreams.map((workstream) => {
+    const processedWorkstreams: JiraIssueWithAggregated[] = workstreams.map((workstream) => {
       if (workstream.children && workstream.children.length > 0) {
         const aggregatedValues = calculateAggregatedValues(workstream);
         console.log(
@@ -179,14 +180,21 @@ export const useJiraReport = () => {
       console.log(
         `No children for workstream ${workstream.key}, skipping aggregated values`
       );
-      return workstream;
+      return {
+        ...workstream,
+        aggregatedOriginalEstimate: undefined,
+        aggregatedTimeSpent: undefined,
+        aggregatedTimeRemaining: undefined,
+      };
     });
 
     // Also populate the loadedWorkstreamData state with the aggregated values
     // Merge with existing loadedWorkstreamData instead of replacing it
     const newLoadedWorkstreamData = new Map(state.loadedWorkstreamData);
     processedWorkstreams.forEach((workstream) => {
-      if (workstream.aggregatedOriginalEstimate !== undefined) {
+      if (workstream.aggregatedOriginalEstimate !== undefined &&
+          workstream.aggregatedTimeSpent !== undefined &&
+          workstream.aggregatedTimeRemaining !== undefined) {
         newLoadedWorkstreamData.set(workstream.key, {
           aggregatedOriginalEstimate: workstream.aggregatedOriginalEstimate,
           aggregatedTimeSpent: workstream.aggregatedTimeSpent,
@@ -195,18 +203,26 @@ export const useJiraReport = () => {
       }
     });
 
+    // Calculate project-level aggregation
+    const projectAggregatedData = calculateProjectAggregatedData(
+      processedWorkstreams,
+      newLoadedWorkstreamData
+    );
+
     console.log("processCachedWorkstreams result:", {
       processedWorkstreamsCount: processedWorkstreams.length,
       existingLoadedWorkstreamDataSize: state.loadedWorkstreamData.size,
       newLoadedWorkstreamDataSize: newLoadedWorkstreamData.size,
       newLoadedWorkstreamDataKeys: Array.from(newLoadedWorkstreamData.keys()),
       mergedDataSize: newLoadedWorkstreamData.size,
+      projectAggregatedData,
     });
 
     setState((prevState) => ({
       ...prevState,
       projectIssues: processedWorkstreams,
       loadedWorkstreamData: newLoadedWorkstreamData,
+      projectAggregatedData,
       issuesLoading: false,
     }));
   };
@@ -237,7 +253,7 @@ export const useJiraReport = () => {
               .map((w) => ({
                 key: w.key,
                 childrenCount: w.children.length,
-                hasAggregatedValues: w.aggregatedOriginalEstimate !== undefined,
+                hasChildren: w.children && w.children.length > 0,
               })),
           }
         );
@@ -276,6 +292,8 @@ export const useJiraReport = () => {
       currentIssues: [],
       currentIssuesLoading: false,
       currentIssuesError: null,
+      loadedWorkstreamData: new Map(),
+      projectAggregatedData: null,
     }));
     await loadProjectWorkstreams(project.key);
   };
@@ -376,19 +394,30 @@ export const useJiraReport = () => {
             newNavigationItem
           );
 
-          setState((prevState) => ({
-            ...prevState,
-            navigationStack: [...prevState.navigationStack, newNavigationItem],
-            currentIssues: processedChildren,
-            currentIssuesLoading: false,
-            loadedWorkstreamData: new Map(prevState.loadedWorkstreamData).set(
+          setState((prevState) => {
+            const newLoadedWorkstreamData = new Map(prevState.loadedWorkstreamData).set(
               workstream.key,
               workstreamAggregatedData
-            ),
-            progressStatus: "Idle",
-            progressDetails: undefined,
-            currentStep: undefined,
-          }));
+            );
+            
+            // Calculate project-level aggregation
+            const projectAggregatedData = calculateProjectAggregatedData(
+              prevState.projectIssues,
+              newLoadedWorkstreamData
+            );
+            
+            return {
+              ...prevState,
+              navigationStack: [...prevState.navigationStack, newNavigationItem],
+              currentIssues: processedChildren,
+              currentIssuesLoading: false,
+              loadedWorkstreamData: newLoadedWorkstreamData,
+              projectAggregatedData,
+              progressStatus: "Idle",
+              progressDetails: undefined,
+              currentStep: undefined,
+            };
+          });
 
           console.log(
             `=== FRONTEND: Workstream navigation complete for ${workstream.key} ===\n`
@@ -524,6 +553,8 @@ export const useJiraReport = () => {
       currentIssues: [],
       currentIssuesLoading: false,
       currentIssuesError: null,
+      loadedWorkstreamData: new Map(),
+      projectAggregatedData: null,
       progressStatus: "Idle",
       progressDetails: undefined,
       currentStep: undefined,
@@ -547,7 +578,9 @@ export const useJiraReport = () => {
 
       // Add aggregated values from projectIssues if they exist
       state.projectIssues.forEach((workstream) => {
-        if (workstream.aggregatedOriginalEstimate !== undefined) {
+        if (workstream.aggregatedOriginalEstimate !== undefined &&
+            workstream.aggregatedTimeSpent !== undefined &&
+            workstream.aggregatedTimeRemaining !== undefined) {
           newLoadedWorkstreamData.set(workstream.key, {
             aggregatedOriginalEstimate: workstream.aggregatedOriginalEstimate,
             aggregatedTimeSpent: workstream.aggregatedTimeSpent,
@@ -580,6 +613,10 @@ export const useJiraReport = () => {
         currentIssuesLoading: false,
         currentIssuesError: null,
         loadedWorkstreamData: newLoadedWorkstreamData,
+        projectAggregatedData: calculateProjectAggregatedData(
+          prevState.projectIssues,
+          newLoadedWorkstreamData
+        ),
         progressStatus: "Idle",
         progressDetails: undefined,
         currentStep: undefined,
@@ -719,6 +756,18 @@ export const useJiraReport = () => {
         },
       }));
 
+      // Calculate project-level aggregation after all workstreams are loaded
+      setState((prevState) => {
+        const projectAggregatedData = calculateProjectAggregatedData(
+          prevState.projectIssues,
+          prevState.loadedWorkstreamData
+        );
+        return {
+          ...prevState,
+          projectAggregatedData,
+        };
+      });
+
       setTimeout(() => {
         hideRequestAllModal();
       }, 2000);
@@ -749,6 +798,7 @@ export const useJiraReport = () => {
     getSortedItems,
     getOptimalPageSize,
     loadProjects,
+    loadProjectWorkstreams,
     handleProjectClick,
     handleWorkstreamClick,
     handleIssueClick,
