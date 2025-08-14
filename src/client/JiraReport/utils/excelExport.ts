@@ -1,5 +1,36 @@
 import * as XLSX from "xlsx";
 
+// Helper function to recursively collect all issues including children
+const collectAllIssuesRecursively = (
+  issues: any[],
+  level: number = 0,
+  parentKey: string = ""
+): any[] => {
+  let allIssues: any[] = [];
+  
+  for (const issue of issues) {
+    // Add the current issue with its level information
+    const issueWithLevel = {
+      ...issue,
+      "Issue Level": level,
+      Parent: parentKey,
+    };
+    allIssues.push(issueWithLevel);
+    
+    // Recursively add all children if they exist
+    if (issue.children && issue.children.length > 0) {
+      const childIssues = collectAllIssuesRecursively(
+        issue.children,
+        level + 1,
+        issue.key
+      );
+      allIssues.push(...childIssues);
+    }
+  }
+  
+  return allIssues;
+};
+
 export const exportToExcel = (
   data: any[],
   filename: string = "export.xlsx"
@@ -48,11 +79,18 @@ export const exportWorkstreamToExcel = (
   workstreamData: any[],
   workstreamName: string
 ) => {
+  // Collect all issues recursively including children
+  const allIssuesRecursive = collectAllIssuesRecursively(
+    workstreamData,
+    0, // Start at level 0 (workstreams)
+    ""
+  );
+
   // Add summary row at the top
   const summaryRow = {
     Key: `Project: ${workstreamName}`,
     Summary: `Export Date: ${new Date().toLocaleDateString()}`,
-    Type: `Total Workstreams: ${workstreamData.length}`,
+    Type: `Total Issues: ${allIssuesRecursive.length}`,
     Status: "",
     Account: "",
     Parent: "",
@@ -67,15 +105,15 @@ export const exportWorkstreamToExcel = (
   };
 
   // Export all the workstream data with both raw and aggregated values
-  const workstreamRows = workstreamData.map((workstream) => ({
+  const workstreamRows = allIssuesRecursive.map((workstream) => ({
     // Basic workstream information
     Key: workstream.key,
     Summary: workstream.summary,
     Type: workstream.type,
     Status: workstream.status,
     Account: workstream.account,
-    Parent: workstream.parent || "",
-    "Issue Level": 0, // Workstreams are at level 0 (top level)
+    Parent: workstream.Parent || "",
+    "Issue Level": workstream["Issue Level"],
     ChildCount: workstream.childCount,
 
     // Individual estimates and time (workstream's own values)
@@ -102,11 +140,18 @@ export const exportIssuesToExcel = (
   workstreamName: string,
   parentWorkstreamKey?: string
 ) => {
+  // Collect all issues recursively including children
+  const allIssuesRecursive = collectAllIssuesRecursively(
+    issuesData,
+    1, // Start at level 1 (direct children of workstream)
+    parentWorkstreamKey || ""
+  );
+
   // Add summary row at the top
   const summaryRow = {
     Key: `Workstream: ${workstreamName}`,
     Summary: `Export Date: ${new Date().toLocaleDateString()}`,
-    Type: `Total Issues: ${issuesData.length}`,
+    Type: `Total Issues: ${allIssuesRecursive.length}`,
     Status: "",
     Account: "",
     Parent: "",
@@ -121,15 +166,15 @@ export const exportIssuesToExcel = (
   };
 
   // Export all the actual issue data with both raw and aggregated values
-  const issueRows = issuesData.map((issue) => ({
+  const issueRows = allIssuesRecursive.map((issue) => ({
     // Basic issue information
     Key: issue.key,
     Summary: issue.summary,
     Type: issue.type,
     Status: issue.status,
     Account: issue.account,
-    Parent: parentWorkstreamKey || "",
-    "Issue Level": 1, // All issues in this view are at level 1 (direct children of the workstream)
+    Parent: issue.Parent || "",
+    "Issue Level": issue["Issue Level"],
     ChildCount: issue.childCount,
 
     // Individual estimates and time (issue's own values)
@@ -148,5 +193,65 @@ export const exportIssuesToExcel = (
   const data = [summaryRow, ...issueRows];
 
   const filename = `${workstreamName.replace(/[^a-zA-Z0-9]/g, "_")}_issues_export.xlsx`;
+  return exportToExcel(data, filename);
+};
+
+export const exportCompleteWorkstreamToExcel = (
+  workstreamData: any,
+  workstreamName: string
+) => {
+  // Collect all issues recursively including children for a single workstream
+  const allIssuesRecursive = collectAllIssuesRecursively(
+    [workstreamData], // Wrap in array since the function expects an array
+    0, // Start at level 0 (the workstream itself)
+    ""
+  );
+
+  // Add summary row at the top
+  const summaryRow = {
+    Key: `Workstream: ${workstreamName}`,
+    Summary: `Export Date: ${new Date().toLocaleDateString()}`,
+    Type: `Total Issues: ${allIssuesRecursive.length}`,
+    Status: "",
+    Account: "",
+    Parent: "",
+    "Issue Level": "",
+    ChildCount: "",
+    "Original Estimate (days)": "",
+    "Time Spent (days)": "",
+    "Time Remaining (days)": "",
+    "Aggregated Original Estimate (days)": "",
+    "Aggregated Time Spent (days)": "",
+    "Aggregated Time Remaining (days)": "",
+  };
+
+  // Export all the issue data with both raw and aggregated values
+  const issueRows = allIssuesRecursive.map((issue) => ({
+    // Basic issue information
+    Key: issue.key,
+    Summary: issue.summary,
+    Type: issue.type,
+    Status: issue.status,
+    Account: issue.account,
+    Parent: issue.Parent || "",
+    "Issue Level": issue["Issue Level"],
+    ChildCount: issue.childCount,
+
+    // Individual estimates and time (issue's own values)
+    "Original Estimate (days)": issue.originalEstimate || 0,
+    "Time Spent (days)": issue.timeSpent || 0,
+    "Time Remaining (days)": issue.timeRemaining || 0,
+
+    // Aggregated estimates and time (including all children)
+    "Aggregated Original Estimate (days)":
+      issue.aggregatedOriginalEstimate || 0,
+    "Aggregated Time Spent (days)": issue.aggregatedTimeSpent || 0,
+    "Aggregated Time Remaining (days)": issue.aggregatedTimeRemaining || 0,
+  }));
+
+  // Combine summary row with issue data
+  const data = [summaryRow, ...issueRows];
+
+  const filename = `${workstreamName.replace(/[^a-zA-Z0-9]/g, "_")}_complete_workstream_export.xlsx`;
   return exportToExcel(data, filename);
 };
