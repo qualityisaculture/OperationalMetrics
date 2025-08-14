@@ -474,6 +474,7 @@ export default class JiraReportGraphManager {
           summary: jiraIssue.fields.summary || `Issue ${workstreamKey}`,
           type: "Workstream", // Assume it's a workstream if we're calling this method
           status: "Unknown",
+          account: "Unknown", // Default value since EssentialJiraData doesn't have account
           children: [],
           childCount: 0,
           url: `${process.env.JIRA_DOMAIN}/browse/${workstreamKey}`,
@@ -591,6 +592,7 @@ export default class JiraReportGraphManager {
         summary: child.summary,
         type: child.type,
         status: child.status,
+        account: child.account,
         children: [],
         childCount: 0,
         url: child.url,
@@ -1212,6 +1214,7 @@ export default class JiraReportGraphManager {
         summary: child.summary,
         type: child.type,
         status: child.status,
+        account: child.account,
         children: [], // We don't fetch nested children here
         childCount: 0, // We don't know the child count without fetching
         url: child.url,

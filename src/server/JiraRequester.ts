@@ -19,6 +19,7 @@ export type LiteJiraIssue = {
   summary: string;
   type: string;
   status: string;
+  account: string; // Account field for the issue (required)
   children: LiteJiraIssue[];
   childCount: number;
   url: string;
@@ -32,6 +33,7 @@ export class JiraLite {
   summary: string;
   type: string;
   status: string;
+  account: string; // Account field for the issue (required)
   children: JiraLite[];
   childCount: number;
   url: string;
@@ -42,12 +44,14 @@ export class JiraLite {
     type: string,
     status: string,
     url: string,
-    children: JiraLite[] = []
+    children: JiraLite[] = [],
+    account: string
   ) {
     this.key = key;
     this.summary = summary;
     this.type = type;
     this.status = status;
+    this.account = account;
     this.children = children;
     this.childCount = children.length;
     this.url = url;
@@ -56,7 +60,7 @@ export class JiraLite {
   static fromLiteJiraIssue(issue: LiteJiraIssue): JiraLite {
     const children = issue.children.map((child) =>
       typeof child === "string"
-        ? new JiraLite(child, "", "", "", "", [])
+        ? new JiraLite(child, "", "", "", "", [], "Unknown")
         : JiraLite.fromLiteJiraIssue(child)
     );
     return new JiraLite(
@@ -65,7 +69,8 @@ export class JiraLite {
       issue.type,
       issue.status,
       issue.url,
-      children
+      children,
+      issue.account
     );
   }
 
@@ -75,6 +80,7 @@ export class JiraLite {
       summary: this.summary,
       type: this.type,
       status: this.status,
+      account: this.account,
       children: this.children.map((child) => child.toLiteJiraIssue()),
       childCount: this.childCount,
       url: this.url,
@@ -314,7 +320,7 @@ export default class JiraRequester {
   async getLiteQuery(query: string): Promise<LiteJiraIssue[]> {
     try {
       const domain = process.env.JIRA_DOMAIN;
-      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,issuetype,status`;
+      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,issuetype,status,customfield_10085`;
       console.log(`Fetching lite data for ${url}`);
 
       let response = await this.fetchRequest(url);
@@ -348,6 +354,7 @@ export default class JiraRequester {
         summary: issue.fields.summary || "",
         type: issue.fields.issuetype.name || "",
         status: issue.fields.status?.name || "",
+        account: issue.fields.customfield_10085?.value || "None",
         children: [], // No children data
         childCount: 0, // No child count
         url: `${process.env.JIRA_DOMAIN}/browse/${issue.key}`,
@@ -376,7 +383,7 @@ export default class JiraRequester {
 
         const jql = `(${parentConditions}) ORDER BY created ASC`;
         const fields =
-          "key,summary,issuetype,parent,status,timeoriginalestimate,timespent,timeestimate";
+          "key,summary,issuetype,parent,status,timeoriginalestimate,timespent,timeestimate,customfield_10085";
         const queryWithFields = `${jql}&fields=${fields}`;
 
         console.log(
@@ -390,6 +397,7 @@ export default class JiraRequester {
           summary: issue.fields.summary || "",
           type: issue.fields.issuetype.name || "",
           status: issue.fields.status?.name || "",
+          account: issue.fields.customfield_10085?.value || "None",
           parentKey: issue.fields.parent?.key || "",
           url: `${process.env.JIRA_DOMAIN}/browse/${issue.key}`,
           originalEstimate: issue.fields.timeoriginalestimate
@@ -418,7 +426,7 @@ export default class JiraRequester {
       const domain = process.env.JIRA_DOMAIN;
       // Query for issues where the parent field matches the parentKey
       const jql = `parent = "${parentKey}" ORDER BY created ASC`;
-      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,status,timeoriginalestimate,timespent,timeestimate`;
+      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,status,timeoriginalestimate,timespent,timeestimate,customfield_10085`;
 
       let response = await this.fetchRequest(url);
 
@@ -443,6 +451,7 @@ export default class JiraRequester {
         summary: issue.fields.summary || "",
         type: issue.fields.issuetype.name || "",
         status: issue.fields.status?.name || "",
+        account: issue.fields.customfield_10085?.value || "None",
         children: [], // Children don't have nested children in this implementation
         childCount: 0,
         url: `${process.env.JIRA_DOMAIN}/browse/${issue.key}`,

@@ -175,6 +175,26 @@ export const getIssueColumns = (
     onFilter: (value, record) => record.status === value,
   },
   {
+    title: "Account",
+    dataIndex: "account",
+    key: "account",
+    render: (account: string) => {
+      return <Tag color="cyan">{account}</Tag>;
+    },
+    sorter: (a, b) => a.account.localeCompare(b.account),
+    filters: (() => {
+      // Get unique accounts from the current data
+      const uniqueAccounts = [
+        ...new Set(projectIssues.map((issue) => issue.account)),
+      ].sort();
+      return uniqueAccounts.map((account) => ({
+        text: account,
+        value: account,
+      }));
+    })(),
+    onFilter: (value, record) => record.account === value,
+  },
+  {
     title: "Summary",
     dataIndex: "summary",
     key: "summary",
