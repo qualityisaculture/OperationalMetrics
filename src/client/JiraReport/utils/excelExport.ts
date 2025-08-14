@@ -7,7 +7,7 @@ const collectAllIssuesRecursively = (
   parentKey: string = ""
 ): any[] => {
   let allIssues: any[] = [];
-  
+
   for (const issue of issues) {
     // Add the current issue with its level information
     const issueWithLevel = {
@@ -16,7 +16,7 @@ const collectAllIssuesRecursively = (
       Parent: parentKey,
     };
     allIssues.push(issueWithLevel);
-    
+
     // Recursively add all children if they exist
     if (issue.children && issue.children.length > 0) {
       const childIssues = collectAllIssuesRecursively(
@@ -27,7 +27,7 @@ const collectAllIssuesRecursively = (
       allIssues.push(...childIssues);
     }
   }
-  
+
   return allIssues;
 };
 
@@ -196,62 +196,110 @@ export const exportIssuesToExcel = (
   return exportToExcel(data, filename);
 };
 
-export const exportCompleteWorkstreamToExcel = (
-  workstreamData: any,
+export const exportCompleteWorkstreamToExcel = async (
+  workstreamKey: string,
   workstreamName: string
 ) => {
-  // Collect all issues recursively including children for a single workstream
-  const allIssuesRecursive = collectAllIssuesRecursively(
-    [workstreamData], // Wrap in array since the function expects an array
-    0, // Start at level 0 (the workstream itself)
-    ""
-  );
+  try {
+    // Fetch the complete workstream data from the server
+    const response = await fetch(
+      `/api/jiraReport/workstream/${workstreamKey}/workstream`
+    );
 
-  // Add summary row at the top
-  const summaryRow = {
-    Key: `Workstream: ${workstreamName}`,
-    Summary: `Export Date: ${new Date().toLocaleDateString()}`,
-    Type: `Total Issues: ${allIssuesRecursive.length}`,
-    Status: "",
-    Account: "",
-    Parent: "",
-    "Issue Level": "",
-    ChildCount: "",
-    "Original Estimate (days)": "",
-    "Time Spent (days)": "",
-    "Time Remaining (days)": "",
-    "Aggregated Original Estimate (days)": "",
-    "Aggregated Time Spent (days)": "",
-    "Aggregated Time Remaining (days)": "",
-  };
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch workstream data: ${response.statusText}`
+      );
+    }
 
-  // Export all the issue data with both raw and aggregated values
-  const issueRows = allIssuesRecursive.map((issue) => ({
-    // Basic issue information
-    Key: issue.key,
-    Summary: issue.summary,
-    Type: issue.type,
-    Status: issue.status,
-    Account: issue.account,
-    Parent: issue.Parent || "",
-    "Issue Level": issue["Issue Level"],
-    ChildCount: issue.childCount,
+    const eventSource = new EventSource(
+      `/api/jiraReport/workstream/${workstreamKey}/workstream`
+    );
 
-    // Individual estimates and time (issue's own values)
-    "Original Estimate (days)": issue.originalEstimate || 0,
-    "Time Spent (days)": issue.timeSpent || 0,
-    "Time Remaining (days)": issue.timeRemaining || 0,
+    return new Promise<boolean>((resolve, reject) => {
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
 
-    // Aggregated estimates and time (including all children)
-    "Aggregated Original Estimate (days)":
-      issue.aggregatedOriginalEstimate || 0,
-    "Aggregated Time Spent (days)": issue.aggregatedTimeSpent || 0,
-    "Aggregated Time Remaining (days)": issue.aggregatedTimeRemaining || 0,
-  }));
+        if (data.status === "complete" && data.data) {
+          const workstreamWithIssues = JSON.parse(data.data);
 
-  // Combine summary row with issue data
-  const data = [summaryRow, ...issueRows];
+          // Collect all issues recursively including children
+          const allIssuesRecursive = collectAllIssuesRecursively(
+            [workstreamWithIssues],
+            0, // Start at level 0 (the workstream itself)
+            ""
+          );
 
-  const filename = `${workstreamName.replace(/[^a-zA-Z0-9]/g, "_")}_complete_workstream_export.xlsx`;
-  return exportToExcel(data, filename);
+          // Add summary row at the top
+          const summaryRow = {
+            Key: `Workstream: ${workstreamName}`,
+            Summary: `Export Date: ${new Date().toLocaleDateString()}`,
+            Type: `Total Issues: ${allIssuesRecursive.length}`,
+            Status: "",
+            Account: "",
+            Parent: "",
+            "Issue Level": "",
+            ChildCount: "",
+            "Original Estimate (days)": "",
+            "Time Spent (days)": "",
+            "Time Remaining (days)": "",
+            "Aggregated Original Estimate (days)": "",
+            "Aggregated Time Spent (days)": "",
+            "Aggregated Time Remaining (days)": "",
+          };
+
+          // Export all the issue data with both raw and aggregated values
+          const issueRows = allIssuesRecursive.map((issue) => ({
+            // Basic issue information
+            Key: issue.key,
+            Summary: issue.summary,
+            Type: issue.type,
+            Status: issue.status,
+            Account: issue.account,
+            Parent: issue.Parent || "",
+            "Issue Level": issue["Issue Level"],
+            ChildCount: issue.childCount,
+
+            // Individual estimates and time (issue's own values)
+            "Original Estimate (days)": issue.originalEstimate || 0,
+            "Time Spent (days)": issue.timeSpent || 0,
+            "Time Remaining (days)": issue.timeRemaining || 0,
+
+            // Aggregated estimates and time (including all children)
+            "Aggregated Original Estimate (days)":
+              issue.aggregatedOriginalEstimate || 0,
+            "Aggregated Time Spent (days)": issue.aggregatedTimeSpent || 0,
+            "Aggregated Time Remaining (days)":
+              issue.aggregatedTimeRemaining || 0,
+          }));
+
+          // Combine summary row with issue data
+          const exportData = [summaryRow, ...issueRows];
+
+          const filename = `${workstreamName.replace(/[^a-zA-Z0-9]/g, "_")}_complete_workstream_export.xlsx`;
+          const result = exportToExcel(exportData, filename);
+
+          eventSource.close();
+          resolve(result);
+        } else if (data.status === "error") {
+          eventSource.close();
+          reject(new Error(data.message || "Failed to load workstream data"));
+        }
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        reject(new Error("EventSource error"));
+      };
+
+      // Timeout after 5 minutes
+      setTimeout(() => {
+        eventSource.close();
+        reject(new Error("Request timeout"));
+      }, 300000);
+    });
+  } catch (error) {
+    console.error("Error exporting complete workstream:", error);
+    return false;
+  }
 };

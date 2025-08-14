@@ -216,6 +216,7 @@ const JiraReport: React.FC = () => {
                 getWorkstreamDataCellSpan={getWorkstreamDataCellSpan}
                 handleIssueClick={handleIssueClick}
                 toggleFavorite={toggleFavorite}
+                projectIssues={projectIssues}
               />
             ) : (
               <>

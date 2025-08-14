@@ -18,6 +18,8 @@ interface Props {
   ) => { colSpan?: number };
   handleIssueClick: (issue: JiraIssueWithAggregated) => void;
   toggleFavorite: (itemKey: string, event: React.MouseEvent) => void;
+  // Add projectIssues to access complete hierarchy
+  projectIssues?: JiraIssueWithAggregated[];
 }
 
 export const IssuesTable: React.FC<Props> = ({
@@ -28,7 +30,29 @@ export const IssuesTable: React.FC<Props> = ({
   getWorkstreamDataCellSpan,
   handleIssueClick,
   toggleFavorite,
+  projectIssues,
 }) => {
+  // Find the complete hierarchical data for the current workstream
+  // We need to find the workstream in projectIssues that matches the current level
+  const currentLevelData = navigationStack[navigationStack.length - 1];
+  let completeHierarchicalData = currentIssues;
+
+  if (projectIssues && currentLevelData) {
+    // Find the workstream in projectIssues that matches the current level
+    const workstreamKey = currentLevelData.key;
+    const workstreamInProject = projectIssues.find(
+      (ws) => ws.key === workstreamKey
+    );
+
+    if (workstreamInProject) {
+      // Use the complete workstream data from projectIssues
+      // However, projectIssues might not have the complete hierarchy loaded
+      // So we'll use the currentIssues which should have the direct children
+      // and let the export function handle the recursion if children are available
+      completeHierarchicalData = currentIssues;
+    }
+  }
+
   return (
     <UnifiedIssuesTable
       title={`Issues in ${navigationStack[navigationStack.length - 1].name}`}
@@ -44,6 +68,7 @@ export const IssuesTable: React.FC<Props> = ({
       showExportButton={true}
       workstreamName={navigationStack[navigationStack.length - 1].name}
       parentWorkstreamKey={navigationStack[navigationStack.length - 1].key}
+      completeHierarchicalData={completeHierarchicalData}
       pagination={{
         pageSize: 50,
         showSizeChanger: true,

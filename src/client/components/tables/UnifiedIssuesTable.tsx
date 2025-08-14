@@ -1,41 +1,25 @@
-import React from "react";
-import { Table, Card, Space, Typography, Button } from "antd";
+import React, { useState } from "react";
+import { Card, Space, Table, Button, Typography } from "antd";
 import { InfoCircleOutlined, DownloadOutlined } from "@ant-design/icons";
 import { getUnifiedColumns } from "./columns";
 import { JiraIssueWithAggregated } from "../../JiraReport/types";
-import { exportIssuesToExcel } from "../../JiraReport/utils/excelExport";
+import {
+  exportIssuesToExcel,
+  exportCompleteWorkstreamToExcel,
+} from "../../JiraReport/utils/excelExport";
 
 const { Text } = Typography;
 
 export interface UnifiedIssuesTableProps {
-  title: React.ReactNode;
+  title: string;
   dataSource: any[];
   rowKey: string;
-  // Columns
   showFavoriteColumn?: boolean;
-
-  // Sorting
   getSortedItems?: <T extends { key: string }>(items: T[]) => T[];
-
-  // Pagination
-  pagination?:
-    | false
-    | {
-        pageSize?: number;
-        showSizeChanger?: boolean;
-        showQuickJumper?: boolean;
-        showTotal?: (total: number, range: [number, number]) => React.ReactNode;
-        defaultCurrent?: number;
-      };
-
-  // Row Events
-  onRow?: (record: any) => React.HTMLAttributes<HTMLElement>;
-
-  // Favorite
+  pagination?: any;
+  onRow?: (record: any) => any;
   favoriteItems?: Set<string>;
   toggleFavorite?: (itemKey: string, event: React.MouseEvent) => void;
-
-  // Navigation and data handling
   navigationStack?: Array<{
     type: "project" | "issue";
     key: string;
@@ -53,6 +37,8 @@ export interface UnifiedIssuesTableProps {
   showExportButton?: boolean;
   workstreamName?: string;
   parentWorkstreamKey?: string;
+  // New prop for complete hierarchical data
+  completeHierarchicalData?: any[];
 }
 
 export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
@@ -72,7 +58,10 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   showExportButton = false,
   workstreamName,
   parentWorkstreamKey,
+  completeHierarchicalData,
 }) => {
+  const [exportLoading, setExportLoading] = useState(false);
+
   const columns = getUnifiedColumns({
     showFavoriteColumn,
     favoriteItems,
@@ -82,6 +71,22 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
     projectIssues,
     getWorkstreamDataCellSpan,
   });
+
+  const handleExport = async () => {
+    if (!parentWorkstreamKey || !workstreamName) return;
+
+    setExportLoading(true);
+    try {
+      await exportCompleteWorkstreamToExcel(
+        parentWorkstreamKey,
+        workstreamName
+      );
+    } catch (error) {
+      console.error("Export failed:", error);
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   return (
     <Card
@@ -101,29 +106,8 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
               type="primary"
               icon={<DownloadOutlined />}
               size="small"
-              onClick={() => {
-                // Export the current workstream data
-                const workstreamData = dataSource.map((issue) => ({
-                  key: issue.key,
-                  summary: issue.summary,
-                  type: issue.type,
-                  status: issue.status,
-                  account: issue.account,
-                  parent: issue.parent,
-                  childCount: issue.childCount,
-                  originalEstimate: issue.originalEstimate,
-                  timeSpent: issue.timeSpent,
-                  timeRemaining: issue.timeRemaining,
-                  aggregatedOriginalEstimate: issue.aggregatedOriginalEstimate,
-                  aggregatedTimeSpent: issue.aggregatedTimeSpent,
-                  aggregatedTimeRemaining: issue.aggregatedTimeRemaining,
-                }));
-                exportIssuesToExcel(
-                  workstreamData,
-                  workstreamName,
-                  parentWorkstreamKey
-                );
-              }}
+              loading={exportLoading}
+              onClick={handleExport}
             >
               Export to Excel
             </Button>

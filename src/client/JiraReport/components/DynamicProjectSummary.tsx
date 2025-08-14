@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Table, Card, Space, Typography, Button } from "antd";
-import { InfoCircleOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, DownloadOutlined } from "@ant-design/icons";
 import { JiraIssueWithAggregated } from "../types";
 import { getIssueColumns } from "./tables/issueColumns";
 import { ProjectSummary } from "./ProjectSummary";
 import { ProjectAggregatedData } from "../types";
+import { exportWorkstreamToExcel } from "../utils/excelExport";
 
 const { Text } = Typography;
 
@@ -79,7 +80,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
     console.log("Table change:", { pagination, filters, sorter });
 
     // Check if any filters are applied
-    const hasFilters = Object.values(filters).some(
+    const hasFilters = Object.values(filters as Record<string, any[]>).some(
       (filter: any) => filter && filter.length > 0
     );
 
@@ -90,38 +91,42 @@ export const DynamicProjectSummary: React.FC<Props> = ({
       let filtered = [...dataSource];
 
       // Apply each filter
-      Object.entries(filters).forEach(([key, filterValues]) => {
-        if (filterValues && filterValues.length > 0) {
-          console.log(`Applying filter for ${key}:`, filterValues);
-          filtered = filtered.filter((item: any) => {
-            const itemValue = item[key];
+      Object.entries(filters as Record<string, any[]>).forEach(
+        ([key, filterValues]) => {
+          if (filterValues && filterValues.length > 0) {
+            console.log(`Applying filter for ${key}:`, filterValues);
+            filtered = filtered.filter((item: any) => {
+              const itemValue = item[key];
 
-            // Handle different data types
-            if (typeof itemValue === "string") {
-              return filterValues.some((filterValue: string) =>
-                itemValue.toLowerCase().includes(filterValue.toLowerCase())
-              );
-            } else if (typeof itemValue === "number") {
-              return filterValues.includes(itemValue);
-            } else if (itemValue === null || itemValue === undefined) {
-              // Handle null/undefined values
-              return filterValues.includes("None") || filterValues.includes("");
-            } else {
-              // For other types, try to convert to string and compare
-              return filterValues.some((filterValue: string) =>
-                String(itemValue)
-                  .toLowerCase()
-                  .includes(filterValue.toLowerCase())
-              );
-            }
-          });
-          console.log(
-            `After filtering by ${key}:`,
-            filtered.length,
-            "items remaining"
-          );
+              // Handle different data types
+              if (typeof itemValue === "string") {
+                return filterValues.some((filterValue: string) =>
+                  itemValue.toLowerCase().includes(filterValue.toLowerCase())
+                );
+              } else if (typeof itemValue === "number") {
+                return filterValues.includes(itemValue);
+              } else if (itemValue === null || itemValue === undefined) {
+                // Handle null/undefined values
+                return (
+                  filterValues.includes("None") || filterValues.includes("")
+                );
+              } else {
+                // For other types, try to convert to string and compare
+                return filterValues.some((filterValue: string) =>
+                  String(itemValue)
+                    .toLowerCase()
+                    .includes(filterValue.toLowerCase())
+                );
+              }
+            });
+            console.log(
+              `After filtering by ${key}:`,
+              filtered.length,
+              "items remaining"
+            );
+          }
         }
-      });
+      );
 
       console.log("Final filtered data:", filtered.length, "items");
       setFilteredData(filtered);
@@ -185,6 +190,17 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                 </span>
               )}
             </Text>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              size="small"
+              onClick={() => {
+                // Export all workstreams with their complete hierarchy
+                exportWorkstreamToExcel(projectIssues, projectName);
+              }}
+            >
+              Export All Workstreams
+            </Button>
             {isFiltered && (
               <Button
                 size="small"
