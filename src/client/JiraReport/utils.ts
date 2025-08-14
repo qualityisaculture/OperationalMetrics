@@ -8,10 +8,12 @@ export const calculateAggregatedValues = (
   aggregatedOriginalEstimate: number;
   aggregatedTimeSpent: number;
   aggregatedTimeRemaining: number;
+  hasData: boolean;
 } => {
   let totalOriginalEstimate = issue.originalEstimate ?? 0;
   let totalTimeSpent = issue.timeSpent ?? 0;
   let totalTimeRemaining = issue.timeRemaining ?? 0;
+  const hasData = issue.children && issue.children.length > 0;
 
   // Recursively sum up all children's values
   for (const child of issue.children) {
@@ -25,6 +27,7 @@ export const calculateAggregatedValues = (
     aggregatedOriginalEstimate: totalOriginalEstimate,
     aggregatedTimeSpent: totalTimeSpent,
     aggregatedTimeRemaining: totalTimeRemaining,
+    hasData,
   };
 };
 
@@ -50,6 +53,7 @@ export const calculateProjectAggregatedData = (
       aggregatedOriginalEstimate: number;
       aggregatedTimeSpent: number;
       aggregatedTimeRemaining: number;
+      hasData: boolean;
     }
   >
 ): ProjectAggregatedData => {

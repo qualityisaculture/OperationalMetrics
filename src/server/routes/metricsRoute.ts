@@ -624,6 +624,7 @@ metricsRoute.get(
           `data: ${JSON.stringify({
             status: "complete",
             data: JSON.stringify(workstreamWithIssues),
+            hasData: workstreamWithIssues.children.length > 0,
           })}\n\n`
         );
         res.end();

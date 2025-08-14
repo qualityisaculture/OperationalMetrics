@@ -502,7 +502,7 @@ export default class JiraReportGraphManager {
         sendProgress
       );
 
-      // Cache the complete workstream tree
+      // Cache the complete workstream tree (even if it has no children)
       this.workstreamCache.setWorkstream(
         workstreamKey,
         workstreamWithAllIssues

@@ -6,6 +6,8 @@ export interface JiraIssueWithAggregated extends LiteJiraIssue {
   aggregatedOriginalEstimate?: number;
   aggregatedTimeSpent?: number;
   aggregatedTimeRemaining?: number;
+  hasBeenRequested?: boolean; // Track if this workstream has been requested
+  hasData?: boolean; // Track if this workstream has data available
 }
 
 // Interface for project-level aggregated data
@@ -43,6 +45,7 @@ export interface JiraReportState {
       aggregatedOriginalEstimate: number;
       aggregatedTimeSpent: number;
       aggregatedTimeRemaining: number;
+      hasData: boolean; // Track if this workstream has data available
     }
   >;
   // New state for project-level aggregation

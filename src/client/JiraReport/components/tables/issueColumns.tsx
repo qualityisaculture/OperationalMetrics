@@ -242,14 +242,37 @@ export const getIssueColumns = (
         navigationStack.length === 1 &&
         (valueToShow === null || valueToShow === undefined || valueToShow === 0)
       ) {
-        return (
-          <Text
-            type="secondary"
-            style={{ fontSize: "12px", fontStyle: "italic" }}
-          >
-            Click to request data for this workstream
-          </Text>
-        );
+        // Check if this workstream has been requested
+        if (record.hasBeenRequested) {
+          if (record.hasData === false) {
+            return (
+              <Text
+                type="secondary"
+                style={{ fontSize: "12px", fontStyle: "italic" }}
+              >
+                No data available
+              </Text>
+            );
+          } else {
+            return (
+              <Text
+                type="secondary"
+                style={{ fontSize: "12px", fontStyle: "italic" }}
+              >
+                Data loaded
+              </Text>
+            );
+          }
+        } else {
+          return (
+            <Text
+              type="secondary"
+              style={{ fontSize: "12px", fontStyle: "italic" }}
+            >
+              Click to request data for this workstream
+            </Text>
+          );
+        }
       }
 
       return (

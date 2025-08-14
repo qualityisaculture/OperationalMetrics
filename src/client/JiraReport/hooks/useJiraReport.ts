@@ -41,6 +41,10 @@ export const useJiraReport = () => {
           ? record.aggregatedOriginalEstimate
           : record.originalEstimate;
 
+        // Check if this workstream has been requested and has no data
+        const hasBeenRequested = record.hasBeenRequested;
+        const hasData = record.hasData;
+
         if (
           valueToShow === null ||
           valueToShow === undefined ||
@@ -205,6 +209,7 @@ export const useJiraReport = () => {
           aggregatedOriginalEstimate: workstream.aggregatedOriginalEstimate,
           aggregatedTimeSpent: workstream.aggregatedTimeSpent,
           aggregatedTimeRemaining: workstream.aggregatedTimeRemaining,
+          hasData: workstream.children && workstream.children.length > 0,
         });
       }
     });
@@ -336,23 +341,65 @@ export const useJiraReport = () => {
           }));
         } else if (response.status === "complete" && response.data) {
           const workstreamWithIssues: LiteJiraIssue = JSON.parse(response.data);
+          const hasData = response.hasData || workstreamWithIssues.children.length > 0;
 
           console.log(
             `\n=== FRONTEND: Received workstream data for ${workstream.key} ===`
           );
           console.log("Complete workstream tree:", workstreamWithIssues);
+          console.log("Has data:", hasData);
 
-          if (workstreamWithIssues.children.length === 0) {
+          if (!hasData) {
             console.log(
-              `Workstream ${workstream.key} has no children, not navigating`
+              `Workstream ${workstream.key} has no data available`
             );
-            setState((prevState) => ({
-              ...prevState,
-              currentIssuesLoading: false,
-              progressStatus: "Idle",
-              progressDetails: undefined,
-              currentStep: undefined,
-            }));
+            
+            // Update the workstream data to indicate it was requested but has no data
+            const workstreamAggregatedData = {
+              aggregatedOriginalEstimate: 0,
+              aggregatedTimeSpent: 0,
+              aggregatedTimeRemaining: 0,
+              hasData: false,
+            };
+
+            setState((prevState) => {
+              const newLoadedWorkstreamData = new Map(
+                prevState.loadedWorkstreamData
+              ).set(workstream.key, workstreamAggregatedData);
+
+              // Update projectIssues with the new aggregated values for this workstream
+              const updatedProjectIssues = prevState.projectIssues.map((ws) => {
+                if (ws.key === workstream.key) {
+                  return {
+                    ...ws,
+                    aggregatedOriginalEstimate: 0,
+                    aggregatedTimeSpent: 0,
+                    aggregatedTimeRemaining: 0,
+                    hasBeenRequested: true,
+                    hasData: false,
+                  };
+                }
+                return ws;
+              });
+
+              // Calculate project-level aggregation
+              const projectAggregatedData = calculateProjectAggregatedData(
+                updatedProjectIssues,
+                newLoadedWorkstreamData
+              );
+
+              return {
+                ...prevState,
+                projectIssues: updatedProjectIssues,
+                loadedWorkstreamData: newLoadedWorkstreamData,
+                projectAggregatedData,
+                currentIssuesLoading: false,
+                progressStatus: "Idle",
+                progressDetails: undefined,
+                currentStep: undefined,
+              };
+            });
+
             eventSource.close();
             return;
           }
@@ -372,6 +419,7 @@ export const useJiraReport = () => {
               processedWorkstreamData.aggregatedTimeSpent ?? 0,
             aggregatedTimeRemaining:
               processedWorkstreamData.aggregatedTimeRemaining ?? 0,
+            hasData: true,
           };
 
           const processedChildren = workstreamWithIssues.children.map(
@@ -612,6 +660,7 @@ export const useJiraReport = () => {
             aggregatedOriginalEstimate: workstream.aggregatedOriginalEstimate,
             aggregatedTimeSpent: workstream.aggregatedTimeSpent,
             aggregatedTimeRemaining: workstream.aggregatedTimeRemaining,
+            hasData: workstream.children && workstream.children.length > 0,
           });
         }
       });
