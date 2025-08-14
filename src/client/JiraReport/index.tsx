@@ -10,11 +10,10 @@ import {
   StarFilled,
 } from "@ant-design/icons";
 import { ProjectsTable } from "./components/ProjectsTable";
-import { WorkstreamsTable } from "./components/WorkstreamsTable";
 import { IssuesTable } from "./components/IssuesTable";
 import { Breadcrumbs } from "./components/Breadcrumbs";
 import { RequestAllModal } from "./components/RequestAllModal";
-import { ProjectSummary } from "./components/ProjectSummary";
+import { DynamicProjectSummary } from "./components/DynamicProjectSummary";
 import { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
 
 const { Title, Text } = Typography;
@@ -220,11 +219,9 @@ const JiraReport: React.FC = () => {
               />
             ) : (
               <>
-                <ProjectSummary
+                <DynamicProjectSummary
                   projectAggregatedData={state.projectAggregatedData}
                   projectName={selectedProject.name}
-                />
-                <WorkstreamsTable
                   projectIssues={projectIssues}
                   favoriteItems={favoriteItems}
                   navigationStack={navigationStack}
