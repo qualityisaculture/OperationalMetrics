@@ -52,6 +52,7 @@ export interface UnifiedIssuesTableProps {
   // Excel Export
   showExportButton?: boolean;
   workstreamName?: string;
+  parentWorkstreamKey?: string;
 }
 
 export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
@@ -70,6 +71,7 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   getWorkstreamDataCellSpan,
   showExportButton = false,
   workstreamName,
+  parentWorkstreamKey,
 }) => {
   const columns = getUnifiedColumns({
     showFavoriteColumn,
@@ -107,6 +109,7 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
                   type: issue.type,
                   status: issue.status,
                   account: issue.account,
+                  parent: issue.parent,
                   childCount: issue.childCount,
                   originalEstimate: issue.originalEstimate,
                   timeSpent: issue.timeSpent,
@@ -115,7 +118,11 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
                   aggregatedTimeSpent: issue.aggregatedTimeSpent,
                   aggregatedTimeRemaining: issue.aggregatedTimeRemaining,
                 }));
-                exportIssuesToExcel(workstreamData, workstreamName);
+                exportIssuesToExcel(
+                  workstreamData,
+                  workstreamName,
+                  parentWorkstreamKey
+                );
               }}
             >
               Export to Excel

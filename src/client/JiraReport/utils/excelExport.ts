@@ -55,6 +55,8 @@ export const exportWorkstreamToExcel = (
     Type: `Total Workstreams: ${workstreamData.length}`,
     Status: "",
     Account: "",
+    Parent: "",
+    "Issue Level": "",
     ChildCount: "",
     "Original Estimate (days)": "",
     "Time Spent (days)": "",
@@ -72,6 +74,8 @@ export const exportWorkstreamToExcel = (
     Type: workstream.type,
     Status: workstream.status,
     Account: workstream.account,
+    Parent: workstream.parent || "",
+    "Issue Level": 0, // Workstreams are at level 0 (top level)
     ChildCount: workstream.childCount,
 
     // Individual estimates and time (workstream's own values)
@@ -95,7 +99,8 @@ export const exportWorkstreamToExcel = (
 
 export const exportIssuesToExcel = (
   issuesData: any[],
-  workstreamName: string
+  workstreamName: string,
+  parentWorkstreamKey?: string
 ) => {
   // Add summary row at the top
   const summaryRow = {
@@ -104,6 +109,8 @@ export const exportIssuesToExcel = (
     Type: `Total Issues: ${issuesData.length}`,
     Status: "",
     Account: "",
+    Parent: "",
+    "Issue Level": "",
     ChildCount: "",
     "Original Estimate (days)": "",
     "Time Spent (days)": "",
@@ -121,6 +128,8 @@ export const exportIssuesToExcel = (
     Type: issue.type,
     Status: issue.status,
     Account: issue.account,
+    Parent: parentWorkstreamKey || "",
+    "Issue Level": 1, // All issues in this view are at level 1 (direct children of the workstream)
     ChildCount: issue.childCount,
 
     // Individual estimates and time (issue's own values)
