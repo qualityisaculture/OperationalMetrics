@@ -399,7 +399,26 @@ export default class CumulativeFlowDiagram extends React.Component<
           title="Cumulative Flow Diagram"
           data={data}
           columns={columns}
+          targetElementId="cfd-notes"
         />
+
+        {/* Notes div for displaying click data */}
+        <div
+          id="cfd-notes"
+          style={{
+            marginTop: "1rem",
+            padding: "1rem",
+            border: "1px solid #d9d9d9",
+            borderRadius: "6px",
+            backgroundColor: "#fafafa",
+            minHeight: "100px",
+          }}
+        >
+          <h4>Chart Details</h4>
+          <div id="cfd-notes-content">
+            {/* Click data will be populated here */}
+          </div>
+        </div>
       </div>
     );
   }
