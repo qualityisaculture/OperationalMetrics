@@ -41,6 +41,8 @@ export const IssuesTable: React.FC<Props> = ({
       currentIssues={currentIssues}
       getWorkstreamDataCellSpan={getWorkstreamDataCellSpan}
       getSortedItems={getSortedItems}
+      showExportButton={true}
+      workstreamName={navigationStack[navigationStack.length - 1].name}
       pagination={{
         pageSize: 50,
         showSizeChanger: true,

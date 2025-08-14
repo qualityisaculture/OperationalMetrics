@@ -1,8 +1,9 @@
 import React from "react";
 import { Table, Card, Space, Typography, Button } from "antd";
-import { InfoCircleOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, DownloadOutlined } from "@ant-design/icons";
 import { getUnifiedColumns } from "./columns";
 import { JiraIssueWithAggregated } from "../../JiraReport/types";
+import { exportIssuesToExcel } from "../../JiraReport/utils/excelExport";
 
 const { Text } = Typography;
 
@@ -47,6 +48,10 @@ export interface UnifiedIssuesTableProps {
     record: JiraIssueWithAggregated,
     isFirstColumn?: boolean
   ) => { colSpan?: number };
+
+  // Excel Export
+  showExportButton?: boolean;
+  workstreamName?: string;
 }
 
 export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
@@ -63,6 +68,8 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   currentIssues,
   projectIssues,
   getWorkstreamDataCellSpan,
+  showExportButton = false,
+  workstreamName,
 }) => {
   const columns = getUnifiedColumns({
     showFavoriteColumn,
@@ -83,9 +90,38 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
         </Space>
       }
       extra={
-        <Text type="secondary">
-          Last updated: {new Date().toLocaleString()}
-        </Text>
+        <Space>
+          <Text type="secondary">
+            Last updated: {new Date().toLocaleString()}
+          </Text>
+          {showExportButton && workstreamName && (
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              size="small"
+              onClick={() => {
+                // Export the current workstream data
+                const workstreamData = dataSource.map((issue) => ({
+                  key: issue.key,
+                  summary: issue.summary,
+                  type: issue.type,
+                  status: issue.status,
+                  account: issue.account,
+                  childCount: issue.childCount,
+                  originalEstimate: issue.originalEstimate,
+                  timeSpent: issue.timeSpent,
+                  timeRemaining: issue.timeRemaining,
+                  aggregatedOriginalEstimate: issue.aggregatedOriginalEstimate,
+                  aggregatedTimeSpent: issue.aggregatedTimeSpent,
+                  aggregatedTimeRemaining: issue.aggregatedTimeRemaining,
+                }));
+                exportIssuesToExcel(workstreamData, workstreamName);
+              }}
+            >
+              Export to Excel
+            </Button>
+          )}
+        </Space>
       }
     >
       <Table
