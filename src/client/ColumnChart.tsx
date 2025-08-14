@@ -17,6 +17,7 @@ interface ChartProps {
   columns: ColumnType[];
   data: CategoryData;
   extraOptions?: any;
+  targetElementId?: string; // Add optional target element ID for click data
 }
 interface ChartState {
   isGoogleChartsLoaded: boolean;
@@ -70,8 +71,20 @@ export default class ColumnChart extends React.Component<
     var selection = chart.getSelection();
     let clickData: string = this.props.data[selection[0].row]
       .clickData as string;
-    let notesElement = document.getElementById("notes");
-    if (notesElement) notesElement.innerHTML = clickData;
+    let notesElement = document.getElementById(
+      this.props.targetElementId || "notes"
+    );
+    if (notesElement) {
+      // If the target element has a content div, write to that, otherwise write to the element itself
+      const contentElement = notesElement.querySelector(
+        `#${this.props.targetElementId}-content`
+      );
+      if (contentElement) {
+        contentElement.innerHTML = clickData;
+      } else {
+        notesElement.innerHTML = clickData;
+      }
+    }
   };
 
   addBreakdown(data: GoogleDataType) {
@@ -97,9 +110,19 @@ export default class ColumnChart extends React.Component<
       })
       .join("<br>");
 
-    const notesElement = document.getElementById("notes");
+    const notesElement = document.getElementById(
+      this.props.targetElementId || "notes"
+    );
     if (notesElement) {
-      notesElement.innerHTML = summary;
+      // If the target element has a content div, write to that, otherwise write to the element itself
+      const contentElement = notesElement.querySelector(
+        `#${this.props.targetElementId}-content`
+      );
+      if (contentElement) {
+        contentElement.innerHTML = summary;
+      } else {
+        notesElement.innerHTML = summary;
+      }
     }
   }
 

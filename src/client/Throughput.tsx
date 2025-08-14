@@ -1067,9 +1067,28 @@ export default class Throughput extends React.Component<Props, State> {
                 columns={columns}
                 title="Throughput (Resolved + Open Tickets)"
                 extraOptions={{ isStacked: true }}
+                targetElementId="throughput-notes"
               />
             </>
           )}
+        </div>
+
+        {/* Notes div for displaying click data */}
+        <div
+          id="throughput-notes"
+          style={{
+            marginTop: "1rem",
+            padding: "1rem",
+            border: "1px solid #d9d9d9",
+            borderRadius: "6px",
+            backgroundColor: "#fafafa",
+            minHeight: "100px",
+          }}
+        >
+          <h4>Chart Summary</h4>
+          <div id="throughput-notes-content">
+            {/* Click data will be populated here */}
+          </div>
         </div>
         <InvestmentDiagram
           issues={issueInfo}
