@@ -247,7 +247,7 @@ export const getIssueColumns = (
           if (record.hasData === false) {
             return (
               <Text
-                type="secondary"
+                type="danger"
                 style={{ fontSize: "12px", fontStyle: "italic" }}
               >
                 No data available
@@ -269,10 +269,9 @@ export const getIssueColumns = (
         ) {
           // We know whether this workstream has children from the project workstreams request
           if (record.hasChildren === false) {
-            debugger;
             return (
               <Text
-                type="secondary"
+                type="danger"
                 style={{ fontSize: "12px", fontStyle: "italic" }}
               >
                 No data available

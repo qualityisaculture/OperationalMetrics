@@ -198,7 +198,7 @@ export const useJiraReport = () => {
           aggregatedOriginalEstimate: undefined,
           aggregatedTimeSpent: undefined,
           aggregatedTimeRemaining: undefined,
-          hasChildren: workstream.hasChildren
+          hasChildren: workstream.hasChildren,
         };
       }
     );

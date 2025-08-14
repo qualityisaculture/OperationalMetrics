@@ -577,7 +577,8 @@ export default class JiraReportGraphManager {
       );
 
       // Set the hasChildren field based on whether this issue has children
-      issueWithAllChildren.hasChildren = issueWithAllChildren.children.length > 0;
+      issueWithAllChildren.hasChildren =
+        issueWithAllChildren.children.length > 0;
 
       console.log(`=== Completed unified fetch for issue ${issue.key} ===\n`);
       return issueWithAllChildren;
