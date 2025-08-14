@@ -10,9 +10,9 @@ export interface JiraIssueWithAggregated extends LiteJiraIssue {
 
 // Interface for project-level aggregated data
 export interface ProjectAggregatedData {
-  totalOriginalEstimate: number;
-  totalTimeSpent: number;
-  totalTimeRemaining: number;
+  totalOriginalEstimateDays: number;
+  totalTimeSpentDays: number;
+  totalTimeRemainingDays: number;
   loadedWorkstreamCount: number;
   totalWorkstreamCount: number;
 }

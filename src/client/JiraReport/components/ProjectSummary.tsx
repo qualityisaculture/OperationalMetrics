@@ -22,25 +22,27 @@ export const ProjectSummary: React.FC<Props> = ({
     return null;
   }
 
-  // Temporarily zero out all values while we fix the calculation logic
   const {
-    totalOriginalEstimate = 0,
-    totalTimeSpent = 0,
-    totalTimeRemaining = 0,
-    loadedWorkstreamCount = 0,
-    totalWorkstreamCount = 0,
+    totalOriginalEstimateDays,
+    totalTimeSpentDays,
+    totalTimeRemainingDays,
+    loadedWorkstreamCount,
+    totalWorkstreamCount,
   } = projectAggregatedData;
 
-  const progressPercentage = 0; // Temporarily set to 0
+  const progressPercentage =
+    totalWorkstreamCount > 0
+      ? Math.round((loadedWorkstreamCount / totalWorkstreamCount) * 100)
+      : 0;
 
-  const formatTime = (minutes: number): string => {
-    if (minutes === 0) return "0h";
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    if (remainingMinutes === 0) return `${hours}h`;
+  const formatDays = (days: number): string => {
+    if (days === 0) return "0d";
+    const wholeDays = Math.floor(days);
+    const remainingFraction = days % 1;
+    if (remainingFraction === 0) return `${wholeDays}d`;
     // Round to 1 decimal place for better readability
-    const roundedMinutes = Math.round(remainingMinutes * 10) / 10;
-    return `${hours}h ${roundedMinutes}m`;
+    const roundedFraction = Math.round(remainingFraction * 10) / 10;
+    return `${wholeDays}.${roundedFraction.toString().split(".")[1]}d`;
   };
 
   return (
@@ -71,38 +73,41 @@ export const ProjectSummary: React.FC<Props> = ({
         <Col span={6}>
           <Statistic
             title="Total Original Estimate"
-            value={formatTime(totalOriginalEstimate)}
+            value={formatDays(totalOriginalEstimateDays)}
             prefix={<ClockCircleOutlined />}
-            valueStyle={{ color: "#1890ff" }}
-          />
-        </Col>
-        <Col span={6}>
-          <Statistic
-            title="Total Time Spent"
-            value={formatTime(totalTimeSpent)}
-            prefix={<CheckCircleOutlined />}
             valueStyle={{ color: "#52c41a" }}
           />
         </Col>
         <Col span={6}>
           <Statistic
+            title="Total Time Spent"
+            value={formatDays(totalTimeSpentDays)}
+            prefix={<CheckCircleOutlined />}
+            valueStyle={{ color: "#1890ff" }}
+          />
+        </Col>
+        <Col span={6}>
+          <Statistic
             title="Total Time Remaining"
-            value={formatTime(totalTimeRemaining)}
+            value={formatDays(totalTimeRemainingDays)}
             prefix={<ClockCircleOutlined />}
             valueStyle={{
-              color: totalTimeRemaining > 0 ? "#faad14" : "#52c41a",
+              color: totalTimeRemainingDays > 0 ? "#ff4d4f" : "#52c41a",
             }}
           />
         </Col>
       </Row>
 
-      {totalOriginalEstimate > 0 && (
+      {totalOriginalEstimateDays > 0 && (
         <Row style={{ marginTop: "16px" }}>
           <Col span={24}>
             <Text type="secondary">
-              Progress: {formatTime(totalTimeSpent)} of{" "}
-              {formatTime(totalOriginalEstimate)} completed (
-              {Math.round((totalTimeSpent / totalOriginalEstimate) * 100)}%)
+              Progress: {formatDays(totalTimeSpentDays)} of{" "}
+              {formatDays(totalOriginalEstimateDays)} completed (
+              {Math.round(
+                (totalTimeSpentDays / totalOriginalEstimateDays) * 100
+              )}
+              %)
             </Text>
           </Col>
         </Row>

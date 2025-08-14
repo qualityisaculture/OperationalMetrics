@@ -405,14 +405,31 @@ export const useJiraReport = () => {
               prevState.loadedWorkstreamData
             ).set(workstream.key, workstreamAggregatedData);
 
+            // Update projectIssues with the new aggregated values for this workstream
+            const updatedProjectIssues = prevState.projectIssues.map((ws) => {
+              if (ws.key === workstream.key) {
+                return {
+                  ...ws,
+                  aggregatedOriginalEstimate:
+                    processedWorkstreamData.aggregatedOriginalEstimate,
+                  aggregatedTimeSpent:
+                    processedWorkstreamData.aggregatedTimeSpent,
+                  aggregatedTimeRemaining:
+                    processedWorkstreamData.aggregatedTimeRemaining,
+                };
+              }
+              return ws;
+            });
+
             // Calculate project-level aggregation
             const projectAggregatedData = calculateProjectAggregatedData(
-              prevState.projectIssues,
+              updatedProjectIssues,
               newLoadedWorkstreamData
             );
 
             return {
               ...prevState,
+              projectIssues: updatedProjectIssues,
               navigationStack: [
                 ...prevState.navigationStack,
                 newNavigationItem,
@@ -720,12 +737,36 @@ export const useJiraReport = () => {
 
                 const aggregatedValues =
                   calculateAggregatedValues(workstreamWithIssues);
-                setState((prevState) => ({
-                  ...prevState,
-                  loadedWorkstreamData: new Map(
+
+                setState((prevState) => {
+                  const newLoadedWorkstreamData = new Map(
                     prevState.loadedWorkstreamData
-                  ).set(workstream.key, aggregatedValues),
-                }));
+                  ).set(workstream.key, aggregatedValues);
+
+                  // Update projectIssues with the new aggregated values for this workstream
+                  const updatedProjectIssues = prevState.projectIssues.map(
+                    (ws) => {
+                      if (ws.key === workstream.key) {
+                        return {
+                          ...ws,
+                          aggregatedOriginalEstimate:
+                            aggregatedValues.aggregatedOriginalEstimate,
+                          aggregatedTimeSpent:
+                            aggregatedValues.aggregatedTimeSpent,
+                          aggregatedTimeRemaining:
+                            aggregatedValues.aggregatedTimeRemaining,
+                        };
+                      }
+                      return ws;
+                    }
+                  );
+
+                  return {
+                    ...prevState,
+                    projectIssues: updatedProjectIssues,
+                    loadedWorkstreamData: newLoadedWorkstreamData,
+                  };
+                });
 
                 eventSource.close();
                 resolve();
