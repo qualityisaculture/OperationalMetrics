@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  JiraProject,
-} from "../../../server/graphManagers/JiraReportGraphManager";
+import { JiraProject } from "../../../server/graphManagers/JiraReportGraphManager";
 import { LiteJiraIssue } from "../../../server/JiraRequester";
 import { JiraIssueWithAggregated, JiraReportState } from "../types";
-import { calculateAggregatedValues, processWorkstreamData, calculateProjectAggregatedData } from "../utils";
+import {
+  calculateAggregatedValues,
+  processWorkstreamData,
+  calculateProjectAggregatedData,
+} from "../utils";
 
 export const useJiraReport = () => {
   const [state, setState] = useState<JiraReportState>({
@@ -162,39 +164,43 @@ export const useJiraReport = () => {
       ).length,
     });
 
-    const processedWorkstreams: JiraIssueWithAggregated[] = workstreams.map((workstream) => {
-      if (workstream.children && workstream.children.length > 0) {
-        const aggregatedValues = calculateAggregatedValues(workstream);
+    const processedWorkstreams: JiraIssueWithAggregated[] = workstreams.map(
+      (workstream) => {
+        if (workstream.children && workstream.children.length > 0) {
+          const aggregatedValues = calculateAggregatedValues(workstream);
+          console.log(
+            `Calculated aggregated values for ${workstream.key}:`,
+            aggregatedValues
+          );
+          return {
+            ...workstream,
+            aggregatedOriginalEstimate:
+              aggregatedValues.aggregatedOriginalEstimate,
+            aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
+            aggregatedTimeRemaining: aggregatedValues.aggregatedTimeRemaining,
+          };
+        }
         console.log(
-          `Calculated aggregated values for ${workstream.key}:`,
-          aggregatedValues
+          `No children for workstream ${workstream.key}, skipping aggregated values`
         );
         return {
           ...workstream,
-          aggregatedOriginalEstimate:
-            aggregatedValues.aggregatedOriginalEstimate,
-          aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
-          aggregatedTimeRemaining: aggregatedValues.aggregatedTimeRemaining,
+          aggregatedOriginalEstimate: undefined,
+          aggregatedTimeSpent: undefined,
+          aggregatedTimeRemaining: undefined,
         };
       }
-      console.log(
-        `No children for workstream ${workstream.key}, skipping aggregated values`
-      );
-      return {
-        ...workstream,
-        aggregatedOriginalEstimate: undefined,
-        aggregatedTimeSpent: undefined,
-        aggregatedTimeRemaining: undefined,
-      };
-    });
+    );
 
     // Also populate the loadedWorkstreamData state with the aggregated values
     // Merge with existing loadedWorkstreamData instead of replacing it
     const newLoadedWorkstreamData = new Map(state.loadedWorkstreamData);
     processedWorkstreams.forEach((workstream) => {
-      if (workstream.aggregatedOriginalEstimate !== undefined &&
-          workstream.aggregatedTimeSpent !== undefined &&
-          workstream.aggregatedTimeRemaining !== undefined) {
+      if (
+        workstream.aggregatedOriginalEstimate !== undefined &&
+        workstream.aggregatedTimeSpent !== undefined &&
+        workstream.aggregatedTimeRemaining !== undefined
+      ) {
         newLoadedWorkstreamData.set(workstream.key, {
           aggregatedOriginalEstimate: workstream.aggregatedOriginalEstimate,
           aggregatedTimeSpent: workstream.aggregatedTimeSpent,
@@ -395,20 +401,22 @@ export const useJiraReport = () => {
           );
 
           setState((prevState) => {
-            const newLoadedWorkstreamData = new Map(prevState.loadedWorkstreamData).set(
-              workstream.key,
-              workstreamAggregatedData
-            );
-            
+            const newLoadedWorkstreamData = new Map(
+              prevState.loadedWorkstreamData
+            ).set(workstream.key, workstreamAggregatedData);
+
             // Calculate project-level aggregation
             const projectAggregatedData = calculateProjectAggregatedData(
               prevState.projectIssues,
               newLoadedWorkstreamData
             );
-            
+
             return {
               ...prevState,
-              navigationStack: [...prevState.navigationStack, newNavigationItem],
+              navigationStack: [
+                ...prevState.navigationStack,
+                newNavigationItem,
+              ],
               currentIssues: processedChildren,
               currentIssuesLoading: false,
               loadedWorkstreamData: newLoadedWorkstreamData,
@@ -578,9 +586,11 @@ export const useJiraReport = () => {
 
       // Add aggregated values from projectIssues if they exist
       state.projectIssues.forEach((workstream) => {
-        if (workstream.aggregatedOriginalEstimate !== undefined &&
-            workstream.aggregatedTimeSpent !== undefined &&
-            workstream.aggregatedTimeRemaining !== undefined) {
+        if (
+          workstream.aggregatedOriginalEstimate !== undefined &&
+          workstream.aggregatedTimeSpent !== undefined &&
+          workstream.aggregatedTimeRemaining !== undefined
+        ) {
           newLoadedWorkstreamData.set(workstream.key, {
             aggregatedOriginalEstimate: workstream.aggregatedOriginalEstimate,
             aggregatedTimeSpent: workstream.aggregatedTimeSpent,
