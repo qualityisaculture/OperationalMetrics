@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Table, Card, Space, Typography, Button } from "antd";
+import { Table, Card, Space, Typography, Button, Tooltip } from "antd";
 import { InfoCircleOutlined, DownloadOutlined } from "@ant-design/icons";
 import { JiraIssueWithAggregated } from "../types";
 import { getIssueColumns } from "./tables/issueColumns";
@@ -190,17 +190,20 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                 </span>
               )}
             </Text>
-            <Button
-              type="primary"
-              icon={<DownloadOutlined />}
-              size="small"
-              onClick={() => {
-                // Export all workstreams with their complete hierarchy
-                exportWorkstreamToExcel(projectIssues, projectName);
-              }}
-            >
-              Export All Workstreams
-            </Button>
+            <Tooltip title="Exporting all workstreams is currently disabled.">
+              <Button
+                type="primary"
+                icon={<DownloadOutlined />}
+                size="small"
+                onClick={() => {
+                  // Export all workstreams with their complete hierarchy
+                  exportWorkstreamToExcel(projectIssues, projectName);
+                }}
+                disabled
+              >
+                Export All Workstreams
+              </Button>
+            </Tooltip>
             {isFiltered && (
               <Button
                 size="small"
