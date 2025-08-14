@@ -26,6 +26,7 @@ export type LiteJiraIssue = {
   originalEstimate?: number | null; // in days
   timeSpent?: number | null; // in days
   timeRemaining?: number | null; // in days
+  hasChildren?: boolean | null; // true = has children, false = no children, null/undefined = unknown
 };
 
 export class JiraLite {
@@ -37,6 +38,7 @@ export class JiraLite {
   children: JiraLite[];
   childCount: number;
   url: string;
+  hasChildren?: boolean | null;
 
   constructor(
     key: string,
@@ -45,7 +47,8 @@ export class JiraLite {
     status: string,
     url: string,
     children: JiraLite[] = [],
-    account: string
+    account: string,
+    hasChildren?: boolean | null
   ) {
     this.key = key;
     this.summary = summary;
@@ -55,6 +58,7 @@ export class JiraLite {
     this.children = children;
     this.childCount = children.length;
     this.url = url;
+    this.hasChildren = hasChildren;
   }
 
   static fromLiteJiraIssue(issue: LiteJiraIssue): JiraLite {
@@ -70,7 +74,8 @@ export class JiraLite {
       issue.status,
       issue.url,
       children,
-      issue.account
+      issue.account,
+      issue.hasChildren
     );
   }
 
@@ -84,6 +89,7 @@ export class JiraLite {
       children: this.children.map((child) => child.toLiteJiraIssue()),
       childCount: this.childCount,
       url: this.url,
+      hasChildren: this.hasChildren,
     };
   }
 }

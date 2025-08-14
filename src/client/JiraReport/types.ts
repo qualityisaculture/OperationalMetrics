@@ -8,6 +8,7 @@ export interface JiraIssueWithAggregated extends LiteJiraIssue {
   aggregatedTimeRemaining?: number;
   hasBeenRequested?: boolean; // Track if this workstream has been requested
   hasData?: boolean; // Track if this workstream has data available
+  hasChildren?: boolean | null; // true = has children, false = no children, null/undefined = unknown
 }
 
 // Interface for project-level aggregated data

@@ -351,9 +351,18 @@ export default class JiraReportGraphManager {
           console.log(
             `Returning fully cached workstream for ${workstream.key}`
           );
-          return cachedWorkstream;
+          // Set hasChildren based on cached data
+          return {
+            ...cachedWorkstream,
+            hasChildren: cachedWorkstream.children.length > 0,
+          };
         }
-        return workstream;
+        // For non-cached workstreams, we don't know if they have children yet
+        // Set hasChildren to null to indicate unknown state
+        return {
+          ...workstream,
+          hasChildren: null,
+        };
       });
 
       return workstreamsWithData;
@@ -566,6 +575,9 @@ export default class JiraReportGraphManager {
         allIssues,
         hierarchy
       );
+
+      // Set the hasChildren field based on whether this issue has children
+      issueWithAllChildren.hasChildren = issueWithAllChildren.children.length > 0;
 
       console.log(`=== Completed unified fetch for issue ${issue.key} ===\n`);
       return issueWithAllChildren;

@@ -44,11 +44,16 @@ export const useJiraReport = () => {
         // Check if this workstream has been requested and has no data
         const hasBeenRequested = record.hasBeenRequested;
         const hasData = record.hasData;
+        const hasChildren = record.hasChildren;
 
+        // If we know the workstream has no children, or if it was requested and has no data,
+        // we should span the cells to show the message
         if (
           valueToShow === null ||
           valueToShow === undefined ||
-          valueToShow === 0
+          valueToShow === 0 ||
+          hasChildren === false ||
+          (hasBeenRequested && hasData === false)
         ) {
           if (isFirstColumn) {
             return { colSpan: 6 };
@@ -182,6 +187,7 @@ export const useJiraReport = () => {
               aggregatedValues.aggregatedOriginalEstimate,
             aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
             aggregatedTimeRemaining: aggregatedValues.aggregatedTimeRemaining,
+            hasChildren: true,
           };
         }
         console.log(
@@ -192,6 +198,7 @@ export const useJiraReport = () => {
           aggregatedOriginalEstimate: undefined,
           aggregatedTimeSpent: undefined,
           aggregatedTimeRemaining: undefined,
+          hasChildren: workstream.hasChildren
         };
       }
     );
@@ -210,6 +217,17 @@ export const useJiraReport = () => {
           aggregatedTimeSpent: workstream.aggregatedTimeSpent,
           aggregatedTimeRemaining: workstream.aggregatedTimeRemaining,
           hasData: workstream.children && workstream.children.length > 0,
+        });
+      } else if (
+        workstream.hasChildren !== null &&
+        workstream.hasChildren !== undefined
+      ) {
+        // Include workstreams where we know their children status
+        newLoadedWorkstreamData.set(workstream.key, {
+          aggregatedOriginalEstimate: 0,
+          aggregatedTimeSpent: 0,
+          aggregatedTimeRemaining: 0,
+          hasData: workstream.hasChildren,
         });
       }
     });
@@ -264,7 +282,7 @@ export const useJiraReport = () => {
               .map((w) => ({
                 key: w.key,
                 childrenCount: w.children.length,
-                hasChildren: w.children && w.children.length > 0,
+                hasChildren: w.hasChildren,
               })),
           }
         );
@@ -341,7 +359,8 @@ export const useJiraReport = () => {
           }));
         } else if (response.status === "complete" && response.data) {
           const workstreamWithIssues: LiteJiraIssue = JSON.parse(response.data);
-          const hasData = response.hasData || workstreamWithIssues.children.length > 0;
+          const hasData =
+            response.hasData || workstreamWithIssues.children.length > 0;
 
           console.log(
             `\n=== FRONTEND: Received workstream data for ${workstream.key} ===`
@@ -350,10 +369,8 @@ export const useJiraReport = () => {
           console.log("Has data:", hasData);
 
           if (!hasData) {
-            console.log(
-              `Workstream ${workstream.key} has no data available`
-            );
-            
+            console.log(`Workstream ${workstream.key} has no data available`);
+
             // Update the workstream data to indicate it was requested but has no data
             const workstreamAggregatedData = {
               aggregatedOriginalEstimate: 0,
@@ -377,6 +394,7 @@ export const useJiraReport = () => {
                     aggregatedTimeRemaining: 0,
                     hasBeenRequested: true,
                     hasData: false,
+                    hasChildren: false,
                   };
                 }
                 return ws;
@@ -464,6 +482,9 @@ export const useJiraReport = () => {
                     processedWorkstreamData.aggregatedTimeSpent,
                   aggregatedTimeRemaining:
                     processedWorkstreamData.aggregatedTimeRemaining,
+                  hasBeenRequested: true,
+                  hasData: true,
+                  hasChildren: true,
                 };
               }
               return ws;
@@ -662,6 +683,17 @@ export const useJiraReport = () => {
             aggregatedTimeRemaining: workstream.aggregatedTimeRemaining,
             hasData: workstream.children && workstream.children.length > 0,
           });
+        } else if (
+          workstream.hasChildren !== null &&
+          workstream.hasChildren !== undefined
+        ) {
+          // Include workstreams where we know their children status
+          newLoadedWorkstreamData.set(workstream.key, {
+            aggregatedOriginalEstimate: 0,
+            aggregatedTimeSpent: 0,
+            aggregatedTimeRemaining: 0,
+            hasData: workstream.hasChildren,
+          });
         }
       });
 
@@ -804,6 +836,9 @@ export const useJiraReport = () => {
                             aggregatedValues.aggregatedTimeSpent,
                           aggregatedTimeRemaining:
                             aggregatedValues.aggregatedTimeRemaining,
+                          hasBeenRequested: true,
+                          hasData: workstreamWithIssues.children.length > 0,
+                          hasChildren: workstreamWithIssues.children.length > 0,
                         };
                       }
                       return ws;

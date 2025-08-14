@@ -263,7 +263,33 @@ export const getIssueColumns = (
               </Text>
             );
           }
+        } else if (
+          record.hasChildren !== null &&
+          record.hasChildren !== undefined
+        ) {
+          // We know whether this workstream has children from the project workstreams request
+          if (record.hasChildren === false) {
+            debugger;
+            return (
+              <Text
+                type="secondary"
+                style={{ fontSize: "12px", fontStyle: "italic" }}
+              >
+                No data available
+              </Text>
+            );
+          } else {
+            return (
+              <Text
+                type="secondary"
+                style={{ fontSize: "12px", fontStyle: "italic" }}
+              >
+                Click to request data for this workstream
+              </Text>
+            );
+          }
         } else {
+          // We don't know if this workstream has children yet (hasChildren is null/undefined)
           return (
             <Text
               type="secondary"
