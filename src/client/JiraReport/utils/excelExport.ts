@@ -381,3 +381,119 @@ export const exportCompleteWorkstreamToExcel = async (
     return false;
   }
 };
+
+export const exportProjectWorkstreamsToExcel = (
+  projectIssues: any[],
+  projectName: string
+) => {
+  try {
+    // Export the project workstreams table data exactly as it appears
+    const workstreamRows = projectIssues.map((workstream) => ({
+      // Basic workstream information
+      Key: workstream.key,
+      Summary: workstream.summary,
+      Type: workstream.type,
+      Status: workstream.status || "Unknown",
+      Account: workstream.account || "",
+      
+      // Time estimates and actuals (using aggregated values if available)
+      "Baseline Estimate (days)": workstream.aggregatedOriginalEstimate !== undefined 
+        ? workstream.aggregatedOriginalEstimate 
+        : workstream.originalEstimate || 0,
+      "Actual Days Logged (days)": workstream.aggregatedTimeSpent !== undefined 
+        ? workstream.aggregatedTimeSpent 
+        : workstream.timeSpent || 0,
+      "Estimate to Complete (days)": workstream.aggregatedTimeRemaining !== undefined 
+        ? workstream.aggregatedTimeRemaining 
+        : workstream.timeRemaining || 0,
+      
+      // Calculated fields
+      "Total Forecast (days)": (() => {
+        const timeSpent = workstream.aggregatedTimeSpent !== undefined 
+          ? workstream.aggregatedTimeSpent 
+          : workstream.timeSpent || 0;
+        const timeRemaining = workstream.aggregatedTimeRemaining !== undefined 
+          ? workstream.aggregatedTimeRemaining 
+          : workstream.timeRemaining || 0;
+        return timeSpent + timeRemaining;
+      })(),
+      
+      "Variance (days)": (() => {
+        const originalEstimate = workstream.aggregatedOriginalEstimate !== undefined 
+          ? workstream.aggregatedOriginalEstimate 
+          : workstream.originalEstimate || 0;
+        const timeSpent = workstream.aggregatedTimeSpent !== undefined 
+          ? workstream.aggregatedTimeSpent 
+          : workstream.timeSpent || 0;
+        const timeRemaining = workstream.aggregatedTimeRemaining !== undefined 
+          ? workstream.aggregatedTimeRemaining 
+          : workstream.timeRemaining || 0;
+        const totalForecast = timeSpent + timeRemaining;
+        return totalForecast - originalEstimate;
+      })(),
+      
+      "Variance (%)": (() => {
+        const originalEstimate = workstream.aggregatedOriginalEstimate !== undefined 
+          ? workstream.aggregatedOriginalEstimate 
+          : workstream.originalEstimate || 0;
+        const timeSpent = workstream.aggregatedTimeSpent !== undefined 
+          ? workstream.aggregatedTimeSpent 
+          : workstream.timeSpent || 0;
+        const timeRemaining = workstream.aggregatedTimeRemaining !== undefined 
+          ? workstream.aggregatedTimeRemaining 
+          : workstream.timeRemaining || 0;
+        const totalForecast = timeSpent + timeRemaining;
+        const variance = totalForecast - originalEstimate;
+        
+        if (originalEstimate > 0) {
+          return (variance / originalEstimate) * 100;
+        }
+        return 0;
+      })(),
+      
+      // Time bookings information
+      "Time Booked (days)": workstream.timeBookings && workstream.timeBookings.length > 0 
+        ? workstream.timeBookings.reduce((sum, booking) => sum + booking.timeSpent, 0)
+        : 0,
+      "Time Booked From Date": workstream.timeBookingsFromDate || "",
+      
+      // Data availability status
+      "Data Status": (() => {
+        if (workstream.hasBeenRequested) {
+          return workstream.hasData === false ? "No data available" : "Data loaded";
+        } else if (workstream.hasChildren !== null && workstream.hasChildren !== undefined) {
+          return workstream.hasChildren === false ? "No data available" : "Click to request data";
+        } else {
+          return "Click to request data";
+        }
+      })(),
+    }));
+
+    // Add summary row at the top
+    const summaryRow = {
+      Key: `Project: ${projectName}`,
+      Summary: `Export Date: ${new Date().toLocaleDateString()}`,
+      Type: `Total Workstreams: ${projectIssues.length}`,
+      Status: "",
+      Account: "",
+      "Baseline Estimate (days)": "",
+      "Actual Days Logged (days)": "",
+      "Estimate to Complete (days)": "",
+      "Total Forecast (days)": "",
+      "Variance (days)": "",
+      "Variance (%)": "",
+      "Time Booked (days)": "",
+      "Time Booked From Date": "",
+      "Data Status": "",
+    };
+
+    // Combine summary row with workstream data
+    const data = [summaryRow, ...workstreamRows];
+
+    const filename = `${projectName.replace(/[^a-zA-Z0-9]/g, "_")}_project_workstreams_export.xlsx`;
+    return exportToExcel(data, filename);
+  } catch (error) {
+    console.error("Error exporting project workstreams to Excel:", error);
+    return false;
+  }
+};

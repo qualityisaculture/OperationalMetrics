@@ -5,7 +5,7 @@ import { JiraIssueWithAggregated } from "../types";
 import { getIssueColumns } from "./tables/issueColumns";
 import { ProjectSummary } from "./ProjectSummary";
 import { ProjectAggregatedData } from "../types";
-import { exportWorkstreamToExcel } from "../utils/excelExport";
+import { exportProjectWorkstreamsToExcel } from "../utils/excelExport";
 
 const { Text } = Typography;
 
@@ -190,18 +190,17 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                 </span>
               )}
             </Text>
-            <Tooltip title="Exporting all workstreams is currently disabled.">
+            <Tooltip title="Export Project Workstreams table data to Excel">
               <Button
                 type="primary"
                 icon={<DownloadOutlined />}
                 size="small"
                 onClick={() => {
-                  // Export all workstreams with their complete hierarchy
-                  exportWorkstreamToExcel(projectIssues, projectName);
+                  // Export project workstreams table data exactly as displayed
+                  exportProjectWorkstreamsToExcel(projectIssues, projectName);
                 }}
-                disabled
               >
-                Export All Workstreams
+                Export Project Workstreams
               </Button>
             </Tooltip>
             {isFiltered && (
