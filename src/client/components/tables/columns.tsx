@@ -181,11 +181,12 @@ export const getUnifiedColumns = ({
       sorter: (a: any, b: any) =>
         (a.status || "").localeCompare(b.status || ""),
       filters:
-        projectIssues &&
         (() => {
+          // Try to get statuses from projectIssues first, then from current data
+          const dataSource = projectIssues || currentIssues || [];
           const uniqueStatuses = [
             ...new Set(
-              projectIssues.map((issue) => issue.status).filter(Boolean)
+              dataSource.map((issue) => issue.status).filter(Boolean)
             ),
           ].sort();
           return uniqueStatuses.map((status) => ({
@@ -194,6 +195,30 @@ export const getUnifiedColumns = ({
           }));
         })(),
       onFilter: (value, record: any) => record.status === value,
+    },
+    {
+      title: "Account",
+      dataIndex: "account",
+      key: "account",
+      render: (account: string) => (
+        <Tag color="cyan">{account || "Unknown"}</Tag>
+      ),
+      sorter: (a: any, b: any) => (a.account || "").localeCompare(b.account || ""),
+      filters:
+        (() => {
+          // Try to get accounts from projectIssues first, then from current data
+          const dataSource = projectIssues || currentIssues || [];
+          const uniqueAccounts = [
+            ...new Set(
+              dataSource.map((issue) => issue.account).filter(Boolean)
+            ),
+          ].sort();
+          return uniqueAccounts.map((account) => ({
+            text: account,
+            value: account,
+          }));
+        })(),
+      onFilter: (value, record: any) => record.account === value,
     },
     {
       title: "Summary",
