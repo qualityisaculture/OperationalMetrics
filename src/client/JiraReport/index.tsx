@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Alert, Button, Space, Typography } from "antd";
 import { LoadingIndicator } from "../components";
 import { useJiraReport } from "./hooks/useJiraReport";
@@ -14,6 +14,7 @@ import { IssuesTable } from "./components/IssuesTable";
 import { Breadcrumbs } from "./components/Breadcrumbs";
 import { RequestAllModal } from "./components/RequestAllModal";
 import { DynamicProjectSummary } from "./components/DynamicProjectSummary";
+import { TimeBookingsModal } from "./components/TimeBookingsModal";
 import { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
 
 const { Title, Text } = Typography;
@@ -36,7 +37,26 @@ const JiraReport: React.FC = () => {
     hideRequestAllModal,
     requestAllWorkstreams,
     loadProjectWorkstreams,
+    requestTimeBookings,
   } = useJiraReport();
+
+  // State for time bookings modal
+  const [timeBookingsModal, setTimeBookingsModal] = useState<{
+    isVisible: boolean;
+    workstreamKey: string;
+    workstreamSummary: string;
+  }>({
+    isVisible: false,
+    workstreamKey: "",
+    workstreamSummary: "",
+  });
+
+  // State for time bookings date
+  const [timeBookingsDate, setTimeBookingsDate] = useState<string>(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date.toISOString().split("T")[0];
+  });
 
   const {
     projects,
@@ -57,6 +77,47 @@ const JiraReport: React.FC = () => {
     progressStatus,
     progressDetails,
   } = state;
+
+  const showTimeBookingsModal = (fromDate: string) => {
+    // Update the date state with the selected date
+    setTimeBookingsDate(fromDate);
+
+    // If we're viewing a specific workstream, use that information
+    if (navigationStack.length > 1) {
+      const currentWorkstream = navigationStack[navigationStack.length - 1];
+      setTimeBookingsModal({
+        isVisible: true,
+        workstreamKey: currentWorkstream.key,
+        workstreamSummary: currentWorkstream.name,
+      });
+    } else {
+      // Fallback for project level
+      setTimeBookingsModal({
+        isVisible: true,
+        workstreamKey: "Multiple Workstreams",
+        workstreamSummary: "Time bookings for all workstreams",
+      });
+    }
+  };
+
+  const hideTimeBookingsModal = () => {
+    setTimeBookingsModal({
+      isVisible: false,
+      workstreamKey: "",
+      workstreamSummary: "",
+    });
+  };
+
+  const handleTimeBookingsConfirm = async () => {
+    // Only make the API call if we have a valid workstream key (not "Multiple Workstreams")
+    if (timeBookingsModal.workstreamKey !== "Multiple Workstreams") {
+      await requestTimeBookings(
+        timeBookingsModal.workstreamKey,
+        timeBookingsDate
+      );
+    }
+    hideTimeBookingsModal();
+  };
 
   if (isLoading) {
     return (
@@ -217,6 +278,7 @@ const JiraReport: React.FC = () => {
                 handleIssueClick={handleIssueClick}
                 toggleFavorite={toggleFavorite}
                 projectIssues={projectIssues}
+                onRequestTimeBookings={showTimeBookingsModal}
               />
             ) : (
               <>
@@ -269,6 +331,15 @@ const JiraReport: React.FC = () => {
         requestAllProgress={requestAllProgress}
         projectIssues={projectIssues}
         requestAllDetails={requestAllDetails}
+      />
+
+      <TimeBookingsModal
+        isVisible={timeBookingsModal.isVisible}
+        workstreamKey={timeBookingsModal.workstreamKey}
+        workstreamSummary={timeBookingsModal.workstreamSummary}
+        fromDate={timeBookingsDate}
+        onCancel={hideTimeBookingsModal}
+        onConfirm={handleTimeBookingsConfirm}
       />
     </div>
   );

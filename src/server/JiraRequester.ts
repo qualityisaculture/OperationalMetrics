@@ -27,6 +27,7 @@ export type LiteJiraIssue = {
   timeSpent?: number | null; // in days
   timeRemaining?: number | null; // in days
   hasChildren?: boolean | null; // true = has children, false = no children, null/undefined = unknown
+  timeBookings?: Array<{ date: string; timeSpent: number }>; // Time bookings with dates
 };
 
 export class JiraLite {

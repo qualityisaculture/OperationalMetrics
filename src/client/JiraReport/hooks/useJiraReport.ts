@@ -925,6 +925,47 @@ export const useJiraReport = () => {
     loadProjects();
   }, []);
 
+  const requestTimeBookings = async (workstreamKey: string, fromDate: string) => {
+    try {
+      console.log(`Requesting time bookings for ${workstreamKey} from ${fromDate}`);
+      
+      const response = await fetch(
+        `/api/metrics/jiraReport/workstream/${workstreamKey}/timeBookings`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      const timeBookings = JSON.parse(result.data);
+      
+      // Update the workstream with time bookings data
+      setState((prevState) => {
+        const updatedProjectIssues = prevState.projectIssues.map((issue) => {
+          if (issue.key === workstreamKey) {
+            return {
+              ...issue,
+              timeBookings,
+              timeBookingsFromDate: fromDate,
+            };
+          }
+          return issue;
+        });
+        
+        return {
+          ...prevState,
+          projectIssues: updatedProjectIssues,
+        };
+      });
+      
+      console.log(`Time bookings loaded for ${workstreamKey}:`, timeBookings);
+    } catch (error) {
+      console.error(`Error requesting time bookings for ${workstreamKey}:`, error);
+      // You could add error handling here, like showing a notification
+    }
+  };
+
   return {
     state,
     getWorkstreamDataCellSpan,
@@ -942,5 +983,6 @@ export const useJiraReport = () => {
     showRequestAllModal,
     hideRequestAllModal,
     requestAllWorkstreams,
+    requestTimeBookings,
   };
 };

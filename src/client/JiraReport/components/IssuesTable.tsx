@@ -20,6 +20,9 @@ interface Props {
   toggleFavorite: (itemKey: string, event: React.MouseEvent) => void;
   // Add projectIssues to access complete hierarchy
   projectIssues?: JiraIssueWithAggregated[];
+
+  // Time Bookings
+  onRequestTimeBookings?: (fromDate: string) => void;
 }
 
 export const IssuesTable: React.FC<Props> = ({
@@ -31,6 +34,7 @@ export const IssuesTable: React.FC<Props> = ({
   handleIssueClick,
   toggleFavorite,
   projectIssues,
+  onRequestTimeBookings,
 }) => {
   // Find the complete hierarchical data for the current workstream
   // We need to find the workstream in projectIssues that matches the current level
@@ -83,6 +87,7 @@ export const IssuesTable: React.FC<Props> = ({
           backgroundColor: record.childCount > 0 ? "#fafafa" : "transparent",
         },
       })}
+      onRequestTimeBookings={onRequestTimeBookings}
     />
   );
 };

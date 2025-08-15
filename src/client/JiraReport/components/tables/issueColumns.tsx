@@ -648,4 +648,40 @@ export const getIssueColumns = (
       return aVariancePercent - bVariancePercent;
     },
   },
+  {
+    title: "Time Booked From Date",
+    key: "timeBookedFromDate",
+    onCell: (record: JiraIssueWithAggregated) =>
+      getWorkstreamDataCellSpan(record, false),
+    render: (_, record: JiraIssueWithAggregated) => {
+      // Only show this column for workstreams at the project level
+      if (navigationStack.length !== 1) {
+        return <Text type="secondary">-</Text>;
+      }
+
+      // If we have time bookings data, show the total and from date
+      if (record.timeBookings && record.timeBookings.length > 0) {
+        const totalTime = record.timeBookings.reduce(
+          (sum, booking) => sum + booking.timeSpent,
+          0
+        );
+        return (
+          <div>
+            <Tag color="green">{totalTime.toFixed(1)} days</Tag>
+            <br />
+            <Text type="secondary" style={{ fontSize: "11px" }}>
+              From {record.timeBookingsFromDate}
+            </Text>
+          </div>
+        );
+      }
+
+      // If no time bookings data yet, show message
+      return (
+        <Text type="secondary" style={{ fontSize: "11px" }}>
+          Use global date selector above
+        </Text>
+      );
+    },
+  },
 ];

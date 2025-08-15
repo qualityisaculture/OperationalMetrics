@@ -764,4 +764,38 @@ metricsRoute.get(
   }
 );
 
+// Time Bookings API route for workstreams
+metricsRoute.get(
+  "/jiraReport/workstream/:workstreamKey/timeBookings",
+  (req: Request, res: TR<{ message: string; data: string }>) => {
+    const workstreamKey = req.params.workstreamKey;
+    console.log(
+      `Time Bookings endpoint called for workstream: ${workstreamKey}`
+    );
+
+    // TODO: This will eventually call Jira API to get actual time booking data
+    // For now, return mock data
+    const mockTimeBookings = [
+      { date: "2024-01-15", timeSpent: 2.5 },
+      { date: "2024-01-16", timeSpent: 1.0 },
+      { date: "2024-01-17", timeSpent: 3.0 },
+      { date: "2024-01-18", timeSpent: 0.5 },
+      { date: "2024-01-19", timeSpent: 2.0 },
+      { date: "2024-01-22", timeSpent: 1.5 },
+      { date: "2024-01-23", timeSpent: 2.5 },
+      { date: "2024-01-24", timeSpent: 1.0 },
+      { date: "2024-01-25", timeSpent: 3.5 },
+      { date: "2024-01-26", timeSpent: 0.5 },
+    ];
+
+    // Simulate some delay to mimic real API call
+    setTimeout(() => {
+      res.json({
+        message: `Time bookings for workstream ${workstreamKey} fetched successfully`,
+        data: JSON.stringify(mockTimeBookings),
+      });
+    }, 1000);
+  }
+);
+
 export { metricsRoute };

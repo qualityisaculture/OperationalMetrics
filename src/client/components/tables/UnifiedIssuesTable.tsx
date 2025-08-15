@@ -1,6 +1,10 @@
 import React, { useState } from "react";
-import { Card, Space, Table, Button, Typography } from "antd";
-import { InfoCircleOutlined, DownloadOutlined } from "@ant-design/icons";
+import { Card, Space, Table, Button, Typography, Input } from "antd";
+import {
+  InfoCircleOutlined,
+  DownloadOutlined,
+  CalendarOutlined,
+} from "@ant-design/icons";
 import { getUnifiedColumns } from "./columns";
 import { JiraIssueWithAggregated } from "../../JiraReport/types";
 import {
@@ -39,6 +43,9 @@ export interface UnifiedIssuesTableProps {
   parentWorkstreamKey?: string;
   // New prop for complete hierarchical data
   completeHierarchicalData?: any[];
+
+  // Time Bookings
+  onRequestTimeBookings?: (fromDate: string) => void;
 }
 
 export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
@@ -59,8 +66,16 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   workstreamName,
   parentWorkstreamKey,
   completeHierarchicalData,
+  onRequestTimeBookings,
 }) => {
   const [exportLoading, setExportLoading] = useState(false);
+
+  // State for time bookings date selector
+  const [timeBookingsDate, setTimeBookingsDate] = useState<string>(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date.toISOString().split("T")[0];
+  });
 
   const columns = getUnifiedColumns({
     showFavoriteColumn,
@@ -111,6 +126,27 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
             >
               Export to Excel
             </Button>
+          )}
+
+          {onRequestTimeBookings && (
+            <Space>
+              <Input
+                type="date"
+                value={timeBookingsDate}
+                onChange={(e) => setTimeBookingsDate(e.target.value)}
+                size="small"
+                style={{ width: "140px" }}
+                prefix={<CalendarOutlined />}
+              />
+              <Button
+                type="primary"
+                icon={<CalendarOutlined />}
+                size="small"
+                onClick={() => onRequestTimeBookings(timeBookingsDate)}
+              >
+                Request Time Bookings
+              </Button>
+            </Space>
           )}
         </Space>
       }
