@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Table, Card, Space, Typography, Button, Tooltip } from "antd";
+import {
+  Table,
+  Card,
+  Space,
+  Typography,
+  Button,
+  Tooltip,
+  Modal,
+  Checkbox,
+  Divider,
+} from "antd";
 import { InfoCircleOutlined, DownloadOutlined } from "@ant-design/icons";
 import { JiraIssueWithAggregated } from "../types";
 import { getIssueColumns } from "./tables/issueColumns";
@@ -55,6 +65,8 @@ export const DynamicProjectSummary: React.FC<Props> = ({
     []
   );
   const [isFiltered, setIsFiltered] = useState(false);
+  const [isExportModalVisible, setIsExportModalVisible] = useState(false);
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
   // Prepare the data source with aggregated values
   const prepareDataSource = () => {
@@ -147,6 +159,39 @@ export const DynamicProjectSummary: React.FC<Props> = ({
     getWorkstreamDataCellSpan
   );
 
+  // Export modal functions
+  const showExportModal = () => {
+    // Initialize with only chargeable accounts selected
+    const chargeableAccounts = [
+      ...new Set(
+        projectIssues
+          .map((issue) => issue.account)
+          .filter((account) => account && account.includes("(Chargeable)"))
+      ),
+    ];
+    setSelectedAccounts(chargeableAccounts);
+    setIsExportModalVisible(true);
+  };
+
+  const handleExportModalCancel = () => {
+    setIsExportModalVisible(false);
+    setSelectedAccounts([]);
+  };
+
+  const handleExport = () => {
+    // Filter workstreams by selected accounts
+    const filteredWorkstreams = projectIssues.filter((issue) =>
+      selectedAccounts.includes(issue.account)
+    );
+    exportProjectWorkstreamsToExcel(filteredWorkstreams, projectName);
+    setIsExportModalVisible(false);
+    setSelectedAccounts([]);
+  };
+
+  const handleAccountSelectionChange = (checkedValues: string[]) => {
+    setSelectedAccounts(checkedValues);
+  };
+
   return (
     <>
       <ProjectSummary
@@ -195,10 +240,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                 type="primary"
                 icon={<DownloadOutlined />}
                 size="small"
-                onClick={() => {
-                  // Export project workstreams table data exactly as displayed
-                  exportProjectWorkstreamsToExcel(projectIssues, projectName);
-                }}
+                onClick={showExportModal}
               >
                 Export Project Workstreams
               </Button>
@@ -241,6 +283,44 @@ export const DynamicProjectSummary: React.FC<Props> = ({
           })}
         />
       </Card>
+
+      {/* Export Modal */}
+      <Modal
+        title="Export Project Workstreams"
+        open={isExportModalVisible}
+        onCancel={handleExportModalCancel}
+        footer={[
+          <Button key="cancel" onClick={handleExportModalCancel}>
+            Cancel
+          </Button>,
+          <Button
+            key="export"
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={handleExport}
+          >
+            Export to Excel
+          </Button>,
+        ]}
+      >
+        <Divider orientation="left">Select Accounts to Export</Divider>
+
+        <Checkbox.Group
+          value={selectedAccounts}
+          onChange={handleAccountSelectionChange}
+          style={{ width: "100%" }}
+        >
+          {[
+            ...new Set(
+              projectIssues.map((issue) => issue.account).filter(Boolean)
+            ),
+          ].map((account) => (
+            <div key={account} style={{ marginBottom: "8px" }}>
+              <Checkbox value={account}>{account}</Checkbox>
+            </div>
+          ))}
+        </Checkbox.Group>
+      </Modal>
     </>
   );
 };
