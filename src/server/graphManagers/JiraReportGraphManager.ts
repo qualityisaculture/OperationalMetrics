@@ -329,7 +329,7 @@ export default class JiraReportGraphManager {
         console.log(
           `Cache miss for project ${projectKey}, fetching workstreams from Jira...`
         );
-        const jql = `project = "${projectKey}" ORDER BY created DESC`;
+        const jql = `project = "${projectKey}" AND parent = empty ORDER BY created DESC`;
         workstreams = await this.jiraRequester.getLiteQuery(jql);
 
         const projects = await this.getProjects();

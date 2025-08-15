@@ -40,7 +40,9 @@ const createdResolvedGraphManager = new CreatedResolvedGraphManager(
 );
 const tempoReportGraphManager = new TempoReportGraphManager();
 const jiraReportGraphManager = new JiraReportGraphManager(jiraRequester);
-const bottleneckDetectorGraphManager = new BottleneckDetectorGraphManager(jiraRequester);
+const bottleneckDetectorGraphManager = new BottleneckDetectorGraphManager(
+  jiraRequester
+);
 
 metricsRoute.get(
   "/cumulativeFlowDiagram",
@@ -743,22 +745,24 @@ metricsRoute.get(
   ) => {
     const project = req.query.project;
     const jql = req.query.jql;
-    
-    console.log(`Bottleneck Detector endpoint called for project: ${project} with JQL: ${jql}`);
-    
+
+    console.log(
+      `Bottleneck Detector endpoint called for project: ${project} with JQL: ${jql}`
+    );
+
     bottleneckDetectorGraphManager
       .getBottleneckData(project, jql)
       .then((data) => {
         res.json({
           message: "Bottleneck Detector data fetched successfully",
-          data: JSON.stringify(data)
+          data: JSON.stringify(data),
         });
       })
       .catch((error) => {
         console.error("Error in Bottleneck Detector API:", error);
         res.json({
           message: `Error fetching Bottleneck Detector data: ${error.message}`,
-          data: JSON.stringify([])
+          data: JSON.stringify([]),
         });
       });
   }
