@@ -468,25 +468,6 @@ export const exportProjectWorkstreamsToExcel = (
               0
             )
           : 0,
-      "Time Booked From Date": workstream.timeBookingsFromDate || "",
-
-      // Data availability status
-      "Data Status": (() => {
-        if (workstream.hasBeenRequested) {
-          return workstream.hasData === false
-            ? "No data available"
-            : "Data loaded";
-        } else if (
-          workstream.hasChildren !== null &&
-          workstream.hasChildren !== undefined
-        ) {
-          return workstream.hasChildren === false
-            ? "No data available"
-            : "Click to request data";
-        } else {
-          return "Click to request data";
-        }
-      })(),
     }));
 
     // Export only the workstream data without summary row
