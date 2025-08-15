@@ -76,7 +76,14 @@ export const QueueFlow: React.FC<QueueFlowProps> = ({ queues, issues }) => {
 
   return (
     <div style={{ overflowX: "auto", padding: "16px 0" }}>
-      <div style={{ display: "flex", gap: "16px", minWidth: "max-content" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          minWidth: "max-content",
+        }}
+      >
         {/* Uncategorized Queue (always first) */}
         {renderQueueSection(
           "Uncategorized",
