@@ -62,7 +62,8 @@ export const useTempoAnalyzer = (
     selectedWorkDescriptionTitle: "",
     selectedWorkDescriptionDetails: [],
     excludeHolidayAbsence: true,
-    excludeAfterDate: null,
+    excludeStartDate: null,
+    excludeEndDate: null,
     groupedDataByCategory: {},
     displayedRows: [],
   });
@@ -79,12 +80,13 @@ export const useTempoAnalyzer = (
     if (analyzerState.rawData.length > 0) {
       processData(analyzerState.rawData, analyzerState.headers);
     }
-  }, [analyzerState.excludeHolidayAbsence, analyzerState.excludeAfterDate]);
+  }, [analyzerState.excludeHolidayAbsence, analyzerState.excludeStartDate, analyzerState.excludeEndDate]);
 
   const applyFilters = (tableData: any[]) => {
     const {
       excludeHolidayAbsence,
-      excludeAfterDate,
+      excludeStartDate,
+      excludeEndDate,
       issueKeyIndex,
       dateIndex,
     } = analyzerState;
@@ -105,10 +107,7 @@ export const useTempoAnalyzer = (
       }
     }
 
-    if (excludeAfterDate && dateIndex !== -1) {
-      const cutoffDate = new Date(excludeAfterDate);
-      cutoffDate.setHours(0, 0, 0, 0);
-
+    if ((excludeStartDate || excludeEndDate) && dateIndex !== -1) {
       filteredData = filteredData.filter((row) => {
         const workDate = row[dateIndex.toString()];
         if (!workDate) return true;
@@ -119,7 +118,21 @@ export const useTempoAnalyzer = (
           const rowDate = new Date(dateOnly);
           rowDate.setHours(0, 0, 0, 0);
 
-          return rowDate <= cutoffDate;
+          // Check start date filter
+          if (excludeStartDate) {
+            const startDate = new Date(excludeStartDate);
+            startDate.setHours(0, 0, 0, 0);
+            if (rowDate < startDate) return false;
+          }
+
+          // Check end date filter
+          if (excludeEndDate) {
+            const endDate = new Date(excludeEndDate);
+            endDate.setHours(23, 59, 59, 999); // Include the entire end date
+            if (rowDate > endDate) return false;
+          }
+
+          return true;
         } catch (error) {
           return true;
         }
@@ -390,7 +403,8 @@ export const useTempoAnalyzer = (
       selectedWorkDescriptionTitle: "",
       selectedWorkDescriptionDetails: [],
       excludeHolidayAbsence: false,
-      excludeAfterDate: null,
+      excludeStartDate: null,
+      excludeEndDate: null,
       groupedDataByCategory: {},
       displayedRows: [],
     });
@@ -1068,8 +1082,12 @@ export const useTempoAnalyzer = (
     }));
   };
 
-  const handleExcludeAfterDateChange = (date: any) => {
-    setAnalyzerState((prevState) => ({ ...prevState, excludeAfterDate: date }));
+  const handleExcludeStartDateChange = (date: any) => {
+    setAnalyzerState((prevState) => ({ ...prevState, excludeStartDate: date }));
+  };
+
+  const handleExcludeEndDateChange = (date: any) => {
+    setAnalyzerState((prevState) => ({ ...prevState, excludeEndDate: date }));
   };
 
   const getDisplayedRowsTitle = () => {
@@ -1108,7 +1126,8 @@ export const useTempoAnalyzer = (
     showWorkDescriptions,
     hideWorkDescriptionModal,
     handleExcludeHolidayAbsenceChange,
-    handleExcludeAfterDateChange,
+    handleExcludeStartDateChange,
+    handleExcludeEndDateChange,
     getDisplayedRowsTitle,
     setAnalyzerState,
   };

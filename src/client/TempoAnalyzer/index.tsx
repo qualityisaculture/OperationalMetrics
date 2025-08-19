@@ -58,8 +58,10 @@ const TempoAnalyzer: React.FC<Props> = () => {
             handleExcludeHolidayAbsenceChange={
               analyzer.handleExcludeHolidayAbsenceChange
             }
-            excludeAfterDate={analyzer.excludeAfterDate}
-            handleExcludeAfterDateChange={analyzer.handleExcludeAfterDateChange}
+            excludeStartDate={analyzer.excludeStartDate}
+            handleExcludeStartDateChange={analyzer.handleExcludeStartDateChange}
+            excludeEndDate={analyzer.excludeEndDate}
+            handleExcludeEndDateChange={analyzer.handleExcludeEndDateChange}
             hasGroupedData={Object.keys(groupedData).length > 0}
             hasGroupedByName={Object.keys(analyzer.groupedByName).length > 0}
           />

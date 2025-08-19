@@ -94,8 +94,9 @@ export interface State {
   currentSheetName: string;
   // New state for excluding holiday and absence data
   excludeHolidayAbsence: boolean;
-  // New state for excluding data after a specific date
-  excludeAfterDate: Date | null;
+  // New state for excluding data outside a date range
+  excludeStartDate: Date | null;
+  excludeEndDate: Date | null;
   // New state for hierarchical category data
   groupedDataByCategory: {
     [category: string]: {

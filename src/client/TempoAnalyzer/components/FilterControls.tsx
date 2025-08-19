@@ -9,8 +9,10 @@ interface FilterControlsProps {
   handleSummaryViewModeChange: (mode: "category" | "name") => void;
   excludeHolidayAbsence: boolean;
   handleExcludeHolidayAbsenceChange: (checked: boolean) => void;
-  excludeAfterDate: Date | null;
-  handleExcludeAfterDateChange: (date: any) => void;
+  excludeStartDate: Date | null;
+  handleExcludeStartDateChange: (date: any) => void;
+  excludeEndDate: Date | null;
+  handleExcludeEndDateChange: (date: any) => void;
   hasGroupedData: boolean;
   hasGroupedByName: boolean;
 }
@@ -20,8 +22,10 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   handleSummaryViewModeChange,
   excludeHolidayAbsence,
   handleExcludeHolidayAbsenceChange,
-  excludeAfterDate,
-  handleExcludeAfterDateChange,
+  excludeStartDate,
+  handleExcludeStartDateChange,
+  excludeEndDate,
+  handleExcludeEndDateChange,
   hasGroupedData,
   hasGroupedByName,
 }) => {
@@ -61,18 +65,26 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
           </Checkbox>
           <br />
           <div>
-            <Text strong>Exclude data after:</Text>
+            <Text strong>Date Range Filter:</Text>
             <br />
-            <DatePicker
-              value={excludeAfterDate}
-              onChange={handleExcludeAfterDateChange}
-              placeholder="Select cutoff date"
-              allowClear
-              style={{ marginTop: "4px" }}
-            />
-            <Text type="secondary" style={{ marginLeft: "8px" }}>
-              Any data from 00:00 on the day after the selected date will be
-              excluded
+            <Space style={{ marginTop: "4px" }}>
+              <DatePicker
+                value={excludeStartDate}
+                onChange={handleExcludeStartDateChange}
+                placeholder="Start date (optional)"
+                allowClear
+              />
+              <Text type="secondary">to</Text>
+              <DatePicker
+                value={excludeEndDate}
+                onChange={handleExcludeEndDateChange}
+                placeholder="End date (optional)"
+                allowClear
+              />
+            </Space>
+            <br />
+            <Text type="secondary" style={{ marginTop: "4px" }}>
+              Only data within the selected date range will be included. Leave both blank to include all data.
             </Text>
           </div>
         </div>
