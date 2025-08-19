@@ -27,7 +27,6 @@ export default class TimeInDev extends React.Component<Props, State> {
   onClick = () => {
     console.log("Button clicked");
     localStorage.setItem(timeInDevQueryString, this.state.input);
-    //Request to the server /api/metrics
     fetch("/api/timeInDev?query=" + this.state.input)
       .then((response) => response.json())
       .then((data) => {

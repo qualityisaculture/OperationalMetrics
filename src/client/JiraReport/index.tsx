@@ -10,7 +10,7 @@ import {
   StarFilled,
 } from "@ant-design/icons";
 import { ProjectsTable } from "./components/ProjectsTable";
-import { IssuesTable } from "./components/IssuesTable";
+import { WorkstreamTable } from "./components/WorkstreamTable";
 import { Breadcrumbs } from "./components/Breadcrumbs";
 import { RequestAllModal } from "./components/RequestAllModal";
 import { DynamicProjectSummary } from "./components/DynamicProjectSummary";
@@ -269,7 +269,7 @@ const JiraReport: React.FC = () => {
             !issuesError &&
             !currentIssuesLoading &&
             (navigationStack.length > 1 ? (
-              <IssuesTable
+              <WorkstreamTable
                 currentIssues={currentIssues}
                 favoriteItems={favoriteItems}
                 navigationStack={navigationStack}

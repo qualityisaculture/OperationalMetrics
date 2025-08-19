@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Table, Card, Space, Typography, Button } from "antd";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { JiraIssueWithAggregated } from "../types";
@@ -33,7 +33,7 @@ interface Props {
   toggleFavorite: (itemKey: string, event: React.MouseEvent) => void;
 }
 
-export const WorkstreamsTable: React.FC<Props> = ({
+export const ProjectTable: React.FC<Props> = ({
   projectIssues,
   favoriteItems,
   navigationStack,
@@ -45,7 +45,7 @@ export const WorkstreamsTable: React.FC<Props> = ({
   toggleFavorite,
 }) => {
   // Debug logging to see what data we're working with
-  console.log("WorkstreamsTable render:", {
+  console.log("ProjectTable render:", {
     projectIssuesCount: projectIssues.length,
     loadedWorkstreamDataSize: loadedWorkstreamData.size,
     loadedWorkstreamDataKeys: Array.from(loadedWorkstreamData.keys()),
@@ -56,13 +56,23 @@ export const WorkstreamsTable: React.FC<Props> = ({
         : null,
   });
 
-  const issueColumns = getIssueColumns(
-    favoriteItems,
-    toggleFavorite,
-    navigationStack,
-    [],
-    projectIssues,
-    getWorkstreamDataCellSpan
+  const issueColumns = useMemo(
+    () =>
+      getIssueColumns(
+        favoriteItems,
+        toggleFavorite,
+        navigationStack,
+        [],
+        projectIssues,
+        getWorkstreamDataCellSpan
+      ),
+    [
+      favoriteItems,
+      toggleFavorite,
+      navigationStack,
+      projectIssues,
+      getWorkstreamDataCellSpan,
+    ]
   );
 
   return (
@@ -87,7 +97,7 @@ export const WorkstreamsTable: React.FC<Props> = ({
       }
     >
       <Table
-        key={`workstreams-table-${favoriteItems.size}-${navigationStack.length}-${loadedWorkstreamData.size}`} // Force re-render when favorites change or aggregated data is loaded
+        key={`project-table-${favoriteItems.size}-${navigationStack.length}-${loadedWorkstreamData.size}`} // Force re-render when favorites change or aggregated data is loaded
         columns={issueColumns}
         dataSource={getSortedItems(
           projectIssues.map((issue) => {

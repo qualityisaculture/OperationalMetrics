@@ -26,6 +26,7 @@ interface UnifiedColumnProps {
     record: JiraIssueWithAggregated,
     isFirstColumn?: boolean
   ) => { colSpan?: number };
+  timeBookingsDate?: string; // Add the date prop
 }
 
 export const getUnifiedColumns = ({
@@ -36,6 +37,7 @@ export const getUnifiedColumns = ({
   currentIssues,
   projectIssues,
   getWorkstreamDataCellSpan,
+  timeBookingsDate,
 }: UnifiedColumnProps): ColumnsType<JiraIssueWithAggregated> => {
   const columns: ColumnsType<JiraIssueWithAggregated> = [];
 
@@ -180,20 +182,17 @@ export const getUnifiedColumns = ({
       },
       sorter: (a: any, b: any) =>
         (a.status || "").localeCompare(b.status || ""),
-      filters:
-        (() => {
-          // Try to get statuses from projectIssues first, then from current data
-          const dataSource = projectIssues || currentIssues || [];
-          const uniqueStatuses = [
-            ...new Set(
-              dataSource.map((issue) => issue.status).filter(Boolean)
-            ),
-          ].sort();
-          return uniqueStatuses.map((status) => ({
-            text: status,
-            value: status,
-          }));
-        })(),
+      filters: (() => {
+        // Try to get statuses from projectIssues first, then from current data
+        const dataSource = projectIssues || currentIssues || [];
+        const uniqueStatuses = [
+          ...new Set(dataSource.map((issue) => issue.status).filter(Boolean)),
+        ].sort();
+        return uniqueStatuses.map((status) => ({
+          text: status,
+          value: status,
+        }));
+      })(),
       onFilter: (value, record: any) => record.status === value,
     },
     {
@@ -203,21 +202,19 @@ export const getUnifiedColumns = ({
       render: (account: string) => (
         <Tag color="cyan">{account || "Unknown"}</Tag>
       ),
-      sorter: (a: any, b: any) => (a.account || "").localeCompare(b.account || ""),
-      filters:
-        (() => {
-          // Try to get accounts from projectIssues first, then from current data
-          const dataSource = projectIssues || currentIssues || [];
-          const uniqueAccounts = [
-            ...new Set(
-              dataSource.map((issue) => issue.account).filter(Boolean)
-            ),
-          ].sort();
-          return uniqueAccounts.map((account) => ({
-            text: account,
-            value: account,
-          }));
-        })(),
+      sorter: (a: any, b: any) =>
+        (a.account || "").localeCompare(b.account || ""),
+      filters: (() => {
+        // Try to get accounts from projectIssues first, then from current data
+        const dataSource = projectIssues || currentIssues || [];
+        const uniqueAccounts = [
+          ...new Set(dataSource.map((issue) => issue.account).filter(Boolean)),
+        ].sort();
+        return uniqueAccounts.map((account) => ({
+          text: account,
+          value: account,
+        }));
+      })(),
       onFilter: (value, record: any) => record.account === value,
     },
     {
@@ -623,6 +620,22 @@ export const getUnifiedColumns = ({
               : 0;
 
           return aVariancePercent - bVariancePercent;
+        },
+      },
+      {
+        title: `Actual Days Logged since ${timeBookingsDate || "Date"}`,
+        key: "actualDaysLogged",
+        onCell: (record: JiraIssueWithAggregated) =>
+          getWorkstreamDataCellSpan
+            ? getWorkstreamDataCellSpan(record, false)
+            : {},
+        render: (_, record: JiraIssueWithAggregated) => {
+          // For now, leave it blank as requested
+          return (
+            <Text type="secondary" style={{ fontSize: "11px" }}>
+              -
+            </Text>
+          );
         },
       }
     );

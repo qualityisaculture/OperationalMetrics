@@ -25,7 +25,7 @@ interface Props {
   onRequestTimeBookings?: (fromDate: string) => void;
 }
 
-export const IssuesTable: React.FC<Props> = ({
+export const WorkstreamTable: React.FC<Props> = ({
   currentIssues,
   favoriteItems,
   navigationStack,

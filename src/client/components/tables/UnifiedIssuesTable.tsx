@@ -85,6 +85,7 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
     currentIssues,
     projectIssues,
     getWorkstreamDataCellSpan,
+    timeBookingsDate,
   });
 
   const handleExport = async () => {

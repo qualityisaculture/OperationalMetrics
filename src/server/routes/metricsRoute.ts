@@ -771,34 +771,77 @@ metricsRoute.get(
 // Time Bookings API route for workstreams
 metricsRoute.get(
   "/jiraReport/workstream/:workstreamKey/timeBookings",
-  (req: Request, res: TR<{ message: string; data: string }>) => {
+  async (req: Request, res: TR<{ message: string; data: string }>) => {
     const workstreamKey = req.params.workstreamKey;
     console.log(
       `Time Bookings endpoint called for workstream: ${workstreamKey}`
     );
 
-    // TODO: This will eventually call Jira API to get actual time booking data
-    // For now, return mock data
-    const mockTimeBookings = [
-      { date: "2024-01-15", timeSpent: 2.5 },
-      { date: "2024-01-16", timeSpent: 1.0 },
-      { date: "2024-01-17", timeSpent: 3.0 },
-      { date: "2024-01-18", timeSpent: 0.5 },
-      { date: "2024-01-19", timeSpent: 2.0 },
-      { date: "2024-01-22", timeSpent: 1.5 },
-      { date: "2024-01-23", timeSpent: 2.5 },
-      { date: "2024-01-24", timeSpent: 1.0 },
-      { date: "2024-01-25", timeSpent: 3.5 },
-      { date: "2024-01-26", timeSpent: 0.5 },
-    ];
+    try {
+      // Get the complete workstream tree from cache or Jira
+      const workstreamTree =
+        await jiraReportGraphManager.getWorkstreamIssues(workstreamKey);
 
-    // Simulate some delay to mimic real API call
-    setTimeout(() => {
+      // Function to recursively extract all Jira keys from the tree
+      const extractAllJiraKeys = (issue: any): string[] => {
+        const keys: string[] = [issue.key];
+        if (issue.children && issue.children.length > 0) {
+          for (const child of issue.children) {
+            keys.push(...extractAllJiraKeys(child));
+          }
+        }
+        return keys;
+      };
+
+      // Extract all Jira keys from the workstream tree
+      const allJiraKeys = extractAllJiraKeys(workstreamTree);
+      console.log(
+        `Extracted ${allJiraKeys.length} Jira keys from workstream ${workstreamKey}:`,
+        allJiraKeys
+      );
+
+      // TODO: This will eventually call Jira API to get actual time booking data for all these keys
+      // For now, return mock data with a map from Jira key to time data array
+      const mockTimeBookings = {
+        jiraKeys: allJiraKeys,
+        totalIssues: allJiraKeys.length,
+        workstreamKey: workstreamKey,
+        // Map from Jira key to array of time data (each key gets its own data)
+        timeDataByKey: allJiraKeys.reduce(
+          (acc, jiraKey) => {
+            acc[jiraKey] = [
+              { date: "2024-01-15", timeSpent: Math.random() * 4 + 0.5 }, // Random time for variety
+              { date: "2024-01-16", timeSpent: Math.random() * 4 + 0.5 },
+              { date: "2024-01-17", timeSpent: Math.random() * 4 + 0.5 },
+              { date: "2024-01-18", timeSpent: Math.random() * 4 + 0.5 },
+              { date: "2024-01-19", timeSpent: Math.random() * 4 + 0.5 },
+              { date: "2024-01-22", timeSpent: Math.random() * 4 + 0.5 },
+              { date: "2024-01-23", timeSpent: Math.random() * 4 + 0.5 },
+              { date: "2024-01-24", timeSpent: Math.random() * 4 + 0.5 },
+              { date: "2024-01-25", timeSpent: Math.random() * 4 + 0.5 },
+              { date: "2024-01-26", timeSpent: Math.random() * 4 + 0.5 },
+            ];
+            return acc;
+          },
+          {} as Record<string, Array<{ date: string; timeSpent: number }>>
+        ),
+      };
+
+      // Return the response immediately (removed setTimeout for async compatibility)
       res.json({
-        message: `Time bookings for workstream ${workstreamKey} fetched successfully`,
+        message: `Time bookings for workstream ${workstreamKey} fetched successfully. Found ${allJiraKeys.length} issues.`,
         data: JSON.stringify(mockTimeBookings),
       });
-    }, 1000);
+    } catch (error) {
+      console.error(
+        `Error fetching time bookings for workstream ${workstreamKey}:`,
+        error
+      );
+      res.json({
+        message: `Error fetching time bookings for workstream ${workstreamKey}: ${error.message}`,
+        data: JSON.stringify({ error: error.message }),
+      });
+    }
   }
 );
 

@@ -111,7 +111,6 @@ export default class LeadTime extends React.Component<Props, State> {
     this.addToQueryHistory(this.state.input);
 
     console.log("Button clicked");
-    //Request to the server /api/metrics
     fetch(
       "/api/leadTime?query=" +
         this.state.input +

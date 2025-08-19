@@ -151,7 +151,6 @@ export default class CumulativeFlowDiagram extends React.Component<
   onClick = () => {
     localStorage.setItem("cumulativeFlowQuery", this.state.input);
     console.log("Button clicked");
-    //Request to the server /api/metrics
     fetch(
       "/api/cumulativeFlowDiagram?query=" +
         this.state.input +

@@ -39,7 +39,6 @@ export default class EstimatesAnalysis extends React.Component<Props, State> {
   onClick() {
     console.log("Button clicked");
     localStorage.setItem("estimatesQuery", this.state.input);
-    //Request to the server /api/metrics
     fetch("/api/estimates?query=" + this.state.input)
       .then((response) => response.json())
       .then((data) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Table,
   Card,
@@ -150,13 +150,23 @@ export const DynamicProjectSummary: React.FC<Props> = ({
     }
   };
 
-  const issueColumns = getIssueColumns(
-    favoriteItems,
-    toggleFavorite,
-    navigationStack,
-    [],
-    projectIssues,
-    getWorkstreamDataCellSpan
+  const issueColumns = useMemo(
+    () =>
+      getIssueColumns(
+        favoriteItems,
+        toggleFavorite,
+        navigationStack,
+        [],
+        projectIssues,
+        getWorkstreamDataCellSpan
+      ),
+    [
+      favoriteItems,
+      toggleFavorite,
+      navigationStack,
+      projectIssues,
+      getWorkstreamDataCellSpan,
+    ]
   );
 
   // Export modal functions

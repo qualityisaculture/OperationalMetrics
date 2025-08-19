@@ -925,21 +925,29 @@ export const useJiraReport = () => {
     loadProjects();
   }, []);
 
-  const requestTimeBookings = async (workstreamKey: string, fromDate: string) => {
+  const requestTimeBookings = async (
+    workstreamKey: string,
+    fromDate: string
+  ) => {
     try {
-      console.log(`Requesting time bookings for ${workstreamKey} from ${fromDate}`);
-      
-      const response = await fetch(
-        `/api/metrics/jiraReport/workstream/${workstreamKey}/timeBookings`
+      console.log(
+        `Requesting time bookings for ${workstreamKey} from ${fromDate}`
       );
-      
+
+      const response = await fetch(
+        `/api/jiraReport/workstream/${workstreamKey}/timeBookings`
+      );
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
       const timeBookings = JSON.parse(result.data);
-      
+
+      // Log the new time bookings structure
+      console.log(`Time bookings response for ${workstreamKey}:`, timeBookings);
+
       // Update the workstream with time bookings data
       setState((prevState) => {
         const updatedProjectIssues = prevState.projectIssues.map((issue) => {
@@ -948,20 +956,31 @@ export const useJiraReport = () => {
               ...issue,
               timeBookings,
               timeBookingsFromDate: fromDate,
+              // Store the Jira keys array for future use
+              timeBookingsJiraKeys: timeBookings.jiraKeys || [],
+              timeBookingsTotalIssues: timeBookings.totalIssues || 0,
+              timeDataByKey: timeBookings.timeDataByKey || {},
             };
           }
           return issue;
         });
-        
+
         return {
           ...prevState,
           projectIssues: updatedProjectIssues,
         };
       });
-      
-      console.log(`Time bookings loaded for ${workstreamKey}:`, timeBookings);
+
+      console.log(`Time bookings loaded for ${workstreamKey}:`, {
+        totalIssues: timeBookings.totalIssues,
+        jiraKeys: timeBookings.jiraKeys,
+        timeDataByKey: timeBookings.timeDataByKey,
+      });
     } catch (error) {
-      console.error(`Error requesting time bookings for ${workstreamKey}:`, error);
+      console.error(
+        `Error requesting time bookings for ${workstreamKey}:`,
+        error
+      );
       // You could add error handling here, like showing a notification
     }
   };
