@@ -800,16 +800,17 @@ metricsRoute.get(
         allJiraKeys
       );
 
-      // TODO: This will eventually call Jira API to get actual time booking data for all these keys
-      // For now, return mock data with a map from Jira key to time data array
-      const mockTimeBookings = {
-        jiraKeys: allJiraKeys,
-        totalIssues: allJiraKeys.length,
-        workstreamKey: workstreamKey,
-        // Map from Jira key to array of time data (each key gets its own data)
-        timeDataByKey: allJiraKeys.reduce(
+      // Get real time tracking data from Jira API
+      let timeTrackingData: Record<string, Array<{ date: string; timeSpent: number }>>;
+      
+      try {
+        timeTrackingData = await jiraRequester.getTimeTrackingData(allJiraKeys);
+        console.log(`Successfully fetched time tracking data for ${Object.keys(timeTrackingData).length} issues`);
+      } catch (error) {
+        console.warn(`Failed to fetch real time tracking data, falling back to mock data:`, error);
+        // Fallback to mock data if real API fails
+        timeTrackingData = allJiraKeys.reduce(
           (acc, jiraKey) => {
-            // Generate dates for the last 30 days to ensure they're recent
             const dates: Array<{ date: string; timeSpent: number }> = [];
             const today = new Date();
             for (let i = 29; i >= 0; i--) {
@@ -824,13 +825,20 @@ metricsRoute.get(
             return acc;
           },
           {} as Record<string, Array<{ date: string; timeSpent: number }>>
-        ),
+        );
+      }
+      
+      const realTimeBookings = {
+        jiraKeys: allJiraKeys,
+        totalIssues: allJiraKeys.length,
+        workstreamKey: workstreamKey,
+        timeDataByKey: timeTrackingData,
       };
 
       // Return the response immediately (removed setTimeout for async compatibility)
       res.json({
         message: `Time bookings for workstream ${workstreamKey} fetched successfully. Found ${allJiraKeys.length} issues.`,
-        data: JSON.stringify(mockTimeBookings),
+        data: JSON.stringify(realTimeBookings),
       });
     } catch (error) {
       console.error(

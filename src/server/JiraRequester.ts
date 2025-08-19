@@ -299,6 +299,84 @@ export default class JiraRequester {
     return releasedReleases.slice(-count);
   }
 
+  async getTimeTrackingData(issueKeys: string[]): Promise<Record<string, Array<{ date: string; timeSpent: number }>>> {
+    if (issueKeys.length === 0) {
+      return {};
+    }
+
+    try {
+      console.log(`Fetching time tracking data for ${issueKeys.length} issues...`);
+      
+      // Get issues with changelog enabled to track time changes
+      const issuesWithChangelog = await this.requestIssueFromServer(issueKeys);
+      console.log(`Retrieved ${issuesWithChangelog.issues.length} issues with changelog`);
+      
+      const timeTrackingData: Record<string, Array<{ date: string; timeSpent: number }>> = {};
+
+      for (const issue of issuesWithChangelog.issues) {
+        const issueKey = issue.key;
+        const timeEntries: Array<{ date: string; timeSpent: number }> = [];
+
+        if (issue.changelog && issue.changelog.histories) {
+          console.log(`Processing changelog for ${issueKey} with ${issue.changelog.histories.length} history entries`);
+          
+          // Process each history entry
+          for (const history of issue.changelog.histories) {
+            // Look for timespent field changes
+            const timeSpentItems = history.items.filter(item => item.field === "timespent");
+            
+            if (timeSpentItems.length > 0) {
+              console.log(`Found ${timeSpentItems.length} timespent changes for ${issueKey} on ${history.created}`);
+            }
+            
+            for (const item of timeSpentItems) {
+              // Calculate time added in this change
+              const fromTime = parseInt(item.fromString || "0");
+              const toTime = parseInt(item.toString || "0");
+              const timeAdded = toTime - fromTime;
+              
+              if (timeAdded > 0) {
+                // Convert seconds to days (assuming 7.5 hours per day)
+                const timeAddedInDays = timeAdded / (3600 * 7.5);
+                const date = history.created.split('T')[0]; // YYYY-MM-DD format
+                
+                timeEntries.push({
+                  date,
+                  timeSpent: timeAddedInDays
+                });
+                
+                console.log(`Added ${timeAddedInDays.toFixed(2)} days for ${issueKey} on ${date}`);
+              }
+            }
+          }
+        } else {
+          console.log(`No changelog found for ${issueKey}`);
+        }
+
+        // Aggregate time entries by date (sum multiple entries on the same date)
+        const timeByDate = timeEntries.reduce((acc, entry) => {
+          acc[entry.date] = (acc[entry.date] || 0) + entry.timeSpent;
+          return acc;
+        }, {} as Record<string, number>);
+
+        // Convert to expected format and sort by date
+        timeTrackingData[issueKey] = Object.entries(timeByDate)
+          .map(([date, timeSpent]) => ({ date, timeSpent }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+        
+        if (timeTrackingData[issueKey].length > 0) {
+          console.log(`Total time entries for ${issueKey}: ${timeTrackingData[issueKey].length} dates`);
+        }
+      }
+
+      console.log(`Successfully processed time tracking data for ${Object.keys(timeTrackingData).length} issues`);
+      return timeTrackingData;
+    } catch (error) {
+      console.error("Error fetching time tracking data:", error);
+      throw error;
+    }
+  }
+
   async getProjects() {
     const domain = process.env.JIRA_DOMAIN;
     const url = `${domain}/rest/api/3/project/search`;
