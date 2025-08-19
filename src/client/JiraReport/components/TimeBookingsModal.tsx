@@ -62,41 +62,6 @@ export const TimeBookingsModal: React.FC<TimeBookingsModalProps> = ({
         showIcon
         style={{ marginBottom: "16px" }}
       />
-
-      <div
-        style={{
-          marginTop: "16px",
-          padding: "12px",
-          backgroundColor: "#f6f8fa",
-          borderRadius: "6px",
-        }}
-      >
-        <Text>
-          <strong>Summary:</strong> Will calculate total time booked to{" "}
-          <span
-            style={{
-              fontFamily: "monospace",
-              backgroundColor: "#f0f0f0",
-              padding: "2px 4px",
-              borderRadius: "3px",
-            }}
-          >
-            {workstreamKey}
-          </span>{" "}
-          from{" "}
-          <span
-            style={{
-              fontFamily: "monospace",
-              backgroundColor: "#f0f0f0",
-              padding: "2px 4px",
-              borderRadius: "3px",
-            }}
-          >
-            {new Date(fromDate).toLocaleDateString()}
-          </span>{" "}
-          onwards.
-        </Text>
-      </div>
     </Modal>
   );
 };

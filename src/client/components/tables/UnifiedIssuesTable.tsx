@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Card, Space, Table, Button, Typography, Input } from "antd";
+import { Card, Space, Table, Button, Typography, DatePicker } from "antd";
 import {
   InfoCircleOutlined,
   DownloadOutlined,
   CalendarOutlined,
 } from "@ant-design/icons";
+import dayjs, { Dayjs } from "dayjs";
 import { getUnifiedColumns } from "./columns";
 import { JiraIssueWithAggregated } from "../../JiraReport/types";
 import {
@@ -46,6 +47,7 @@ export interface UnifiedIssuesTableProps {
 
   // Time Bookings
   onRequestTimeBookings?: (fromDate: string) => void;
+  timeDataLoaded?: boolean;
 }
 
 export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
@@ -67,22 +69,23 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   parentWorkstreamKey,
   completeHierarchicalData,
   onRequestTimeBookings,
+  timeDataLoaded = false,
 }) => {
   const [exportLoading, setExportLoading] = useState(false);
 
   // State for time bookings date selector
-  const [timeBookingsDate, setTimeBookingsDate] = useState<string>(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30);
-    return date.toISOString().split("T")[0];
+  const [timeBookingsDate, setTimeBookingsDate] = useState<Dayjs>(() => {
+    return dayjs().subtract(30, "day");
   });
 
   // Force re-render when date changes to update the "Actual Days since Date" column
   const [dateKey, setDateKey] = useState(0);
 
-  const handleDateChange = (newDate: string) => {
-    setTimeBookingsDate(newDate);
-    setDateKey((prev) => prev + 1); // Force re-render
+  const handleDateChange = (newDate: Dayjs | null) => {
+    if (newDate) {
+      setTimeBookingsDate(newDate);
+      setDateKey((prev) => prev + 1); // Force re-render
+    }
   };
 
   const columns = getUnifiedColumns({
@@ -93,7 +96,7 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
     currentIssues,
     projectIssues,
     getWorkstreamDataCellSpan,
-    timeBookingsDate,
+    timeBookingsDate: timeBookingsDate.format("YYYY-MM-DD"),
   });
 
   const handleExport = async () => {
@@ -139,22 +142,27 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
 
           {onRequestTimeBookings && (
             <Space>
-              <Input
-                type="date"
-                value={timeBookingsDate}
-                onChange={(e) => handleDateChange(e.target.value)}
-                size="small"
-                style={{ width: "140px" }}
-                prefix={<CalendarOutlined />}
-              />
-              <Button
-                type="primary"
-                icon={<CalendarOutlined />}
-                size="small"
-                onClick={() => onRequestTimeBookings(timeBookingsDate)}
-              >
-                Request Time Bookings
-              </Button>
+              {timeDataLoaded && (
+                <DatePicker
+                  value={timeBookingsDate}
+                  onChange={handleDateChange}
+                  size="small"
+                  style={{ width: "140px" }}
+                  format="YYYY-MM-DD"
+                />
+              )}
+              {!timeDataLoaded && (
+                <Button
+                  type="primary"
+                  icon={<CalendarOutlined />}
+                  size="small"
+                  onClick={() =>
+                    onRequestTimeBookings(timeBookingsDate.format("YYYY-MM-DD"))
+                  }
+                >
+                  Filter Actual Days by Date
+                </Button>
+              )}
             </Space>
           )}
         </Space>
