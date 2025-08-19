@@ -244,6 +244,138 @@ export const getUnifiedColumns = ({
     });
   }
 
+  // Add the "Actual Days since Date" column so it's always visible
+  columns.push({
+    title: `Actual Days Logged since ${timeBookingsDate || "Date"}`,
+    key: "actualDaysLogged",
+    onCell: (record: JiraIssueWithAggregated) =>
+      getWorkstreamDataCellSpan ? getWorkstreamDataCellSpan(record, false) : {},
+    render: (_, record: JiraIssueWithAggregated) => {
+      // Calculate aggregated time for the selected date and later
+      let totalTimeLogged = 0;
+
+      if (record.timeDataByKey && timeBookingsDate) {
+        // For workstreams with time data, aggregate all time from the selected date onwards
+
+        try {
+          Object.values(record.timeDataByKey).forEach(
+            (timeDataArray, index) => {
+              if (Array.isArray(timeDataArray)) {
+                timeDataArray.forEach((timeEntry, entryIndex) => {
+                  if (
+                    timeEntry &&
+                    timeEntry.date &&
+                    timeEntry.timeSpent &&
+                    timeEntry.date >= timeBookingsDate
+                  ) {
+                    totalTimeLogged += timeEntry.timeSpent;
+                  }
+                });
+              }
+            }
+          );
+        } catch (error) {
+          console.warn("Error processing timeDataByKey:", error);
+        }
+      } else if (record.timeBookings && timeBookingsDate) {
+        // For individual issues with time bookings, sum time from the selected date onwards
+
+        try {
+          record.timeBookings.forEach((timeEntry, index) => {
+            if (
+              timeEntry &&
+              timeEntry.date &&
+              timeEntry.timeSpent &&
+              timeEntry.date >= timeBookingsDate
+            ) {
+              totalTimeLogged += timeEntry.timeSpent;
+            }
+          });
+        } catch (error) {
+          console.warn("Error processing timeBookings:", error);
+        }
+      }
+
+      // If this is a workstream with children, show aggregated total
+      if (record.childCount > 0 && totalTimeLogged > 0) {
+        return (
+          <Text>
+            <Tag color="blue">
+              {totalTimeLogged.toFixed(1)} days
+              <Text type="secondary" style={{ marginLeft: "4px" }}>
+                (agg)
+              </Text>
+            </Tag>
+          </Text>
+        );
+      } else if (totalTimeLogged > 0) {
+        // For individual issues
+        return (
+          <Text>
+            <Tag color="blue">{totalTimeLogged.toFixed(1)} days</Tag>
+          </Text>
+        );
+      }
+
+      // Show helpful message when no data is available
+      if (timeBookingsDate) {
+        return (
+          <Text type="secondary" style={{ fontSize: "11px" }}>
+            No time data since {timeBookingsDate}
+          </Text>
+        );
+      }
+
+      return <Text type="secondary">-</Text>;
+    },
+    sorter: (a, b) => {
+      // Calculate total time for sorting
+      const getTotalTime = (record: JiraIssueWithAggregated): number => {
+        let totalTime = 0;
+
+        if (record.timeDataByKey && timeBookingsDate) {
+          try {
+            Object.values(record.timeDataByKey).forEach((timeDataArray) => {
+              if (Array.isArray(timeDataArray)) {
+                timeDataArray.forEach((timeEntry) => {
+                  if (
+                    timeEntry &&
+                    timeEntry.date &&
+                    timeEntry.timeSpent &&
+                    timeEntry.date >= timeBookingsDate
+                  ) {
+                    totalTime += timeEntry.timeSpent;
+                  }
+                });
+              }
+            });
+          } catch (error) {
+            console.warn("Error processing timeDataByKey in sorter:", error);
+          }
+        } else if (record.timeBookings && timeBookingsDate) {
+          try {
+            record.timeBookings.forEach((timeEntry) => {
+              if (
+                timeEntry &&
+                timeEntry.date &&
+                timeEntry.timeSpent &&
+                timeEntry.date >= timeBookingsDate
+              ) {
+                totalTime += timeEntry.timeSpent;
+              }
+            });
+          } catch (error) {
+            console.warn("Error processing timeBookings in sorter:", error);
+          }
+        }
+
+        return totalTime;
+      };
+
+      return getTotalTime(a) - getTotalTime(b);
+    },
+  });
+
   if (getWorkstreamDataCellSpan) {
     columns.push(
       {
@@ -620,22 +752,6 @@ export const getUnifiedColumns = ({
               : 0;
 
           return aVariancePercent - bVariancePercent;
-        },
-      },
-      {
-        title: `Actual Days Logged since ${timeBookingsDate || "Date"}`,
-        key: "actualDaysLogged",
-        onCell: (record: JiraIssueWithAggregated) =>
-          getWorkstreamDataCellSpan
-            ? getWorkstreamDataCellSpan(record, false)
-            : {},
-        render: (_, record: JiraIssueWithAggregated) => {
-          // For now, leave it blank as requested
-          return (
-            <Text type="secondary" style={{ fontSize: "11px" }}>
-              -
-            </Text>
-          );
         },
       }
     );

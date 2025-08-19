@@ -77,6 +77,14 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
     return date.toISOString().split("T")[0];
   });
 
+  // Force re-render when date changes to update the "Actual Days since Date" column
+  const [dateKey, setDateKey] = useState(0);
+
+  const handleDateChange = (newDate: string) => {
+    setTimeBookingsDate(newDate);
+    setDateKey((prev) => prev + 1); // Force re-render
+  };
+
   const columns = getUnifiedColumns({
     showFavoriteColumn,
     favoriteItems,
@@ -134,7 +142,7 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
               <Input
                 type="date"
                 value={timeBookingsDate}
-                onChange={(e) => setTimeBookingsDate(e.target.value)}
+                onChange={(e) => handleDateChange(e.target.value)}
                 size="small"
                 style={{ width: "140px" }}
                 prefix={<CalendarOutlined />}
@@ -153,6 +161,7 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
       }
     >
       <Table
+        key={dateKey} // Force re-render when date changes
         columns={columns}
         dataSource={getSortedItems ? getSortedItems(dataSource) : dataSource}
         rowKey={rowKey}

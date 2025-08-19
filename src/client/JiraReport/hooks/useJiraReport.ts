@@ -945,11 +945,9 @@ export const useJiraReport = () => {
       const result = await response.json();
       const timeBookings = JSON.parse(result.data);
 
-      // Log the new time bookings structure
-      console.log(`Time bookings response for ${workstreamKey}:`, timeBookings);
-
       // Update the workstream with time bookings data
       setState((prevState) => {
+        // Update projectIssues
         const updatedProjectIssues = prevState.projectIssues.map((issue) => {
           if (issue.key === workstreamKey) {
             return {
@@ -965,16 +963,41 @@ export const useJiraReport = () => {
           return issue;
         });
 
+        // Also update currentIssues if the workstream is currently being viewed
+        let updatedCurrentIssues = prevState.currentIssues;
+        if (prevState.currentIssues.length > 0) {
+          updatedCurrentIssues = prevState.currentIssues.map((issue) => {
+            if (issue.key === workstreamKey) {
+              // This is the workstream itself
+              return {
+                ...issue,
+                timeBookings,
+                timeBookingsFromDate: fromDate,
+                timeBookingsJiraKeys: timeBookings.jiraKeys || [],
+                timeBookingsTotalIssues: timeBookings.totalIssues || 0,
+                timeDataByKey: timeBookings.timeDataByKey || {},
+              };
+            } else if (
+              timeBookings.timeDataByKey &&
+              timeBookings.timeDataByKey[issue.key]
+            ) {
+              // This is a child issue that has time data
+              const childTimeData = timeBookings.timeDataByKey[issue.key];
+              return {
+                ...issue,
+                timeBookings: childTimeData || [],
+                timeBookingsFromDate: fromDate,
+              };
+            }
+            return issue;
+          });
+        }
+
         return {
           ...prevState,
           projectIssues: updatedProjectIssues,
+          currentIssues: updatedCurrentIssues,
         };
-      });
-
-      console.log(`Time bookings loaded for ${workstreamKey}:`, {
-        totalIssues: timeBookings.totalIssues,
-        jiraKeys: timeBookings.jiraKeys,
-        timeDataByKey: timeBookings.timeDataByKey,
       });
     } catch (error) {
       console.error(

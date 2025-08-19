@@ -809,18 +809,18 @@ metricsRoute.get(
         // Map from Jira key to array of time data (each key gets its own data)
         timeDataByKey: allJiraKeys.reduce(
           (acc, jiraKey) => {
-            acc[jiraKey] = [
-              { date: "2024-01-15", timeSpent: Math.random() * 4 + 0.5 }, // Random time for variety
-              { date: "2024-01-16", timeSpent: Math.random() * 4 + 0.5 },
-              { date: "2024-01-17", timeSpent: Math.random() * 4 + 0.5 },
-              { date: "2024-01-18", timeSpent: Math.random() * 4 + 0.5 },
-              { date: "2024-01-19", timeSpent: Math.random() * 4 + 0.5 },
-              { date: "2024-01-22", timeSpent: Math.random() * 4 + 0.5 },
-              { date: "2024-01-23", timeSpent: Math.random() * 4 + 0.5 },
-              { date: "2024-01-24", timeSpent: Math.random() * 4 + 0.5 },
-              { date: "2024-01-25", timeSpent: Math.random() * 4 + 0.5 },
-              { date: "2024-01-26", timeSpent: Math.random() * 4 + 0.5 },
-            ];
+            // Generate dates for the last 30 days to ensure they're recent
+            const dates: Array<{ date: string; timeSpent: number }> = [];
+            const today = new Date();
+            for (let i = 29; i >= 0; i--) {
+              const date = new Date(today);
+              date.setDate(date.getDate() - i);
+              dates.push({
+                date: date.toISOString().split("T")[0],
+                timeSpent: Math.random() * 4 + 0.5, // Random time between 0.5 and 4.5 days
+              });
+            }
+            acc[jiraKey] = dates;
             return acc;
           },
           {} as Record<string, Array<{ date: string; timeSpent: number }>>
