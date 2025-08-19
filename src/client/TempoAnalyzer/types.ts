@@ -101,7 +101,12 @@ export interface State {
   groupedDataByCategory: {
     [category: string]: {
       totalHours: number;
-      accounts: { [accountName: string]: number };
+      accounts: { 
+        [accountName: string]: {
+          totalHours: number;
+          files: { [fileName: string]: number };
+        };
+      };
     };
   };
   // New state for tracking which rows to show in the expandable table

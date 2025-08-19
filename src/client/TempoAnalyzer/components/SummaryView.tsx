@@ -12,7 +12,12 @@ interface SummaryViewProps {
   groupedDataByCategory: {
     [category: string]: {
       totalHours: number;
-      accounts: { [accountName: string]: number };
+      accounts: { 
+        [accountName: string]: {
+          totalHours: number;
+          files: { [fileName: string]: number };
+        };
+      };
     };
   };
   handleRowClick: (category: string) => void;
@@ -94,20 +99,37 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                       1
                     ),
                     children: Object.entries(data.accounts).map(
-                      ([accountName, accountHours], accountIndex) => ({
+                      ([accountName, accountData], accountIndex) => ({
                         key: `account-${index}-${accountIndex}`,
                         item: accountName,
-                        hours: accountHours as number,
-                        chargeableDays: (accountHours as number) / 7.5,
+                        hours: accountData.totalHours,
+                        chargeableDays: accountData.totalHours / 7.5,
                         percentage: (
-                          ((accountHours as number) / totalHours) *
+                          (accountData.totalHours / totalHours) *
                           100
                         ).toFixed(1),
                         subPercentage: (
-                          ((accountHours as number) / data.totalHours) *
+                          (accountData.totalHours / data.totalHours) *
                           100
                         ).toFixed(1),
                         isAccount: true,
+                        children: Object.entries(accountData.files)
+                          .sort(([, a], [, b]) => b - a) // Sort by hours descending
+                          .map(([fileName, fileHours], fileIndex) => ({
+                            key: `file-${index}-${accountIndex}-${fileIndex}`,
+                            item: fileName,
+                            hours: fileHours,
+                            chargeableDays: fileHours / 7.5,
+                            percentage: (
+                              (fileHours / totalHours) *
+                              100
+                            ).toFixed(1),
+                            subPercentage: (
+                              (fileHours / accountData.totalHours) *
+                              100
+                            ).toFixed(1),
+                            isFile: true,
+                          })),
                       })
                     ),
                   })
@@ -130,8 +152,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               dataIndex: "item",
               key: "item",
               render: (text, record: any) => (
-                <Text strong={!record.isAccount}>
+                <Text strong={!record.isAccount && !record.isFile}>
                   {record.isAccount && "  "}
+                  {record.isFile && "    "}
                   {text}
                 </Text>
               ),
@@ -161,6 +184,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                   {record.isAccount &&
                     record.subPercentage &&
                     ` (${record.subPercentage}%)`}
+                  {record.isFile &&
+                    record.subPercentage &&
+                    ` (${record.subPercentage}%)`}
                 </Text>
               ),
             },
@@ -177,15 +203,21 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           }
           onRow={(record: any) => ({
             onClick: () => {
-              if (summaryViewMode === "category" && !record.isAccount) {
+              if (
+                summaryViewMode === "category" &&
+                !record.isAccount &&
+                !record.isFile
+              ) {
                 handleRowClick(record.item);
               } else if (summaryViewMode === "name") {
                 handleUserClick(record.item);
               }
             },
             style: {
-              cursor: record.isAccount ? "default" : "pointer",
-              fontWeight: record.isAccount ? "normal" : "bold",
+              cursor:
+                record.isAccount || record.isFile ? "default" : "pointer",
+              fontWeight:
+                record.isAccount || record.isFile ? "normal" : "bold",
             },
           })}
         />

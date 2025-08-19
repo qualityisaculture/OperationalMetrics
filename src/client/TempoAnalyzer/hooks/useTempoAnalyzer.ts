@@ -80,7 +80,11 @@ export const useTempoAnalyzer = (
     if (analyzerState.rawData.length > 0) {
       processData(analyzerState.rawData, analyzerState.headers);
     }
-  }, [analyzerState.excludeHolidayAbsence, analyzerState.excludeStartDate, analyzerState.excludeEndDate]);
+  }, [
+    analyzerState.excludeHolidayAbsence,
+    analyzerState.excludeStartDate,
+    analyzerState.excludeEndDate,
+  ]);
 
   const applyFilters = (tableData: any[]) => {
     const {
@@ -235,7 +239,12 @@ export const useTempoAnalyzer = (
     const groupedDataByCategory: {
       [category: string]: {
         totalHours: number;
-        accounts: { [accountName: string]: number };
+        accounts: {
+          [accountName: string]: {
+            totalHours: number;
+            files: { [fileName: string]: number };
+          };
+        };
       };
     } = {};
     let totalHours = 0;
@@ -285,9 +294,28 @@ export const useTempoAnalyzer = (
                 };
               }
               groupedDataByCategory[finalCategory].totalHours += loggedHours;
-              groupedDataByCategory[finalCategory].accounts[account] =
-                (groupedDataByCategory[finalCategory].accounts[account] || 0) +
-                loggedHours;
+
+              if (!groupedDataByCategory[finalCategory].accounts[account]) {
+                groupedDataByCategory[finalCategory].accounts[account] = {
+                  totalHours: 0,
+                  files: {},
+                };
+              }
+
+              groupedDataByCategory[finalCategory].accounts[
+                account
+              ].totalHours += loggedHours;
+
+              // Add file-level breakdown
+              const fileName = (row as any)._fileName;
+              if (fileName) {
+                groupedDataByCategory[finalCategory].accounts[account].files[
+                  fileName
+                ] =
+                  (groupedDataByCategory[finalCategory].accounts[account].files[
+                    fileName
+                  ] || 0) + loggedHours;
+              }
             }
           }
         }
@@ -339,7 +367,13 @@ export const useTempoAnalyzer = (
             return;
           }
         }
-        combinedData = combinedData.concat(sheet.data);
+        // Add file information to each row
+        const rowsWithFileInfo = sheet.data.map((row: any) => ({
+          ...row,
+          _fileName: fileName,
+          _sheetName: sheetName,
+        }));
+        combinedData = combinedData.concat(rowsWithFileInfo);
       }
     });
 
