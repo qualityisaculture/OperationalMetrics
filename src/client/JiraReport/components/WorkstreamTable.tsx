@@ -23,7 +23,8 @@ interface Props {
 
   // Time Bookings
   onRequestTimeBookings?: (fromDate: string) => void;
-  timeDataLoaded?: boolean;
+  timeDataLoaded?: Set<string>;
+  currentWorkstreamKey?: string;
 }
 
 export const WorkstreamTable: React.FC<Props> = ({
@@ -36,7 +37,8 @@ export const WorkstreamTable: React.FC<Props> = ({
   toggleFavorite,
   projectIssues,
   onRequestTimeBookings,
-  timeDataLoaded = false,
+  timeDataLoaded = new Set(),
+  currentWorkstreamKey,
 }) => {
   // Find the complete hierarchical data for the current workstream
   // We need to find the workstream in projectIssues that matches the current level
@@ -91,6 +93,7 @@ export const WorkstreamTable: React.FC<Props> = ({
       })}
       onRequestTimeBookings={onRequestTimeBookings}
       timeDataLoaded={timeDataLoaded}
+      currentWorkstreamKey={currentWorkstreamKey}
     />
   );
 };

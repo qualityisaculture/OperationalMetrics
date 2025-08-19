@@ -58,8 +58,8 @@ const JiraReport: React.FC = () => {
     return date.toISOString().split("T")[0];
   });
 
-  // State for tracking if time data has been loaded
-  const [timeDataLoaded, setTimeDataLoaded] = useState<boolean>(false);
+  // State for tracking which workstreams have loaded time data
+  const [timeDataLoaded, setTimeDataLoaded] = useState<Set<string>>(new Set());
 
   const {
     projects,
@@ -118,8 +118,10 @@ const JiraReport: React.FC = () => {
         timeBookingsModal.workstreamKey,
         timeBookingsDate
       );
-      // Set timeDataLoaded to true after successfully requesting time data
-      setTimeDataLoaded(true);
+      // Add this workstream to the set of loaded workstreams
+      setTimeDataLoaded((prev) =>
+        new Set(prev).add(timeBookingsModal.workstreamKey)
+      );
     }
     hideTimeBookingsModal();
   };
@@ -285,6 +287,9 @@ const JiraReport: React.FC = () => {
                 projectIssues={projectIssues}
                 onRequestTimeBookings={showTimeBookingsModal}
                 timeDataLoaded={timeDataLoaded}
+                currentWorkstreamKey={
+                  navigationStack[navigationStack.length - 1]?.key
+                }
               />
             ) : (
               <>

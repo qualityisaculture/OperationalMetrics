@@ -47,7 +47,8 @@ export interface UnifiedIssuesTableProps {
 
   // Time Bookings
   onRequestTimeBookings?: (fromDate: string) => void;
-  timeDataLoaded?: boolean;
+  timeDataLoaded?: Set<string>;
+  currentWorkstreamKey?: string;
 }
 
 export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
@@ -69,7 +70,8 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   parentWorkstreamKey,
   completeHierarchicalData,
   onRequestTimeBookings,
-  timeDataLoaded = false,
+  timeDataLoaded = new Set(),
+  currentWorkstreamKey,
 }) => {
   const [exportLoading, setExportLoading] = useState(false);
 
@@ -142,16 +144,20 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
 
           {onRequestTimeBookings && (
             <Space>
-              {timeDataLoaded && (
-                <DatePicker
-                  value={timeBookingsDate}
-                  onChange={handleDateChange}
-                  size="small"
-                  style={{ width: "140px" }}
-                  format="YYYY-MM-DD"
-                />
-              )}
-              {!timeDataLoaded && (
+              {timeDataLoaded &&
+                currentWorkstreamKey &&
+                timeDataLoaded.has(currentWorkstreamKey) && (
+                  <DatePicker
+                    value={timeBookingsDate}
+                    onChange={handleDateChange}
+                    size="small"
+                    style={{ width: "140px" }}
+                    format="YYYY-MM-DD"
+                  />
+                )}
+              {(!timeDataLoaded ||
+                !currentWorkstreamKey ||
+                !timeDataLoaded.has(currentWorkstreamKey)) && (
                 <Button
                   type="primary"
                   icon={<CalendarOutlined />}
