@@ -99,6 +99,13 @@ export const getUnifiedColumns = ({
           : undefined,
     },
     {
+      title: "Summary",
+      dataIndex: "summary",
+      key: "summary",
+      render: (summary: string) => <Text>{summary}</Text>,
+      sorter: (a: any, b: any) => a.summary.localeCompare(b.summary),
+    },
+    {
       title: "Issue Type",
       dataIndex: "type",
       key: "type",
@@ -219,13 +226,6 @@ export const getUnifiedColumns = ({
         }));
       })(),
       onFilter: (value, record: any) => record.account === value,
-    },
-    {
-      title: "Summary",
-      dataIndex: "summary",
-      key: "summary",
-      render: (summary: string) => <Text>{summary}</Text>,
-      sorter: (a: any, b: any) => a.summary.localeCompare(b.summary),
     }
   );
 

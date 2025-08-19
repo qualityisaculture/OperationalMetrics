@@ -78,6 +78,13 @@ export const getIssueColumns = (
     })(),
   },
   {
+    title: "Summary",
+    dataIndex: "summary",
+    key: "summary",
+    render: (summary: string) => <Text>{summary}</Text>,
+    sorter: (a, b) => a.summary.localeCompare(b.summary),
+  },
+  {
     title: "Issue Type",
     dataIndex: "type",
     key: "type",
@@ -196,13 +203,6 @@ export const getIssueColumns = (
       }));
     })(),
     onFilter: (value, record) => record.account === value,
-  },
-  {
-    title: "Summary",
-    dataIndex: "summary",
-    key: "summary",
-    render: (summary: string) => <Text>{summary}</Text>,
-    sorter: (a, b) => a.summary.localeCompare(b.summary),
   },
   // Only show Children column when not viewing workstreams (when we have child count data)
   ...(navigationStack.length > 1
