@@ -12,7 +12,7 @@ interface SummaryViewProps {
   groupedDataByCategory: {
     [category: string]: {
       totalHours: number;
-      accounts: { 
+      accounts: {
         [accountName: string]: {
           totalHours: number;
           files: { [fileName: string]: number };
@@ -113,23 +113,26 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                           100
                         ).toFixed(1),
                         isAccount: true,
-                        children: Object.entries(accountData.files)
-                          .sort(([, a], [, b]) => b - a) // Sort by hours descending
-                          .map(([fileName, fileHours], fileIndex) => ({
-                            key: `file-${index}-${accountIndex}-${fileIndex}`,
-                            item: fileName,
-                            hours: fileHours,
-                            chargeableDays: fileHours / 7.5,
-                            percentage: (
-                              (fileHours / totalHours) *
-                              100
-                            ).toFixed(1),
-                            subPercentage: (
-                              (fileHours / accountData.totalHours) *
-                              100
-                            ).toFixed(1),
-                            isFile: true,
-                          })),
+                        children:
+                          Object.keys(accountData.files).length > 1
+                            ? Object.entries(accountData.files)
+                                .sort(([, a], [, b]) => b - a) // Sort by hours descending
+                                .map(([fileName, fileHours], fileIndex) => ({
+                                  key: `file-${index}-${accountIndex}-${fileIndex}`,
+                                  item: fileName,
+                                  hours: fileHours,
+                                  chargeableDays: fileHours / 7.5,
+                                  percentage: (
+                                    (fileHours / totalHours) *
+                                    100
+                                  ).toFixed(1),
+                                  subPercentage: (
+                                    (fileHours / accountData.totalHours) *
+                                    100
+                                  ).toFixed(1),
+                                  isFile: true,
+                                }))
+                            : undefined,
                       })
                     ),
                   })
@@ -214,10 +217,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               }
             },
             style: {
-              cursor:
-                record.isAccount || record.isFile ? "default" : "pointer",
-              fontWeight:
-                record.isAccount || record.isFile ? "normal" : "bold",
+              cursor: record.isAccount || record.isFile ? "default" : "pointer",
+              fontWeight: record.isAccount || record.isFile ? "normal" : "bold",
             },
           })}
         />
