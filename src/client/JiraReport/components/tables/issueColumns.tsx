@@ -30,6 +30,7 @@ export const getIssueColumns = (
     title: "Favorite",
     key: "favorite",
     width: 60,
+    fixed: "left",
     render: (_, record) => (
       <Button
         type="text"
@@ -49,6 +50,8 @@ export const getIssueColumns = (
     title: "Issue Key",
     dataIndex: "key",
     key: "key",
+    fixed: "left",
+    width: 120,
     render: (key: string, record: JiraIssueWithAggregated) => (
       <a
         href={record.url}

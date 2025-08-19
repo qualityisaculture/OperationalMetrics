@@ -15,6 +15,7 @@ export const getProjectColumns = (
     title: "Favorite",
     key: "favorite",
     width: 60,
+    fixed: "left",
     render: (_, record) => (
       <Button
         type="text"
@@ -34,6 +35,8 @@ export const getProjectColumns = (
     title: "Project Key",
     dataIndex: "key",
     key: "key",
+    fixed: "left",
+    width: 120,
     render: (key: string) => <Tag color="green">{key}</Tag>,
     sorter: (a, b) => a.key.localeCompare(b.key),
   },

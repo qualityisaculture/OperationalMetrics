@@ -173,15 +173,20 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
           )}
         </Space>
       }
+      bodyStyle={{ padding: 0, overflow: "hidden" }}
     >
-      <Table
-        key={dateKey} // Force re-render when date changes
-        columns={columns}
-        dataSource={getSortedItems ? getSortedItems(dataSource) : dataSource}
-        rowKey={rowKey}
-        pagination={pagination}
-        onRow={onRow}
-      />
+      <div style={{ overflow: "auto" }}>
+        <Table
+          key={dateKey} // Force re-render when date changes
+          columns={columns}
+          dataSource={getSortedItems ? getSortedItems(dataSource) : dataSource}
+          rowKey={rowKey}
+          pagination={pagination}
+          onRow={onRow}
+          scroll={{ x: "max-content" }}
+          style={{ overflow: "auto" }}
+        />
+      </div>
     </Card>
   );
 };
