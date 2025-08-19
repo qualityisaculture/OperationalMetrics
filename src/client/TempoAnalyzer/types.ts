@@ -97,11 +97,13 @@ export interface State {
   // New state for excluding data outside a date range
   excludeStartDate: Date | null;
   excludeEndDate: Date | null;
+  // New state for showing other teams' work
+  showOtherTeams: boolean;
   // New state for hierarchical category data
   groupedDataByCategory: {
     [category: string]: {
       totalHours: number;
-      accounts: { 
+      accounts: {
         [accountName: string]: {
           totalHours: number;
           files: { [fileName: string]: number };

@@ -20,6 +20,7 @@ interface SummaryViewProps {
       };
     };
   };
+  showOtherTeams: boolean;
   handleRowClick: (category: string) => void;
   handleUserClick: (userName: string) => void;
 }
@@ -30,6 +31,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   groupedData,
   groupedByName,
   groupedDataByCategory,
+  showOtherTeams,
   handleRowClick,
   handleUserClick,
 }) => {
@@ -98,6 +100,56 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                     percentage: ((data.totalHours / totalHours) * 100).toFixed(
                       1
                     ),
+                    // Calculate other team metrics at category level
+                    otherTeamDays: showOtherTeams
+                      ? (() => {
+                          let totalOtherTeamHours = 0;
+                          Object.values(data.accounts).forEach(
+                            (accountData) => {
+                              if (Object.keys(accountData.files).length > 1) {
+                                const fileEntries = Object.entries(
+                                  accountData.files
+                                );
+                                const sortedFiles = fileEntries.sort(
+                                  ([, a], [, b]) => b - a
+                                );
+                                // First file is primary team, rest are other teams
+                                const otherTeamHours = sortedFiles
+                                  .slice(1)
+                                  .reduce((sum, [, hours]) => sum + hours, 0);
+                                totalOtherTeamHours += otherTeamHours;
+                              }
+                            }
+                          );
+                          return totalOtherTeamHours / 7.5;
+                        })()
+                      : 0,
+                    otherTeamPercent: showOtherTeams
+                      ? (() => {
+                          let totalOtherTeamHours = 0;
+                          Object.values(data.accounts).forEach(
+                            (accountData) => {
+                              if (Object.keys(accountData.files).length > 1) {
+                                const fileEntries = Object.entries(
+                                  accountData.files
+                                );
+                                const sortedFiles = fileEntries.sort(
+                                  ([, a], [, b]) => b - a
+                                );
+                                // First file is primary team, rest are other teams
+                                const otherTeamHours = sortedFiles
+                                  .slice(1)
+                                  .reduce((sum, [, hours]) => sum + hours, 0);
+                                totalOtherTeamHours += otherTeamHours;
+                              }
+                            }
+                          );
+                          return (
+                            (totalOtherTeamHours / data.totalHours) *
+                            100
+                          ).toFixed(1);
+                        })()
+                      : "0.0",
                     children: Object.entries(data.accounts).map(
                       ([accountName, accountData], accountIndex) => ({
                         key: `account-${index}-${accountIndex}`,
@@ -133,6 +185,44 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                                   isFile: true,
                                 }))
                             : undefined,
+                        // Calculate other team metrics
+                        otherTeamDays:
+                          showOtherTeams &&
+                          Object.keys(accountData.files).length > 1
+                            ? (() => {
+                                const fileEntries = Object.entries(
+                                  accountData.files
+                                );
+                                const sortedFiles = fileEntries.sort(
+                                  ([, a], [, b]) => b - a
+                                );
+                                // First file is primary team, rest are other teams
+                                const otherTeamHours = sortedFiles
+                                  .slice(1)
+                                  .reduce((sum, [, hours]) => sum + hours, 0);
+                                return otherTeamHours / 7.5;
+                              })()
+                            : 0,
+                        otherTeamPercent:
+                          showOtherTeams &&
+                          Object.keys(accountData.files).length > 1
+                            ? (() => {
+                                const fileEntries = Object.entries(
+                                  accountData.files
+                                );
+                                const sortedFiles = fileEntries.sort(
+                                  ([, a], [, b]) => b - a
+                                );
+                                // First file is primary team, rest are other teams
+                                const otherTeamHours = sortedFiles
+                                  .slice(1)
+                                  .reduce((sum, [, hours]) => sum + hours, 0);
+                                return (
+                                  (otherTeamHours / accountData.totalHours) *
+                                  100
+                                ).toFixed(1);
+                              })()
+                            : "0.0",
                       })
                     ),
                   })
@@ -193,6 +283,42 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 </Text>
               ),
             },
+            // Conditional columns for other teams
+            ...(showOtherTeams
+              ? [
+                  {
+                    title: "Other Team Days",
+                    dataIndex: "otherTeamDays",
+                    key: "otherTeamDays",
+                    render: (text, record: any) => (
+                      <Text type="secondary">
+                        {record.isAccount ||
+                        (!record.isAccount && !record.isFile)
+                          ? text.toFixed(2)
+                          : "-"}
+                      </Text>
+                    ),
+                    sorter: (a, b) =>
+                      (a.otherTeamDays || 0) - (b.otherTeamDays || 0),
+                  },
+                  {
+                    title: "Other Team %",
+                    dataIndex: "otherTeamPercent",
+                    key: "otherTeamPercent",
+                    render: (text, record: any) => (
+                      <Text type="secondary">
+                        {record.isAccount ||
+                        (!record.isAccount && !record.isFile)
+                          ? `${text}%`
+                          : "-"}
+                      </Text>
+                    ),
+                    sorter: (a, b) =>
+                      parseFloat(a.otherTeamPercent || "0") -
+                      parseFloat(b.otherTeamPercent || "0"),
+                  },
+                ]
+              : []),
           ]}
           pagination={false}
           size="small"

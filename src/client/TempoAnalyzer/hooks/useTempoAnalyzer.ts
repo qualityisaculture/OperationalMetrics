@@ -64,6 +64,7 @@ export const useTempoAnalyzer = (
     excludeHolidayAbsence: true,
     excludeStartDate: null,
     excludeEndDate: null,
+    showOtherTeams: false,
     groupedDataByCategory: {},
     displayedRows: [],
   });
@@ -439,6 +440,7 @@ export const useTempoAnalyzer = (
       excludeHolidayAbsence: false,
       excludeStartDate: null,
       excludeEndDate: null,
+      showOtherTeams: false,
       groupedDataByCategory: {},
       displayedRows: [],
     });
@@ -1124,6 +1126,13 @@ export const useTempoAnalyzer = (
     setAnalyzerState((prevState) => ({ ...prevState, excludeEndDate: date }));
   };
 
+  const handleShowOtherTeamsChange = (checked: boolean) => {
+    setAnalyzerState((prevState) => ({
+      ...prevState,
+      showOtherTeams: checked,
+    }));
+  };
+
   const getDisplayedRowsTitle = () => {
     const {
       selectedCategory,
@@ -1162,6 +1171,7 @@ export const useTempoAnalyzer = (
     handleExcludeHolidayAbsenceChange,
     handleExcludeStartDateChange,
     handleExcludeEndDateChange,
+    handleShowOtherTeamsChange,
     getDisplayedRowsTitle,
     setAnalyzerState,
   };

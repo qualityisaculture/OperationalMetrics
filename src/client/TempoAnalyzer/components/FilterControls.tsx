@@ -13,6 +13,8 @@ interface FilterControlsProps {
   handleExcludeStartDateChange: (date: any) => void;
   excludeEndDate: Date | null;
   handleExcludeEndDateChange: (date: any) => void;
+  showOtherTeams: boolean;
+  handleShowOtherTeamsChange: (checked: boolean) => void;
   hasGroupedData: boolean;
   hasGroupedByName: boolean;
 }
@@ -26,6 +28,8 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   handleExcludeStartDateChange,
   excludeEndDate,
   handleExcludeEndDateChange,
+  showOtherTeams,
+  handleShowOtherTeamsChange,
   hasGroupedData,
   hasGroupedByName,
 }) => {
@@ -64,6 +68,13 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
             Exclude Holiday & Absence data (ABS-56, ABS-58, ABS-57)
           </Checkbox>
           <br />
+          <Checkbox
+            checked={showOtherTeams}
+            onChange={(e) => handleShowOtherTeamsChange(e.target.checked)}
+          >
+            Show percentage done by other teams
+          </Checkbox>
+          <br />
           <div>
             <Text strong>Date Range Filter:</Text>
             <br />
@@ -84,7 +95,8 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
             </Space>
             <br />
             <Text type="secondary" style={{ marginTop: "4px" }}>
-              Only data within the selected date range will be included. Leave both blank to include all data.
+              Only data within the selected date range will be included. Leave
+              both blank to include all data.
             </Text>
           </div>
         </div>

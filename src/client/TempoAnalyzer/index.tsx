@@ -62,6 +62,8 @@ const TempoAnalyzer: React.FC<Props> = () => {
             handleExcludeStartDateChange={analyzer.handleExcludeStartDateChange}
             excludeEndDate={analyzer.excludeEndDate}
             handleExcludeEndDateChange={analyzer.handleExcludeEndDateChange}
+            showOtherTeams={analyzer.showOtherTeams}
+            handleShowOtherTeamsChange={analyzer.handleShowOtherTeamsChange}
             hasGroupedData={Object.keys(groupedData).length > 0}
             hasGroupedByName={Object.keys(analyzer.groupedByName).length > 0}
           />
@@ -75,6 +77,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
                   groupedData={analyzer.groupedData}
                   groupedByName={analyzer.groupedByName}
                   groupedDataByCategory={analyzer.groupedDataByCategory}
+                  showOtherTeams={analyzer.showOtherTeams}
                   handleRowClick={analyzer.handleRowClick}
                   handleUserClick={analyzer.handleUserClick}
                 />
