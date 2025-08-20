@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { message } from "antd";
-import { SheetData, State } from "../types";
+import { SheetData, State, UserGroup, UserGroupAssignment } from "../types";
 import { ISSUE_KEY_EXCEPTIONS } from "../constants";
 
 export const useTempoAnalyzer = (
   sheets: SheetData[],
-  selectedSheets: string[]
+  selectedSheets: string[],
+  selectedUserGroups: string[] = [],
+  userGroupAssignments: UserGroupAssignment[] = []
 ) => {
   const [analyzerState, setAnalyzerState] = useState<
     Omit<
@@ -85,6 +87,8 @@ export const useTempoAnalyzer = (
     analyzerState.excludeHolidayAbsence,
     analyzerState.excludeStartDate,
     analyzerState.excludeEndDate,
+    selectedUserGroups,
+    userGroupAssignments,
   ]);
 
   const applyFilters = (tableData: any[]) => {
@@ -94,10 +98,12 @@ export const useTempoAnalyzer = (
       excludeEndDate,
       issueKeyIndex,
       dateIndex,
+      fullNameIndex,
     } = analyzerState;
 
     let filteredData = [...tableData];
 
+    // Apply holiday/absence filtering
     if (excludeHolidayAbsence && issueKeyIndex !== -1) {
       const holidayAbsenceIssueKeys =
         ISSUE_KEY_EXCEPTIONS.find(
@@ -112,6 +118,7 @@ export const useTempoAnalyzer = (
       }
     }
 
+    // Apply date range filtering
     if ((excludeStartDate || excludeEndDate) && dateIndex !== -1) {
       filteredData = filteredData.filter((row) => {
         const workDate = row[dateIndex.toString()];
@@ -143,6 +150,32 @@ export const useTempoAnalyzer = (
         }
       });
     }
+
+    // Apply user group filtering
+    if (selectedUserGroups.length > 0 && fullNameIndex !== -1) {
+      // Get all users in selected groups
+      const selectedUsers = new Set<string>();
+      userGroupAssignments.forEach((assignment) => {
+        if (
+          assignment.groupId &&
+          selectedUserGroups.includes(assignment.groupId)
+        ) {
+          selectedUsers.add(assignment.fullName);
+        }
+      });
+
+      // If no users are in selected groups, return empty data
+      if (selectedUsers.size === 0) {
+        return [];
+      }
+
+      // Filter by selected users
+      filteredData = filteredData.filter((row) => {
+        const fullName = row[fullNameIndex.toString()];
+        return fullName && selectedUsers.has(fullName);
+      });
+    }
+    // If no groups selected, show all data (no filtering applied)
 
     return filteredData;
   };

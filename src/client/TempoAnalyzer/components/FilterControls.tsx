@@ -1,8 +1,14 @@
 import React from "react";
-import { Radio, Checkbox, DatePicker, Space, Typography } from "antd";
-import { BarChartOutlined, UserOutlined } from "@ant-design/icons";
+import { Radio, Checkbox, DatePicker, Space, Typography, Select } from "antd";
+import {
+  BarChartOutlined,
+  UserOutlined,
+  TeamOutlined,
+} from "@ant-design/icons";
+import { UserGroup } from "../types";
 
 const { Text } = Typography;
+const { Option } = Select;
 
 interface FilterControlsProps {
   summaryViewMode: "category" | "name";
@@ -17,6 +23,9 @@ interface FilterControlsProps {
   handleShowOtherTeamsChange: (checked: boolean) => void;
   hasGroupedData: boolean;
   hasGroupedByName: boolean;
+  userGroups: UserGroup[];
+  selectedUserGroups: string[];
+  onUserGroupsChange: (groupIds: string[]) => void;
 }
 
 export const FilterControls: React.FC<FilterControlsProps> = ({
@@ -32,6 +41,9 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   handleShowOtherTeamsChange,
   hasGroupedData,
   hasGroupedByName,
+  userGroups,
+  selectedUserGroups,
+  onUserGroupsChange,
 }) => {
   if (!hasGroupedData) {
     return null;
@@ -59,6 +71,34 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
         </Radio.Group>
 
         <div style={{ marginTop: "8px" }}>
+          {/* User Group Filter */}
+          <div style={{ marginBottom: "12px" }}>
+            <Text strong>
+              <TeamOutlined style={{ marginRight: "4px" }} />
+              Filter by User Groups:
+            </Text>
+            <br />
+            <Select
+              mode="multiple"
+              placeholder="Select user groups to include"
+              value={selectedUserGroups}
+              onChange={onUserGroupsChange}
+              style={{ width: "100%", marginTop: "4px" }}
+              allowClear
+              maxTagCount="responsive"
+            >
+              {userGroups.map((group) => (
+                <Option key={group.id} value={group.id}>
+                  {group.name}
+                </Option>
+              ))}
+            </Select>
+            <Text type="secondary" style={{ fontSize: "12px" }}>
+              Only data from users in the selected groups will be included.
+              Select no groups to show all data.
+            </Text>
+          </div>
+
           <Checkbox
             checked={excludeHolidayAbsence}
             onChange={(e) =>

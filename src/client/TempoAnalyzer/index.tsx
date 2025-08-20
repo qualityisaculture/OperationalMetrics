@@ -24,13 +24,15 @@ const TempoAnalyzer: React.FC<Props> = () => {
     selectedSheets,
     setSelectedSheets,
   } = useExcelProcessor();
-  const analyzer = useTempoAnalyzer(sheets, selectedSheets);
+
+  // Create initial analyzer without user group filtering
+  const initialAnalyzer = useTempoAnalyzer(sheets, selectedSheets);
 
   // Extract unique user names from the data for user group management
   const availableUsers = React.useMemo(() => {
-    if (!analyzer.groupedByName) return [];
-    return Object.keys(analyzer.groupedByName);
-  }, [analyzer.groupedByName]);
+    if (!initialAnalyzer.groupedByName) return [];
+    return Object.keys(initialAnalyzer.groupedByName);
+  }, [initialAnalyzer.groupedByName]);
 
   // User group management
   const {
@@ -41,6 +43,25 @@ const TempoAnalyzer: React.FC<Props> = () => {
     assignUserToGroup,
   } = useUserGroups(availableUsers);
 
+  // User group filtering - default to no filtering (show all data)
+  const [selectedUserGroups, setSelectedUserGroups] = React.useState<string[]>(
+    []
+  );
+
+  // Update selected groups when user groups change (default to no filtering)
+  React.useEffect(() => {
+    // Don't auto-select all groups - let user choose
+    // This allows for "show all data" by default
+  }, [userGroups.groups]);
+
+  // Create analyzer with user group filtering
+  const analyzer = useTempoAnalyzer(
+    sheets,
+    selectedSheets,
+    selectedUserGroups,
+    userGroups.assignments
+  );
+
   const {
     groupedData,
     selectedCategory,
@@ -50,6 +71,14 @@ const TempoAnalyzer: React.FC<Props> = () => {
     selectedWorkDescriptions,
     selectedWorkDescriptionDetails,
   } = analyzer;
+
+  // Calculate total hours from filtered data
+  const totalHours = React.useMemo(() => {
+    return Object.values(analyzer.groupedByName).reduce(
+      (sum, hours) => sum + hours,
+      0
+    );
+  }, [analyzer.groupedByName]);
 
   return (
     <div style={{ padding: "20px" }}>
@@ -83,6 +112,9 @@ const TempoAnalyzer: React.FC<Props> = () => {
             handleShowOtherTeamsChange={analyzer.handleShowOtherTeamsChange}
             hasGroupedData={Object.keys(groupedData).length > 0}
             hasGroupedByName={Object.keys(analyzer.groupedByName).length > 0}
+            userGroups={userGroups.groups}
+            selectedUserGroups={selectedUserGroups}
+            onUserGroupsChange={setSelectedUserGroups}
           />
 
           {Object.keys(groupedData).length > 0 && (
@@ -90,7 +122,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
               {!selectedCategory && !selectedUser ? (
                 <SummaryView
                   summaryViewMode={analyzer.summaryViewMode}
-                  totalHours={analyzer.totalHours}
+                  totalHours={totalHours}
                   groupedData={analyzer.groupedData}
                   groupedByName={analyzer.groupedByName}
                   groupedDataByCategory={analyzer.groupedDataByCategory}
