@@ -3,6 +3,7 @@ import { Card, Space } from "antd";
 
 import { useExcelProcessor } from "./hooks/useExcelProcessor";
 import { useTempoAnalyzer } from "./hooks/useTempoAnalyzer";
+import { useUserGroups } from "./hooks/useUserGroups";
 import { Props } from "./types";
 import { FileUpload } from "./components/FileUpload";
 import { SheetManager } from "./components/SheetManager";
@@ -11,6 +12,7 @@ import { SummaryView } from "./components/SummaryView";
 import { DrilldownView } from "./components/DrilldownView";
 import { RawDataTable } from "./components/RawDataTable";
 import { WorkDescriptionModal } from "./components/WorkDescriptionModal";
+import { UserGroupManager } from "./components/UserGroupManager";
 
 const TempoAnalyzer: React.FC<Props> = () => {
   const {
@@ -23,6 +25,21 @@ const TempoAnalyzer: React.FC<Props> = () => {
     setSelectedSheets,
   } = useExcelProcessor();
   const analyzer = useTempoAnalyzer(sheets, selectedSheets);
+
+  // Extract unique user names from the data for user group management
+  const availableUsers = React.useMemo(() => {
+    if (!analyzer.groupedByName) return [];
+    return Object.keys(analyzer.groupedByName);
+  }, [analyzer.groupedByName]);
+
+  // User group management
+  const {
+    userGroups,
+    createGroup,
+    updateGroup,
+    deleteGroup,
+    assignUserToGroup,
+  } = useUserGroups(availableUsers);
 
   const {
     groupedData,
@@ -102,6 +119,15 @@ const TempoAnalyzer: React.FC<Props> = () => {
           />
         </Space>
       </Card>
+
+      {/* User Group Management - Always visible */}
+      <UserGroupManager
+        userGroups={userGroups}
+        onCreateGroup={createGroup}
+        onUpdateGroup={updateGroup}
+        onDeleteGroup={(id, name) => deleteGroup(id)}
+        onAssignUser={assignUserToGroup}
+      />
 
       <WorkDescriptionModal
         visible={showWorkDescriptionModal}

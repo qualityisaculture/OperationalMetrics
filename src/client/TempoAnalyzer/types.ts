@@ -114,3 +114,18 @@ export interface State {
   // New state for tracking which rows to show in the expandable table
   displayedRows: any[];
 }
+
+export interface UserGroup {
+  id: string;
+  name: string;
+}
+
+export interface UserGroupAssignment {
+  fullName: string;
+  groupId: string | null; // null means "uncategorised"
+}
+
+export interface UserGroupState {
+  groups: UserGroup[];
+  assignments: UserGroupAssignment[];
+}
