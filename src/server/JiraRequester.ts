@@ -19,6 +19,7 @@ export type LiteJiraIssue = {
   summary: string;
   type: string;
   status: string;
+  priority?: string; // Add priority field
   account: string; // Account field for the issue (required)
   children: LiteJiraIssue[];
   childCount: number;
@@ -38,6 +39,7 @@ export class JiraLite {
   summary: string;
   type: string;
   status: string;
+  priority?: string; // Add priority field
   account: string; // Account field for the issue (required)
   children: JiraLite[];
   childCount: number;
@@ -52,12 +54,14 @@ export class JiraLite {
     url: string,
     children: JiraLite[] = [],
     account: string,
-    hasChildren?: boolean | null
+    hasChildren?: boolean | null,
+    priority?: string
   ) {
     this.key = key;
     this.summary = summary;
     this.type = type;
     this.status = status;
+    this.priority = priority;
     this.account = account;
     this.children = children;
     this.childCount = children.length;
@@ -68,7 +72,7 @@ export class JiraLite {
   static fromLiteJiraIssue(issue: LiteJiraIssue): JiraLite {
     const children = issue.children.map((child) =>
       typeof child === "string"
-        ? new JiraLite(child, "", "", "", "", [], "Unknown")
+        ? new JiraLite(child, "", "", "", "", [], "Unknown", undefined, undefined)
         : JiraLite.fromLiteJiraIssue(child)
     );
     return new JiraLite(
@@ -79,7 +83,8 @@ export class JiraLite {
       issue.url,
       children,
       issue.account,
-      issue.hasChildren
+      issue.hasChildren,
+      issue.priority
     );
   }
 
@@ -89,6 +94,7 @@ export class JiraLite {
       summary: this.summary,
       type: this.type,
       status: this.status,
+      priority: this.priority,
       account: this.account,
       children: this.children.map((child) => child.toLiteJiraIssue()),
       childCount: this.childCount,
@@ -299,53 +305,70 @@ export default class JiraRequester {
     return releasedReleases.slice(-count);
   }
 
-  async getTimeTrackingData(issueKeys: string[]): Promise<Record<string, Array<{ date: string; timeSpent: number }>>> {
+  async getTimeTrackingData(
+    issueKeys: string[]
+  ): Promise<Record<string, Array<{ date: string; timeSpent: number }>>> {
     if (issueKeys.length === 0) {
       return {};
     }
 
     try {
-      console.log(`Fetching time tracking data for ${issueKeys.length} issues...`);
-      
+      console.log(
+        `Fetching time tracking data for ${issueKeys.length} issues...`
+      );
+
       // Get issues with changelog enabled to track time changes
       const issuesWithChangelog = await this.requestIssueFromServer(issueKeys);
-      console.log(`Retrieved ${issuesWithChangelog.issues.length} issues with changelog`);
-      
-      const timeTrackingData: Record<string, Array<{ date: string; timeSpent: number }>> = {};
+      console.log(
+        `Retrieved ${issuesWithChangelog.issues.length} issues with changelog`
+      );
+
+      const timeTrackingData: Record<
+        string,
+        Array<{ date: string; timeSpent: number }>
+      > = {};
 
       for (const issue of issuesWithChangelog.issues) {
         const issueKey = issue.key;
         const timeEntries: Array<{ date: string; timeSpent: number }> = [];
 
         if (issue.changelog && issue.changelog.histories) {
-          console.log(`Processing changelog for ${issueKey} with ${issue.changelog.histories.length} history entries`);
-          
+          console.log(
+            `Processing changelog for ${issueKey} with ${issue.changelog.histories.length} history entries`
+          );
+
           // Process each history entry
           for (const history of issue.changelog.histories) {
             // Look for timespent field changes
-            const timeSpentItems = history.items.filter(item => item.field === "timespent");
-            
+            const timeSpentItems = history.items.filter(
+              (item) => item.field === "timespent"
+            );
+
             if (timeSpentItems.length > 0) {
-              console.log(`Found ${timeSpentItems.length} timespent changes for ${issueKey} on ${history.created}`);
+              console.log(
+                `Found ${timeSpentItems.length} timespent changes for ${issueKey} on ${history.created}`
+              );
             }
-            
+
             for (const item of timeSpentItems) {
               // Calculate time added in this change
               const fromTime = parseInt(item.fromString || "0");
               const toTime = parseInt(item.toString || "0");
               const timeAdded = toTime - fromTime;
-              
+
               if (timeAdded > 0) {
                 // Convert seconds to days (assuming 7.5 hours per day)
                 const timeAddedInDays = timeAdded / (3600 * 7.5);
-                const date = history.created.split('T')[0]; // YYYY-MM-DD format
-                
+                const date = history.created.split("T")[0]; // YYYY-MM-DD format
+
                 timeEntries.push({
                   date,
-                  timeSpent: timeAddedInDays
+                  timeSpent: timeAddedInDays,
                 });
-                
-                console.log(`Added ${timeAddedInDays.toFixed(2)} days for ${issueKey} on ${date}`);
+
+                console.log(
+                  `Added ${timeAddedInDays.toFixed(2)} days for ${issueKey} on ${date}`
+                );
               }
             }
           }
@@ -354,22 +377,29 @@ export default class JiraRequester {
         }
 
         // Aggregate time entries by date (sum multiple entries on the same date)
-        const timeByDate = timeEntries.reduce((acc, entry) => {
-          acc[entry.date] = (acc[entry.date] || 0) + entry.timeSpent;
-          return acc;
-        }, {} as Record<string, number>);
+        const timeByDate = timeEntries.reduce(
+          (acc, entry) => {
+            acc[entry.date] = (acc[entry.date] || 0) + entry.timeSpent;
+            return acc;
+          },
+          {} as Record<string, number>
+        );
 
         // Convert to expected format and sort by date
         timeTrackingData[issueKey] = Object.entries(timeByDate)
           .map(([date, timeSpent]) => ({ date, timeSpent }))
           .sort((a, b) => a.date.localeCompare(b.date));
-        
+
         if (timeTrackingData[issueKey].length > 0) {
-          console.log(`Total time entries for ${issueKey}: ${timeTrackingData[issueKey].length} dates`);
+          console.log(
+            `Total time entries for ${issueKey}: ${timeTrackingData[issueKey].length} dates`
+          );
         }
       }
 
-      console.log(`Successfully processed time tracking data for ${Object.keys(timeTrackingData).length} issues`);
+      console.log(
+        `Successfully processed time tracking data for ${Object.keys(timeTrackingData).length} issues`
+      );
       return timeTrackingData;
     } catch (error) {
       console.error("Error fetching time tracking data:", error);
@@ -408,7 +438,7 @@ export default class JiraRequester {
   async getLiteQuery(query: string): Promise<LiteJiraIssue[]> {
     try {
       const domain = process.env.JIRA_DOMAIN;
-      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,issuetype,status,customfield_10085`;
+      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,issuetype,status,priority,customfield_10085`;
       console.log(`Fetching lite data for ${url}`);
 
       let response = await this.fetchRequest(url);
@@ -442,6 +472,7 @@ export default class JiraRequester {
         summary: issue.fields.summary || "",
         type: issue.fields.issuetype.name || "",
         status: issue.fields.status?.name || "",
+        priority: issue.fields.priority?.name || "None",
         account: issue.fields.customfield_10085?.value || "None",
         children: [], // No children data
         childCount: 0, // No child count
@@ -471,7 +502,7 @@ export default class JiraRequester {
 
         const jql = `(${parentConditions}) ORDER BY created ASC`;
         const fields =
-          "key,summary,issuetype,parent,status,timeoriginalestimate,timespent,timeestimate,customfield_10085";
+          "key,summary,issuetype,parent,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085";
         const queryWithFields = `${jql}&fields=${fields}`;
 
         console.log(
@@ -485,6 +516,7 @@ export default class JiraRequester {
           summary: issue.fields.summary || "",
           type: issue.fields.issuetype.name || "",
           status: issue.fields.status?.name || "",
+          priority: issue.fields.priority?.name || "None",
           account: issue.fields.customfield_10085?.value || "None",
           parentKey: issue.fields.parent?.key || "",
           url: `${process.env.JIRA_DOMAIN}/browse/${issue.key}`,
@@ -514,7 +546,7 @@ export default class JiraRequester {
       const domain = process.env.JIRA_DOMAIN;
       // Query for issues where the parent field matches the parentKey
       const jql = `parent = "${parentKey}" ORDER BY created ASC`;
-      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,status,timeoriginalestimate,timespent,timeestimate,customfield_10085`;
+      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085`;
 
       let response = await this.fetchRequest(url);
 
@@ -539,6 +571,7 @@ export default class JiraRequester {
         summary: issue.fields.summary || "",
         type: issue.fields.issuetype.name || "",
         status: issue.fields.status?.name || "",
+        priority: issue.fields.priority?.name || "None",
         account: issue.fields.customfield_10085?.value || "None",
         children: [], // Children don't have nested children in this implementation
         childCount: 0,

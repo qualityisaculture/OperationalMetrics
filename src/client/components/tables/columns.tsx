@@ -206,6 +206,49 @@ export const getUnifiedColumns = ({
       onFilter: (value, record: any) => record.status === value,
     },
     {
+      title: "Priority",
+      dataIndex: "priority",
+      key: "priority",
+      render: (priority: string) => {
+        if (!priority || priority === "None") {
+          return <Tag color="default">None</Tag>;
+        }
+
+        const getPriorityColor = (priority: string) => {
+          const priorityLower = priority.toLowerCase();
+          if (priorityLower.includes("highest") || priorityLower.includes("critical")) {
+            return "red";
+          } else if (priorityLower.includes("high")) {
+            return "orange";
+          } else if (priorityLower.includes("medium")) {
+            return "blue";
+          } else if (priorityLower.includes("low")) {
+            return "green";
+          } else if (priorityLower.includes("lowest")) {
+            return "cyan";
+          } else {
+            return "default";
+          }
+        };
+
+        return <Tag color={getPriorityColor(priority)}>{priority}</Tag>;
+      },
+      sorter: (a: any, b: any) =>
+        (a.priority || "").localeCompare(b.priority || ""),
+      filters: (() => {
+        // Try to get priorities from projectIssues first, then from current data
+        const dataSource = projectIssues || currentIssues || [];
+        const uniquePriorities = [
+          ...new Set(dataSource.map((issue) => issue.priority).filter(Boolean)),
+        ].sort();
+        return uniquePriorities.map((priority) => ({
+          text: priority!,
+          value: priority!,
+        }));
+      })(),
+      onFilter: (value, record: any) => record.priority === value,
+    },
+    {
       title: "Account",
       dataIndex: "account",
       key: "account",
