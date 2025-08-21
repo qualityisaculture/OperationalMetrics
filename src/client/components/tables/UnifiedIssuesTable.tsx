@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, Space, Table, Button, Typography, DatePicker } from "antd";
 import {
   InfoCircleOutlined,
@@ -12,6 +12,7 @@ import {
   exportIssuesToExcel,
   exportCompleteWorkstreamToExcel,
 } from "../../JiraReport/utils/excelExport";
+import { useResizableColumns, ResizableTitle } from "./index";
 
 const { Text } = Typography;
 
@@ -83,14 +84,8 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   // Force re-render when date changes to update the "Actual Days since Date" column
   const [dateKey, setDateKey] = useState(0);
 
-  const handleDateChange = (newDate: Dayjs | null) => {
-    if (newDate) {
-      setTimeBookingsDate(newDate);
-      setDateKey((prev) => prev + 1); // Force re-render
-    }
-  };
-
-  const columns = getUnifiedColumns({
+  // Get base columns
+  const baseColumns = getUnifiedColumns({
     showFavoriteColumn,
     favoriteItems,
     toggleFavorite,
@@ -100,6 +95,22 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
     getWorkstreamDataCellSpan,
     timeBookingsDate: timeBookingsDate.format("YYYY-MM-DD"),
   });
+
+  // Use resizable columns hook
+  const { getResizableColumns } = useResizableColumns(baseColumns);
+
+  // Get resizable columns
+  const columns = useMemo(
+    () => getResizableColumns(baseColumns),
+    [getResizableColumns, baseColumns]
+  );
+
+  const handleDateChange = (newDate: Dayjs | null) => {
+    if (newDate) {
+      setTimeBookingsDate(newDate);
+      setDateKey((prev) => prev + 1); // Force re-render
+    }
+  };
 
   const handleExport = async () => {
     if (!parentWorkstreamKey || !workstreamName) return;
@@ -185,6 +196,11 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
           onRow={onRow}
           scroll={{ x: "max-content" }}
           style={{ overflow: "auto" }}
+          components={{
+            header: {
+              cell: ResizableTitle,
+            },
+          }}
         />
       </div>
     </Card>

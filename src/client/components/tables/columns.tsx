@@ -216,7 +216,10 @@ export const getUnifiedColumns = ({
 
         const getPriorityColor = (priority: string) => {
           const priorityLower = priority.toLowerCase();
-          if (priorityLower.includes("highest") || priorityLower.includes("critical")) {
+          if (
+            priorityLower.includes("highest") ||
+            priorityLower.includes("critical")
+          ) {
             return "red";
           } else if (priorityLower.includes("high")) {
             return "orange";

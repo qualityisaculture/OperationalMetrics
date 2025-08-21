@@ -81,6 +81,7 @@ export const getIssueColumns = (
     title: "Summary",
     dataIndex: "summary",
     key: "summary",
+    width: 300,
     render: (summary: string) => <Text>{summary}</Text>,
     sorter: (a, b) => a.summary.localeCompare(b.summary),
   },
@@ -88,6 +89,7 @@ export const getIssueColumns = (
     title: "Issue Type",
     dataIndex: "type",
     key: "type",
+    width: 150,
     defaultSortOrder: navigationStack.length === 1 ? "descend" : undefined,
     render: (type: string, record: JiraIssueWithAggregated) => {
       // Only apply special styling at the project workstreams level (navigationStack.length === 1)
@@ -129,6 +131,7 @@ export const getIssueColumns = (
     title: "Status",
     dataIndex: "status",
     key: "status",
+    width: 150,
     render: (status: string) => {
       // Handle undefined or empty status
       if (!status || status === "Unknown") {
@@ -188,6 +191,7 @@ export const getIssueColumns = (
     title: "Account",
     dataIndex: "account",
     key: "account",
+    width: 120,
     render: (account: string) => {
       return <Tag color="cyan">{account}</Tag>;
     },
@@ -211,6 +215,7 @@ export const getIssueColumns = (
           title: "Children",
           dataIndex: "childCount",
           key: "children",
+          width: 100,
           render: (childCount: number) => (
             <Text>
               {childCount > 0 ? (
@@ -228,6 +233,7 @@ export const getIssueColumns = (
     title: "Baseline Estimate",
     dataIndex: "originalEstimate",
     key: "originalEstimate",
+    width: 150,
     onCell: (record: JiraIssueWithAggregated) =>
       getWorkstreamDataCellSpan(record, true),
     render: (
