@@ -8,17 +8,20 @@ import {
   Popconfirm,
   Typography,
   Divider,
+  Collapse,
 } from "antd";
 import {
   DeleteOutlined,
   PlusOutlined,
   EditOutlined,
   UserOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
 import { UserGroup, UserGroupAssignment } from "../types";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+const { Panel } = Collapse;
 
 interface UserGroupManagerProps {
   userGroups: {
@@ -79,193 +82,212 @@ export const UserGroupManager: React.FC<UserGroupManagerProps> = ({
   };
 
   return (
-    <Card title="User Group Management" style={{ marginTop: "20px" }}>
-      <Space direction="vertical" size="large" style={{ width: "100%" }}>
-        {/* Create New Group */}
-        <div>
-          <Title level={5}>Create New Group</Title>
-          <Space>
-            <Input
-              placeholder="Enter group name"
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              onPressEnter={handleCreateGroup}
-              style={{ width: 200 }}
-            />
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleCreateGroup}
-              disabled={!newGroupName.trim()}
-            >
-              Create Group
-            </Button>
-          </Space>
-        </div>
-
-        <Divider />
-
-        {/* Groups with Users */}
-        <div>
-          <Title level={5}>Groups and Users</Title>
-          <Space direction="vertical" style={{ width: "100%" }}>
-            {userGroups.groups.map((group) => {
-              const usersInGroup = getUsersInGroup(group.id);
-
-              return (
-                <div
-                  key={group.id}
-                  style={{
-                    border: "1px solid #f0f0f0",
-                    borderRadius: "8px",
-                    padding: "16px",
-                    backgroundColor: "#fafafa",
-                  }}
+    <Card style={{ marginTop: "20px" }}>
+      <Collapse defaultActiveKey={[]} ghost>
+        <Panel
+          header={
+            <span>
+              <TeamOutlined style={{ marginRight: "8px" }} />
+              User Group Management
+            </span>
+          }
+          key="user-groups"
+        >
+          <Space direction="vertical" size="large" style={{ width: "100%" }}>
+            {/* Create New Group */}
+            <div>
+              <Title level={5}>Create New Group</Title>
+              <Space>
+                <Input
+                  placeholder="Enter group name"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  onPressEnter={handleCreateGroup}
+                  style={{ width: 200 }}
+                />
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleCreateGroup}
+                  disabled={!newGroupName.trim()}
                 >
-                  {/* Group Header */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      marginBottom: "12px",
-                    }}
-                  >
-                    {editingGroup?.id === group.id ? (
-                      <>
-                        <Input
-                          value={editingGroup.name}
-                          onChange={(e) =>
-                            setEditingGroup({
-                              ...editingGroup,
-                              name: e.target.value,
-                            })
-                          }
-                          style={{ width: 200 }}
-                        />
-                        <Button size="small" onClick={handleUpdateGroup}>
-                          Save
-                        </Button>
-                        <Button size="small" onClick={cancelEditing}>
-                          Cancel
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Title
-                          level={4}
-                          style={{
-                            margin: 0,
-                            color:
-                              group.id === "uncategorised" ? "#666" : "#1890ff",
-                          }}
-                        >
-                          {group.name}
-                        </Title>
-                        {group.id !== "uncategorised" && (
-                          <>
-                            <Button
-                              size="small"
-                              icon={<EditOutlined />}
-                              onClick={() => startEditing(group)}
-                            >
-                              Edit
-                            </Button>
-                            <Popconfirm
-                              title="Are you sure you want to delete this group?"
-                              description="All users in this group will be moved to 'Uncategorised'."
-                              onConfirm={() =>
-                                onDeleteGroup(group.id, group.name)
-                              }
-                              okText="Yes"
-                              cancelText="No"
-                            >
-                              <Button
-                                size="small"
-                                danger
-                                icon={<DeleteOutlined />}
-                              >
-                                Delete
-                              </Button>
-                            </Popconfirm>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </div>
+                  Create Group
+                </Button>
+              </Space>
+            </div>
 
-                  {/* Users in this group */}
-                  <div style={{ marginLeft: "20px" }}>
-                    {usersInGroup.length > 0 ? (
+            <Divider />
+
+            {/* Groups with Users */}
+            <div>
+              <Title level={5}>Groups and Users</Title>
+              <Space direction="vertical" style={{ width: "100%" }}>
+                {userGroups.groups.map((group) => {
+                  const usersInGroup = getUsersInGroup(group.id);
+
+                  return (
+                    <div
+                      key={group.id}
+                      style={{
+                        border: "1px solid #f0f0f0",
+                        borderRadius: "8px",
+                        padding: "16px",
+                        backgroundColor: "#fafafa",
+                      }}
+                    >
+                      {/* Group Header */}
                       <div
                         style={{
                           display: "flex",
-                          flexWrap: "wrap",
-                          gap: "8px",
+                          alignItems: "center",
+                          gap: "10px",
+                          marginBottom: "12px",
                         }}
                       >
-                        {usersInGroup.map((userName) => (
+                        {editingGroup?.id === group.id ? (
+                          <>
+                            <Input
+                              value={editingGroup.name}
+                              onChange={(e) =>
+                                setEditingGroup({
+                                  ...editingGroup,
+                                  name: e.target.value,
+                                })
+                              }
+                              style={{ width: 200 }}
+                            />
+                            <Button size="small" onClick={handleUpdateGroup}>
+                              Save
+                            </Button>
+                            <Button size="small" onClick={cancelEditing}>
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Title
+                              level={4}
+                              style={{
+                                margin: 0,
+                                color:
+                                  group.id === "uncategorised"
+                                    ? "#666"
+                                    : "#1890ff",
+                              }}
+                            >
+                              {group.name}
+                            </Title>
+                            {group.id !== "uncategorised" && (
+                              <>
+                                <Button
+                                  size="small"
+                                  icon={<EditOutlined />}
+                                  onClick={() => startEditing(group)}
+                                >
+                                  Edit
+                                </Button>
+                                <Popconfirm
+                                  title="Are you sure you want to delete this group?"
+                                  description="All users in this group will be moved to 'Uncategorised'."
+                                  onConfirm={() =>
+                                    onDeleteGroup(group.id, group.name)
+                                  }
+                                  okText="Yes"
+                                  cancelText="No"
+                                >
+                                  <Button
+                                    size="small"
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                  >
+                                    Delete
+                                  </Button>
+                                </Popconfirm>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      {/* Users in this group */}
+                      <div style={{ marginLeft: "20px" }}>
+                        {usersInGroup.length > 0 ? (
                           <div
-                            key={userName}
                             style={{
                               display: "flex",
-                              alignItems: "center",
+                              flexWrap: "wrap",
                               gap: "8px",
-                              padding: "4px 8px",
-                              backgroundColor: "white",
-                              border: "1px solid #d9d9d9",
-                              borderRadius: "4px",
-                              fontSize: "12px",
                             }}
                           >
-                            <UserOutlined
-                              style={{ fontSize: "12px", color: "#666" }}
-                            />
-                            <Text style={{ fontSize: "12px" }}>{userName}</Text>
-                            {group.id !== "uncategorised" && (
-                              <Button
-                                size="small"
-                                type="text"
-                                danger
-                                onClick={() => onAssignUser(userName, null)}
-                                style={{ padding: "0 4px", minWidth: "auto" }}
+                            {usersInGroup.map((userName) => (
+                              <div
+                                key={userName}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px",
+                                  padding: "4px 8px",
+                                  backgroundColor: "white",
+                                  border: "1px solid #d9d9d9",
+                                  borderRadius: "4px",
+                                  fontSize: "12px",
+                                }}
                               >
-                                ×
-                              </Button>
-                            )}
+                                <UserOutlined
+                                  style={{ fontSize: "12px", color: "#666" }}
+                                />
+                                <Text style={{ fontSize: "12px" }}>
+                                  {userName}
+                                </Text>
+                                {group.id !== "uncategorised" && (
+                                  <Button
+                                    size="small"
+                                    type="text"
+                                    danger
+                                    onClick={() => onAssignUser(userName, null)}
+                                    style={{
+                                      padding: "0 4px",
+                                      minWidth: "auto",
+                                    }}
+                                  >
+                                    ×
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        ) : (
+                          <Text type="secondary" style={{ fontSize: "12px" }}>
+                            No users in this group
+                          </Text>
+                        )}
                       </div>
-                    ) : (
-                      <Text type="secondary" style={{ fontSize: "12px" }}>
-                        No users in this group
-                      </Text>
-                    )}
-                  </div>
 
-                  {/* Add user to group (only for non-uncategorised groups) */}
-                  {group.id !== "uncategorised" && (
-                    <div style={{ marginTop: "12px", marginLeft: "20px" }}>
-                      <Select
-                        placeholder="Add user to this group"
-                        style={{ width: 200 }}
-                        onChange={(value) => onAssignUser(value, group.id)}
-                        allowClear
-                      >
-                        {getUnassignedUsers().map((userName) => (
-                          <Option key={userName} value={userName}>
-                            {userName}
-                          </Option>
-                        ))}
-                      </Select>
+                      {/* Add user to group (only for non-uncategorised groups) */}
+                      {group.id !== "uncategorised" && (
+                        <div style={{ marginTop: "12px", marginLeft: "20px" }}>
+                          <Select
+                            placeholder="Add user to this group"
+                            style={{ width: 200 }}
+                            onChange={(value) => onAssignUser(value, group.id)}
+                            allowClear
+                          >
+                            {getUnassignedUsers().map((userName) => (
+                              <Option key={userName} value={userName}>
+                                {userName}
+                              </Option>
+                            ))}
+                          </Select>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+              </Space>
+            </div>
           </Space>
-        </div>
-      </Space>
+        </Panel>
+      </Collapse>
     </Card>
   );
 };
