@@ -18,6 +18,7 @@ import {
   TeamOutlined,
 } from "@ant-design/icons";
 import { UserGroup, UserGroupAssignment } from "../types";
+import { GroupTimeBreakdown } from "./GroupTimeBreakdown";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -32,6 +33,22 @@ interface UserGroupManagerProps {
   onUpdateGroup: (id: string, name: string) => void;
   onDeleteGroup: (id: string, name: string) => void;
   onAssignUser: (fullName: string, groupId: string | null) => void;
+  // Data for group breakdown
+  groupedDataByCategory: {
+    [category: string]: {
+      totalHours: number;
+      accounts: {
+        [accountName: string]: {
+          totalHours: number;
+          files: { [fileName: string]: number };
+        };
+      };
+    };
+  };
+  filteredData: any[];
+  accountCategoryIndex: number;
+  loggedHoursIndex: number;
+  fullNameIndex: number;
 }
 
 export const UserGroupManager: React.FC<UserGroupManagerProps> = ({
@@ -40,6 +57,11 @@ export const UserGroupManager: React.FC<UserGroupManagerProps> = ({
   onUpdateGroup,
   onDeleteGroup,
   onAssignUser,
+  groupedDataByCategory,
+  filteredData,
+  accountCategoryIndex,
+  loggedHoursIndex,
+  fullNameIndex,
 }) => {
   const [newGroupName, setNewGroupName] = useState("");
   const [editingGroup, setEditingGroup] = useState<{
@@ -285,6 +307,16 @@ export const UserGroupManager: React.FC<UserGroupManagerProps> = ({
                 })}
               </Space>
             </div>
+
+            {/* Group Time Breakdown */}
+            <GroupTimeBreakdown
+              userGroups={userGroups}
+              groupedDataByCategory={groupedDataByCategory}
+              filteredData={filteredData}
+              accountCategoryIndex={accountCategoryIndex}
+              loggedHoursIndex={loggedHoursIndex}
+              fullNameIndex={fullNameIndex}
+            />
           </Space>
         </Panel>
       </Collapse>

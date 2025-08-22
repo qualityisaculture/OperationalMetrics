@@ -159,6 +159,11 @@ const TempoAnalyzer: React.FC<Props> = () => {
         onUpdateGroup={updateGroup}
         onDeleteGroup={(id, name) => deleteGroup(id)}
         onAssignUser={assignUserToGroup}
+        groupedDataByCategory={analyzer.groupedDataByCategory}
+        filteredData={analyzer.filteredData}
+        accountCategoryIndex={analyzer.accountCategoryIndex}
+        loggedHoursIndex={analyzer.loggedHoursIndex}
+        fullNameIndex={analyzer.fullNameIndex}
       />
 
       <WorkDescriptionModal
