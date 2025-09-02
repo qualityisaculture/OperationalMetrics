@@ -296,7 +296,7 @@ export const getUnifiedColumns = ({
   if (getWorkstreamDataCellSpan) {
     columns.push(
       {
-        title: "Baseline Estimate",
+        title: "Original Estimate",
         dataIndex: "originalEstimate",
         key: "originalEstimate",
         onCell: (record: JiraIssueWithAggregated) =>

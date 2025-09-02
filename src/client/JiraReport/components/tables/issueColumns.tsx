@@ -230,7 +230,7 @@ export const getIssueColumns = (
       ]
     : []),
   {
-    title: "Baseline Estimate",
+    title: "Original Estimate",
     dataIndex: "originalEstimate",
     key: "originalEstimate",
     width: 150,

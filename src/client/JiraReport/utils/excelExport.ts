@@ -395,7 +395,7 @@ export const exportProjectWorkstreamsToExcel = (
       Type: workstream.type,
 
       // Time estimates and actuals (using aggregated values if available)
-      "Baseline Estimate (days)":
+      "Original Estimate (days)":
         workstream.aggregatedOriginalEstimate !== undefined
           ? workstream.aggregatedOriginalEstimate
           : workstream.originalEstimate || 0,
