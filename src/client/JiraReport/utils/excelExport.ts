@@ -154,6 +154,7 @@ export const exportWorkstreamToExcel = (
     Parent: "",
     "Issue Level": "",
     ChildCount: "",
+    "Baseline Estimate (days)": "",
     "Original Estimate (days)": "",
     "Time Spent (days)": "",
     "Time Remaining (days)": "",
@@ -175,6 +176,7 @@ export const exportWorkstreamToExcel = (
     ChildCount: workstream.childCount,
 
     // Individual estimates and time (workstream's own values)
+    "Baseline Estimate (days)": workstream.baselineEstimate || 0,
     "Original Estimate (days)": workstream.originalEstimate || 0,
     "Time Spent (days)": workstream.timeSpent || 0,
     "Time Remaining (days)": workstream.timeRemaining || 0,
@@ -235,6 +237,7 @@ export const exportIssuesToExcel = (
     Parent: "",
     "Issue Level": "",
     ChildCount: "",
+    "Baseline Estimate (days)": "",
     "Original Estimate (days)": "",
     "Time Spent (days)": "",
     "Time Remaining (days)": "",
@@ -256,6 +259,7 @@ export const exportIssuesToExcel = (
     ChildCount: issue.childCount,
 
     // Individual estimates and time (issue's own values)
+    "Baseline Estimate (days)": issue.baselineEstimate || 0,
     "Original Estimate (days)": issue.originalEstimate || 0,
     "Time Spent (days)": issue.timeSpent || 0,
     "Time Remaining (days)": issue.timeRemaining || 0,
@@ -318,6 +322,7 @@ export const exportCompleteWorkstreamToExcel = async (
             Parent: "",
             "Issue Level": "",
             ChildCount: "",
+            "Baseline Estimate (days)": "",
             "Original Estimate (days)": "",
             "Time Spent (days)": "",
             "Time Remaining (days)": "",
@@ -339,6 +344,7 @@ export const exportCompleteWorkstreamToExcel = async (
             ChildCount: issue.childCount,
 
             // Individual estimates and time (issue's own values)
+            "Baseline Estimate (days)": issue.baselineEstimate || 0,
             "Original Estimate (days)": issue.originalEstimate || 0,
             "Time Spent (days)": issue.timeSpent || 0,
             "Time Remaining (days)": issue.timeRemaining || 0,
@@ -395,6 +401,7 @@ export const exportProjectWorkstreamsToExcel = (
       Type: workstream.type,
 
       // Time estimates and actuals (using aggregated values if available)
+      "Baseline Estimate (days)": workstream.baselineEstimate || 0,
       "Original Estimate (days)":
         workstream.aggregatedOriginalEstimate !== undefined
           ? workstream.aggregatedOriginalEstimate

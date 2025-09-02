@@ -230,6 +230,24 @@ export const getIssueColumns = (
       ]
     : []),
   {
+    title: "Baseline Estimate",
+    dataIndex: "baselineEstimate",
+    key: "baselineEstimate",
+    width: 150,
+    render: (baselineEstimate: number | null | undefined) => {
+      return (
+        <Text>
+          {baselineEstimate !== null && baselineEstimate !== undefined ? (
+            <Tag color="orange">{baselineEstimate.toFixed(1)} days</Tag>
+          ) : (
+            <Text type="secondary">-</Text>
+          )}
+        </Text>
+      );
+    },
+    sorter: (a, b) => (a.baselineEstimate || 0) - (b.baselineEstimate || 0),
+  },
+  {
     title: "Original Estimate",
     dataIndex: "originalEstimate",
     key: "originalEstimate",
