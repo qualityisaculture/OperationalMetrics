@@ -168,7 +168,7 @@ const JiraReport: React.FC = () => {
             onClick={loadProjects}
             loading={isLoading}
           >
-            Refresh
+            Clear Cache
           </Button>
           {favoriteItems.size > 0 && (
             <Text type="secondary">
