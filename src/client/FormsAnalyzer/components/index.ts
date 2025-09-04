@@ -1,6 +1,7 @@
 export { ActiveFilters } from "./ActiveFilters";
 export { AnswersTable } from "./AnswersTable";
 export { DataOverview } from "./DataOverview";
+export { DivergingStackedBarChart } from "./DivergingStackedBarChart";
 export { FileUpload } from "./FileUpload";
 export { HorizontalBarChart } from "./HorizontalBarChart";
 export { ReorderableBarChart } from "./ReorderableBarChart";

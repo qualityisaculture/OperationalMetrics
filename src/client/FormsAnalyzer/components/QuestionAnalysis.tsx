@@ -6,6 +6,7 @@ import {
   FilterCriteria,
 } from "../types";
 import { ReorderableBarChart } from "./ReorderableBarChart";
+import { DivergingStackedBarChart } from "./DivergingStackedBarChart";
 import { AnswersTable } from "./AnswersTable";
 
 const { Title, Text } = Typography;
@@ -20,7 +21,7 @@ interface QuestionAnalysisProps {
   onClearAllFilters: () => void;
 }
 
-type ChartType = "bar" | "table";
+type ChartType = "bar" | "diverging" | "table";
 
 export const QuestionAnalysis: React.FC<QuestionAnalysisProps> = ({
   questionAnalysis,
@@ -33,7 +34,19 @@ export const QuestionAnalysis: React.FC<QuestionAnalysisProps> = ({
   const [chartTypes, setChartTypes] = useState<Record<number, ChartType>>({});
 
   const getChartType = (questionIndex: number): ChartType => {
-    return chartTypes[questionIndex] || "bar";
+    // If user has manually selected a chart type, use that
+    if (chartTypes[questionIndex]) {
+      return chartTypes[questionIndex];
+    }
+
+    // Auto-detect Likert scale questions and default to diverging
+    const questionData = questionAnalysis[questionIndex];
+    if (questionData && hasLikertScaleAnswers(questionData.answers)) {
+      return "diverging";
+    }
+
+    // Default to bar chart for other questions
+    return "bar";
   };
 
   const handleChartTypeChange = (
@@ -118,6 +131,7 @@ export const QuestionAnalysis: React.FC<QuestionAnalysisProps> = ({
                   size="small"
                 >
                   <Option value="bar">Bar Chart</Option>
+                  <Option value="diverging">Diverging Stacked</Option>
                   <Option value="table">Table</Option>
                 </Select>
               </Col>
@@ -148,6 +162,12 @@ export const QuestionAnalysis: React.FC<QuestionAnalysisProps> = ({
                 question={questionData.question}
                 totalResponses={questionData.totalResponses}
               />
+            ) : getChartType(index) === "diverging" ? (
+              <DivergingStackedBarChart
+                answers={questionData.answers}
+                question={questionData.question}
+                totalResponses={questionData.totalResponses}
+              />
             ) : (
               <AnswersTable answers={questionData.answers} />
             )}
@@ -157,3 +177,23 @@ export const QuestionAnalysis: React.FC<QuestionAnalysisProps> = ({
     </Card>
   );
 };
+
+// Helper function to detect if answers contain Likert scale options
+function hasLikertScaleAnswers(
+  answers: { answer: string; count: number; percentage: number }[]
+): boolean {
+  const likertOptions = [
+    "Strongly Disagree",
+    "Disagree",
+    "Neutral",
+    "Agree",
+    "Strongly Agree",
+  ];
+
+  return answers.some((answer) =>
+    likertOptions.some(
+      (likertOption) =>
+        answer.answer.toLowerCase() === likertOption.toLowerCase()
+    )
+  );
+}
