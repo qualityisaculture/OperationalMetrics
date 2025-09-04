@@ -1,4 +1,5 @@
 export { ActiveFilters } from "./ActiveFilters";
+export { AnswersTable } from "./AnswersTable";
 export { DataOverview } from "./DataOverview";
 export { FileUpload } from "./FileUpload";
 export { HorizontalBarChart } from "./HorizontalBarChart";

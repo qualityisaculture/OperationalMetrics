@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, Select, Tag, Space, Typography, Button, Row, Col } from "antd";
 import { FilterOutlined, ClearOutlined } from "@ant-design/icons";
 import {
@@ -6,6 +6,7 @@ import {
   FilterCriteria,
 } from "../types";
 import { ReorderableBarChart } from "./ReorderableBarChart";
+import { AnswersTable } from "./AnswersTable";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -19,6 +20,8 @@ interface QuestionAnalysisProps {
   onClearAllFilters: () => void;
 }
 
+type ChartType = "bar" | "table";
+
 export const QuestionAnalysis: React.FC<QuestionAnalysisProps> = ({
   questionAnalysis,
   activeFilters,
@@ -27,6 +30,22 @@ export const QuestionAnalysis: React.FC<QuestionAnalysisProps> = ({
   onRemoveFilter,
   onClearAllFilters,
 }) => {
+  const [chartTypes, setChartTypes] = useState<Record<number, ChartType>>({});
+
+  const getChartType = (questionIndex: number): ChartType => {
+    return chartTypes[questionIndex] || "bar";
+  };
+
+  const handleChartTypeChange = (
+    questionIndex: number,
+    chartType: ChartType
+  ) => {
+    setChartTypes((prev) => ({
+      ...prev,
+      [questionIndex]: chartType,
+    }));
+  };
+
   const handleFilterChange = (question: string, selectedAnswers: string[]) => {
     if (selectedAnswers.length === 0) {
       onRemoveFilter(question);
@@ -82,7 +101,7 @@ export const QuestionAnalysis: React.FC<QuestionAnalysisProps> = ({
             }}
           >
             <Row gutter={[16, 16]} align="middle">
-              <Col span={12}>
+              <Col span={8}>
                 <Title level={5} style={{ margin: 0 }}>
                   {questionData.question}
                 </Title>
@@ -91,7 +110,19 @@ export const QuestionAnalysis: React.FC<QuestionAnalysisProps> = ({
                 </Text>
               </Col>
 
-              <Col span={12}>
+              <Col span={6}>
+                <Select
+                  value={getChartType(index)}
+                  onChange={(value) => handleChartTypeChange(index, value)}
+                  style={{ width: "100%" }}
+                  size="small"
+                >
+                  <Option value="bar">Bar Chart</Option>
+                  <Option value="table">Table</Option>
+                </Select>
+              </Col>
+
+              <Col span={10}>
                 <Select
                   mode="multiple"
                   placeholder="Select answers to filter by..."
@@ -111,11 +142,15 @@ export const QuestionAnalysis: React.FC<QuestionAnalysisProps> = ({
               </Col>
             </Row>
 
-            <ReorderableBarChart
-              answers={questionData.answers}
-              question={questionData.question}
-              totalResponses={questionData.totalResponses}
-            />
+            {getChartType(index) === "bar" ? (
+              <ReorderableBarChart
+                answers={questionData.answers}
+                question={questionData.question}
+                totalResponses={questionData.totalResponses}
+              />
+            ) : (
+              <AnswersTable answers={questionData.answers} />
+            )}
           </Card>
         ))}
       </Space>
