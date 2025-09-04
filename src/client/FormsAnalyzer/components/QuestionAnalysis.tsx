@@ -1,21 +1,11 @@
 import React from "react";
-import {
-  Card,
-  Select,
-  Tag,
-  Progress,
-  Space,
-  Typography,
-  Button,
-  Row,
-  Col,
-  Statistic,
-} from "antd";
+import { Card, Select, Tag, Space, Typography, Button, Row, Col } from "antd";
 import { FilterOutlined, ClearOutlined } from "@ant-design/icons";
 import {
   QuestionAnalysis as QuestionAnalysisType,
   FilterCriteria,
 } from "../types";
+import { ReorderableBarChart } from "./ReorderableBarChart";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -121,30 +111,11 @@ export const QuestionAnalysis: React.FC<QuestionAnalysisProps> = ({
               </Col>
             </Row>
 
-            <div style={{ marginTop: "16px" }}>
-              <Row gutter={[8, 8]}>
-                {questionData.answers.map((answer, answerIndex) => (
-                  <Col key={answerIndex} span={8}>
-                    <Card size="small" style={{ textAlign: "center" }}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <Text strong>{answer.answer}</Text>
-                      </div>
-                      <Progress
-                        type="circle"
-                        size={60}
-                        percent={Math.round(answer.percentage)}
-                        format={(percent) => `${answer.count}`}
-                      />
-                      <div style={{ marginTop: "8px" }}>
-                        <Text type="secondary">
-                          {answer.percentage.toFixed(1)}%
-                        </Text>
-                      </div>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
-            </div>
+            <ReorderableBarChart
+              answers={questionData.answers}
+              question={questionData.question}
+              totalResponses={questionData.totalResponses}
+            />
           </Card>
         ))}
       </Space>
