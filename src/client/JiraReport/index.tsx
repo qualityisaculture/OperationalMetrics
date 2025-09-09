@@ -15,6 +15,7 @@ import { Breadcrumbs } from "./components/Breadcrumbs";
 import { RequestAllModal } from "./components/RequestAllModal";
 import { DynamicProjectSummary } from "./components/DynamicProjectSummary";
 import { TimeBookingsModal } from "./components/TimeBookingsModal";
+import { DefectHistorySection } from "./components/DefectHistorySection";
 import { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
 
 const { Title, Text } = Typography;
@@ -38,6 +39,7 @@ const JiraReport: React.FC = () => {
     requestAllWorkstreams,
     loadProjectWorkstreams,
     requestTimeBookings,
+    requestDefectHistory,
   } = useJiraReport();
 
   // State for time bookings modal
@@ -79,6 +81,9 @@ const JiraReport: React.FC = () => {
     requestAllDetails,
     progressStatus,
     progressDetails,
+    defectHistoryData,
+    defectHistoryLoading,
+    defectHistoryError,
   } = state;
 
   const showTimeBookingsModal = (fromDate: string) => {
@@ -305,6 +310,14 @@ const JiraReport: React.FC = () => {
                   handleWorkstreamClick={handleWorkstreamClick}
                   showRequestAllModal={showRequestAllModal}
                   toggleFavorite={toggleFavorite}
+                />
+
+                <DefectHistorySection
+                  selectedProject={selectedProject}
+                  onRequestDefectHistory={requestDefectHistory}
+                  defectHistoryData={defectHistoryData}
+                  defectHistoryLoading={defectHistoryLoading}
+                  defectHistoryError={defectHistoryError}
                 />
               </>
             ))}

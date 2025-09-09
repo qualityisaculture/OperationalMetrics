@@ -30,6 +30,10 @@ export const useJiraReport = () => {
     isRequestAllModalVisible: false,
     requestAllProgress: 0,
     requestAllDetails: undefined,
+    // New state for defect history functionality
+    defectHistoryData: null,
+    defectHistoryLoading: false,
+    defectHistoryError: null,
   });
 
   const getWorkstreamDataCellSpan = useCallback(
@@ -1008,6 +1012,53 @@ export const useJiraReport = () => {
     }
   };
 
+  const requestDefectHistory = async (projectKey: string) => {
+    setState((prevState) => ({
+      ...prevState,
+      defectHistoryLoading: true,
+      defectHistoryError: null,
+    }));
+
+    try {
+      // Generate JQL query for incidents and faults
+      const query = `project = "${projectKey}" AND type IN (Incident, Fault)`;
+
+      // Use current date as both start and end date - let the CFD manager handle the date logic
+      const currentDate = new Date();
+
+      const response = await fetch(
+        `/api/cumulativeFlowDiagram?query=${encodeURIComponent(query)}&startDate=${currentDate.toISOString()}&endDate=${currentDate.toISOString()}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const defectHistoryData = JSON.parse(result.data);
+
+      setState((prevState) => ({
+        ...prevState,
+        defectHistoryData,
+        defectHistoryLoading: false,
+        defectHistoryError: null,
+      }));
+    } catch (error) {
+      console.error(
+        `Error requesting defect history for ${projectKey}:`,
+        error
+      );
+      setState((prevState) => ({
+        ...prevState,
+        defectHistoryLoading: false,
+        defectHistoryError:
+          error instanceof Error
+            ? error.message
+            : "Failed to load defect history",
+      }));
+    }
+  };
+
   return {
     state,
     getWorkstreamDataCellSpan,
@@ -1026,5 +1077,6 @@ export const useJiraReport = () => {
     hideRequestAllModal,
     requestAllWorkstreams,
     requestTimeBookings,
+    requestDefectHistory,
   };
 };

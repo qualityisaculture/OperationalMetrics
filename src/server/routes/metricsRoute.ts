@@ -47,14 +47,12 @@ const bottleneckDetectorGraphManager = new BottleneckDetectorGraphManager(
 metricsRoute.get(
   "/cumulativeFlowDiagram",
   (
-    req: TRQ<{ query: string; startDate: string; endDate: string }>,
+    req: TRQ<{ query: string }>,
     res: TR<{ message: string; data: string }>
   ) => {
     const query = req.query.query;
-    const startDate = new Date(req.query.startDate);
-    const endDate = new Date(req.query.endDate);
     cfdm
-      .getCumulativeFlowDiagramData(query, startDate, endDate)
+      .getCumulativeFlowDiagramData(query)
       .then((data) => {
         res.json({ message: "Metrics route", data: JSON.stringify(data) });
       })

@@ -20,13 +20,24 @@ export default class CumulativeFlowDiagramManager {
   }
 
   async getCumulativeFlowDiagramData(
-    query: string,
-    startDate: Date,
-    endDate: Date
+    query: string
   ): Promise<CumulativeFlowDiagramData> {
+    // First, get all issues to determine the earliest created date
+    let jiraData = await this.jiraRequester.getQuery(query);
+    
+    if (jiraData.length === 0) {
+      return { allStatuses: [], timeline: [] };
+    }
+    
+    // Find the earliest created date among all issues
+    let earliestCreatedDate = new Date(Math.min(...jiraData.map(issue => issue.created.getTime())));
+    
+    // Set end date to today
+    let endDate = new Date();
+    
     let timeline = await this.getCumulativeFlowDiagramTimeline(
       query,
-      startDate,
+      earliestCreatedDate,
       endDate
     );
     let allStatuses = new Set<string>();

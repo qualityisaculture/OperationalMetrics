@@ -81,4 +81,8 @@ export interface JiraReportState {
     phaseProgress: number;
     phaseTotal: number;
   };
+  // New state for defect history functionality
+  defectHistoryData: any | null;
+  defectHistoryLoading: boolean;
+  defectHistoryError: string | null;
 }

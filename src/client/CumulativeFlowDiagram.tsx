@@ -1,35 +1,27 @@
 import React from "react";
 import AreaChart, { AreaType, CategoryData, XAxisData } from "./AreaChart";
-import { DatePicker, Select as AntSelect, Input, Button } from "antd";
+import { DatePicker, Input, Button } from "antd";
 import dayjs from "dayjs";
 import {
   CumulativeFlowDiagramData,
   CumulativeFlowDiagramDateStatus,
 } from "../server/graphManagers/CumulativeFlowDiagramManager";
 import Select from "./Select";
-import { DefaultOptionType, SelectProps } from "antd/es/select";
-import { cli } from "webpack";
+import { SelectProps } from "antd/es/select";
 import { MinimumIssueInfo } from "../Types";
-
-type Project = {
-  id: string;
-  key: string;
-  name: string;
-};
 
 interface Props {}
 interface State {
   input: string;
-  startDate: Date;
-  endDate: Date;
   allStates: SelectProps["options"];
   selectedStates: string[];
   allTypes: SelectProps["options"];
   selectedTypes: string[];
   cfdData: CumulativeFlowDiagramData | null;
-  projects: Project[];
-  isLoadingProjects: boolean;
-  selectedProjects: string[];
+  // New state for chart date filtering
+  chartStartDate: Date;
+  chartEndDate: Date;
+  allData: CumulativeFlowDiagramData | null; // Store complete data from server
 }
 
 export default class CumulativeFlowDiagram extends React.Component<
@@ -38,139 +30,70 @@ export default class CumulativeFlowDiagram extends React.Component<
 > {
   constructor(props) {
     super(props);
-    const savedProjects = localStorage.getItem("cfdSelectedProjects");
-    let initialProjects: string[] = [];
-
-    if (savedProjects) {
-      try {
-        initialProjects = JSON.parse(savedProjects);
-      } catch (error) {
-        console.error("Error parsing saved projects:", error);
-      }
-    }
 
     this.state = {
       input: localStorage.getItem("cumulativeFlowQuery") || "",
-      startDate: new Date(),
-      endDate: new Date(),
       cfdData: null,
       allStates: [],
       selectedStates: [],
       allTypes: [],
       selectedTypes: [],
-      projects: [],
-      isLoadingProjects: false,
-      selectedProjects: initialProjects,
+      // Initialize chart date range to last 1 year
+      chartStartDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+      chartEndDate: new Date(),
+      allData: null,
     };
   }
 
-  componentDidMount() {
-    this.loadProjects();
-  }
-
-  loadProjects = () => {
-    this.setState({ isLoadingProjects: true });
-
-    console.log("Loading projects from API for CFD...");
-
-    fetch("/api/projects")
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Projects API Response for CFD:", data);
-        const projects: Project[] = JSON.parse(data.data);
-        console.log("Parsed Projects for CFD:", projects);
-
-        this.setState({
-          projects: projects,
-          isLoadingProjects: false,
-        });
-      })
-      .catch((error) => {
-        console.error("Projects API Error for CFD:", error);
-        this.setState({
-          isLoadingProjects: false,
-          projects: [], // Fallback to empty array on error
-        });
-      });
-  };
-
-  handleProjectChange = (values: string[]) => {
-    this.setState({ selectedProjects: values });
-    localStorage.setItem("cfdSelectedProjects", JSON.stringify(values));
-
-    // Auto-update the query when projects are selected
-    if (values.length > 0) {
-      this.generateAndSetQuery(values);
-    }
-  };
-
-  generateAndSetQuery = (projectKeys: string[]) => {
-    // Build project conditions
-    let projectQuery;
-    if (projectKeys.length === 1) {
-      projectQuery = `project = "${projectKeys[0]}"`;
-    } else {
-      const projectConditions = projectKeys
-        .map((project) => `project = "${project}"`)
-        .join(" OR ");
-      projectQuery = `(${projectConditions})`;
-    }
-
-    // Format start date for JQL (YYYY-MM-DD format)
-    const startDateStr = this.state.startDate.toISOString().split("T")[0];
-
-    // Build comprehensive query:
-    // - All open tickets (not resolved/closed)
-    // - All resolved tickets that were resolved after the start date
-    const timeBasedQuery = `(
-      statusCategory != Done 
-      OR 
-      (statusCategory = Done AND resolved >= "${startDateStr}")
-    )`;
-
-    const fullQuery = `${projectQuery} AND ${timeBasedQuery} ORDER BY updated DESC`;
-
-    this.setState({ input: fullQuery });
-    localStorage.setItem("cumulativeFlowQuery", fullQuery);
-  };
-
-  // Update query when start date changes too
-  onStartDateChange = (date, dateString) => {
-    this.setState({ startDate: new Date(date) }, () => {
-      // Regenerate query if projects are selected
-      if (this.state.selectedProjects.length > 0) {
-        this.generateAndSetQuery(this.state.selectedProjects);
-      }
+  // Chart date filtering handlers
+  onChartStartDateChange = (date, dateString) => {
+    this.setState({ chartStartDate: new Date(date) }, () => {
+      this.applyChartFiltering();
     });
   };
 
-  onEndDateChange = (date, dateString) => {
-    this.setState({ endDate: date.toString() });
+  onChartEndDateChange = (date, dateString) => {
+    this.setState({ chartEndDate: new Date(date) }, () => {
+      this.applyChartFiltering();
+    });
+  };
+
+  // Apply chart filtering based on selected date range
+  applyChartFiltering = () => {
+    if (!this.state.allData) return;
+
+    const { allData, chartStartDate, chartEndDate } = this.state;
+
+    // Filter timeline data based on chart date range
+    const filteredTimeline = allData.timeline.filter((day) => {
+      const dayDate = new Date(day.date);
+      return dayDate >= chartStartDate && dayDate <= chartEndDate;
+    });
+
+    // Create filtered data
+    const filteredData: CumulativeFlowDiagramData = {
+      allStatuses: allData.allStatuses,
+      timeline: filteredTimeline,
+    };
+
+    // Only update the chart data, preserve existing filters
+    this.setState({
+      cfdData: filteredData,
+    });
   };
 
   onClick = () => {
     localStorage.setItem("cumulativeFlowQuery", this.state.input);
     console.log("Button clicked");
-    fetch(
-      "/api/cumulativeFlowDiagram?query=" +
-        this.state.input +
-        "&startDate=" +
-        this.state.startDate +
-        "&endDate=" +
-        this.state.endDate
-    )
+    fetch("/api/cumulativeFlowDiagram?query=" + this.state.input)
       .then((response) => response.json())
       .then((data) => {
-        let cfdData: CumulativeFlowDiagramData = JSON.parse(data.data);
-        console.log(cfdData);
-        let allStates = cfdData.allStatuses.map((status) => {
-          return { label: status, value: status };
-        });
-        let selectedStates = cfdData.allStatuses;
+        let allData: CumulativeFlowDiagramData = JSON.parse(data.data);
+        console.log("All data received:", allData);
 
-        // Extract unique types from all issues in the timeline
+        // Extract unique types and statuses from all data for filter options
         let allTypesSet = new Set<string>();
-        cfdData.timeline.forEach((day) => {
+        allData.timeline.forEach((day) => {
           day.statuses.forEach((status) => {
             status.issues.forEach((issue) => {
               if (issue.type) {
@@ -179,18 +102,32 @@ export default class CumulativeFlowDiagram extends React.Component<
             });
           });
         });
+
+        let allStates = allData.allStatuses.map((status) => {
+          return { label: status, value: status };
+        });
+        // Filter out "NOT_CREATED_YET" and "Closed" by default
+        let selectedStates = allData.allStatuses.filter(
+          (status) => status !== "NOT_CREATED_YET" && status !== "Closed"
+        );
         let allTypes = Array.from(allTypesSet).map((type) => {
           return { label: type, value: type };
         });
-        let selectedTypes = Array.from(allTypesSet); // Default to all types selected
+        let selectedTypes = Array.from(allTypesSet);
 
-        this.setState({
-          cfdData,
-          selectedStates,
-          allStates,
-          allTypes,
-          selectedTypes,
-        });
+        // Store all data and set up filters, then apply initial chart filtering
+        this.setState(
+          {
+            allData,
+            selectedStates,
+            allStates,
+            allTypes,
+            selectedTypes,
+          },
+          () => {
+            this.applyChartFiltering();
+          }
+        );
       });
   };
 
@@ -232,8 +169,6 @@ export default class CumulativeFlowDiagram extends React.Component<
   }
 
   render() {
-    const { projects, isLoadingProjects, selectedProjects } = this.state;
-
     // Filter the data based on selected types
     let filteredData = this.state.cfdData
       ? this.state.cfdData.timeline.map((timeline) => {
@@ -285,68 +220,8 @@ export default class CumulativeFlowDiagram extends React.Component<
         <h2>Cumulative Flow Diagram</h2>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 8 }}>Projects:</label>
-          <AntSelect
-            placeholder="Select one or more projects"
-            value={selectedProjects}
-            onChange={this.handleProjectChange}
-            style={{ width: 400 }}
-            loading={isLoadingProjects}
-            mode="multiple"
-            showSearch
-            optionFilterProp="children"
-            filterOption={(input, option) => {
-              if (option && option.children) {
-                return (
-                  option.children
-                    .toString()
-                    .toLowerCase()
-                    .indexOf(input.toLowerCase()) >= 0
-                );
-              }
-              return false;
-            }}
-          >
-            {projects.map((project) => (
-              <AntSelect.Option key={project.key} value={project.key}>
-                {project.key} - {project.name}
-              </AntSelect.Option>
-            ))}
-          </AntSelect>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", marginBottom: 8 }}>
-            Selected projects ({selectedProjects.length}):{" "}
-            {selectedProjects.length > 0 ? selectedProjects.join(", ") : "None"}
-          </label>
-        </div>
-
-        <div style={{ marginBottom: 16, display: "flex", gap: 16 }}>
-          <div>
-            <label style={{ display: "block", marginBottom: 8 }}>
-              Start Date:
-            </label>
-            <DatePicker
-              onChange={this.onStartDateChange}
-              value={dayjs(this.state.startDate)}
-            />
-          </div>
-          <div>
-            <label style={{ display: "block", marginBottom: 8 }}>
-              End Date:
-            </label>
-            <DatePicker
-              onChange={this.onEndDateChange}
-              value={dayjs(this.state.endDate)}
-            />
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 8 }}>
-            Custom Query (includes open tickets + resolved tickets after start
-            date):
+            JQL Query:
           </label>
           <Input.TextArea
             value={this.state.input}
@@ -354,12 +229,12 @@ export default class CumulativeFlowDiagram extends React.Component<
               this.setState({ input: e.target.value });
             }}
             style={{ width: "100%" }}
-            placeholder="Select projects and start date to auto-generate query, or enter custom JQL"
+            placeholder="Enter your JQL query to fetch issues"
             rows={3}
           />
           <small style={{ color: "#666", display: "block", marginTop: 4 }}>
-            Auto-generated query includes: all open tickets + all tickets
-            resolved after the start date
+            Enter a JQL query to fetch issues. Use the chart date picker below
+            to filter the display range.
           </small>
         </div>
 
@@ -371,6 +246,68 @@ export default class CumulativeFlowDiagram extends React.Component<
 
         {this.state.cfdData && (
           <>
+            <div
+              style={{
+                marginBottom: 16,
+                display: "flex",
+                gap: 16,
+                alignItems: "end",
+              }}
+            >
+              <div>
+                <label style={{ display: "block", marginBottom: 8 }}>
+                  Chart Start Date:
+                </label>
+                <DatePicker
+                  onChange={this.onChartStartDateChange}
+                  value={dayjs(this.state.chartStartDate)}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: 8 }}>
+                  Chart End Date:
+                </label>
+                <DatePicker
+                  onChange={this.onChartEndDateChange}
+                  value={dayjs(this.state.chartEndDate)}
+                />
+              </div>
+              <div>
+                <Button
+                  onClick={() => {
+                    // Reset to show all data
+                    if (this.state.allData) {
+                      const earliestDate = new Date(
+                        Math.min(
+                          ...this.state.allData.timeline.map((day) =>
+                            new Date(day.date).getTime()
+                          )
+                        )
+                      );
+                      const latestDate = new Date(
+                        Math.max(
+                          ...this.state.allData.timeline.map((day) =>
+                            new Date(day.date).getTime()
+                          )
+                        )
+                      );
+                      this.setState(
+                        {
+                          chartStartDate: earliestDate,
+                          chartEndDate: latestDate,
+                        },
+                        () => {
+                          this.applyChartFiltering();
+                        }
+                      );
+                    }
+                  }}
+                >
+                  Show All Data
+                </Button>
+              </div>
+            </div>
+
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: "block", marginBottom: 8 }}>
                 Type Filter:
@@ -389,6 +326,7 @@ export default class CumulativeFlowDiagram extends React.Component<
               <Select
                 onChange={this.statesSelected.bind(this)}
                 options={this.state.allStates}
+                selected={this.state.selectedStates}
               />
             </div>
           </>
