@@ -13,6 +13,7 @@ import { DrilldownView } from "./components/DrilldownView";
 import { RawDataTable } from "./components/RawDataTable";
 import { WorkDescriptionModal } from "./components/WorkDescriptionModal";
 import { UserGroupManager } from "./components/UserGroupManager";
+import { TeamSummary } from "./components/TeamSummary";
 
 const TempoAnalyzer: React.FC<Props> = () => {
   const {
@@ -151,6 +152,18 @@ const TempoAnalyzer: React.FC<Props> = () => {
           />
         </Space>
       </Card>
+
+      {/* Team Summary - Show when data is available */}
+      {Object.keys(analyzer.groupedData).length > 0 && (
+        <TeamSummary
+          sheets={sheets}
+          selectedSheets={selectedSheets}
+          filteredData={analyzer.filteredData}
+          accountCategoryIndex={analyzer.accountCategoryIndex}
+          loggedHoursIndex={analyzer.loggedHoursIndex}
+          excludeHolidayAbsence={analyzer.excludeHolidayAbsence}
+        />
+      )}
 
       {/* User Group Management - Always visible */}
       <UserGroupManager
