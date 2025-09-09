@@ -449,6 +449,7 @@ export default class JiraRequester {
       id: project.id,
       key: project.key,
       name: project.name,
+      url: `${domain}/browse/${project.key}`,
     }));
   }
 

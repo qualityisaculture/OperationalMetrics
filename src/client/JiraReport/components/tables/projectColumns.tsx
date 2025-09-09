@@ -37,7 +37,17 @@ export const getProjectColumns = (
     key: "key",
     fixed: "left",
     width: 120,
-    render: (key: string) => <Tag color="green">{key}</Tag>,
+    render: (key: string, record: JiraProject) => (
+      <a
+        href={record.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()} // Prevent row click when clicking link
+        style={{ fontWeight: "bold", color: "#1890ff" }}
+      >
+        <Tag color="green">{key}</Tag>
+      </a>
+    ),
     sorter: (a, b) => a.key.localeCompare(b.key),
   },
   {

@@ -23,6 +23,7 @@ export interface JiraProject {
   id: string;
   key: string;
   name: string;
+  url: string;
 }
 
 // export interface JiraIssue {
