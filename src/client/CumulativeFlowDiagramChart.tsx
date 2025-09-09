@@ -87,9 +87,12 @@ export default class CumulativeFlowDiagramChart extends React.Component<
       return { label: status, value: status };
     });
 
-    // Filter out "NOT_CREATED_YET" and "Closed" by default
+    // Filter out "NOT_CREATED_YET", "Closed", and "Resolved" by default
     let selectedStates = data.allStatuses.filter(
-      (status) => status !== "NOT_CREATED_YET" && status !== "Closed"
+      (status) =>
+        status !== "NOT_CREATED_YET" &&
+        status !== "Closed" &&
+        status !== "Resolved"
     );
 
     let allTypes = Array.from(allTypesSet).map((type) => {
