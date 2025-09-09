@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button, Card, Alert, Space, Typography } from "antd";
 import { BugOutlined, BarChartOutlined } from "@ant-design/icons";
-import CumulativeFlowDiagram from "../../CumulativeFlowDiagram";
+import CumulativeFlowDiagramChart from "../../CumulativeFlowDiagramChart";
 import { JiraProject } from "../../../server/graphManagers/JiraReportGraphManager";
 
 const { Title, Text } = Typography;
@@ -21,11 +21,11 @@ export const DefectHistorySection: React.FC<Props> = ({
   defectHistoryLoading,
   defectHistoryError,
 }) => {
-  const [isDefectHistoryVisible, setIsDefectHistoryVisible] = useState(false);
+  const [hasRequested, setHasRequested] = useState(false);
 
   const handleRequestDefectHistory = async () => {
     await onRequestDefectHistory(selectedProject.key);
-    setIsDefectHistoryVisible(true);
+    setHasRequested(true);
   };
 
   const hasDefectData =
@@ -38,25 +38,28 @@ export const DefectHistorySection: React.FC<Props> = ({
       title={
         <Space>
           <BugOutlined />
-          <span>Defect History</span>
+          <span>Defect History - Incidents & Faults</span>
         </Space>
       }
       style={{ marginTop: "16px" }}
     >
       <Space direction="vertical" style={{ width: "100%" }}>
         <Text type="secondary">
-          View cumulative flow diagram for incidents and faults in this project
+          Cumulative flow diagram for incidents and faults in project{" "}
+          {selectedProject.key}
         </Text>
 
-        <Button
-          type="primary"
-          icon={<BarChartOutlined />}
-          onClick={handleRequestDefectHistory}
-          loading={defectHistoryLoading}
-          disabled={defectHistoryLoading}
-        >
-          Request Defect History
-        </Button>
+        {!hasRequested && (
+          <Button
+            type="primary"
+            icon={<BarChartOutlined />}
+            onClick={handleRequestDefectHistory}
+            loading={defectHistoryLoading}
+            disabled={defectHistoryLoading}
+          >
+            Request Defect History
+          </Button>
+        )}
 
         {defectHistoryError && (
           <Alert
@@ -67,7 +70,7 @@ export const DefectHistorySection: React.FC<Props> = ({
           />
         )}
 
-        {isDefectHistoryVisible &&
+        {hasRequested &&
           !defectHistoryLoading &&
           !defectHistoryError &&
           !hasDefectData && (
@@ -79,13 +82,17 @@ export const DefectHistorySection: React.FC<Props> = ({
             />
           )}
 
-        {isDefectHistoryVisible && hasDefectData && (
-          <div style={{ marginTop: "16px" }}>
-            <Title level={4}>
-              Cumulative Flow Diagram - Incidents & Faults
-            </Title>
-            <CumulativeFlowDiagram />
-          </div>
+        {hasRequested && hasDefectData && (
+          <CumulativeFlowDiagramChart
+            data={defectHistoryData}
+            loading={defectHistoryLoading}
+            error={defectHistoryError}
+            showDateSelectors={true}
+            showFilters={true}
+            showNotes={true}
+            title="Cumulative Flow Diagram - Incidents & Faults"
+            targetElementId={`defect-history-${selectedProject.key}`}
+          />
         )}
       </Space>
     </Card>
