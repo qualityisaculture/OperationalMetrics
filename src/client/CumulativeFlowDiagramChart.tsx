@@ -64,6 +64,12 @@ export default class CumulativeFlowDiagramChart extends React.Component<
     }
   }
 
+  componentDidMount() {
+    if (this.props.data) {
+      this.processData(this.props.data);
+    }
+  }
+
   processData = (data: CumulativeFlowDiagramData) => {
     // Extract unique types and statuses from all data for filter options
     let allTypesSet = new Set<string>();
@@ -101,6 +107,8 @@ export default class CumulativeFlowDiagramChart extends React.Component<
       },
       () => {
         this.applyChartFiltering();
+        // Auto-populate details with the final date's data
+        this.populateDetailsWithFinalDate();
       }
     );
   };
@@ -149,20 +157,29 @@ export default class CumulativeFlowDiagramChart extends React.Component<
     };
 
     // Only update the chart data, preserve existing filters
-    this.setState({
-      allData: filteredData,
-    });
+    this.setState(
+      {
+        allData: filteredData,
+      },
+      () => {
+        this.populateDetailsWithFinalDate();
+      }
+    );
   };
 
   statesSelected = (value) => {
-    this.setState({ selectedStates: value });
+    this.setState({ selectedStates: value }, () => {
+      this.populateDetailsWithFinalDate();
+    });
     if (this.props.onStatusFilterChange) {
       this.props.onStatusFilterChange(value);
     }
   };
 
   typesSelected = (value) => {
-    this.setState({ selectedTypes: value });
+    this.setState({ selectedTypes: value }, () => {
+      this.populateDetailsWithFinalDate();
+    });
     if (this.props.onTypeFilterChange) {
       this.props.onTypeFilterChange(value);
     }
@@ -170,32 +187,97 @@ export default class CumulativeFlowDiagramChart extends React.Component<
 
   getClickData(
     timeline: CumulativeFlowDiagramDateStatus,
-    activeStatuses: string[]
+    activeStatuses: string[],
+    selectedTypes: string[]
   ) {
     let clickData = "";
-    let totalIssues = timeline.statuses.reduce((acc, status) => {
-      if (activeStatuses.includes(status.status)) {
-        return acc + status.issues.length;
-      }
-      return acc;
+
+    // Filter the timeline data based on selected types and statuses
+    const filteredStatuses = timeline.statuses
+      .filter((status) => activeStatuses.includes(status.status))
+      .map((status) => ({
+        ...status,
+        issues: status.issues.filter((issue) =>
+          selectedTypes.includes(issue.type)
+        ),
+      }));
+
+    let totalIssues = filteredStatuses.reduce((acc, status) => {
+      return acc + status.issues.length;
     }, 0);
+
     clickData += "Date: " + timeline.date + "<br>";
-    clickData += "Total issues: " + totalIssues + "<br>";
-    timeline.statuses.forEach((status) => {
-      clickData += status.status + ": " + status.issues.length + "<br>";
-      status.issues.forEach((issue: MinimumIssueInfo) => {
-        clickData +=
-          "<a href='" +
-          issue.url +
-          "'>" +
-          issue.key +
-          " " +
-          issue.summary +
-          "</a><br>";
-      });
+    clickData += "Total issues (filtered): " + totalIssues + "<br>";
+
+    filteredStatuses.forEach((status) => {
+      if (status.issues.length > 0) {
+        clickData += status.status + ": " + status.issues.length + "<br>";
+        status.issues.forEach((issue: MinimumIssueInfo) => {
+          clickData +=
+            "<a href='" +
+            issue.url +
+            "'>" +
+            issue.key +
+            " " +
+            issue.summary +
+            "</a><br>";
+        });
+      }
     });
     return clickData;
   }
+
+  populateDetailsWithFinalDate = () => {
+    if (!this.state.allData || !this.state.allData.timeline.length) {
+      return;
+    }
+
+    // Get the final date from the filtered data
+    const filteredData = this.getFilteredData();
+    if (!filteredData || !filteredData.length) {
+      return;
+    }
+
+    const finalDateData = filteredData[filteredData.length - 1];
+    const clickData = this.getClickData(
+      finalDateData,
+      this.state.selectedStates,
+      this.state.selectedTypes
+    );
+
+    // Populate the details section
+    const notesElement = document.getElementById(
+      this.props.targetElementId || "cfd-notes"
+    );
+    if (notesElement) {
+      const contentElement = notesElement.querySelector(
+        `#${this.props.targetElementId || "cfd-notes"}-content`
+      );
+      if (contentElement) {
+        contentElement.innerHTML = clickData;
+      } else {
+        notesElement.innerHTML = clickData;
+      }
+    }
+  };
+
+  getFilteredData = () => {
+    if (!this.state.allData) return null;
+
+    // Filter the data based on selected types
+    return this.state.allData.timeline.map((timeline) => {
+      let filteredStatuses = timeline.statuses.map((status) => ({
+        ...status,
+        issues: status.issues.filter((issue) =>
+          this.state.selectedTypes.includes(issue.type)
+        ),
+      }));
+      return {
+        ...timeline,
+        statuses: filteredStatuses,
+      };
+    });
+  };
 
   render() {
     const {
@@ -260,7 +342,8 @@ export default class CumulativeFlowDiagramChart extends React.Component<
           }
           row.clickData = this.getClickData(
             timeline,
-            this.state.selectedStates
+            this.state.selectedStates,
+            this.state.selectedTypes
           );
           return row;
         })
