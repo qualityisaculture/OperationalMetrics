@@ -60,7 +60,7 @@ export const getProjectColumns = (
       record.name.toLowerCase().includes((value as string).toLowerCase()),
     filterSearch: true,
     filters: projects.map((project) => ({
-      text: project.name,
+      text: `${project.key} - ${project.name}`,
       value: project.name,
     })),
   },
