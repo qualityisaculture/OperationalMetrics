@@ -88,12 +88,24 @@ export const EpicIssuesList: React.FC<Props> = ({ epicIssues }) => {
     return null;
   }
 
+  // Sort epic issues by due date (earliest first, null dates last)
+  // If due date is not available, fall back to epicStartDate (start date)
+  const sortedEpicIssues = [...epicIssues].sort((a, b) => {
+    const aDate = a.dueDate || a.epicStartDate;
+    const bDate = b.dueDate || b.epicStartDate;
+
+    if (!aDate && !bDate) return 0;
+    if (!aDate) return 1; // null dates go to end
+    if (!bDate) return -1; // null dates go to end
+    return new Date(aDate).getTime() - new Date(bDate).getTime();
+  });
+
   return (
     <div style={{ marginTop: "24px" }}>
       <Typography.Title level={4}>Epic Issues In Progress</Typography.Title>
       <List
         size="small"
-        dataSource={epicIssues}
+        dataSource={sortedEpicIssues}
         renderItem={(issue) => {
           const { todoCount, inProgressCount, doneCount } =
             getEpicIssueCounts(issue);
@@ -127,6 +139,23 @@ export const EpicIssuesList: React.FC<Props> = ({ epicIssues }) => {
                       style={{ marginLeft: "16px", fontSize: "12px" }}
                     >
                       Due: {new Date(issue.dueDate).toLocaleDateString()}
+                    </Typography.Text>
+                  )}
+                  {issue.epicStartDate && (
+                    <Typography.Text
+                      type="secondary"
+                      style={{ marginLeft: "16px", fontSize: "12px" }}
+                    >
+                      Start:{" "}
+                      {new Date(issue.epicStartDate).toLocaleDateString()}
+                    </Typography.Text>
+                  )}
+                  {issue.epicEndDate && (
+                    <Typography.Text
+                      type="secondary"
+                      style={{ marginLeft: "16px", fontSize: "12px" }}
+                    >
+                      End: {new Date(issue.epicEndDate).toLocaleDateString()}
                     </Typography.Text>
                   )}
                 </div>

@@ -29,6 +29,8 @@ export type LiteJiraIssue = {
   timeSpent?: number | null; // in days
   timeRemaining?: number | null; // in days
   dueDate: string | null; // Due date field (always present)
+  epicStartDate: string | null; // Epic Start Date (fallback) - always present
+  epicEndDate: string | null; // Epic End Date (fallback) - always present
   hasChildren?: boolean | null; // true = has children, false = no children, null/undefined = unknown
   timeBookings?: Array<{ date: string; timeSpent: number }>; // Time bookings with dates
   timeBookingsJiraKeys?: string[]; // Array of all Jira keys in the workstream tree
@@ -48,6 +50,8 @@ export class JiraLite {
   url: string;
   baselineEstimate?: number | null; // in days - customfield_11753
   dueDate: string | null; // Due date field (always present)
+  epicStartDate: string | null; // Epic Start Date (fallback) - always present
+  epicEndDate: string | null; // Epic End Date (fallback) - always present
   hasChildren?: boolean | null;
 
   constructor(
@@ -61,7 +65,9 @@ export class JiraLite {
     hasChildren?: boolean | null,
     priority?: string,
     baselineEstimate?: number | null,
-    dueDate: string | null = null
+    dueDate: string | null = null,
+    epicStartDate: string | null = null,
+    epicEndDate: string | null = null
   ) {
     this.key = key;
     this.summary = summary;
@@ -75,6 +81,8 @@ export class JiraLite {
     this.hasChildren = hasChildren;
     this.baselineEstimate = baselineEstimate;
     this.dueDate = dueDate;
+    this.epicStartDate = epicStartDate;
+    this.epicEndDate = epicEndDate;
   }
 
   static fromLiteJiraIssue(issue: LiteJiraIssue): JiraLite {
@@ -91,6 +99,8 @@ export class JiraLite {
             undefined,
             undefined,
             undefined,
+            null,
+            null,
             null
           )
         : JiraLite.fromLiteJiraIssue(child)
@@ -106,7 +116,9 @@ export class JiraLite {
       issue.hasChildren,
       issue.priority,
       issue.baselineEstimate,
-      issue.dueDate
+      issue.dueDate,
+      issue.epicStartDate,
+      issue.epicEndDate
     );
   }
 
@@ -123,6 +135,8 @@ export class JiraLite {
       url: this.url,
       baselineEstimate: this.baselineEstimate,
       dueDate: this.dueDate,
+      epicStartDate: this.epicStartDate,
+      epicEndDate: this.epicEndDate,
       hasChildren: this.hasChildren,
     };
   }
@@ -463,7 +477,7 @@ export default class JiraRequester {
   async getLiteQuery(query: string): Promise<LiteJiraIssue[]> {
     try {
       const domain = process.env.JIRA_DOMAIN;
-      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,issuetype,status,priority,customfield_10085,customfield_11753,duedate`;
+      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,issuetype,status,priority,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023`;
       console.log(`Fetching lite data for ${url}`);
 
       let response = await this.fetchRequest(url);
@@ -506,6 +520,8 @@ export default class JiraRequester {
           ? issue.fields.customfield_11753
           : null,
         dueDate: issue.fields.duedate || null, // Always include dueDate field
+        epicStartDate: issue.fields.customfield_10022 || null, // Epic Start Date (fallback)
+        epicEndDate: issue.fields.customfield_10023 || null, // Epic End Date (fallback)
       }));
     } catch (error) {
       console.error("Error in getLiteQuery:", error);
@@ -531,7 +547,7 @@ export default class JiraRequester {
 
         const jql = `(${parentConditions}) ORDER BY created ASC`;
         const fields =
-          "key,summary,issuetype,parent,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate";
+          "key,summary,issuetype,parent,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023";
         const queryWithFields = `${jql}&fields=${fields}`;
 
         console.log(
@@ -562,6 +578,8 @@ export default class JiraRequester {
             ? issue.fields.timeestimate / 3600 / 7.5
             : null,
           dueDate: issue.fields.duedate || null, // Always include dueDate field
+          epicStartDate: issue.fields.customfield_10022 || null, // Epic Start Date (fallback)
+          epicEndDate: issue.fields.customfield_10023 || null, // Epic End Date (fallback)
         }));
 
         allChildren.push(...children);
@@ -579,7 +597,7 @@ export default class JiraRequester {
       const domain = process.env.JIRA_DOMAIN;
       // Query for issues where the parent field matches the parentKey
       const jql = `parent = "${parentKey}" ORDER BY created ASC`;
-      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate`;
+      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023`;
 
       let response = await this.fetchRequest(url);
 
@@ -622,6 +640,8 @@ export default class JiraRequester {
           ? issue.fields.timeestimate / 3600 / 7.5
           : null,
         dueDate: issue.fields.duedate || null, // Always include dueDate field
+        epicStartDate: issue.fields.customfield_10022 || null, // Epic Start Date (fallback)
+        epicEndDate: issue.fields.customfield_10023 || null, // Epic End Date (fallback)
       }));
     } catch (error) {
       console.error(`Error fetching children for issue ${parentKey}:`, error);
