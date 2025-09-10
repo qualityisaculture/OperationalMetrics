@@ -1,9 +1,9 @@
 import {
   DoneAndScopeCount,
   EpicBurnup,
-} from "../server/graphManagers/BurnupGraphManager";
-import { MinimumIssueInfo, TDateISODate } from "../Types";
-import { GoogleDataTableType } from "./LineChart";
+} from "../../../server/graphManagers/BurnupGraphManager";
+import { MinimumIssueInfo, TDateISODate } from "../../Types";
+import { GoogleDataTableType } from "../../LineChart";
 
 export function extendEpicBurnup(
   epicBurnups: EpicBurnup,

@@ -6,18 +6,18 @@ import dayjs, { Dayjs } from "dayjs";
 import {
   EpicBurnup,
   EpicBurnupResponse,
-} from "../server/graphManagers/BurnupGraphManager";
-import LineChart from "./LineChart";
-import type { GoogleDataTableType } from "./LineChart";
-import Select from "./Select";
+} from "../../../server/graphManagers/BurnupGraphManager";
+import LineChart from "../../LineChart";
+import type { GoogleDataTableType } from "../../LineChart";
+import Select from "../../Select";
 import {
   getEarliestDate,
   getLastDate,
   getGoogleDataTableFromMultipleBurnupData,
   getGapDataFromBurnupData,
   getSelectedEpics,
-} from "./BurnupManager";
-import { SSEResponse } from "../Types";
+} from "../utils/BurnupManager";
+import { SSEResponse } from "../../Types";
 
 interface Props {
   query: string;

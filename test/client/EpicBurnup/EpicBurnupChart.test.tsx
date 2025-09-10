@@ -1,21 +1,21 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import EpicBurnupChart from "../../src/client/EpicBurnupChart";
-import { EpicBurnup } from "../../src/server/graphManagers/BurnupGraphManager";
+import EpicBurnupChart from "../../../src/client/EpicBurnup/components/EpicBurnupChart";
+import { EpicBurnup } from "../../../src/server/graphManagers/BurnupGraphManager";
 
 // Mock the fetch function
 global.fetch = jest.fn();
 
 // Mock the LineChart component since we don't need to test its internals
-jest.mock("../../src/client/LineChart", () => {
+jest.mock("../../../src/client/LineChart", () => {
   return function MockLineChart() {
     return <div data-testid="mock-line-chart" />;
   };
 });
 
 // Mock the Select component
-jest.mock("../../src/client/Select", () => {
+jest.mock("../../../src/client/Select", () => {
   return function MockSelect({
     options,
     onChange,

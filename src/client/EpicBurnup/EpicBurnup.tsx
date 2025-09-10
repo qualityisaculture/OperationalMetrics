@@ -3,7 +3,7 @@ import type { RadioChangeEvent } from "antd";
 import { Radio, Button, Input, AutoComplete } from "antd";
 import { CSSProperties } from "react";
 
-import EpicBurnupChart from "./EpicBurnupChart";
+import EpicBurnupChart from "./components/EpicBurnupChart";
 
 interface Props {}
 

@@ -7,11 +7,11 @@ describe("BurnupManager", () => {
 // import {
 //   extendEpicBurnup,
 //   getGoogleDataTableFromMultipleBurnupData,
-// } from "../../src/client/BurnupManager";
+// } from "../../../src/client/EpicBurnup/utils/BurnupManager";
 // import {
 //   DoneAndScopeCount,
 //   EpicBurnup,
-// } from "../../src/server/graphManagers/BurnupGraphManager";
+// } from "../../../src/server/graphManagers/BurnupGraphManager";
 
 // function get1EpicPerDayData(
 //   numberOfDays: number,
