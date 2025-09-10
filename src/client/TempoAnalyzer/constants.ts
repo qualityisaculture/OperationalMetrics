@@ -7,7 +7,18 @@ export const ISSUE_KEY_EXCEPTIONS: IssueKeyException[] = [
     categorySuffix: "Holiday & Absence",
   },
   {
-    issueKeys: ["HR-57", "LD-47", "DEL-12", "DEL-15", "LD-48"],
+    issueKeys: [
+      "HR-57",
+      "LD-47",
+      "DEL-12",
+      "DEL-15",
+      "LD-48",
+      "LD-58",
+      "DEL-22",
+      "HR-50",
+      "HR-46",
+      "AF-18326",
+    ],
     categorySuffix: "Meeting",
   },
   {

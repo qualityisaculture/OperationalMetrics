@@ -101,6 +101,10 @@ const TempoAnalyzer: React.FC<Props> = () => {
           <FilterControls
             summaryViewMode={analyzer.summaryViewMode}
             handleSummaryViewModeChange={analyzer.handleSummaryViewModeChange}
+            secondarySplitMode={analyzer.secondarySplitMode}
+            handleSecondarySplitModeChange={
+              analyzer.handleSecondarySplitModeChange
+            }
             excludeHolidayAbsence={analyzer.excludeHolidayAbsence}
             handleExcludeHolidayAbsenceChange={
               analyzer.handleExcludeHolidayAbsenceChange
@@ -127,6 +131,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
                   groupedData={analyzer.groupedData}
                   groupedByName={analyzer.groupedByName}
                   groupedDataByCategory={analyzer.groupedDataByCategory}
+                  secondarySplitMode={analyzer.secondarySplitMode}
                   showOtherTeams={analyzer.showOtherTeams}
                   handleRowClick={analyzer.handleRowClick}
                   handleUserClick={analyzer.handleUserClick}

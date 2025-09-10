@@ -109,8 +109,16 @@ export interface State {
           files: { [fileName: string]: number };
         };
       };
+      issueTypes: {
+        [issueType: string]: {
+          totalHours: number;
+          files: { [fileName: string]: number };
+        };
+      };
     };
   };
+  // New state for secondary split mode
+  secondarySplitMode: "account" | "issueType";
   // New state for tracking which rows to show in the expandable table
   displayedRows: any[];
 }

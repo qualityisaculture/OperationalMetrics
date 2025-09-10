@@ -18,8 +18,15 @@ interface SummaryViewProps {
           files: { [fileName: string]: number };
         };
       };
+      issueTypes: {
+        [issueType: string]: {
+          totalHours: number;
+          files: { [fileName: string]: number };
+        };
+      };
     };
   };
+  secondarySplitMode: "account" | "issueType";
   showOtherTeams: boolean;
   handleRowClick: (category: string) => void;
   handleUserClick: (userName: string) => void;
@@ -31,6 +38,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   groupedData,
   groupedByName,
   groupedDataByCategory,
+  secondarySplitMode,
   showOtherTeams,
   handleRowClick,
   handleUserClick,
@@ -85,7 +93,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
 
       <Card
         title={`Hours by ${
-          summaryViewMode === "category" ? "Account Category" : "Full Name"
+          summaryViewMode === "category"
+            ? `Account Category (split by ${secondarySplitMode === "account" ? "Account Name" : "Issue Type"})`
+            : "Full Name"
         } (Click a row to drill down)`}
       >
         <Table
@@ -150,81 +160,80 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                           ).toFixed(1);
                         })()
                       : "0.0",
-                    children: Object.entries(data.accounts).map(
-                      ([accountName, accountData], accountIndex) => ({
-                        key: `account-${index}-${accountIndex}`,
-                        item: accountName,
-                        hours: accountData.totalHours,
-                        chargeableDays: accountData.totalHours / 7.5,
-                        percentage: (
-                          (accountData.totalHours / totalHours) *
-                          100
-                        ).toFixed(1),
-                        subPercentage: (
-                          (accountData.totalHours / data.totalHours) *
-                          100
-                        ).toFixed(1),
-                        isAccount: true,
-                        children:
-                          Object.keys(accountData.files).length > 1
-                            ? Object.entries(accountData.files)
-                                .sort(([, a], [, b]) => b - a) // Sort by hours descending
-                                .map(([fileName, fileHours], fileIndex) => ({
-                                  key: `file-${index}-${accountIndex}-${fileIndex}`,
-                                  item: fileName,
-                                  hours: fileHours,
-                                  chargeableDays: fileHours / 7.5,
-                                  percentage: (
-                                    (fileHours / totalHours) *
-                                    100
-                                  ).toFixed(1),
-                                  subPercentage: (
-                                    (fileHours / accountData.totalHours) *
-                                    100
-                                  ).toFixed(1),
-                                  isFile: true,
-                                }))
-                            : undefined,
-                        // Calculate other team metrics
-                        otherTeamDays:
-                          showOtherTeams &&
-                          Object.keys(accountData.files).length > 1
-                            ? (() => {
-                                const fileEntries = Object.entries(
-                                  accountData.files
-                                );
-                                const sortedFiles = fileEntries.sort(
-                                  ([, a], [, b]) => b - a
-                                );
-                                // First file is primary team, rest are other teams
-                                const otherTeamHours = sortedFiles
-                                  .slice(1)
-                                  .reduce((sum, [, hours]) => sum + hours, 0);
-                                return otherTeamHours / 7.5;
-                              })()
-                            : 0,
-                        otherTeamPercent:
-                          showOtherTeams &&
-                          Object.keys(accountData.files).length > 1
-                            ? (() => {
-                                const fileEntries = Object.entries(
-                                  accountData.files
-                                );
-                                const sortedFiles = fileEntries.sort(
-                                  ([, a], [, b]) => b - a
-                                );
-                                // First file is primary team, rest are other teams
-                                const otherTeamHours = sortedFiles
-                                  .slice(1)
-                                  .reduce((sum, [, hours]) => sum + hours, 0);
-                                return (
-                                  (otherTeamHours / accountData.totalHours) *
+                    children: (secondarySplitMode === "account"
+                      ? Object.entries(data.accounts)
+                      : Object.entries(data.issueTypes)
+                    ).map(([itemName, itemData], itemIndex) => ({
+                      key: `${secondarySplitMode}-${index}-${itemIndex}`,
+                      item: itemName,
+                      hours: itemData.totalHours,
+                      chargeableDays: itemData.totalHours / 7.5,
+                      percentage: (
+                        (itemData.totalHours / totalHours) *
+                        100
+                      ).toFixed(1),
+                      subPercentage: (
+                        (itemData.totalHours / data.totalHours) *
+                        100
+                      ).toFixed(1),
+                      isAccount: true,
+                      children:
+                        Object.keys(itemData.files).length > 1
+                          ? Object.entries(itemData.files)
+                              .sort(([, a], [, b]) => b - a) // Sort by hours descending
+                              .map(([fileName, fileHours], fileIndex) => ({
+                                key: `file-${index}-${itemIndex}-${fileIndex}`,
+                                item: fileName,
+                                hours: fileHours,
+                                chargeableDays: fileHours / 7.5,
+                                percentage: (
+                                  (fileHours / totalHours) *
                                   100
-                                ).toFixed(1);
-                              })()
-                            : "0.0",
-                      })
-                    ),
+                                ).toFixed(1),
+                                subPercentage: (
+                                  (fileHours / itemData.totalHours) *
+                                  100
+                                ).toFixed(1),
+                                isFile: true,
+                              }))
+                          : undefined,
+                      // Calculate other team metrics
+                      otherTeamDays:
+                        showOtherTeams && Object.keys(itemData.files).length > 1
+                          ? (() => {
+                              const fileEntries = Object.entries(
+                                itemData.files
+                              );
+                              const sortedFiles = fileEntries.sort(
+                                ([, a], [, b]) => b - a
+                              );
+                              // First file is primary team, rest are other teams
+                              const otherTeamHours = sortedFiles
+                                .slice(1)
+                                .reduce((sum, [, hours]) => sum + hours, 0);
+                              return otherTeamHours / 7.5;
+                            })()
+                          : 0,
+                      otherTeamPercent:
+                        showOtherTeams && Object.keys(itemData.files).length > 1
+                          ? (() => {
+                              const fileEntries = Object.entries(
+                                itemData.files
+                              );
+                              const sortedFiles = fileEntries.sort(
+                                ([, a], [, b]) => b - a
+                              );
+                              // First file is primary team, rest are other teams
+                              const otherTeamHours = sortedFiles
+                                .slice(1)
+                                .reduce((sum, [, hours]) => sum + hours, 0);
+                              return (
+                                (otherTeamHours / itemData.totalHours) *
+                                100
+                              ).toFixed(1);
+                            })()
+                          : "0.0",
+                    })),
                   })
                 )
               : Object.entries(groupedByName).map(([item, hours], index) => ({

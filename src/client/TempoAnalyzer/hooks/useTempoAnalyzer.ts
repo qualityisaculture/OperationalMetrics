@@ -68,6 +68,7 @@ export const useTempoAnalyzer = (
     excludeEndDate: null,
     showOtherTeams: false,
     groupedDataByCategory: {},
+    secondarySplitMode: "account",
     displayedRows: [],
   });
 
@@ -279,6 +280,12 @@ export const useTempoAnalyzer = (
             files: { [fileName: string]: number };
           };
         };
+        issueTypes: {
+          [issueType: string]: {
+            totalHours: number;
+            files: { [fileName: string]: number };
+          };
+        };
       };
     } = {};
     let totalHours = 0;
@@ -325,6 +332,7 @@ export const useTempoAnalyzer = (
                 groupedDataByCategory[finalCategory] = {
                   totalHours: 0,
                   accounts: {},
+                  issueTypes: {},
                 };
               }
               groupedDataByCategory[finalCategory].totalHours += loggedHours;
@@ -347,6 +355,44 @@ export const useTempoAnalyzer = (
                   fileName
                 ] =
                   (groupedDataByCategory[finalCategory].accounts[account].files[
+                    fileName
+                  ] || 0) + loggedHours;
+              }
+            }
+          }
+
+          // Also group by issue type
+          const issueType =
+            issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
+          if (issueType) {
+            const type = String(issueType).trim();
+            if (type) {
+              if (!groupedDataByCategory[finalCategory]) {
+                groupedDataByCategory[finalCategory] = {
+                  totalHours: 0,
+                  accounts: {},
+                  issueTypes: {},
+                };
+              }
+
+              if (!groupedDataByCategory[finalCategory].issueTypes[type]) {
+                groupedDataByCategory[finalCategory].issueTypes[type] = {
+                  totalHours: 0,
+                  files: {},
+                };
+              }
+
+              groupedDataByCategory[finalCategory].issueTypes[
+                type
+              ].totalHours += loggedHours;
+
+              // Add file-level breakdown for issue types
+              const fileName = (row as any)._fileName;
+              if (fileName) {
+                groupedDataByCategory[finalCategory].issueTypes[type].files[
+                  fileName
+                ] =
+                  (groupedDataByCategory[finalCategory].issueTypes[type].files[
                     fileName
                   ] || 0) + loggedHours;
               }
@@ -475,6 +521,7 @@ export const useTempoAnalyzer = (
       excludeEndDate: null,
       showOtherTeams: false,
       groupedDataByCategory: {},
+      secondarySplitMode: "account",
       displayedRows: [],
     });
   };
@@ -740,6 +787,13 @@ export const useTempoAnalyzer = (
     }
 
     setAnalyzerState((prevState) => ({ ...prevState, summaryViewMode: mode }));
+  };
+
+  const handleSecondarySplitModeChange = (mode: "account" | "issueType") => {
+    setAnalyzerState((prevState) => ({
+      ...prevState,
+      secondarySplitMode: mode,
+    }));
   };
 
   const handleUserClick = (userName: string) => {
@@ -1194,6 +1248,7 @@ export const useTempoAnalyzer = (
     handleRowClick,
     handleBackToSummary,
     handleSummaryViewModeChange,
+    handleSecondarySplitModeChange,
     handleUserClick,
     handleUserCategoryClick,
     handleViewModeChange,

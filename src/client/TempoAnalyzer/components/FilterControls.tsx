@@ -13,6 +13,8 @@ const { Option } = Select;
 interface FilterControlsProps {
   summaryViewMode: "category" | "name";
   handleSummaryViewModeChange: (mode: "category" | "name") => void;
+  secondarySplitMode: "account" | "issueType";
+  handleSecondarySplitModeChange: (mode: "account" | "issueType") => void;
   excludeHolidayAbsence: boolean;
   handleExcludeHolidayAbsenceChange: (checked: boolean) => void;
   excludeStartDate: Date | null;
@@ -31,6 +33,8 @@ interface FilterControlsProps {
 export const FilterControls: React.FC<FilterControlsProps> = ({
   summaryViewMode,
   handleSummaryViewModeChange,
+  secondarySplitMode,
+  handleSecondarySplitModeChange,
   excludeHolidayAbsence,
   handleExcludeHolidayAbsenceChange,
   excludeStartDate,
@@ -69,6 +73,23 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
             </Radio.Button>
           )}
         </Radio.Group>
+
+        {summaryViewMode === "category" && (
+          <div style={{ marginTop: "8px" }}>
+            <Text strong>Secondary Split:</Text>
+            <br />
+            <Radio.Group
+              value={secondarySplitMode}
+              onChange={(e) => handleSecondarySplitModeChange(e.target.value)}
+              optionType="button"
+              buttonStyle="solid"
+              size="small"
+            >
+              <Radio.Button value="account">Account Name</Radio.Button>
+              <Radio.Button value="issueType">Issue Type</Radio.Button>
+            </Radio.Group>
+          </div>
+        )}
 
         <div style={{ marginTop: "8px" }}>
           {/* User Group Filter */}
