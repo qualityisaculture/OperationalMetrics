@@ -25,9 +25,7 @@ export type GoogleDataTableType = {
 
 interface ChartProps {
   burnupDataArray: GoogleDataTableType[];
-  showDev?: boolean;
-  showTest?: boolean;
-  showStory?: boolean;
+  selectedView: "all" | "other" | "test" | "story";
   showTimeSpent?: boolean;
   labels?: {
     doneDev?: string;
@@ -39,10 +37,14 @@ interface ChartProps {
     doneStory?: string;
     inProgressStory?: string;
     scopeStory?: string;
+    doneAll?: string;
+    inProgressAll?: string;
+    scopeAll?: string;
     timeSpent?: string;
     timeSpentDev?: string;
     timeSpentTest?: string;
     timeSpentStory?: string;
+    timeSpentAll?: string;
     doneTrend?: string;
     scopeTrend?: string;
   };
@@ -58,10 +60,14 @@ const DEFAULT_LABELS = {
   doneStory: "Done Story",
   inProgressStory: "In Progress or Done Story",
   scopeStory: "Scope Story",
+  doneAll: "Done All",
+  inProgressAll: "In Progress or Done All",
+  scopeAll: "Scope All",
   timeSpent: "Time Spent",
   timeSpentDev: "Time Spent Other",
   timeSpentTest: "Time Spent Test",
   timeSpentStory: "Time Spent Story",
+  timeSpentAll: "Time Spent All",
   doneTrend: "Done Trend",
   scopeTrend: "Scope Trend",
 };
@@ -236,19 +242,21 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       timeSpentStory,
     ] = dataPoint.data;
 
-    const {
-      showDev = true,
-      showTest = true,
-      showStory = true,
-      showTimeSpent = true,
-    } = this.props;
+    const { selectedView, showTimeSpent = true } = this.props;
+
+    // Determine which views to show based on selectedView
+    const showAll = selectedView === "all";
+    const showDev = selectedView === "other";
+    const showTest = selectedView === "test";
+    const showStory = selectedView === "story";
 
     // Calculate column offsets based on visibility
     let devOffset = 0;
     let testOffset = showDev ? 5 : 0; // Other columns + annotation columns
     let storyOffset = testOffset + (showTest ? 3 : 0);
     let timeSpentOffset = storyOffset + (showStory ? 3 : 0);
-    let trendOffset = timeSpentOffset + (showTimeSpent ? 4 : 0); // 4 time spent columns now
+    let allOffset = timeSpentOffset + (showTimeSpent ? 4 : 0); // 4 time spent columns
+    let trendOffset = allOffset + (showAll ? (showTimeSpent ? 4 : 3) : 0); // All columns (3 or 4 if timeSpent is shown)
 
     // Clear trend line if clicking on one
     if (column === trendOffset && this.state.doneTrendLineData.length > 0) {
@@ -305,6 +313,14 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       value = scopeStory;
       type = "scope";
     }
+    // Check All columns
+    else if (showAll && column === allOffset) {
+      value = (doneDev || 0) + (doneTest || 0) + (doneStory || 0);
+      type = "done";
+    } else if (showAll && column === allOffset + 2) {
+      value = (scopeDev || 0) + (scopeTest || 0) + (scopeStory || 0);
+      type = "scope";
+    }
 
     if (value === null || type === null) return;
 
@@ -356,12 +372,13 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
   drawChart() {
     var data = new google.visualization.DataTable();
     const labels = { ...DEFAULT_LABELS, ...this.props.labels };
-    const {
-      showDev = true,
-      showTest = true,
-      showStory = true,
-      showTimeSpent = true,
-    } = this.props;
+    const { selectedView, showTimeSpent = true } = this.props;
+
+    // Determine which views to show based on selectedView
+    const showAll = selectedView === "all";
+    const showDev = selectedView === "other";
+    const showTest = selectedView === "test";
+    const showStory = selectedView === "story";
 
     // Always add date column
     data.addColumn("date", "Date");
@@ -420,6 +437,20 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       columnMap.timeSpentStory = currentColumnIndex++;
     }
 
+    // Add All columns if visible
+    if (showAll) {
+      data.addColumn("number", labels.doneAll);
+      columnMap.doneAll = currentColumnIndex++;
+      data.addColumn("number", labels.inProgressAll);
+      columnMap.inProgressAll = currentColumnIndex++;
+      data.addColumn("number", labels.scopeAll);
+      columnMap.scopeAll = currentColumnIndex++;
+      if (showTimeSpent) {
+        data.addColumn("number", labels.timeSpentAll);
+        columnMap.timeSpentAll = currentColumnIndex++;
+      }
+    }
+
     // Add trend lines after main lines
     if (this.state.doneTrendLineData.length > 0) {
       data.addColumn("number", labels.doneTrend);
@@ -472,6 +503,21 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
         row.push(timeSpent, timeSpentDev, timeSpentTest, timeSpentStory);
       }
 
+      // Add All data if visible (combine Other, Test, and Story)
+      if (showAll) {
+        const doneAll = (doneDev || 0) + (doneTest || 0) + (doneStory || 0);
+        const inProgressAll =
+          (inProgressDev || 0) + (inProgressTest || 0) + (inProgressStory || 0);
+        const scopeAll = (scopeDev || 0) + (scopeTest || 0) + (scopeStory || 0);
+        row.push(doneAll, inProgressAll, scopeAll);
+
+        if (showTimeSpent) {
+          const timeSpentAll =
+            (timeSpentDev || 0) + (timeSpentTest || 0) + (timeSpentStory || 0);
+          row.push(timeSpentAll);
+        }
+      }
+
       // Add trend lines
       if (this.state.doneTrendLineData.length > 0) {
         row.push(this.state.doneTrendLineData[index]);
@@ -513,6 +559,15 @@ export default class LineChart extends React.Component<ChartProps, ChartState> {
       series[seriesIndex++] = { color: "darkred", targetAxisIndex: 1 }; // Time Spent Other
       series[seriesIndex++] = { color: "crimson", targetAxisIndex: 1 }; // Time Spent Test
       series[seriesIndex++] = { color: "indianred", targetAxisIndex: 1 }; // Time Spent Story
+    }
+
+    if (showAll) {
+      series[seriesIndex++] = { color: "navy" }; // Done All
+      series[seriesIndex++] = { color: "steelblue" }; // In Progress All
+      series[seriesIndex++] = { color: "darkgreen" }; // Scope All
+      if (showTimeSpent) {
+        series[seriesIndex++] = { color: "maroon", targetAxisIndex: 1 }; // Time Spent All
+      }
     }
 
     // Add trend lines

@@ -1,6 +1,6 @@
 import React from "react";
 import type { SelectProps } from "antd";
-import { DatePicker, Spin, Button } from "antd";
+import { DatePicker, Spin, Radio } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 
 import {
@@ -47,9 +47,7 @@ interface State {
   };
   currentStep?: string;
   // Add visibility state for line groups
-  showDev: boolean;
-  showTest: boolean;
-  showStory: boolean;
+  selectedView: "all" | "other" | "test" | "story";
   showTimeSpent: boolean;
 }
 
@@ -68,9 +66,7 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
       originalUrl: "",
       isLoading: false,
       statusMessage: "",
-      showDev: true,
-      showTest: true,
-      showStory: true,
+      selectedView: "all",
       showTimeSpent: true,
     };
   }
@@ -180,20 +176,12 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
   };
 
   // Add toggle methods for line visibility
-  toggleDev = () => {
-    this.setState((prevState) => ({ showDev: !prevState.showDev }));
+  handleViewChange = (e: any) => {
+    this.setState({ selectedView: e.target.value });
   };
 
-  toggleTest = () => {
-    this.setState((prevState) => ({ showTest: !prevState.showTest }));
-  };
-
-  toggleStory = () => {
-    this.setState((prevState) => ({ showStory: !prevState.showStory }));
-  };
-
-  toggleTimeSpent = () => {
-    this.setState((prevState) => ({ showTimeSpent: !prevState.showTimeSpent }));
+  handleTimeSpentChange = (e: any) => {
+    this.setState({ showTimeSpent: e.target.value });
   };
 
   render() {
@@ -294,46 +282,39 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
                 display: "flex",
                 gap: "10px",
                 flexWrap: "wrap",
+                alignItems: "center",
               }}
             >
-              <Button
-                type={this.state.showDev ? "primary" : "default"}
-                onClick={this.toggleDev}
+              <Radio.Group
+                value={this.state.selectedView}
+                onChange={this.handleViewChange}
+                optionType="button"
+                buttonStyle="solid"
               >
-                {this.state.showDev ? "Hide" : "Show"} Other
-              </Button>
-              <Button
-                type={this.state.showTest ? "primary" : "default"}
-                onClick={this.toggleTest}
+                <Radio.Button value="all">All</Radio.Button>
+                <Radio.Button value="other">Other</Radio.Button>
+                <Radio.Button value="test">Test</Radio.Button>
+                <Radio.Button value="story">Story</Radio.Button>
+              </Radio.Group>
+              <Radio.Group
+                value={this.state.showTimeSpent}
+                onChange={this.handleTimeSpentChange}
+                optionType="button"
+                buttonStyle="solid"
               >
-                {this.state.showTest ? "Hide" : "Show"} Test
-              </Button>
-              <Button
-                type={this.state.showStory ? "primary" : "default"}
-                onClick={this.toggleStory}
-              >
-                {this.state.showStory ? "Hide" : "Show"} Story
-              </Button>
-              <Button
-                type={this.state.showTimeSpent ? "primary" : "default"}
-                onClick={this.toggleTimeSpent}
-              >
-                {this.state.showTimeSpent ? "Hide" : "Show"} Time Spent
-              </Button>
+                <Radio.Button value={true}>Show Time Spent</Radio.Button>
+                <Radio.Button value={false}>Hide Time Spent</Radio.Button>
+              </Radio.Group>
             </div>
 
             <LineChart
               burnupDataArray={data}
-              showDev={this.state.showDev}
-              showTest={this.state.showTest}
-              showStory={this.state.showStory}
+              selectedView={this.state.selectedView}
               showTimeSpent={this.state.showTimeSpent}
             />
             <LineChart
               burnupDataArray={gapData}
-              showDev={this.state.showDev}
-              showTest={this.state.showTest}
-              showStory={this.state.showStory}
+              selectedView={this.state.selectedView}
               showTimeSpent={this.state.showTimeSpent}
               labels={{
                 doneDev: "Remaining Unfinished Other",
@@ -345,7 +326,11 @@ export default class EpicBurnupChart extends React.Component<Props, State> {
                 doneStory: "Remaining Unfinished Story",
                 inProgressStory: "Remaining Unstarted Story",
                 scopeStory: "Total Scope Story",
+                doneAll: "Remaining Unfinished All",
+                inProgressAll: "Remaining Unstarted All",
+                scopeAll: "Total Scope All",
                 timeSpent: "Remaining Time",
+                timeSpentAll: "Remaining Time All",
                 doneTrend: "Unfinished Trend",
                 scopeTrend: "Scope Trend",
               }}
