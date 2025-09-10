@@ -179,6 +179,66 @@ export const EpicIssuesList: React.FC<Props> = ({ epicIssues }) => {
                   </div>
                 )}
 
+                {/* Timeline bar showing progress through epic dates */}
+                {issue.epicStartDate && issue.epicEndDate && (
+                  <div style={{ marginBottom: "4px" }}>
+                    <Progress
+                      percent={(() => {
+                        const startDate = new Date(issue.epicStartDate);
+                        const endDate = new Date(issue.epicEndDate);
+                        const currentDate = new Date();
+
+                        // Calculate total duration
+                        const totalDuration =
+                          endDate.getTime() - startDate.getTime();
+
+                        // Calculate elapsed time
+                        const elapsedTime =
+                          currentDate.getTime() - startDate.getTime();
+
+                        // Calculate percentage (clamp between 0 and 100)
+                        const percentage = Math.min(
+                          Math.max((elapsedTime / totalDuration) * 100, 0),
+                          100
+                        );
+
+                        return Number(percentage.toFixed(0));
+                      })()}
+                      steps={total}
+                      strokeColor={(() => {
+                        const startDate = new Date(issue.epicStartDate);
+                        const endDate = new Date(issue.epicEndDate);
+                        const currentDate = new Date();
+
+                        // Calculate total duration
+                        const totalDuration =
+                          endDate.getTime() - startDate.getTime();
+
+                        // Calculate elapsed time
+                        const elapsedTime =
+                          currentDate.getTime() - startDate.getTime();
+
+                        // Calculate how many steps should be filled
+                        const percentage = Math.min(
+                          Math.max((elapsedTime / totalDuration) * 100, 0),
+                          100
+                        );
+
+                        const filledSteps = Math.floor(
+                          (percentage / 100) * total
+                        );
+
+                        return [
+                          ...Array(filledSteps).fill("#fa8c16"), // orange for filled timeline steps
+                          ...Array(total - filledSteps).fill("#f0f0f0"), // light gray for unfilled steps
+                        ];
+                      })()}
+                      style={{ height: "8px" }}
+                      showInfo={false}
+                    />
+                  </div>
+                )}
+
                 <div style={{ display: "flex", gap: "16px", fontSize: "12px" }}>
                   {legendItems.map((item, index) => (
                     <div
@@ -202,6 +262,25 @@ export const EpicIssuesList: React.FC<Props> = ({ epicIssues }) => {
                       </Typography.Text>
                     </div>
                   ))}
+                  {issue.epicStartDate && issue.epicEndDate && (
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <div
+                        style={{
+                          width: "12px",
+                          height: "12px",
+                          backgroundColor: "#fa8c16",
+                          borderRadius: "2px",
+                          marginRight: "4px",
+                        }}
+                      />
+                      <Typography.Text
+                        type="secondary"
+                        style={{ fontSize: "12px" }}
+                      >
+                        Timeline
+                      </Typography.Text>
+                    </div>
+                  )}
                   <Typography.Text
                     type="secondary"
                     style={{ fontSize: "12px" }}
