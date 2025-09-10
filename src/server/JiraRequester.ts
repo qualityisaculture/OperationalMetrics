@@ -28,6 +28,7 @@ export type LiteJiraIssue = {
   originalEstimate?: number | null; // in days
   timeSpent?: number | null; // in days
   timeRemaining?: number | null; // in days
+  dueDate: string | null; // Due date field (always present)
   hasChildren?: boolean | null; // true = has children, false = no children, null/undefined = unknown
   timeBookings?: Array<{ date: string; timeSpent: number }>; // Time bookings with dates
   timeBookingsJiraKeys?: string[]; // Array of all Jira keys in the workstream tree
@@ -46,6 +47,7 @@ export class JiraLite {
   childCount: number;
   url: string;
   baselineEstimate?: number | null; // in days - customfield_11753
+  dueDate: string | null; // Due date field (always present)
   hasChildren?: boolean | null;
 
   constructor(
@@ -58,7 +60,8 @@ export class JiraLite {
     account: string,
     hasChildren?: boolean | null,
     priority?: string,
-    baselineEstimate?: number | null
+    baselineEstimate?: number | null,
+    dueDate: string | null = null
   ) {
     this.key = key;
     this.summary = summary;
@@ -71,6 +74,7 @@ export class JiraLite {
     this.url = url;
     this.hasChildren = hasChildren;
     this.baselineEstimate = baselineEstimate;
+    this.dueDate = dueDate;
   }
 
   static fromLiteJiraIssue(issue: LiteJiraIssue): JiraLite {
@@ -86,7 +90,8 @@ export class JiraLite {
             "Unknown",
             undefined,
             undefined,
-            undefined
+            undefined,
+            null
           )
         : JiraLite.fromLiteJiraIssue(child)
     );
@@ -100,7 +105,8 @@ export class JiraLite {
       issue.account,
       issue.hasChildren,
       issue.priority,
-      issue.baselineEstimate
+      issue.baselineEstimate,
+      issue.dueDate
     );
   }
 
@@ -116,6 +122,7 @@ export class JiraLite {
       childCount: this.childCount,
       url: this.url,
       baselineEstimate: this.baselineEstimate,
+      dueDate: this.dueDate,
       hasChildren: this.hasChildren,
     };
   }
@@ -456,7 +463,7 @@ export default class JiraRequester {
   async getLiteQuery(query: string): Promise<LiteJiraIssue[]> {
     try {
       const domain = process.env.JIRA_DOMAIN;
-      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,issuetype,status,priority,customfield_10085,customfield_11753`;
+      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,issuetype,status,priority,customfield_10085,customfield_11753,duedate`;
       console.log(`Fetching lite data for ${url}`);
 
       let response = await this.fetchRequest(url);
@@ -498,6 +505,7 @@ export default class JiraRequester {
         baselineEstimate: issue.fields.customfield_11753
           ? issue.fields.customfield_11753
           : null,
+        dueDate: issue.fields.duedate || null, // Always include dueDate field
       }));
     } catch (error) {
       console.error("Error in getLiteQuery:", error);
@@ -523,7 +531,7 @@ export default class JiraRequester {
 
         const jql = `(${parentConditions}) ORDER BY created ASC`;
         const fields =
-          "key,summary,issuetype,parent,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753";
+          "key,summary,issuetype,parent,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate";
         const queryWithFields = `${jql}&fields=${fields}`;
 
         console.log(
@@ -553,6 +561,7 @@ export default class JiraRequester {
           timeRemaining: issue.fields.timeestimate
             ? issue.fields.timeestimate / 3600 / 7.5
             : null,
+          dueDate: issue.fields.duedate || null, // Always include dueDate field
         }));
 
         allChildren.push(...children);
@@ -570,7 +579,7 @@ export default class JiraRequester {
       const domain = process.env.JIRA_DOMAIN;
       // Query for issues where the parent field matches the parentKey
       const jql = `parent = "${parentKey}" ORDER BY created ASC`;
-      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753`;
+      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate`;
 
       let response = await this.fetchRequest(url);
 
@@ -612,6 +621,7 @@ export default class JiraRequester {
         timeRemaining: issue.fields.timeestimate
           ? issue.fields.timeestimate / 3600 / 7.5
           : null,
+        dueDate: issue.fields.duedate || null, // Always include dueDate field
       }));
     } catch (error) {
       console.error(`Error fetching children for issue ${parentKey}:`, error);

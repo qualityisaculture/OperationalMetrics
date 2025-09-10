@@ -491,6 +491,7 @@ export default class JiraReportGraphManager {
           originalEstimate: null,
           timeSpent: null,
           timeRemaining: null,
+          dueDate: null, // Required field
         };
         projectKey = "Unknown"; // We don't know the project for direct fetches
       }
@@ -613,6 +614,7 @@ export default class JiraReportGraphManager {
         originalEstimate: child.originalEstimate || null,
         timeSpent: child.timeSpent || null,
         timeRemaining: child.timeRemaining || null,
+        dueDate: child.dueDate || null,
       }));
 
       return {
@@ -1235,6 +1237,7 @@ export default class JiraReportGraphManager {
         originalEstimate: child.originalEstimate || null,
         timeSpent: child.timeSpent || null,
         timeRemaining: child.timeRemaining || null,
+        dueDate: child.dueDate || null,
       }));
     } catch (error) {
       console.error(`Error getting children for issue ${issueKey}:`, error);

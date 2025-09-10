@@ -14,7 +14,7 @@ export interface JiraIssueWithAggregated extends LiteJiraIssue {
   timeBookingsJiraKeys?: string[]; // Array of all Jira keys in the workstream tree
   timeBookingsTotalIssues?: number; // Total number of issues in the workstream tree
   timeDataByKey?: Record<string, Array<{ date: string; timeSpent: number }>>; // Map from Jira key to time data array
-  // Note: baselineEstimate is inherited from LiteJiraIssue and is NOT aggregated
+  // Note: baselineEstimate and dueDate are inherited from LiteJiraIssue and are NOT aggregated
 }
 
 // Interface for project-level aggregated data

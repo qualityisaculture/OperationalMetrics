@@ -143,6 +143,14 @@ export const WorkstreamTable: React.FC<Props> = ({
                 <Typography.Text style={{ marginLeft: "8px" }}>
                   {issue.summary}
                 </Typography.Text>
+                {issue.dueDate && (
+                  <Typography.Text
+                    type="secondary"
+                    style={{ marginLeft: "16px", fontSize: "12px" }}
+                  >
+                    Due: {new Date(issue.dueDate).toLocaleDateString()}
+                  </Typography.Text>
+                )}
               </List.Item>
             )}
           />
