@@ -1,7 +1,7 @@
 import React from "react";
 import { JiraIssueWithAggregated } from "../types";
 import { UnifiedIssuesTable } from "../../components/tables/UnifiedIssuesTable";
-import { Typography, List } from "antd";
+import { EpicIssuesList } from "./EpicIssuesList";
 
 interface Props {
   currentIssues: JiraIssueWithAggregated[];
@@ -122,40 +122,7 @@ export const WorkstreamTable: React.FC<Props> = ({
         currentWorkstreamKey={currentWorkstreamKey}
       />
 
-      {epicIssuesInProgress.length > 0 && (
-        <div style={{ marginTop: "24px" }}>
-          <Typography.Title level={4}>Epic Issues In Progress</Typography.Title>
-          <List
-            size="small"
-            dataSource={epicIssuesInProgress}
-            renderItem={(issue) => (
-              <List.Item>
-                <Typography.Text strong>
-                  <a
-                    href={issue.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ textDecoration: "none" }}
-                  >
-                    {issue.key}
-                  </a>
-                </Typography.Text>
-                <Typography.Text style={{ marginLeft: "8px" }}>
-                  {issue.summary}
-                </Typography.Text>
-                {issue.dueDate && (
-                  <Typography.Text
-                    type="secondary"
-                    style={{ marginLeft: "16px", fontSize: "12px" }}
-                  >
-                    Due: {new Date(issue.dueDate).toLocaleDateString()}
-                  </Typography.Text>
-                )}
-              </List.Item>
-            )}
-          />
-        </div>
-      )}
+      <EpicIssuesList epicIssues={epicIssuesInProgress} />
     </div>
   );
 };
