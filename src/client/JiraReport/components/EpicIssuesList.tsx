@@ -101,8 +101,7 @@ export const EpicIssuesList: React.FC<Props> = ({ epicIssues }) => {
   });
 
   return (
-    <div style={{ marginTop: "24px" }}>
-      <Typography.Title level={4}>Epic Issues In Progress</Typography.Title>
+    <div>
       <List
         size="small"
         dataSource={sortedEpicIssues}

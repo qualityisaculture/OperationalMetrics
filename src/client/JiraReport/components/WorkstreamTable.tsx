@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { JiraIssueWithAggregated } from "../types";
 import { UnifiedIssuesTable } from "../../components/tables/UnifiedIssuesTable";
 import { EpicIssuesList } from "./EpicIssuesList";
+import { Collapse, Typography } from "antd";
+import { DownOutlined, RightOutlined } from "@ant-design/icons";
 
 interface Props {
   currentIssues: JiraIssueWithAggregated[];
@@ -41,6 +43,8 @@ export const WorkstreamTable: React.FC<Props> = ({
   timeDataLoaded = new Set(),
   currentWorkstreamKey,
 }) => {
+  const [isTableCollapsed, setIsTableCollapsed] = useState(false);
+  const [isEpicListCollapsed, setIsEpicListCollapsed] = useState(false);
   // Find the complete hierarchical data for the current workstream
   // We need to find the workstream in projectIssues that matches the current level
   const currentLevelData = navigationStack[navigationStack.length - 1];
@@ -88,41 +92,91 @@ export const WorkstreamTable: React.FC<Props> = ({
 
   return (
     <div>
-      <UnifiedIssuesTable
-        title={`Issues in ${navigationStack[navigationStack.length - 1].name}`}
-        dataSource={currentIssues}
-        rowKey="key"
-        showFavoriteColumn={true}
-        favoriteItems={favoriteItems}
-        toggleFavorite={toggleFavorite}
-        navigationStack={navigationStack}
-        currentIssues={currentIssues}
-        getWorkstreamDataCellSpan={getWorkstreamDataCellSpan}
-        getSortedItems={getSortedItems}
-        showExportButton={true}
-        workstreamName={navigationStack[navigationStack.length - 1].name}
-        parentWorkstreamKey={navigationStack[navigationStack.length - 1].key}
-        completeHierarchicalData={completeHierarchicalData}
-        pagination={{
-          pageSize: 50,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) =>
-            `${range[0]}-${range[1]} of ${total} issues`,
-        }}
-        onRow={(record) => ({
-          onClick: () => handleIssueClick(record),
-          style: {
-            cursor: record.childCount > 0 ? "pointer" : "default",
-            backgroundColor: record.childCount > 0 ? "#fafafa" : "transparent",
-          },
-        })}
-        onRequestTimeBookings={onRequestTimeBookings}
-        timeDataLoaded={timeDataLoaded}
-        currentWorkstreamKey={currentWorkstreamKey}
-      />
+      <Collapse
+        activeKey={isTableCollapsed ? [] : ["table"]}
+        onChange={(keys) => setIsTableCollapsed(keys.length === 0)}
+        ghost
+        style={{ marginBottom: "16px" }}
+      >
+        <Collapse.Panel
+          key="table"
+          header={
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {isTableCollapsed ? <RightOutlined /> : <DownOutlined />}
+              <Typography.Title
+                level={4}
+                style={{ margin: 0, marginLeft: "8px" }}
+              >
+                Issues in {navigationStack[navigationStack.length - 1].name}
+              </Typography.Title>
+            </div>
+          }
+          showArrow={false}
+        >
+          <UnifiedIssuesTable
+            title=""
+            dataSource={currentIssues}
+            rowKey="key"
+            showFavoriteColumn={true}
+            favoriteItems={favoriteItems}
+            toggleFavorite={toggleFavorite}
+            navigationStack={navigationStack}
+            currentIssues={currentIssues}
+            getWorkstreamDataCellSpan={getWorkstreamDataCellSpan}
+            getSortedItems={getSortedItems}
+            showExportButton={true}
+            workstreamName={navigationStack[navigationStack.length - 1].name}
+            parentWorkstreamKey={
+              navigationStack[navigationStack.length - 1].key
+            }
+            completeHierarchicalData={completeHierarchicalData}
+            pagination={{
+              pageSize: 50,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) =>
+                `${range[0]}-${range[1]} of ${total} issues`,
+            }}
+            onRow={(record) => ({
+              onClick: () => handleIssueClick(record),
+              style: {
+                cursor: record.childCount > 0 ? "pointer" : "default",
+                backgroundColor:
+                  record.childCount > 0 ? "#fafafa" : "transparent",
+              },
+            })}
+            onRequestTimeBookings={onRequestTimeBookings}
+            timeDataLoaded={timeDataLoaded}
+            currentWorkstreamKey={currentWorkstreamKey}
+          />
+        </Collapse.Panel>
+      </Collapse>
 
-      <EpicIssuesList epicIssues={epicIssuesInProgress} />
+      {epicIssuesInProgress.length > 0 && (
+        <Collapse
+          activeKey={isEpicListCollapsed ? [] : ["epics"]}
+          onChange={(keys) => setIsEpicListCollapsed(keys.length === 0)}
+          ghost
+        >
+          <Collapse.Panel
+            key="epics"
+            header={
+              <div style={{ display: "flex", alignItems: "center" }}>
+                {isEpicListCollapsed ? <RightOutlined /> : <DownOutlined />}
+                <Typography.Title
+                  level={4}
+                  style={{ margin: 0, marginLeft: "8px" }}
+                >
+                  Epic Issues In Progress ({epicIssuesInProgress.length})
+                </Typography.Title>
+              </div>
+            }
+            showArrow={false}
+          >
+            <EpicIssuesList epicIssues={epicIssuesInProgress} />
+          </Collapse.Panel>
+        </Collapse>
+      )}
     </div>
   );
 };
