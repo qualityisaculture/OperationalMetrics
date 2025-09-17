@@ -300,21 +300,24 @@ export default class JiraRequester {
     const domain = process.env.JIRA_DOMAIN;
     const url = `${domain}/rest/api/3/search/jql?jql=${query}`;
     console.log(`Fetching data for ${url}`);
+
     let response = await this.fetchRequest(url);
-    if (response.total > 5000) {
-      throw new Error("Query returned too many results");
+    let allIssues = response.issues;
+    let nextPageToken = response.nextPageToken;
+    let isLast = response.isLast;
+
+    // Keep fetching pages while there is a next page token
+    while (!isLast) {
+      let nextResponse = await this.fetchRequest(
+        `${url}&nextPageToken=${nextPageToken}`
+      );
+      allIssues = allIssues.concat(nextResponse.issues);
+      nextPageToken = nextResponse.nextPageToken;
+      isLast = nextResponse.isLast;
     }
-    if (response.total > 50) {
-      let startAt = 50;
-      while (startAt < response.total) {
-        console.log(
-          `Fetching for next 50 issues of ${response.total}, startAt: ${startAt}`
-        );
-        let nextResponse = await this.fetchRequest(`${url}&startAt=${startAt}`);
-        response.issues = response.issues.concat(nextResponse.issues);
-        startAt += 50;
-      }
-    }
+
+    // Update the response object with all collected issues
+    response.issues = allIssues;
     return response;
   }
 
