@@ -9,8 +9,9 @@ import {
   Modal,
   Checkbox,
   Divider,
+  Collapse,
 } from "antd";
-import { InfoCircleOutlined, DownloadOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, DownloadOutlined, DownOutlined, RightOutlined } from "@ant-design/icons";
 import { JiraIssueWithAggregated } from "../types";
 import { getIssueColumns } from "./tables/issueColumns";
 import { ProjectSummary } from "./ProjectSummary";
@@ -67,6 +68,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
   const [isFiltered, setIsFiltered] = useState(false);
   const [isExportModalVisible, setIsExportModalVisible] = useState(false);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [isWorkstreamsTableCollapsed, setIsWorkstreamsTableCollapsed] = useState(false);
 
   // Prepare the data source with aggregated values
   const prepareDataSource = () => {
@@ -211,88 +213,102 @@ export const DynamicProjectSummary: React.FC<Props> = ({
         showFilteredMetrics={isFiltered}
       />
 
-      <Card
-        title={
-          <Space>
-            <InfoCircleOutlined />
-            <Space>
-              <span>Project Workstreams ({projectIssues.length})</span>
-              {navigationStack.length === 1 && (
-                <Button
-                  type="primary"
-                  onClick={showRequestAllModal}
-                  size="small"
-                >
-                  Request All
-                </Button>
-              )}
-            </Space>
-          </Space>
-        }
-        extra={
-          <Space>
-            <Text type="secondary">
-              Last updated: {new Date().toLocaleString()}
-              {isFiltered && (
-                <span
-                  style={{
-                    marginLeft: "8px",
-                    color: "#1890ff",
-                    fontWeight: "500",
-                  }}
-                >
-                  🔍 Showing {filteredData.length} filtered results
-                </span>
-              )}
-            </Text>
-            <Tooltip title="Export Project Workstreams table data to Excel">
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                size="small"
-                onClick={showExportModal}
-              >
-                Export Project Workstreams
-              </Button>
-            </Tooltip>
-            {isFiltered && (
-              <Button
-                size="small"
-                onClick={() => {
-                  setFilteredData([]);
-                  setIsFiltered(false);
-                  // Note: This will clear our local filter state, but the table filters
-                  // will need to be cleared manually by the user
-                }}
-              >
-                Clear Filter View
-              </Button>
-            )}
-          </Space>
-        }
+      <Collapse
+        activeKey={isWorkstreamsTableCollapsed ? [] : ["workstreams"]}
+        onChange={(keys) => setIsWorkstreamsTableCollapsed(keys.length === 0)}
+        ghost
+        style={{ marginBottom: "16px" }}
       >
-        <Table
-          key={`workstreams-table-${favoriteItems.size}-${navigationStack.length}-${loadedWorkstreamData.size}`}
-          columns={issueColumns}
-          dataSource={dataSource}
-          rowKey="key"
-          onChange={handleTableChange}
-          pagination={{
-            pageSize: 50,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) =>
-              `${range[0]}-${range[1]} of ${total} workstreams`,
-          }}
-          onRow={(record) => ({
-            onClick: () => handleWorkstreamClick(record),
-            style: {
-              cursor: "pointer",
-              backgroundColor: "#fafafa",
-            },
-          })}
-        />
-      </Card>
+        <Collapse.Panel
+          key="workstreams"
+          header={
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                {isWorkstreamsTableCollapsed ? <RightOutlined /> : <DownOutlined />}
+                <InfoCircleOutlined style={{ marginLeft: "8px", marginRight: "8px" }} />
+                <Typography.Title
+                  level={4}
+                  style={{ margin: 0 }}
+                >
+                  Project Workstreams ({projectIssues.length})
+                </Typography.Title>
+                {navigationStack.length === 1 && (
+                  <Button
+                    type="primary"
+                    onClick={showRequestAllModal}
+                    size="small"
+                    style={{ marginLeft: "16px" }}
+                  >
+                    Request All
+                  </Button>
+                )}
+              </div>
+              <Space>
+                <Text type="secondary">
+                  Last updated: {new Date().toLocaleString()}
+                  {isFiltered && (
+                    <span
+                      style={{
+                        marginLeft: "8px",
+                        color: "#1890ff",
+                        fontWeight: "500",
+                      }}
+                    >
+                      🔍 Showing {filteredData.length} filtered results
+                    </span>
+                  )}
+                </Text>
+                <Tooltip title="Export Project Workstreams table data to Excel">
+                  <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    size="small"
+                    onClick={showExportModal}
+                  >
+                    Export Project Workstreams
+                  </Button>
+                </Tooltip>
+                {isFiltered && (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      setFilteredData([]);
+                      setIsFiltered(false);
+                      // Note: This will clear our local filter state, but the table filters
+                      // will need to be cleared manually by the user
+                    }}
+                  >
+                    Clear Filter View
+                  </Button>
+                )}
+              </Space>
+            </div>
+          }
+          showArrow={false}
+        >
+          <Table
+            key={`workstreams-table-${favoriteItems.size}-${navigationStack.length}-${loadedWorkstreamData.size}`}
+            columns={issueColumns}
+            dataSource={dataSource}
+            rowKey="key"
+            onChange={handleTableChange}
+            pagination={{
+              pageSize: 50,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) =>
+                `${range[0]}-${range[1]} of ${total} workstreams`,
+            }}
+            onRow={(record) => ({
+              onClick: () => handleWorkstreamClick(record),
+              style: {
+                cursor: "pointer",
+                backgroundColor: "#fafafa",
+              },
+            })}
+          />
+        </Collapse.Panel>
+      </Collapse>
 
       {/* Export Modal */}
       <Modal
