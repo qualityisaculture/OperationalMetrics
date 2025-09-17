@@ -1,4 +1,5 @@
 import Jira from "./Jira";
+import { JiraIssuesResponse } from "./JiraAPITypes";
 
 export type lastUpdatedKey = {
   key: string;
@@ -175,11 +176,11 @@ export default class JiraRequester {
       }
     });
 
-    let jiraJSON = await this.requestIssueFromServer(uncachedKeys).catch(
-      (error) => {
-        throw error;
-      }
-    );
+    let jiraJSON: JiraIssuesResponse = (await this.requestIssueFromServer(
+      uncachedKeys
+    ).catch((error) => {
+      throw error;
+    })) as JiraIssuesResponse;
     for (let jira of jiraJSON.issues) {
       let histories = jira.changelog?.histories;
       if (histories) {
@@ -272,7 +273,7 @@ export default class JiraRequester {
     for (let i = 0; i < issueKeys.length; i += 50) {
       let keys = issueKeys.slice(i, i + 50);
       let jql = keys.map((key) => `key=${key}`).join(" OR ");
-      const query = `${jql}&expand=changelog`;
+      const query = `${jql}&expand=changelog&fields=issuetype,components,created,customfield_10085,customfield_10022,fixVersions,customfield_10023,priority,resolution,customfield_11753,labels,duedate,updated,status,resolutiondate,summary,timespent`;
       let data = await this.requestDataFromServer(query);
       allIssues.issues = allIssues.issues.concat(data.issues);
     }
@@ -297,7 +298,7 @@ export default class JiraRequester {
 
   async requestDataFromServer(query: string) {
     const domain = process.env.JIRA_DOMAIN;
-    const url = `${domain}/rest/api/3/search?jql=${query}`;
+    const url = `${domain}/rest/api/3/search/jql?jql=${query}`;
     console.log(`Fetching data for ${url}`);
     let response = await this.fetchRequest(url);
     if (response.total > 5000) {
@@ -477,7 +478,7 @@ export default class JiraRequester {
   async getLiteQuery(query: string): Promise<LiteJiraIssue[]> {
     try {
       const domain = process.env.JIRA_DOMAIN;
-      const url = `${domain}/rest/api/3/search?jql=${query}&fields=key,summary,issuetype,status,priority,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023`;
+      const url = `${domain}/rest/api/3/search/jql?jql=${query}&fields=key,summary,issuetype,status,priority,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023`;
       console.log(`Fetching lite data for ${url}`);
 
       let response = await this.fetchRequest(url);
@@ -597,7 +598,7 @@ export default class JiraRequester {
       const domain = process.env.JIRA_DOMAIN;
       // Query for issues where the parent field matches the parentKey
       const jql = `parent = "${parentKey}" ORDER BY created ASC`;
-      const url = `${domain}/rest/api/3/search?jql=${jql}&fields=key,summary,issuetype,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023`;
+      const url = `${domain}/rest/api/3/search/jql?jql=${jql}&fields=key,summary,issuetype,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023`;
 
       let response = await this.fetchRequest(url);
 

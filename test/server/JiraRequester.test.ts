@@ -41,7 +41,7 @@ describe("JiraRequester", () => {
       let jira = await jr.getFullJiraDataFromKeys([{ key: "KEY-1" }]);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(fetchMock.mock.calls[0][0]).toEqual(
-        "localhost:8080/rest/api/3/search?jql=key=KEY-1&expand=changelog"
+        "localhost:8080/rest/api/3/search/jql?jql=key=KEY-1&expand=changelog"
       );
     });
 
@@ -121,7 +121,7 @@ describe("JiraRequester", () => {
         { key: "KEY-2" },
       ]);
       expect(fetchMock.mock.calls[0][0]).toEqual(
-        "localhost:8080/rest/api/3/search?jql=key=KEY-1 OR key=KEY-2&expand=changelog"
+        "localhost:8080/rest/api/3/search/jql?jql=key=KEY-1 OR key=KEY-2&expand=changelog"
       );
     });
   });
@@ -131,14 +131,20 @@ describe("JiraRequester", () => {
       fetchMock.mockResolvedValue(
         fetchResponseOk({
           issues: [
-            { key: "KEY-1", fields: { summary: "Summary 1", resolved: "2024-10-21T09:00:00.000+0100" } },
+            {
+              key: "KEY-1",
+              fields: {
+                summary: "Summary 1",
+                resolved: "2024-10-21T09:00:00.000+0100",
+              },
+            },
           ],
         })
       );
       let keys = ["KEY-1"];
       let jiras = await jr.getEssentialJiraDataFromKeys(keys);
       expect(fetchMock.mock.calls[0][0]).toEqual(
-        "localhost:8080/rest/api/3/search?jql=key=KEY-1&fields=key,summary,resolutiondate,fixVersions"
+        "localhost:8080/rest/api/3/search/jql?jql=key=KEY-1&fields=key,summary,resolutiondate,fixVersions"
       );
       expect(jiras[0].key).toEqual("KEY-1");
     });
@@ -166,7 +172,7 @@ describe("JiraRequester", () => {
         'project="Project 1" AND resolved >= -1w'
       );
       expect(fetchMock.mock.calls[0][0]).toEqual(
-        'localhost:8080/rest/api/3/search?jql=project="Project 1" AND resolved >= -1w&fields=key,updated'
+        'localhost:8080/rest/api/3/search/jql?jql=project="Project 1" AND resolved >= -1w&fields=key,updated'
       );
       expect(jiras).toEqual([
         { key: "KEY-1", updated: "2024-10-21T09:00:00.000+0100" },
@@ -449,7 +455,7 @@ describe("JiraRequester", () => {
       let jr = new JiraRequester();
       let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
       expect(fetchMock.mock.calls[0][0]).toEqual(
-        'localhost:8080/rest/api/3/search?jql=project="Project 1" AND resolved >= -1w&fields=key,updated'
+        'localhost:8080/rest/api/3/search/jql?jql=project="Project 1" AND resolved >= -1w&fields=key,updated'
       );
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(jiras[0].getKey()).toEqual("KEY-1");
@@ -460,7 +466,7 @@ describe("JiraRequester", () => {
       let jiras = await jr.getQuery('project="Project 1" AND resolved >= -1w');
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(fetchMock.mock.calls[1][0]).toEqual(
-        "localhost:8080/rest/api/3/search?jql=key=KEY-1&expand=changelog"
+        "localhost:8080/rest/api/3/search/jql?jql=key=KEY-1&expand=changelog"
       );
     });
 

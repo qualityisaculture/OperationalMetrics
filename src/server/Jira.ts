@@ -6,8 +6,8 @@ export type JiraJsonFields = {
   created: string;
   components: { name: string }[];
   customfield_10015?: string; // Epic Start Date
-  customfield_10022?: string; // Epic Start Date (fallback)
-  customfield_10023?: string; // Epic End Date (fallback)
+  customfield_10022: string | null; // Epic Start Date (fallback)
+  customfield_10023: string | null; // Epic End Date (fallback)
   duedate?: string;
   fixVersions: { name: string }[];
   issuetype: { name: string };
@@ -40,8 +40,8 @@ export default class Jira {
     created: string;
     components: { name: string }[];
     customfield_10015?: string; // Epic Start Date
-    customfield_10022?: string; // Epic Start Date (fallback)
-    customfield_10023?: string; // Epic End Date (fallback)
+    customfield_10022: string | null; // Epic Start Date (fallback)
+    customfield_10023: string | null; // Epic End Date (fallback)
     duedate?: string;
     fixVersions: { name: string }[];
     issuetype: { name: string };
