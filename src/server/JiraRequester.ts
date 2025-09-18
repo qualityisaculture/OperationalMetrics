@@ -455,22 +455,22 @@ export default class JiraRequester {
     console.log(`Fetching projects from ${url}`);
 
     let response = await this.fetchRequest(url);
-    let allProjects = response.values;
-    let nextPageToken = response.nextPageToken;
-    let isLast = response.isLast;
 
-    // Keep fetching pages while there is a next page token
-    while (!isLast) {
-      let nextResponse = await this.fetchRequest(
-        `${url}?nextPageToken=${nextPageToken}`
-      );
-      allProjects = allProjects.concat(nextResponse.values);
-      nextPageToken = nextResponse.nextPageToken;
-      isLast = nextResponse.isLast;
+    // Handle pagination if there are more than 50 projects
+    if (response.total > 50) {
+      let startAt = 50;
+      while (startAt < response.total) {
+        console.log(
+          `Fetching next 50 projects of ${response.total}, startAt: ${startAt}`
+        );
+        let nextResponse = await this.fetchRequest(`${url}?startAt=${startAt}`);
+        response.values = response.values.concat(nextResponse.values);
+        startAt += 50;
+      }
     }
 
     // Return simplified project data with just the fields we need
-    return allProjects.map((project: any) => ({
+    return response.values.map((project: any) => ({
       id: project.id,
       key: project.key,
       name: project.name,
