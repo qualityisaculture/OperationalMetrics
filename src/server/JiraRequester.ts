@@ -455,22 +455,22 @@ export default class JiraRequester {
     console.log(`Fetching projects from ${url}`);
 
     let response = await this.fetchRequest(url);
+    let allProjects = response.values;
+    let nextPageToken = response.nextPageToken;
+    let isLast = response.isLast;
 
-    // Handle pagination if there are more than 50 projects
-    if (response.total > 50) {
-      let startAt = 50;
-      while (startAt < response.total) {
-        console.log(
-          `Fetching next 50 projects of ${response.total}, startAt: ${startAt}`
-        );
-        let nextResponse = await this.fetchRequest(`${url}?startAt=${startAt}`);
-        response.values = response.values.concat(nextResponse.values);
-        startAt += 50;
-      }
+    // Keep fetching pages while there is a next page token
+    while (!isLast) {
+      let nextResponse = await this.fetchRequest(
+        `${url}?nextPageToken=${nextPageToken}`
+      );
+      allProjects = allProjects.concat(nextResponse.values);
+      nextPageToken = nextResponse.nextPageToken;
+      isLast = nextResponse.isLast;
     }
 
     // Return simplified project data with just the fields we need
-    return response.values.map((project: any) => ({
+    return allProjects.map((project: any) => ({
       id: project.id,
       key: project.key,
       name: project.name,
@@ -485,24 +485,22 @@ export default class JiraRequester {
       console.log(`Fetching lite data for ${url}`);
 
       let response = await this.fetchRequest(url);
+      let allIssues = response.issues;
+      let nextPageToken = response.nextPageToken;
+      let isLast = response.isLast;
 
-      // Handle pagination if there are more than 50 issues
-      if (response.total > 50) {
-        let startAt = 50;
-        while (startAt < response.total) {
-          console.log(
-            `Fetching next 50 issues of ${response.total}, startAt: ${startAt}`
-          );
-          let nextResponse = await this.fetchRequest(
-            `${url}&startAt=${startAt}`
-          );
-          response.issues = response.issues.concat(nextResponse.issues);
-          startAt += 50;
-        }
+      // Keep fetching pages while there is a next page token
+      while (!isLast) {
+        let nextResponse = await this.fetchRequest(
+          `${url}&nextPageToken=${nextPageToken}`
+        );
+        allIssues = allIssues.concat(nextResponse.issues);
+        nextPageToken = nextResponse.nextPageToken;
+        isLast = nextResponse.isLast;
       }
 
       // Get the top-level issues (those that are not children of other issues)
-      const topLevelIssues = response.issues.filter((issue: any) => {
+      const topLevelIssues = allIssues.filter((issue: any) => {
         // Filter out subtasks and issues that have parents
         return (
           issue.fields.issuetype.name !== "Sub-task" && !issue.fields.parent
@@ -601,27 +599,26 @@ export default class JiraRequester {
       const domain = process.env.JIRA_DOMAIN;
       // Query for issues where the parent field matches the parentKey
       const jql = `parent = "${parentKey}" ORDER BY created ASC`;
-      const url = `${domain}/rest/api/3/search/jql?jql=${jql}&fields=key,summary,issuetype,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023`;
+      const fields = "key,summary,issuetype,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023";
+      const url = `${domain}/rest/api/3/search/jql?jql=${jql}&fields=${fields}`;
 
       let response = await this.fetchRequest(url);
+      let allIssues = response.issues;
+      let nextPageToken = response.nextPageToken;
+      let isLast = response.isLast;
 
-      // Handle pagination if there are more than 50 children
-      if (response.total > 50) {
-        let startAt = 50;
-        while (startAt < response.total) {
-          console.log(
-            `Fetching next 50 children of ${response.total}, startAt: ${startAt}`
-          );
-          let nextResponse = await this.fetchRequest(
-            `${url}&startAt=${startAt}`
-          );
-          response.issues = response.issues.concat(nextResponse.issues);
-          startAt += 50;
-        }
+      // Keep fetching pages while there is a next page token
+      while (!isLast) {
+        let nextResponse = await this.fetchRequest(
+          `${url}&nextPageToken=${nextPageToken}`
+        );
+        allIssues = allIssues.concat(nextResponse.issues);
+        nextPageToken = nextResponse.nextPageToken;
+        isLast = nextResponse.isLast;
       }
 
       // Transform children to LiteJiraIssue format (children don't have their own children in this context)
-      return response.issues.map((issue: any) => ({
+      return allIssues.map((issue: any) => ({
         key: issue.key,
         summary: issue.fields.summary || "",
         type: issue.fields.issuetype.name || "",
