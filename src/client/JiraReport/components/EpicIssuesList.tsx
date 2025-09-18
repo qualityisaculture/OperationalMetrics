@@ -132,14 +132,6 @@ export const EpicIssuesList: React.FC<Props> = ({ epicIssues }) => {
                   <Typography.Text style={{ marginLeft: "8px" }}>
                     {issue.summary}
                   </Typography.Text>
-                  {issue.dueDate && (
-                    <Typography.Text
-                      type="secondary"
-                      style={{ marginLeft: "16px", fontSize: "12px" }}
-                    >
-                      Due: {new Date(issue.dueDate).toLocaleDateString()}
-                    </Typography.Text>
-                  )}
                   {issue.epicStartDate && (
                     <Typography.Text
                       type="secondary"
@@ -155,6 +147,14 @@ export const EpicIssuesList: React.FC<Props> = ({ epicIssues }) => {
                       style={{ marginLeft: "16px", fontSize: "12px" }}
                     >
                       End: {new Date(issue.epicEndDate).toLocaleDateString()}
+                    </Typography.Text>
+                  )}
+                  {issue.dueDate && (
+                    <Typography.Text
+                      type="secondary"
+                      style={{ marginLeft: "16px", fontSize: "12px" }}
+                    >
+                      Due: {new Date(issue.dueDate).toLocaleDateString()}
                     </Typography.Text>
                   )}
                 </div>
