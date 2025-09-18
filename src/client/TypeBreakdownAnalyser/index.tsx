@@ -2,13 +2,31 @@ import React, { useState, useEffect } from "react";
 import { Alert, Button, Input, Space, Typography, Card } from "antd";
 import { SearchOutlined, BarChartOutlined } from "@ant-design/icons";
 import { LoadingIndicator } from "../components";
+import { TypeBreakdownDisplay } from "./components";
 
 const { Title, Text } = Typography;
+
+interface TypeBreakdownData {
+  key: string;
+  summary: string;
+  type: string;
+  status: string;
+  children: TypeBreakdownData[];
+  childCount: number;
+  url: string;
+  originalEstimate?: number | null;
+  timeSpent?: number | null;
+  timeRemaining?: number | null;
+  dueDate?: string | null;
+  epicStartDate?: string | null;
+  epicEndDate?: string | null;
+}
 
 const TypeBreakdownAnalyser: React.FC = () => {
   const [query, setQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<TypeBreakdownData | null>(null);
 
   // Load saved query from localStorage or URL parameters on component mount
   useEffect(() => {
@@ -52,16 +70,19 @@ const TypeBreakdownAnalyser: React.FC = () => {
           console.log("Processing:", response.message);
           // You could show progress updates here if needed
         } else if (response.status === "complete" && response.data) {
-          const data = JSON.parse(response.data);
+          const responseData = JSON.parse(response.data);
           console.log("=== TYPE BREAKDOWN ANALYSER DATA ===");
           console.log("Query:", query);
-          console.log("Root issue:", data);
+          console.log("Root issue:", responseData);
           console.log(
             "Children count:",
-            data.children ? data.children.length : 0
+            responseData.children ? responseData.children.length : 0
           );
-          console.log("Full data structure:", data);
+          console.log("Full data structure:", responseData);
           console.log("=== END DATA ===");
+
+          // Store the data for display
+          setData(responseData);
 
           eventSource.close();
           setIsLoading(false);
@@ -153,6 +174,8 @@ const TypeBreakdownAnalyser: React.FC = () => {
           }
         />
       )}
+
+      {data && <TypeBreakdownDisplay data={data} isLoading={isLoading} />}
     </div>
   );
 };
