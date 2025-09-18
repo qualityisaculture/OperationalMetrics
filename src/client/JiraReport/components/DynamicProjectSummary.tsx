@@ -11,7 +11,12 @@ import {
   Divider,
   Collapse,
 } from "antd";
-import { InfoCircleOutlined, DownloadOutlined, DownOutlined, RightOutlined } from "@ant-design/icons";
+import {
+  InfoCircleOutlined,
+  DownloadOutlined,
+  DownOutlined,
+  RightOutlined,
+} from "@ant-design/icons";
 import { JiraIssueWithAggregated } from "../types";
 import { getIssueColumns } from "./tables/issueColumns";
 import { ProjectSummary } from "./ProjectSummary";
@@ -68,7 +73,8 @@ export const DynamicProjectSummary: React.FC<Props> = ({
   const [isFiltered, setIsFiltered] = useState(false);
   const [isExportModalVisible, setIsExportModalVisible] = useState(false);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
-  const [isWorkstreamsTableCollapsed, setIsWorkstreamsTableCollapsed] = useState(false);
+  const [isWorkstreamsTableCollapsed, setIsWorkstreamsTableCollapsed] =
+    useState(false);
 
   // Prepare the data source with aggregated values
   const prepareDataSource = () => {
@@ -222,14 +228,24 @@ export const DynamicProjectSummary: React.FC<Props> = ({
         <Collapse.Panel
           key="workstreams"
           header={
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center" }}>
-                {isWorkstreamsTableCollapsed ? <RightOutlined /> : <DownOutlined />}
-                <InfoCircleOutlined style={{ marginLeft: "8px", marginRight: "8px" }} />
-                <Typography.Title
-                  level={4}
-                  style={{ margin: 0 }}
-                >
+                {isWorkstreamsTableCollapsed ? (
+                  <RightOutlined />
+                ) : (
+                  <DownOutlined />
+                )}
+                <InfoCircleOutlined
+                  style={{ marginLeft: "8px", marginRight: "8px" }}
+                />
+                <Typography.Title level={4} style={{ margin: 0 }}>
                   Project Workstreams ({projectIssues.length})
                 </Typography.Title>
                 {navigationStack.length === 1 && (

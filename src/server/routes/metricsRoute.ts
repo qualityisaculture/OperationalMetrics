@@ -46,10 +46,7 @@ const bottleneckDetectorGraphManager = new BottleneckDetectorGraphManager(
 
 metricsRoute.get(
   "/cumulativeFlowDiagram",
-  (
-    req: TRQ<{ query: string }>,
-    res: TR<{ message: string; data: string }>
-  ) => {
+  (req: TRQ<{ query: string }>, res: TR<{ message: string; data: string }>) => {
     const query = req.query.query;
     cfdm
       .getCumulativeFlowDiagramData(query)
@@ -766,6 +763,171 @@ metricsRoute.get(
   }
 );
 
+// Type Breakdown Analyser API route
+metricsRoute.get(
+  "/typeBreakdownAnalyser",
+  (req: TRQ<{ query: string }>, res: TR<{ message: string; data: string }>) => {
+    const query = req.query.query;
+    console.log(`Type Breakdown Analyser endpoint called with query: ${query}`);
+
+    // Set headers for SSE
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    // Send initial processing message
+    res.write(
+      `data: ${JSON.stringify({
+        status: "processing",
+        step: "initializing",
+        message: `Starting to fetch and analyse data for query: ${query}`,
+        progress: {
+          currentLevel: 0,
+          totalLevels: 0,
+          currentIssues: [],
+          totalIssues: 0,
+          apiCallsMade: 0,
+          totalApiCalls: 0,
+          currentPhase: "initializing",
+          phaseProgress: 0,
+          phaseTotal: 1,
+        },
+      })}\n\n`
+    );
+
+    // Use JiraRequester to fetch issues from JQL query, then recursively fetch children
+    jiraRequester
+      .getLiteQuery(query)
+      .then(async (issues) => {
+        console.log(
+          `Type Breakdown Analyser: Found ${issues.length} issues for query: ${query}`
+        );
+
+        if (issues.length === 0) {
+          res.write(
+            `data: ${JSON.stringify({
+              status: "complete",
+              data: JSON.stringify({
+                key: "query-results",
+                summary: `Query Results: ${query}`,
+                type: "Query",
+                status: "Complete",
+                children: [],
+                childCount: 0,
+                url: "",
+                originalEstimate: null,
+                timeSpent: null,
+                timeRemaining: null,
+                dueDate: null,
+                epicStartDate: null,
+                epicEndDate: null,
+              }),
+              hasData: false,
+            })}\n\n`
+          );
+          res.end();
+          return;
+        }
+
+        // Send progress update
+        res.write(
+          `data: ${JSON.stringify({
+            status: "processing",
+            step: "fetching_children",
+            message: `Found ${issues.length} issues, now fetching children recursively...`,
+            progress: {
+              currentLevel: 1,
+              totalLevels: 1,
+              currentIssues: issues.map((i) => i.key),
+              totalIssues: issues.length,
+              apiCallsMade: 1,
+              totalApiCalls: 1,
+              currentPhase: "fetching_children",
+              phaseProgress: 0,
+              phaseTotal: 1,
+            },
+          })}\n\n`
+        );
+
+        // For each issue, fetch its children recursively using the JiraReportGraphManager
+        const issuesWithChildren: any[] = [];
+        for (let i = 0; i < issues.length; i++) {
+          const issue = issues[i];
+          try {
+            // Use the existing recursive fetching method for each issue
+            const issueWithChildren =
+              await jiraReportGraphManager.getWorkstreamIssues(
+                issue.key,
+                (progress) => {
+                  // Forward progress updates
+                  res.write(`data: ${JSON.stringify(progress)}\n\n`);
+                }
+              );
+            issuesWithChildren.push(issueWithChildren);
+          } catch (error) {
+            console.error(
+              `Error fetching children for issue ${issue.key}:`,
+              error
+            );
+            // Add the issue without children if fetching fails
+            issuesWithChildren.push({
+              ...issue,
+              children: [],
+              childCount: 0,
+            });
+          }
+        }
+
+        // Create a root container with all the issues as children
+        const rootData = {
+          key: "query-results",
+          summary: `Query Results: ${query}`,
+          type: "Query",
+          status: "Complete",
+          children: issuesWithChildren,
+          childCount: issuesWithChildren.length,
+          url: "",
+          originalEstimate: null,
+          timeSpent: null,
+          timeRemaining: null,
+          dueDate: null,
+          epicStartDate: null,
+          epicEndDate: null,
+        };
+
+        console.log(
+          `Type Breakdown Analyser: Completed fetching data for query: ${query}`
+        );
+        console.log(`Root data:`, rootData);
+
+        // Send completion message with data
+        res.write(
+          `data: ${JSON.stringify({
+            status: "complete",
+            data: JSON.stringify(rootData),
+            hasData: issuesWithChildren.length > 0,
+          })}\n\n`
+        );
+        res.end();
+      })
+      .catch((error) => {
+        console.error(
+          `Error in Type Breakdown Analyser for query ${query}:`,
+          error
+        );
+
+        // Send error message
+        res.write(
+          `data: ${JSON.stringify({
+            status: "error",
+            message: `Error analysing data for query ${query}: ${error.message}`,
+          })}\n\n`
+        );
+        res.end();
+      });
+  }
+);
+
 // Time Bookings API route for workstreams
 metricsRoute.get(
   "/jiraReport/workstream/:workstreamKey/timeBookings",
@@ -799,13 +961,21 @@ metricsRoute.get(
       );
 
       // Get real time tracking data from Jira API
-      let timeTrackingData: Record<string, Array<{ date: string; timeSpent: number }>>;
-      
+      let timeTrackingData: Record<
+        string,
+        Array<{ date: string; timeSpent: number }>
+      >;
+
       try {
         timeTrackingData = await jiraRequester.getTimeTrackingData(allJiraKeys);
-        console.log(`Successfully fetched time tracking data for ${Object.keys(timeTrackingData).length} issues`);
+        console.log(
+          `Successfully fetched time tracking data for ${Object.keys(timeTrackingData).length} issues`
+        );
       } catch (error) {
-        console.warn(`Failed to fetch real time tracking data, falling back to mock data:`, error);
+        console.warn(
+          `Failed to fetch real time tracking data, falling back to mock data:`,
+          error
+        );
         // Fallback to mock data if real API fails
         timeTrackingData = allJiraKeys.reduce(
           (acc, jiraKey) => {
@@ -825,7 +995,7 @@ metricsRoute.get(
           {} as Record<string, Array<{ date: string; timeSpent: number }>>
         );
       }
-      
+
       const realTimeBookings = {
         jiraKeys: allJiraKeys,
         totalIssues: allJiraKeys.length,
