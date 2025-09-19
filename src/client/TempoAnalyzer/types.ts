@@ -1,3 +1,10 @@
+export interface IssueDetail {
+  hours: number;
+  type: string;
+  summary: string;
+  typeOfWork: string;
+}
+
 export interface IssueKeyException {
   issueKeys?: string[];
   typeOfWork?: string;
@@ -41,14 +48,7 @@ export interface State {
   viewMode: "name" | "issue" | "type" | "account";
   detailedByName: { [key: string]: number };
   detailedByIssue: { [key: string]: number };
-  detailedByIssueWithType: {
-    [key: string]: {
-      hours: number;
-      type: string;
-      summary: string;
-      typeOfWork: string;
-    };
-  };
+  detailedByIssueWithType: { [key: string]: IssueDetail };
   detailedByType: { [key: string]: number };
   detailedByAccount: { [key: string]: number };
   issueWorkDescriptions: {
@@ -68,14 +68,7 @@ export interface State {
   userTotalHours: number;
   selectedUserCategory: string | null;
   userCategoryIssueData: { [key: string]: number };
-  userCategoryIssueDataWithType: {
-    [key: string]: {
-      hours: number;
-      type: string;
-      summary: string;
-      typeOfWork: string;
-    };
-  };
+  userCategoryIssueDataWithType: { [key: string]: IssueDetail };
   userCategoryIssueTotal: number;
   userCategoryIssueWorkDescriptions: {
     [key: string]: Array<{

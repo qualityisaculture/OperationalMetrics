@@ -10,6 +10,7 @@ import {
   Radio,
 } from "antd";
 import { BarChartOutlined, UserOutlined, BugOutlined } from "@ant-design/icons";
+import { IssueDetail } from "../types";
 
 const { Title, Text } = Typography;
 
@@ -114,7 +115,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
         >
           <Table
             dataSource={Object.entries(userCategoryData).map(
-              ([category, hours], index) => ({
+              ([category, hours]: [string, number], index) => ({
                 key: index,
                 category: category,
                 hours: hours,
@@ -233,7 +234,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
         >
           <Table
             dataSource={Object.entries(userCategoryIssueDataWithType).map(
-              ([issueKey, data], index) => ({
+              ([issueKey, data]: [string, IssueDetail], index) => ({
                 key: index,
                 issueKey: issueKey,
                 type: data.type,
@@ -450,7 +451,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
             dataSource={
               viewMode === "issue"
                 ? Object.entries(detailedByIssueWithType).map(
-                    ([issueKey, data], index) => ({
+                    ([issueKey, data]: [string, IssueDetail], index) => ({
                       key: index,
                       item: issueKey,
                       hours: data.hours,
@@ -465,7 +466,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                   )
                 : viewMode === "type"
                   ? Object.entries(detailedByType).map(
-                      ([type, hours], index) => ({
+                      ([type, hours]: [string, number], index) => ({
                         key: index,
                         item: type,
                         hours: hours,
@@ -478,7 +479,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                     )
                   : viewMode === "account"
                     ? Object.entries(analyzerState.detailedByAccount).map(
-                        ([account, hours], index) => ({
+                        ([account, hours]: [string, number], index) => ({
                           key: index,
                           item: account,
                           hours: hours,
@@ -490,7 +491,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                         })
                       )
                     : Object.entries(detailedData).map(
-                        ([item, hours], index) => ({
+                        ([item, hours]: [string, number], index) => ({
                           key: index,
                           item: item,
                           hours: hours,
@@ -690,7 +691,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
         <Card title={`${selectedIssueKey} - Hours by Full Name`}>
           <Table
             dataSource={Object.entries(issueUserData).map(
-              ([name, hours], index) => ({
+              ([name, hours]: [string, number], index) => ({
                 key: index,
                 name: name,
                 hours: hours,
