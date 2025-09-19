@@ -2,6 +2,7 @@ import React from "react";
 import { Card, Table, Typography, Collapse } from "antd";
 import { TeamOutlined } from "@ant-design/icons";
 import { UserGroup, UserGroupAssignment } from "../types";
+import { useResizableColumns } from "../../components/tables/useResizableColumns";
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
@@ -114,6 +115,9 @@ export const GroupTimeBreakdown: React.FC<GroupTimeBreakdownProps> = ({
     },
   ];
 
+  const { getResizableColumns } = useResizableColumns(columns);
+  const resizableColumns = getResizableColumns(columns);
+
   return (
     <Card style={{ marginTop: "20px" }}>
       <Collapse defaultActiveKey={["group-breakdown"]} ghost>
@@ -162,10 +166,75 @@ export const GroupTimeBreakdown: React.FC<GroupTimeBreakdownProps> = ({
                 {breakdown.length > 0 ? (
                   <Table
                     dataSource={breakdown}
-                    columns={columns}
+                    columns={resizableColumns}
                     pagination={false}
                     size="small"
                     style={{ backgroundColor: "white" }}
+                    components={{
+                      header: {
+                        cell: (props: any) => {
+                          const { onResize, width, ...restProps } = props;
+                          return (
+                            <th
+                              {...restProps}
+                              style={{
+                                position: "relative",
+                                cursor: "col-resize",
+                                userSelect: "none",
+                                width: width,
+                              }}
+                            >
+                              {restProps.children}
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  right: 0,
+                                  top: 0,
+                                  bottom: 0,
+                                  width: "4px",
+                                  cursor: "col-resize",
+                                  backgroundColor: "transparent",
+                                }}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  const startX = e.clientX;
+                                  const startWidth = width;
+
+                                  const handleMouseMove = (e: MouseEvent) => {
+                                    const deltaX = e.clientX - startX;
+                                    const newWidth = Math.max(
+                                      50,
+                                      startWidth + deltaX
+                                    );
+                                    onResize({ width: newWidth });
+                                  };
+
+                                  const handleMouseUp = () => {
+                                    document.removeEventListener(
+                                      "mousemove",
+                                      handleMouseMove
+                                    );
+                                    document.removeEventListener(
+                                      "mouseup",
+                                      handleMouseUp
+                                    );
+                                  };
+
+                                  document.addEventListener(
+                                    "mousemove",
+                                    handleMouseMove
+                                  );
+                                  document.addEventListener(
+                                    "mouseup",
+                                    handleMouseUp
+                                  );
+                                }}
+                              />
+                            </th>
+                          );
+                        },
+                      },
+                    }}
                   />
                 ) : (
                   <Text type="secondary">

@@ -1,6 +1,7 @@
 import React from "react";
 import { Row, Col, Card, Statistic, Table, Typography } from "antd";
 import { BarChartOutlined } from "@ant-design/icons";
+import { useResizableColumns } from "../../components/tables/useResizableColumns";
 
 const { Title, Text } = Typography;
 
@@ -43,6 +44,89 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   handleRowClick,
   handleUserClick,
 }) => {
+  // Define columns for resizable functionality
+  const columns = [
+    {
+      title: summaryViewMode === "category" ? "Account Category" : "Full Name",
+      dataIndex: "item",
+      key: "item",
+      render: (text: any, record: any) => (
+        <Text strong={!record.isAccount && !record.isFile}>
+          {record.isAccount && "  "}
+          {record.isFile && "    "}
+          {text}
+        </Text>
+      ),
+    },
+    {
+      title: "Logged Hours",
+      dataIndex: "hours",
+      key: "hours",
+      render: (text: any) => <Text>{text.toFixed(2)} hrs</Text>,
+      sorter: (a: any, b: any) => a.hours - b.hours,
+      defaultSortOrder: "descend" as const,
+    },
+    {
+      title: "Logged Days",
+      dataIndex: "chargeableDays",
+      key: "chargeableDays",
+      render: (text: any) => <Text>{text.toFixed(2)} days</Text>,
+      sorter: (a: any, b: any) => a.chargeableDays - b.chargeableDays,
+    },
+    {
+      title: "Percentage",
+      dataIndex: "percentage",
+      key: "percentage",
+      render: (text: any, record: any) => (
+        <Text type="secondary">
+          {text}%
+          {record.isAccount &&
+            record.subPercentage &&
+            ` (${record.subPercentage}%)`}
+          {record.isFile &&
+            record.subPercentage &&
+            ` (${record.subPercentage}%)`}
+        </Text>
+      ),
+    },
+    // Conditional columns for other teams
+    ...(showOtherTeams
+      ? [
+          {
+            title: "Other Team Days",
+            dataIndex: "otherTeamDays",
+            key: "otherTeamDays",
+            render: (text: any, record: any) => (
+              <Text type="secondary">
+                {record.isAccount || (!record.isAccount && !record.isFile)
+                  ? text.toFixed(2)
+                  : "-"}
+              </Text>
+            ),
+            sorter: (a: any, b: any) =>
+              (a.otherTeamDays || 0) - (b.otherTeamDays || 0),
+          },
+          {
+            title: "Other Team %",
+            dataIndex: "otherTeamPercent",
+            key: "otherTeamPercent",
+            render: (text: any, record: any) => (
+              <Text type="secondary">
+                {record.isAccount || (!record.isAccount && !record.isFile)
+                  ? `${text}%`
+                  : "-"}
+              </Text>
+            ),
+            sorter: (a: any, b: any) =>
+              parseFloat(a.otherTeamPercent || "0") -
+              parseFloat(b.otherTeamPercent || "0"),
+          },
+        ]
+      : []),
+  ];
+
+  const { getResizableColumns } = useResizableColumns(columns);
+  const resizableColumns = getResizableColumns(columns);
   return (
     <>
       <Title level={4}>
@@ -245,90 +329,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                   children: undefined,
                 }))
           }
-          columns={[
-            {
-              title:
-                summaryViewMode === "category"
-                  ? "Account Category"
-                  : "Full Name",
-              dataIndex: "item",
-              key: "item",
-              render: (text, record: any) => (
-                <Text strong={!record.isAccount && !record.isFile}>
-                  {record.isAccount && "  "}
-                  {record.isFile && "    "}
-                  {text}
-                </Text>
-              ),
-            },
-            {
-              title: "Logged Hours",
-              dataIndex: "hours",
-              key: "hours",
-              render: (text) => <Text>{text.toFixed(2)} hrs</Text>,
-              sorter: (a, b) => a.hours - b.hours,
-              defaultSortOrder: "descend" as const,
-            },
-            {
-              title: "Logged Days",
-              dataIndex: "chargeableDays",
-              key: "chargeableDays",
-              render: (text) => <Text>{text.toFixed(2)} days</Text>,
-              sorter: (a, b) => a.chargeableDays - b.chargeableDays,
-            },
-            {
-              title: "Percentage",
-              dataIndex: "percentage",
-              key: "percentage",
-              render: (text, record: any) => (
-                <Text type="secondary">
-                  {text}%
-                  {record.isAccount &&
-                    record.subPercentage &&
-                    ` (${record.subPercentage}%)`}
-                  {record.isFile &&
-                    record.subPercentage &&
-                    ` (${record.subPercentage}%)`}
-                </Text>
-              ),
-            },
-            // Conditional columns for other teams
-            ...(showOtherTeams
-              ? [
-                  {
-                    title: "Other Team Days",
-                    dataIndex: "otherTeamDays",
-                    key: "otherTeamDays",
-                    render: (text, record: any) => (
-                      <Text type="secondary">
-                        {record.isAccount ||
-                        (!record.isAccount && !record.isFile)
-                          ? text.toFixed(2)
-                          : "-"}
-                      </Text>
-                    ),
-                    sorter: (a, b) =>
-                      (a.otherTeamDays || 0) - (b.otherTeamDays || 0),
-                  },
-                  {
-                    title: "Other Team %",
-                    dataIndex: "otherTeamPercent",
-                    key: "otherTeamPercent",
-                    render: (text, record: any) => (
-                      <Text type="secondary">
-                        {record.isAccount ||
-                        (!record.isAccount && !record.isFile)
-                          ? `${text}%`
-                          : "-"}
-                      </Text>
-                    ),
-                    sorter: (a, b) =>
-                      parseFloat(a.otherTeamPercent || "0") -
-                      parseFloat(b.otherTeamPercent || "0"),
-                  },
-                ]
-              : []),
-          ]}
+          columns={resizableColumns}
           pagination={false}
           size="small"
           expandable={
@@ -356,6 +357,62 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               fontWeight: record.isAccount || record.isFile ? "normal" : "bold",
             },
           })}
+          components={{
+            header: {
+              cell: (props: any) => {
+                const { onResize, width, ...restProps } = props;
+                return (
+                  <th
+                    {...restProps}
+                    style={{
+                      position: "relative",
+                      cursor: "col-resize",
+                      userSelect: "none",
+                      width: width,
+                    }}
+                  >
+                    {restProps.children}
+                    <div
+                      style={{
+                        position: "absolute",
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: "4px",
+                        cursor: "col-resize",
+                        backgroundColor: "transparent",
+                      }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        const startX = e.clientX;
+                        const startWidth = width;
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const newWidth = Math.max(50, startWidth + deltaX);
+                          onResize({ width: newWidth });
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            "mousemove",
+                            handleMouseMove
+                          );
+                          document.removeEventListener(
+                            "mouseup",
+                            handleMouseUp
+                          );
+                        };
+
+                        document.addEventListener("mousemove", handleMouseMove);
+                        document.addEventListener("mouseup", handleMouseUp);
+                      }}
+                    />
+                  </th>
+                );
+              },
+            },
+          }}
         />
       </Card>
     </>

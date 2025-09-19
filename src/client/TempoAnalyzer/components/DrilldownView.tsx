@@ -11,6 +11,7 @@ import {
 } from "antd";
 import { BarChartOutlined, UserOutlined, BugOutlined } from "@ant-design/icons";
 import { IssueDetail } from "../types";
+import { useResizableColumns } from "../../components/tables/useResizableColumns";
 
 const { Title, Text } = Typography;
 
@@ -33,6 +34,242 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
   handleIssueKeyClick,
   handleBackToIssueView,
 }) => {
+  // Define columns for resizable functionality
+  const userCategoryColumns = [
+    {
+      title: "Account Category",
+      dataIndex: "category",
+      key: "category",
+      render: (text: any) => <Text strong>{text}</Text>,
+    },
+    {
+      title: "Logged Hours",
+      dataIndex: "hours",
+      key: "hours",
+      render: (text: any) => <Text>{text.toFixed(2)} hrs</Text>,
+      sorter: (a: any, b: any) => a.hours - b.hours,
+      defaultSortOrder: "descend" as const,
+    },
+    {
+      title: "Logged Days",
+      dataIndex: "chargeableDays",
+      key: "chargeableDays",
+      render: (text: any) => <Text>{text.toFixed(2)} days</Text>,
+      sorter: (a: any, b: any) => a.chargeableDays - b.chargeableDays,
+    },
+    {
+      title: "Percentage",
+      dataIndex: "percentage",
+      key: "percentage",
+      render: (text: any) => <Text type="secondary">{text}%</Text>,
+    },
+  ];
+
+  const { getResizableColumns: getUserCategoryResizableColumns } =
+    useResizableColumns(userCategoryColumns);
+  const resizableUserCategoryColumns =
+    getUserCategoryResizableColumns(userCategoryColumns);
+
+  // Define columns for user category issue data table
+  const userCategoryIssueColumns = [
+    {
+      title: "Issue Key",
+      dataIndex: "issueKey",
+      key: "issueKey",
+      render: (text: any) => (
+        <a
+          href={`https://lendscape.atlassian.net/browse/${text}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ fontWeight: "bold" }}
+          onClick={(e: any) => e.stopPropagation()}
+        >
+          {text}
+        </a>
+      ),
+    },
+    {
+      title: "Issue Type",
+      dataIndex: "type",
+      key: "type",
+      render: (text: any) => <Text>{text}</Text>,
+    },
+    {
+      title: "Issue Summary",
+      dataIndex: "summary",
+      key: "summary",
+      render: (text: any) => (
+        <Text
+          style={{
+            maxWidth: "200px",
+            overflow: "clip",
+            display: "block",
+          }}
+        >
+          {text || "No summary"}
+        </Text>
+      ),
+    },
+    {
+      title: "Work Description",
+      key: "workDescription",
+      render: (_: any, record: any) => {
+        const descriptions =
+          userCategoryIssueWorkDescriptions[record.issueKey] || [];
+        return descriptions.length > 0 ? (
+          <Button
+            size="small"
+            type="link"
+            onClick={(e: any) => {
+              e.stopPropagation();
+              showWorkDescriptions(record.issueKey, descriptions);
+            }}
+          >
+            View Descriptions ({descriptions.length})
+          </Button>
+        ) : (
+          <Text type="secondary">No descriptions</Text>
+        );
+      },
+    },
+    {
+      title: "Logged Hours",
+      dataIndex: "hours",
+      key: "hours",
+      render: (text: any) => <Text>{text.toFixed(2)} hrs</Text>,
+      sorter: (a: any, b: any) => a.hours - b.hours,
+      defaultSortOrder: "descend" as const,
+    },
+    {
+      title: "Logged Days",
+      dataIndex: "chargeableDays",
+      key: "chargeableDays",
+      render: (text: any) => <Text>{text.toFixed(2)} days</Text>,
+      sorter: (a: any, b: any) => a.chargeableDays - b.chargeableDays,
+    },
+    {
+      title: "Percentage",
+      dataIndex: "percentage",
+      key: "percentage",
+      render: (text: any) => <Text type="secondary">{text}%</Text>,
+    },
+  ];
+
+  const { getResizableColumns: getUserCategoryIssueResizableColumns } =
+    useResizableColumns(userCategoryIssueColumns);
+  const resizableUserCategoryIssueColumns =
+    getUserCategoryIssueResizableColumns(userCategoryIssueColumns);
+
+  // Define columns for detailed data table (varies by viewMode)
+  const getDetailedDataColumns = (viewMode: string) => {
+    const baseColumns = [
+      {
+        title:
+          viewMode === "name"
+            ? "Full Name"
+            : viewMode === "issue"
+              ? "Issue Key"
+              : viewMode === "account"
+                ? "Account Name"
+                : "Issue Type",
+        dataIndex: "item",
+        key: "item",
+        render: (text: any) => {
+          if (viewMode === "issue") {
+            return (
+              <a
+                href={`https://lendscape.atlassian.net/browse/${text}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontWeight: "bold" }}
+                onClick={(e: any) => e.stopPropagation()}
+              >
+                {text}
+              </a>
+            );
+          }
+          return <Text strong>{text}</Text>;
+        },
+      },
+      ...(viewMode === "issue"
+        ? [
+            {
+              title: "Issue Type",
+              dataIndex: "type",
+              key: "type",
+              render: (text: any) => <Text>{text}</Text>,
+            },
+            {
+              title: "Issue Summary",
+              dataIndex: "summary",
+              key: "summary",
+              render: (text: any) => (
+                <Text
+                  style={{
+                    maxWidth: "200px",
+                    overflow: "clip",
+                    display: "block", 
+                  }}
+                >
+                  {text || "No summary"}
+                </Text>
+              ),
+            },
+            {
+              title: "Work Description",
+              key: "workDescription",
+              render: (_: any, record: any) => {
+                const descriptions = issueWorkDescriptions[record.item] || [];
+                return descriptions.length > 0 ? (
+                  <Button
+                    size="small"
+                    type="link"
+                    onClick={(e: any) => {
+                      e.stopPropagation();
+                      showWorkDescriptions(record.item, descriptions);
+                    }}
+                  >
+                    View Descriptions ({descriptions.length})
+                  </Button>
+                ) : (
+                  <Text type="secondary">No descriptions</Text>
+                );
+              },
+            },
+          ]
+        : []),
+      {
+        title: "Logged Hours",
+        dataIndex: "hours",
+        key: "hours",
+        render: (text: any) => <Text>{text.toFixed(2)} hrs</Text>,
+        sorter: (a: any, b: any) => a.hours - b.hours,
+        defaultSortOrder: "descend" as const,
+      },
+      {
+        title: "Logged Days",
+        dataIndex: "chargeableDays",
+        key: "chargeableDays",
+        render: (text: any) => <Text>{text.toFixed(2)} days</Text>,
+        sorter: (a: any, b: any) => a.chargeableDays - b.chargeableDays,
+      },
+      {
+        title: "Percentage",
+        dataIndex: "percentage",
+        key: "percentage",
+        render: (text: any, record: any) => (
+          <Text type="secondary">
+            {text}%
+            {record.isAccount &&
+              record.subPercentage &&
+              ` (${record.subPercentage}%)`}
+          </Text>
+        ),
+      },
+    ];
+    return baseColumns;
+  };
+
   const {
     selectedCategory,
     selectedUser,
@@ -53,6 +290,49 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
     detailedData,
     viewMode,
   } = analyzerState;
+
+  // Get resizable columns for detailed data table
+  const detailedDataColumns = getDetailedDataColumns(viewMode);
+  const { getResizableColumns: getDetailedDataResizableColumns } =
+    useResizableColumns(detailedDataColumns);
+  const resizableDetailedDataColumns =
+    getDetailedDataResizableColumns(detailedDataColumns);
+
+  // Define columns for issue user data table
+  const issueUserColumns = [
+    {
+      title: "Full Name",
+      dataIndex: "name",
+      key: "name",
+      render: (text: any) => <Text strong>{text}</Text>,
+    },
+    {
+      title: "Logged Hours",
+      dataIndex: "hours",
+      key: "hours",
+      render: (text: any) => <Text>{text.toFixed(2)} hrs</Text>,
+      sorter: (a: any, b: any) => a.hours - b.hours,
+      defaultSortOrder: "descend" as const,
+    },
+    {
+      title: "Logged Days",
+      dataIndex: "chargeableDays",
+      key: "chargeableDays",
+      render: (text: any) => <Text>{text.toFixed(2)} days</Text>,
+      sorter: (a: any, b: any) => a.chargeableDays - b.chargeableDays,
+    },
+    {
+      title: "Percentage",
+      dataIndex: "percentage",
+      key: "percentage",
+      render: (text: any) => <Text type="secondary">{text}%</Text>,
+    },
+  ];
+
+  const { getResizableColumns: getIssueUserResizableColumns } =
+    useResizableColumns(issueUserColumns);
+  const resizableIssueUserColumns =
+    getIssueUserResizableColumns(issueUserColumns);
 
   if (selectedUser && !selectedUserCategory) {
     // User Category Breakdown View (Name → Category)
@@ -123,41 +403,72 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                 percentage: ((hours / userTotalHours) * 100).toFixed(1),
               })
             )}
-            columns={[
-              {
-                title: "Account Category",
-                dataIndex: "category",
-                key: "category",
-                render: (text) => <Text strong>{text}</Text>,
-              },
-              {
-                title: "Logged Hours",
-                dataIndex: "hours",
-                key: "hours",
-                render: (text) => <Text>{text.toFixed(2)} hrs</Text>,
-                sorter: (a, b) => a.hours - b.hours,
-                defaultSortOrder: "descend" as const,
-              },
-              {
-                title: "Logged Days",
-                dataIndex: "chargeableDays",
-                key: "chargeableDays",
-                render: (text) => <Text>{text.toFixed(2)} days</Text>,
-                sorter: (a, b) => a.chargeableDays - b.chargeableDays,
-              },
-              {
-                title: "Percentage",
-                dataIndex: "percentage",
-                key: "percentage",
-                render: (text) => <Text type="secondary">{text}%</Text>,
-              },
-            ]}
+            columns={resizableUserCategoryColumns}
             pagination={false}
             size="small"
             onRow={(record) => ({
               onClick: () => handleUserCategoryClick(record.category),
               style: { cursor: "pointer" },
             })}
+            components={{
+              header: {
+                cell: (props: any) => {
+                  const { onResize, width, ...restProps } = props;
+                  return (
+                    <th
+                      {...restProps}
+                      style={{
+                        position: "relative",
+                        cursor: "col-resize",
+                        userSelect: "none",
+                        width: width,
+                      }}
+                    >
+                      {restProps.children}
+                      <div
+                        style={{
+                          position: "absolute",
+                          right: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: "4px",
+                          cursor: "col-resize",
+                          backgroundColor: "transparent",
+                        }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const startX = e.clientX;
+                          const startWidth = width;
+
+                          const handleMouseMove = (e: MouseEvent) => {
+                            const deltaX = e.clientX - startX;
+                            const newWidth = Math.max(50, startWidth + deltaX);
+                            onResize({ width: newWidth });
+                          };
+
+                          const handleMouseUp = () => {
+                            document.removeEventListener(
+                              "mousemove",
+                              handleMouseMove
+                            );
+                            document.removeEventListener(
+                              "mouseup",
+                              handleMouseUp
+                            );
+                          };
+
+                          document.addEventListener(
+                            "mousemove",
+                            handleMouseMove
+                          );
+                          document.addEventListener("mouseup", handleMouseUp);
+                        }}
+                      />
+                    </th>
+                  );
+                },
+              },
+            }}
           />
         </Card>
       </>
@@ -247,92 +558,68 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                 ).toFixed(1),
               })
             )}
-            columns={[
-              {
-                title: "Issue Key",
-                dataIndex: "issueKey",
-                key: "issueKey",
-                render: (text) => (
-                  <a
-                    href={`https://lendscape.atlassian.net/browse/${text}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ fontWeight: "bold" }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {text}
-                  </a>
-                ),
-              },
-              {
-                title: "Issue Type",
-                dataIndex: "type",
-                key: "type",
-                render: (text) => <Text>{text}</Text>,
-              },
-              {
-                title: "Issue Summary",
-                dataIndex: "summary",
-                key: "summary",
-                render: (text) => (
-                  <Text
-                    style={{
-                      maxWidth: "200px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {text || "No summary"}
-                  </Text>
-                ),
-              },
-              {
-                title: "Work Description",
-                key: "workDescription",
-                render: (_, record) => {
-                  const descriptions =
-                    userCategoryIssueWorkDescriptions[record.issueKey] || [];
-                  return descriptions.length > 0 ? (
-                    <Button
-                      size="small"
-                      type="link"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        showWorkDescriptions(record.issueKey, descriptions);
+            columns={resizableUserCategoryIssueColumns}
+            pagination={false}
+            size="small"
+            components={{
+              header: {
+                cell: (props: any) => {
+                  const { onResize, width, ...restProps } = props;
+                  return (
+                    <th
+                      {...restProps}
+                      style={{
+                        position: "relative",
+                        cursor: "col-resize",
+                        userSelect: "none",
+                        width: width,
                       }}
                     >
-                      View Descriptions ({descriptions.length})
-                    </Button>
-                  ) : (
-                    <Text type="secondary">No descriptions</Text>
+                      {restProps.children}
+                      <div
+                        style={{
+                          position: "absolute",
+                          right: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: "4px",
+                          cursor: "col-resize",
+                          backgroundColor: "transparent",
+                        }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const startX = e.clientX;
+                          const startWidth = width;
+
+                          const handleMouseMove = (e: MouseEvent) => {
+                            const deltaX = e.clientX - startX;
+                            const newWidth = Math.max(50, startWidth + deltaX);
+                            onResize({ width: newWidth });
+                          };
+
+                          const handleMouseUp = () => {
+                            document.removeEventListener(
+                              "mousemove",
+                              handleMouseMove
+                            );
+                            document.removeEventListener(
+                              "mouseup",
+                              handleMouseUp
+                            );
+                          };
+
+                          document.addEventListener(
+                            "mousemove",
+                            handleMouseMove
+                          );
+                          document.addEventListener("mouseup", handleMouseUp);
+                        }}
+                      />
+                    </th>
                   );
                 },
               },
-              {
-                title: "Logged Hours",
-                dataIndex: "hours",
-                key: "hours",
-                render: (text) => <Text>{text.toFixed(2)} hrs</Text>,
-                sorter: (a, b) => a.hours - b.hours,
-                defaultSortOrder: "descend" as const,
-              },
-              {
-                title: "Logged Days",
-                dataIndex: "chargeableDays",
-                key: "chargeableDays",
-                render: (text) => <Text>{text.toFixed(2)} days</Text>,
-                sorter: (a, b) => a.chargeableDays - b.chargeableDays,
-              },
-              {
-                title: "Percentage",
-                dataIndex: "percentage",
-                key: "percentage",
-                render: (text) => <Text type="secondary">{text}%</Text>,
-              },
-            ]}
-            pagination={false}
-            size="small"
+            }}
           />
         </Card>
       </>
@@ -503,113 +790,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                         })
                       )
             }
-            columns={[
-              {
-                title:
-                  viewMode === "name"
-                    ? "Full Name"
-                    : viewMode === "issue"
-                      ? "Issue Key"
-                      : viewMode === "account"
-                        ? "Account Name"
-                        : "Issue Type",
-                dataIndex: "item",
-                key: "item",
-                render: (text) => {
-                  if (viewMode === "issue") {
-                    return (
-                      <a
-                        href={`https://lendscape.atlassian.net/browse/${text}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontWeight: "bold" }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {text}
-                      </a>
-                    );
-                  }
-                  return <Text strong>{text}</Text>;
-                },
-              },
-              ...(viewMode === "issue"
-                ? [
-                    {
-                      title: "Issue Type",
-                      dataIndex: "type",
-                      key: "type",
-                      render: (text) => <Text>{text}</Text>,
-                    },
-                    {
-                      title: "Issue Summary",
-                      dataIndex: "summary",
-                      key: "summary",
-                      render: (text) => (
-                        <Text
-                          style={{
-                            maxWidth: "200px",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {text || "No summary"}
-                        </Text>
-                      ),
-                    },
-                    {
-                      title: "Work Description",
-                      key: "workDescription",
-                      render: (_, record) => {
-                        const descriptions =
-                          issueWorkDescriptions[record.item] || [];
-                        return descriptions.length > 0 ? (
-                          <Button
-                            size="small"
-                            type="link"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              showWorkDescriptions(record.item, descriptions);
-                            }}
-                          >
-                            View Descriptions ({descriptions.length})
-                          </Button>
-                        ) : (
-                          <Text type="secondary">No descriptions</Text>
-                        );
-                      },
-                    },
-                  ]
-                : []),
-              {
-                title: "Logged Hours",
-                dataIndex: "hours",
-                key: "hours",
-                render: (text) => <Text>{text.toFixed(2)} hrs</Text>,
-                sorter: (a, b) => a.hours - b.hours,
-                defaultSortOrder: "descend" as const,
-              },
-              {
-                title: "Logged Days",
-                dataIndex: "chargeableDays",
-                key: "chargeableDays",
-                render: (text) => <Text>{text.toFixed(2)} days</Text>,
-                sorter: (a, b) => a.chargeableDays - b.chargeableDays,
-              },
-              {
-                title: "Percentage",
-                dataIndex: "percentage",
-                key: "percentage",
-                render: (text, record: any) => (
-                  <Text type="secondary">
-                    {text}%
-                    {record.isAccount &&
-                      record.subPercentage &&
-                      ` (${record.subPercentage}%)`}
-                  </Text>
-                ),
-              },
-            ]}
+            columns={resizableDetailedDataColumns}
             pagination={false}
             size="small"
             onRow={
@@ -620,6 +801,65 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                   })
                 : undefined
             }
+            components={{
+              header: {
+                cell: (props: any) => {
+                  const { onResize, width, ...restProps } = props;
+                  return (
+                    <th
+                      {...restProps}
+                      style={{
+                        position: "relative",
+                        cursor: "col-resize",
+                        userSelect: "none",
+                        width: width,
+                      }}
+                    >
+                      {restProps.children}
+                      <div
+                        style={{
+                          position: "absolute",
+                          right: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: "4px",
+                          cursor: "col-resize",
+                          backgroundColor: "transparent",
+                        }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const startX = e.clientX;
+                          const startWidth = width;
+
+                          const handleMouseMove = (e: MouseEvent) => {
+                            const deltaX = e.clientX - startX;
+                            const newWidth = Math.max(50, startWidth + deltaX);
+                            onResize({ width: newWidth });
+                          };
+
+                          const handleMouseUp = () => {
+                            document.removeEventListener(
+                              "mousemove",
+                              handleMouseMove
+                            );
+                            document.removeEventListener(
+                              "mouseup",
+                              handleMouseUp
+                            );
+                          };
+
+                          document.addEventListener(
+                            "mousemove",
+                            handleMouseMove
+                          );
+                          document.addEventListener("mouseup", handleMouseUp);
+                        }}
+                      />
+                    </th>
+                  );
+                },
+              },
+            }}
           />
         </Card>
       </>
@@ -699,37 +939,68 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                 percentage: ((hours / issueTotalHours) * 100).toFixed(1),
               })
             )}
-            columns={[
-              {
-                title: "Full Name",
-                dataIndex: "name",
-                key: "name",
-                render: (text) => <Text strong>{text}</Text>,
-              },
-              {
-                title: "Logged Hours",
-                dataIndex: "hours",
-                key: "hours",
-                render: (text) => <Text>{text.toFixed(2)} hrs</Text>,
-                sorter: (a, b) => a.hours - b.hours,
-                defaultSortOrder: "descend" as const,
-              },
-              {
-                title: "Logged Days",
-                dataIndex: "chargeableDays",
-                key: "chargeableDays",
-                render: (text) => <Text>{text.toFixed(2)} days</Text>,
-                sorter: (a, b) => a.chargeableDays - b.chargeableDays,
-              },
-              {
-                title: "Percentage",
-                dataIndex: "percentage",
-                key: "percentage",
-                render: (text) => <Text type="secondary">{text}%</Text>,
-              },
-            ]}
+            columns={resizableIssueUserColumns}
             pagination={false}
             size="small"
+            components={{
+              header: {
+                cell: (props: any) => {
+                  const { onResize, width, ...restProps } = props;
+                  return (
+                    <th
+                      {...restProps}
+                      style={{
+                        position: "relative",
+                        cursor: "col-resize",
+                        userSelect: "none",
+                        width: width,
+                      }}
+                    >
+                      {restProps.children}
+                      <div
+                        style={{
+                          position: "absolute",
+                          right: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: "4px",
+                          cursor: "col-resize",
+                          backgroundColor: "transparent",
+                        }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const startX = e.clientX;
+                          const startWidth = width;
+
+                          const handleMouseMove = (e: MouseEvent) => {
+                            const deltaX = e.clientX - startX;
+                            const newWidth = Math.max(50, startWidth + deltaX);
+                            onResize({ width: newWidth });
+                          };
+
+                          const handleMouseUp = () => {
+                            document.removeEventListener(
+                              "mousemove",
+                              handleMouseMove
+                            );
+                            document.removeEventListener(
+                              "mouseup",
+                              handleMouseUp
+                            );
+                          };
+
+                          document.addEventListener(
+                            "mousemove",
+                            handleMouseMove
+                          );
+                          document.addEventListener("mouseup", handleMouseUp);
+                        }}
+                      />
+                    </th>
+                  );
+                },
+              },
+            }}
           />
         </Card>
       </>
