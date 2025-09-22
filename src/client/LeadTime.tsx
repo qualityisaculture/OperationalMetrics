@@ -95,13 +95,21 @@ export default class LeadTime extends React.Component<Props, State> {
   filterIssuesByTicketType = (
     issues: LeadTimeIssueInfo[]
   ): LeadTimeIssueInfo[] => {
-    if (this.state.ticketTypesSelected.length === 0) {
-      return issues; // If no types selected, show all
-    }
-    return issues.filter(
-      (issue) =>
-        issue.type && this.state.ticketTypesSelected.includes(issue.type)
-    );
+    // Always exclude Epic and Placeholder types
+    const excludedTypes = ["Epic", "Placeholder"];
+
+    return issues.filter((issue) => {
+      // First exclude Epic and Placeholder types
+      if (issue.type && excludedTypes.includes(issue.type)) {
+        return false;
+      }
+
+      // Then apply user selection filter
+      if (this.state.ticketTypesSelected.length === 0) {
+        return true; // If no types selected, show all (except excluded)
+      }
+      return issue.type && this.state.ticketTypesSelected.includes(issue.type);
+    });
   };
 
   onClick = () => {
@@ -134,18 +142,32 @@ export default class LeadTime extends React.Component<Props, State> {
             }
           });
         });
-        let allStatuses = Array.from(allStatusesSet).map((status) => {
-          return { value: status, label: status };
-        });
+        // Automatically exclude Done and Todo statuses
+        const excludedStatuses = ["Done", "To Do"];
+        let allStatuses = Array.from(allStatusesSet)
+          .filter((status) => !excludedStatuses.includes(status))
+          .map((status) => {
+            return { value: status, label: status };
+          });
         let allTicketTypes = Array.from(allTicketTypesSet).map((type) => {
           return { value: type, label: type };
         });
+
+        // Automatically exclude Epic and Placeholder types
+        const excludedTypes = ["Epic", "Placeholder"];
+        const filteredTicketTypes = allTicketTypes.filter(
+          (type) => !excludedTypes.includes(type.value)
+        );
+        const filteredTicketTypeValues = filteredTicketTypes.map(
+          (type) => type.value
+        );
+
         this.setState({
           leadTimeData,
           allStatuses,
           statusesSelected: [],
-          allTicketTypes,
-          ticketTypesSelected: allTicketTypes.map((type) => type.value), // Default to all selected
+          allTicketTypes: filteredTicketTypes,
+          ticketTypesSelected: filteredTicketTypeValues, // Default to all selected except excluded types
         });
       });
   };
@@ -174,8 +196,16 @@ export default class LeadTime extends React.Component<Props, State> {
     return logHTML;
   };
   getTimeInSelectedStatuses = (issue: LeadTimeIssueInfo): number => {
+    // Always exclude Done and Todo statuses
+    const excludedStatuses = ["Done", "Todo"];
+
     let timeInSelectedStatuses = 0;
     issue.statusTimes.forEach((statusTime) => {
+      // Skip excluded statuses
+      if (excludedStatuses.includes(statusTime.status)) {
+        return;
+      }
+
       if (this.state.statusesSelected.includes(statusTime.status)) {
         timeInSelectedStatuses += statusTime.days;
       }
@@ -523,6 +553,9 @@ export default class LeadTime extends React.Component<Props, State> {
             display: this.state.splitMode === "statuses" ? "" : "none",
           }}
         >
+          <label style={{ marginRight: "0.5rem", fontWeight: "bold" }}>
+            Statuses:
+          </label>
           <Select
             onChange={this.statusesSelected}
             options={this.state.allStatuses}
