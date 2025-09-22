@@ -272,13 +272,7 @@ export default class LeadTime extends React.Component<Props, State> {
 
   getValidIssuesCount = (issues: LeadTimeIssueInfo[]): number => {
     const filteredIssues = this.filterIssuesByTicketType(issues);
-    return filteredIssues.filter((issue) => {
-      if (this.state.splitMode === "statuses") {
-        return this.getTimeInSelectedStatuses(issue) > 0;
-      } else {
-        return issue.timespent !== null && issue.timespent > 0;
-      }
-    }).length;
+    return filteredIssues.length;
   };
 
   getDateRange = (
