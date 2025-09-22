@@ -236,6 +236,40 @@ export default class LeadTime extends React.Component<Props, State> {
     return totalTime / validIssues.length;
   };
 
+  calculateAverageLeadTimeExcludingOutliers = (
+    issues: LeadTimeIssueInfo[]
+  ): number => {
+    const filteredIssues = this.filterIssuesByTicketType(issues);
+    const validIssues = filteredIssues.filter((issue) => {
+      if (this.state.splitMode === "statuses") {
+        return this.getTimeInSelectedStatuses(issue) > 0;
+      } else {
+        return issue.timespent !== null && issue.timespent > 0;
+      }
+    });
+
+    // Filter out issues with 10+ days
+    const issuesExcludingOutliers = validIssues.filter((issue) => {
+      const timeSpent =
+        this.state.splitMode === "statuses"
+          ? this.getTimeInSelectedStatuses(issue)
+          : issue.timespent || 0;
+      return timeSpent < 10;
+    });
+
+    if (issuesExcludingOutliers.length === 0) return 0;
+
+    const totalTime = issuesExcludingOutliers.reduce((sum, issue) => {
+      if (this.state.splitMode === "statuses") {
+        return sum + this.getTimeInSelectedStatuses(issue);
+      } else {
+        return sum + (issue.timespent || 0);
+      }
+    }, 0);
+
+    return totalTime / issuesExcludingOutliers.length;
+  };
+
   getValidIssuesCount = (issues: LeadTimeIssueInfo[]): number => {
     const filteredIssues = this.filterIssuesByTicketType(issues);
     return filteredIssues.filter((issue) => {
@@ -419,6 +453,11 @@ export default class LeadTime extends React.Component<Props, State> {
         const averageTime = this.calculateAverageLeadTime(sprint.issues);
         row["average"] = averageTime;
 
+        // Calculate average excluding outliers (10+ days)
+        const averageExcludingOutliers =
+          this.calculateAverageLeadTimeExcludingOutliers(sprint.issues);
+        row["averageExcludingOutliers"] = averageExcludingOutliers;
+
         // Add ticket count and date range
         row["ticketCount"] = this.getValidIssuesCount(sprint.issues);
         const dateRange = this.getDateRange(sprint.issues);
@@ -448,6 +487,11 @@ export default class LeadTime extends React.Component<Props, State> {
       // Calculate average for all issues
       const averageTime = this.calculateAverageLeadTime(allIssues);
       row["average"] = averageTime;
+
+      // Calculate average excluding outliers (10+ days)
+      const averageExcludingOutliers =
+        this.calculateAverageLeadTimeExcludingOutliers(allIssues);
+      row["averageExcludingOutliers"] = averageExcludingOutliers;
 
       // Add ticket count and date range
       row["ticketCount"] = this.getValidIssuesCount(allIssues);
@@ -616,6 +660,13 @@ export default class LeadTime extends React.Component<Props, State> {
                       {row.average ? row.average.toFixed(2) : "0.00"} days
                     </p>
                     <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
+                      <strong>Average (excl. 10+ days):</strong>{" "}
+                      {row.averageExcludingOutliers
+                        ? row.averageExcludingOutliers.toFixed(2)
+                        : "0.00"}{" "}
+                      days
+                    </p>
+                    <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
                       <strong>Tickets:</strong> {row.ticketCount || 0}
                     </p>
                     {row.startDate && row.endDate && (
@@ -634,6 +685,15 @@ export default class LeadTime extends React.Component<Props, State> {
                   <strong style={{ fontSize: "1.2rem", color: "#1890ff" }}>
                     {data.length > 0 && data[0].average
                       ? data[0].average.toFixed(2)
+                      : "0.00"}{" "}
+                    days
+                  </strong>
+                </p>
+                <p style={{ margin: "0.25rem 0" }}>
+                  <strong>Average (excl. 10+ days):</strong>{" "}
+                  <strong style={{ fontSize: "1.1rem", color: "#52c41a" }}>
+                    {data.length > 0 && data[0].averageExcludingOutliers
+                      ? data[0].averageExcludingOutliers.toFixed(2)
                       : "0.00"}{" "}
                     days
                   </strong>
