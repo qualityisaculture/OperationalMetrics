@@ -632,7 +632,26 @@ export default class LeadTime extends React.Component<Props, State> {
           data={data}
           columns={columns}
           title={`Lead Time - ${this.state.viewMode === "sprint" ? "By Sprint" : "All Data Combined"}`}
+          targetElementId="leadtime-notes"
         />
+
+        {/* Notes div for displaying click data */}
+        <div
+          id="leadtime-notes"
+          style={{
+            marginTop: "1rem",
+            padding: "1rem",
+            border: "1px solid #d9d9d9",
+            borderRadius: "6px",
+            backgroundColor: "#fafafa",
+            minHeight: "100px",
+          }}
+        >
+          <h4>Chart Details</h4>
+          <div id="leadtime-notes-content">
+            {/* Click data will be populated here */}
+          </div>
+        </div>
       </div>
     );
   }
