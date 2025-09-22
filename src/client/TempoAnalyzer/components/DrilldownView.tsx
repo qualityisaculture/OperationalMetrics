@@ -34,6 +34,55 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
   handleIssueKeyClick,
   handleBackToIssueView,
 }) => {
+  // Reusable style objects
+  const styles = {
+    headerContainer: {
+      display: "flex",
+      alignItems: "center",
+      marginBottom: "16px",
+    },
+    title: {
+      margin: 0,
+      flex: 1,
+    },
+    backButton: {
+      marginRight: "16px",
+    },
+    breadcrumbButton: {
+      marginRight: "8px",
+    },
+    breadcrumbText: {
+      marginRight: "8px",
+    },
+    breadcrumbDivider: {
+      marginRight: "16px",
+    },
+    statsRow: {
+      marginBottom: "24px",
+    },
+    summaryText: {
+      maxWidth: "200px",
+      overflow: "clip",
+      display: "block",
+    },
+    tableHeader: {
+      position: "relative" as const,
+      cursor: "col-resize",
+      userSelect: "none",
+    },
+    resizeHandle: {
+      position: "absolute" as const,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: "4px",
+      cursor: "col-resize",
+      backgroundColor: "transparent",
+    },
+    clickableRow: {
+      cursor: "pointer",
+    },
+  };
   // Define columns for resizable functionality
   const userCategoryColumns = [
     {
@@ -99,15 +148,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
       dataIndex: "summary",
       key: "summary",
       render: (text: any) => (
-        <Text
-          style={{
-            maxWidth: "200px",
-            overflow: "clip",
-            display: "block",
-          }}
-        >
-          {text || "No summary"}
-        </Text>
+        <Text style={styles.summaryText}>{text || "No summary"}</Text>
       ),
     },
     {
@@ -208,7 +249,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                   style={{
                     maxWidth: "200px",
                     overflow: "clip",
-                    display: "block", 
+                    display: "block",
                   }}
                 >
                   {text || "No summary"}
@@ -338,27 +379,21 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
     // User Category Breakdown View (Name → Category)
     return (
       <>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            marginBottom: "16px",
-          }}
-        >
+        <div style={styles.headerContainer}>
           <Button
             icon={<UserOutlined />}
             onClick={handleBackToSummary}
-            style={{ marginRight: "16px" }}
+            style={styles.backButton}
           >
             Back to Summary
           </Button>
-          <Title level={4} style={{ margin: 0, flex: 1 }}>
+          <Title level={4} style={styles.title}>
             <UserOutlined style={{ marginRight: "8px" }} />
             {selectedUser} - Account Category Breakdown
           </Title>
         </div>
 
-        <Row gutter={16} style={{ marginBottom: "24px" }}>
+        <Row gutter={16} style={styles.statsRow}>
           <Col span={8}>
             <Card>
               <Statistic
@@ -408,7 +443,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
             size="small"
             onRow={(record) => ({
               onClick: () => handleUserCategoryClick(record.category),
-              style: { cursor: "pointer" },
+              style: styles.clickableRow,
             })}
             components={{
               header: {
@@ -418,23 +453,13 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                     <th
                       {...restProps}
                       style={{
-                        position: "relative",
-                        cursor: "col-resize",
-                        userSelect: "none",
+                        ...styles.tableHeader,
                         width: width,
                       }}
                     >
                       {restProps.children}
                       <div
-                        style={{
-                          position: "absolute",
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: "4px",
-                          cursor: "col-resize",
-                          backgroundColor: "transparent",
-                        }}
+                        style={styles.resizeHandle}
                         onMouseDown={(e) => {
                           e.preventDefault();
                           const startX = e.clientX;
@@ -477,35 +502,29 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
     // User Category Issue Breakdown View (Name → Category → Issue)
     return (
       <>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            marginBottom: "16px",
-          }}
-        >
+        <div style={styles.headerContainer}>
           <Button
             icon={<UserOutlined />}
             onClick={handleBackToSummary}
-            style={{ marginRight: "8px" }}
+            style={styles.breadcrumbButton}
           >
             Summary
           </Button>
-          <Text style={{ marginRight: "8px" }}>/</Text>
+          <Text style={styles.breadcrumbText}>/</Text>
           <Button
             icon={<BarChartOutlined />}
             onClick={() => handleUserCategoryClick("")}
-            style={{ marginRight: "16px" }}
+            style={styles.breadcrumbDivider}
           >
             {selectedUser}
           </Button>
-          <Title level={4} style={{ margin: 0, flex: 1 }}>
+          <Title level={4} style={styles.title}>
             <BugOutlined style={{ marginRight: "8px" }} />
             {selectedUser} - {selectedUserCategory} - Issues
           </Title>
         </div>
 
-        <Row gutter={16} style={{ marginBottom: "24px" }}>
+        <Row gutter={16} style={styles.statsRow}>
           <Col span={8}>
             <Card>
               <Statistic
@@ -569,23 +588,13 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                     <th
                       {...restProps}
                       style={{
-                        position: "relative",
-                        cursor: "col-resize",
-                        userSelect: "none",
+                        ...styles.tableHeader,
                         width: width,
                       }}
                     >
                       {restProps.children}
                       <div
-                        style={{
-                          position: "absolute",
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: "4px",
-                          cursor: "col-resize",
-                          backgroundColor: "transparent",
-                        }}
+                        style={styles.resizeHandle}
                         onMouseDown={(e) => {
                           e.preventDefault();
                           const startX = e.clientX;
@@ -628,21 +637,15 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
     // Detailed View (Category → Issue/Name)
     return (
       <>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            marginBottom: "16px",
-          }}
-        >
+        <div style={styles.headerContainer}>
           <Button
             icon={<BarChartOutlined />}
             onClick={handleBackToSummary}
-            style={{ marginRight: "16px" }}
+            style={styles.backButton}
           >
             Back to Summary
           </Button>
-          <Title level={4} style={{ margin: 0, flex: 1 }}>
+          <Title level={4} style={styles.title}>
             <BarChartOutlined style={{ marginRight: "8px" }} />
             {selectedCategory} - Breakdown
           </Title>
@@ -671,7 +674,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
           </Radio.Group>
         </div>
 
-        <Row gutter={16} style={{ marginBottom: "24px" }}>
+        <Row gutter={16} style={styles.statsRow}>
           <Col span={8}>
             <Card>
               <Statistic
@@ -797,7 +800,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
               viewMode === "issue"
                 ? (record) => ({
                     onClick: () => handleIssueKeyClick(record.item),
-                    style: { cursor: "pointer" },
+                    style: styles.clickableRow,
                   })
                 : undefined
             }
@@ -809,23 +812,13 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                     <th
                       {...restProps}
                       style={{
-                        position: "relative",
-                        cursor: "col-resize",
-                        userSelect: "none",
+                        ...styles.tableHeader,
                         width: width,
                       }}
                     >
                       {restProps.children}
                       <div
-                        style={{
-                          position: "absolute",
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: "4px",
-                          cursor: "col-resize",
-                          backgroundColor: "transparent",
-                        }}
+                        style={styles.resizeHandle}
                         onMouseDown={(e) => {
                           e.preventDefault();
                           const startX = e.clientX;
@@ -868,35 +861,29 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
     // Issue Key User Breakdown View (Category → Issue → User)
     return (
       <>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            marginBottom: "16px",
-          }}
-        >
+        <div style={styles.headerContainer}>
           <Button
             icon={<BarChartOutlined />}
             onClick={handleBackToSummary}
-            style={{ marginRight: "8px" }}
+            style={styles.breadcrumbButton}
           >
             Summary
           </Button>
-          <Text style={{ marginRight: "8px" }}>/</Text>
+          <Text style={styles.breadcrumbText}>/</Text>
           <Button
             icon={<BugOutlined />}
             onClick={handleBackToIssueView}
-            style={{ marginRight: "16px" }}
+            style={styles.breadcrumbDivider}
           >
             {selectedCategory}
           </Button>
-          <Title level={4} style={{ margin: 0, flex: 1 }}>
+          <Title level={4} style={styles.title}>
             <UserOutlined style={{ marginRight: "8px" }} />
             {selectedIssueKey} - User Breakdown
           </Title>
         </div>
 
-        <Row gutter={16} style={{ marginBottom: "24px" }}>
+        <Row gutter={16} style={styles.statsRow}>
           <Col span={8}>
             <Card>
               <Statistic
@@ -950,23 +937,13 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                     <th
                       {...restProps}
                       style={{
-                        position: "relative",
-                        cursor: "col-resize",
-                        userSelect: "none",
+                        ...styles.tableHeader,
                         width: width,
                       }}
                     >
                       {restProps.children}
                       <div
-                        style={{
-                          position: "absolute",
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: "4px",
-                          cursor: "col-resize",
-                          backgroundColor: "transparent",
-                        }}
+                        style={styles.resizeHandle}
                         onMouseDown={(e) => {
                           e.preventDefault();
                           const startX = e.clientX;
