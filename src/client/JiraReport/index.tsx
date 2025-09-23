@@ -16,6 +16,7 @@ import { RequestAllModal } from "./components/RequestAllModal";
 import { DynamicProjectSummary } from "./components/DynamicProjectSummary";
 import { TimeBookingsModal } from "./components/TimeBookingsModal";
 import { DefectHistorySection } from "./components/DefectHistorySection";
+import OrphanList from "./components/OrphanList";
 import { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
 
 const { Title, Text } = Typography;
@@ -40,6 +41,8 @@ const JiraReport: React.FC = () => {
     loadProjectWorkstreams,
     requestTimeBookings,
     requestDefectHistory,
+    requestOrphanDetection,
+    getOrphans,
   } = useJiraReport();
 
   // State for time bookings modal
@@ -281,21 +284,37 @@ const JiraReport: React.FC = () => {
             !issuesError &&
             !currentIssuesLoading &&
             (navigationStack.length > 1 ? (
-              <WorkstreamTable
-                currentIssues={currentIssues}
-                favoriteItems={favoriteItems}
-                navigationStack={navigationStack}
-                getSortedItems={getSortedItems}
-                getWorkstreamDataCellSpan={getWorkstreamDataCellSpan}
-                handleIssueClick={handleIssueClick}
-                toggleFavorite={toggleFavorite}
-                projectIssues={projectIssues}
-                onRequestTimeBookings={showTimeBookingsModal}
-                timeDataLoaded={timeDataLoaded}
-                currentWorkstreamKey={
-                  navigationStack[navigationStack.length - 1]?.key
-                }
-              />
+              <>
+                <OrphanList
+                  orphans={getOrphans()}
+                  loading={state.orphanLoading}
+                  error={state.orphanError}
+                  onRefresh={() => {
+                    const currentWorkstreamKey =
+                      navigationStack[navigationStack.length - 1]?.key;
+                    if (currentWorkstreamKey) {
+                      requestOrphanDetection(currentWorkstreamKey);
+                    }
+                  }}
+                />
+
+                <WorkstreamTable
+                  currentIssues={currentIssues}
+                  favoriteItems={favoriteItems}
+                  navigationStack={navigationStack}
+                  getSortedItems={getSortedItems}
+                  getWorkstreamDataCellSpan={getWorkstreamDataCellSpan}
+                  handleIssueClick={handleIssueClick}
+                  toggleFavorite={toggleFavorite}
+                  projectIssues={projectIssues}
+                  onRequestTimeBookings={showTimeBookingsModal}
+                  timeDataLoaded={timeDataLoaded}
+                  currentWorkstreamKey={
+                    navigationStack[navigationStack.length - 1]?.key
+                  }
+                  onRequestOrphanDetection={requestOrphanDetection}
+                />
+              </>
             ) : (
               <>
                 <DynamicProjectSummary

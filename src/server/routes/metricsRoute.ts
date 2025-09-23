@@ -22,6 +22,7 @@ import CreatedResolvedGraphManager from "../graphManagers/CreatedResolvedGraphMa
 import TempoReportGraphManager from "../graphManagers/TempoReportGraphManager";
 import JiraReportGraphManager from "../graphManagers/JiraReportGraphManager";
 import BottleneckDetectorGraphManager from "../graphManagers/BottleneckDetectorGraphManager";
+import WorkstreamOrphanDetectorGraphManager from "../graphManagers/WorkstreamOrphanDetectorGraphManager";
 
 async function getJiraData(issueKey: string) {}
 
@@ -43,6 +44,8 @@ const jiraReportGraphManager = new JiraReportGraphManager(jiraRequester);
 const bottleneckDetectorGraphManager = new BottleneckDetectorGraphManager(
   jiraRequester
 );
+const workstreamOrphanDetectorGraphManager =
+  new WorkstreamOrphanDetectorGraphManager(jiraRequester);
 
 metricsRoute.get(
   "/cumulativeFlowDiagram",
@@ -1018,6 +1021,94 @@ metricsRoute.get(
         data: JSON.stringify({ error: error.message }),
       });
     }
+  }
+);
+
+// Workstream Orphan Detector API route
+metricsRoute.get(
+  "/jiraReport/workstream/:workstreamKey/orphan-detector",
+  (req: Request, res: TR<{ message: string; data: string }>) => {
+    const workstreamKey = req.params.workstreamKey;
+    console.log(
+      `Workstream Orphan Detector endpoint called for workstream: ${workstreamKey}`
+    );
+
+    // Set headers for SSE
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    // Send initial processing message
+    res.write(
+      `data: ${JSON.stringify({
+        status: "processing",
+        step: "initializing",
+        message: `Starting orphan detection for workstream ${workstreamKey}...`,
+        progress: {
+          currentPhase: "initializing",
+          phaseProgress: 0,
+          phaseTotal: 4,
+          issuesProcessed: 0,
+          totalIssues: 0,
+          orphansFound: 0,
+          linksProcessed: 0,
+        },
+      })}\n\n`
+    );
+
+    workstreamOrphanDetectorGraphManager
+      .detectOrphans(workstreamKey, (progress) => {
+        res.write(`data: ${JSON.stringify(progress)}\n\n`);
+      })
+      .then((result) => {
+        console.log(
+          `Orphan detection completed for workstream ${workstreamKey}`
+        );
+
+        // Log the structure being sent to frontend
+        console.log(
+          `\n=== SENDING ORPHAN DETECTOR DATA TO FRONTEND FOR ${workstreamKey} ===`
+        );
+        console.log(
+          `Workstream: ${result.workstream.key} - ${result.workstream.summary}`
+        );
+        console.log(
+          `Total issues in workstream: ${result.workstream.children.length}`
+        );
+        console.log(
+          `Total linked issues with parents: ${result.linkedIssuesWithParents.length}`
+        );
+
+        console.log(`=== END ORPHAN DETECTOR DATA ===\n`);
+
+        // Send completion message with data
+        res.write(
+          `data: ${JSON.stringify({
+            status: "complete",
+            data: JSON.stringify({
+              workstream: result.workstream,
+              linkedIssuesWithParents: result.linkedIssuesWithParents,
+            }),
+            hasData: result.workstream.children.length > 0,
+          })}\n\n`
+        );
+        res.end();
+      })
+      .catch((error) => {
+        console.error(
+          `Error in orphan detection for workstream ${workstreamKey}:`,
+          error
+        );
+
+        // Send error message
+        res.write(
+          `data: ${JSON.stringify({
+            status: "error",
+            message: `Error in orphan detection for workstream ${workstreamKey}: ${error.message}`,
+          })}\n\n`
+        );
+        res.end();
+      });
   }
 );
 

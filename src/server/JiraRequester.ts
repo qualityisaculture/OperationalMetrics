@@ -37,6 +37,12 @@ export type LiteJiraIssue = {
   timeBookingsJiraKeys?: string[]; // Array of all Jira keys in the workstream tree
   timeBookingsTotalIssues?: number; // Total number of issues in the workstream tree
   timeDataByKey?: Record<string, Array<{ date: string; timeSpent: number }>>; // Map from Jira key to time data array
+  links?: Array<{
+    type: string;
+    linkedIssueKey: string;
+    direction: "inward" | "outward";
+  }>; // Issue links
+  parent?: LiteJiraIssue | null; // Parent issue in the hierarchy
 };
 
 export class JiraLite {
@@ -54,6 +60,12 @@ export class JiraLite {
   epicStartDate: string | null; // Epic Start Date (fallback) - always present
   epicEndDate: string | null; // Epic End Date (fallback) - always present
   hasChildren?: boolean | null;
+  links?: Array<{
+    type: string;
+    linkedIssueKey: string;
+    direction: "inward" | "outward";
+  }>; // Issue links
+  parent?: JiraLite | null; // Parent issue in the hierarchy
 
   constructor(
     key: string,
@@ -68,7 +80,13 @@ export class JiraLite {
     baselineEstimate?: number | null,
     dueDate: string | null = null,
     epicStartDate: string | null = null,
-    epicEndDate: string | null = null
+    epicEndDate: string | null = null,
+    links?: Array<{
+      type: string;
+      linkedIssueKey: string;
+      direction: "inward" | "outward";
+    }>,
+    parent?: JiraLite | null
   ) {
     this.key = key;
     this.summary = summary;
@@ -84,6 +102,8 @@ export class JiraLite {
     this.dueDate = dueDate;
     this.epicStartDate = epicStartDate;
     this.epicEndDate = epicEndDate;
+    this.links = links;
+    this.parent = parent;
   }
 
   static fromLiteJiraIssue(issue: LiteJiraIssue): JiraLite {
@@ -102,6 +122,8 @@ export class JiraLite {
             undefined,
             null,
             null,
+            null,
+            undefined,
             null
           )
         : JiraLite.fromLiteJiraIssue(child)
@@ -119,7 +141,9 @@ export class JiraLite {
       issue.baselineEstimate,
       issue.dueDate,
       issue.epicStartDate,
-      issue.epicEndDate
+      issue.epicEndDate,
+      issue.links,
+      issue.parent ? JiraLite.fromLiteJiraIssue(issue.parent) : null
     );
   }
 
@@ -139,6 +163,8 @@ export class JiraLite {
       epicStartDate: this.epicStartDate,
       epicEndDate: this.epicEndDate,
       hasChildren: this.hasChildren,
+      links: this.links,
+      parent: this.parent ? this.parent.toLiteJiraIssue() : null,
     };
   }
 }
@@ -549,7 +575,7 @@ export default class JiraRequester {
 
         const jql = `(${parentConditions}) ORDER BY created ASC`;
         const fields =
-          "key,summary,issuetype,parent,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023";
+          "key,summary,issuetype,parent,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023,issuelinks";
         const queryWithFields = `${jql}&fields=${fields}`;
 
         console.log(
@@ -558,31 +584,61 @@ export default class JiraRequester {
 
         const response = await this.requestDataFromServer(queryWithFields);
 
-        const children = response.issues.map((issue: any) => ({
-          key: issue.key,
-          summary: issue.fields.summary || "",
-          type: issue.fields.issuetype.name || "",
-          status: issue.fields.status?.name || "",
-          priority: issue.fields.priority?.name || "None",
-          account: issue.fields.customfield_10085?.value || "None",
-          parentKey: issue.fields.parent?.key || "",
-          url: `${process.env.JIRA_DOMAIN}/browse/${issue.key}`,
-          baselineEstimate: issue.fields.customfield_11753
-            ? issue.fields.customfield_11753
-            : null,
-          originalEstimate: issue.fields.timeoriginalestimate
-            ? issue.fields.timeoriginalestimate / 3600 / 7.5
-            : null,
-          timeSpent: issue.fields.timespent
-            ? issue.fields.timespent / 3600 / 7.5
-            : null,
-          timeRemaining: issue.fields.timeestimate
-            ? issue.fields.timeestimate / 3600 / 7.5
-            : null,
-          dueDate: issue.fields.duedate || null, // Always include dueDate field
-          epicStartDate: issue.fields.customfield_10022 || null, // Epic Start Date (fallback)
-          epicEndDate: issue.fields.customfield_10023 || null, // Epic End Date (fallback)
-        }));
+        const children = response.issues.map((issue: any) => {
+          // Process issue links
+          const links: Array<{
+            type: string;
+            linkedIssueKey: string;
+            direction: "inward" | "outward";
+          }> = [];
+
+          if (issue.fields.issuelinks) {
+            for (const link of issue.fields.issuelinks) {
+              // Handle both inward and outward links
+              if (link.inwardIssue) {
+                links.push({
+                  type: link.type.name,
+                  linkedIssueKey: link.inwardIssue.key,
+                  direction: "inward",
+                });
+              }
+              if (link.outwardIssue) {
+                links.push({
+                  type: link.type.name,
+                  linkedIssueKey: link.outwardIssue.key,
+                  direction: "outward",
+                });
+              }
+            }
+          }
+
+          return {
+            key: issue.key,
+            summary: issue.fields.summary || "",
+            type: issue.fields.issuetype.name || "",
+            status: issue.fields.status?.name || "",
+            priority: issue.fields.priority?.name || "None",
+            account: issue.fields.customfield_10085?.value || "None",
+            parentKey: issue.fields.parent?.key || "",
+            url: `${process.env.JIRA_DOMAIN}/browse/${issue.key}`,
+            baselineEstimate: issue.fields.customfield_11753
+              ? issue.fields.customfield_11753
+              : null,
+            originalEstimate: issue.fields.timeoriginalestimate
+              ? issue.fields.timeoriginalestimate / 3600 / 7.5
+              : null,
+            timeSpent: issue.fields.timespent
+              ? issue.fields.timespent / 3600 / 7.5
+              : null,
+            timeRemaining: issue.fields.timeestimate
+              ? issue.fields.timeestimate / 3600 / 7.5
+              : null,
+            dueDate: issue.fields.duedate || null, // Always include dueDate field
+            epicStartDate: issue.fields.customfield_10022 || null, // Epic Start Date (fallback)
+            epicEndDate: issue.fields.customfield_10023 || null, // Epic End Date (fallback)
+            links: links, // Add links to the issue data
+          };
+        });
 
         allChildren.push(...children);
       }
@@ -599,7 +655,8 @@ export default class JiraRequester {
       const domain = process.env.JIRA_DOMAIN;
       // Query for issues where the parent field matches the parentKey
       const jql = `parent = "${parentKey}" ORDER BY created ASC`;
-      const fields = "key,summary,issuetype,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023";
+      const fields =
+        "key,summary,issuetype,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023";
       const url = `${domain}/rest/api/3/search/jql?jql=${jql}&fields=${fields}`;
 
       let response = await this.fetchRequest(url);
@@ -648,5 +705,314 @@ export default class JiraRequester {
       console.error(`Error fetching children for issue ${parentKey}:`, error);
       return [];
     }
+  }
+
+  // New method to fetch issue links for a given issue
+  async getIssueLinks(issueKey: string): Promise<
+    Array<{
+      type: string;
+      inwardIssue: string;
+      outwardIssue: string;
+      direction: "inward" | "outward";
+    }>
+  > {
+    try {
+      const domain = process.env.JIRA_DOMAIN;
+      const url = `${domain}/rest/api/3/issue/${issueKey}?fields=issuelinks`;
+
+      const response = await this.fetchRequest(url);
+      const issueLinks = response.fields.issuelinks || [];
+
+      const links: Array<{
+        type: string;
+        inwardIssue: string;
+        outwardIssue: string;
+        direction: "inward" | "outward";
+      }> = [];
+
+      for (const link of issueLinks) {
+        // Handle both inward and outward links
+        if (link.inwardIssue) {
+          links.push({
+            type: link.type.name,
+            inwardIssue: link.inwardIssue.key,
+            outwardIssue: issueKey,
+            direction: "inward",
+          });
+        }
+        if (link.outwardIssue) {
+          links.push({
+            type: link.type.name,
+            inwardIssue: issueKey,
+            outwardIssue: link.outwardIssue.key,
+            direction: "outward",
+          });
+        }
+      }
+
+      return links;
+    } catch (error) {
+      console.error(`Error fetching links for issue ${issueKey}:`, error);
+      return [];
+    }
+  }
+
+  // New method to get parent information for an issue
+  async getIssueParent(issueKey: string): Promise<{
+    parentKey: string | null;
+    parentSummary: string | null;
+  }> {
+    try {
+      const domain = process.env.JIRA_DOMAIN;
+      const url = `${domain}/rest/api/3/issue/${issueKey}?fields=parent`;
+
+      const response = await this.fetchRequest(url);
+      const parent = response.fields?.parent || null;
+
+      if (parent) {
+        return {
+          parentKey: parent.key,
+          parentSummary: parent.fields.summary,
+        };
+      }
+
+      return {
+        parentKey: null,
+        parentSummary: null,
+      };
+    } catch (error) {
+      console.error(`Error fetching parent for issue ${issueKey}:`, error);
+      return {
+        parentKey: null,
+        parentSummary: null,
+      };
+    }
+  }
+
+  // Method to get individual issues by their keys
+  async getIssuesByKeys(issueKeys: string[]): Promise<LiteJiraIssue[]> {
+    try {
+      if (issueKeys.length === 0) {
+        return [];
+      }
+
+      const allIssues: LiteJiraIssue[] = [];
+      const batchSize = 50; // Process 50 issues at a time
+
+      for (let i = 0; i < issueKeys.length; i += batchSize) {
+        const batchKeys = issueKeys.slice(i, i + batchSize);
+
+        const keyConditions = batchKeys
+          .map((key) => `key = "${key}"`)
+          .join(" OR ");
+
+        const jql = `(${keyConditions}) ORDER BY created ASC`;
+        const fields =
+          "key,summary,issuetype,parent,status,priority,timeoriginalestimate,timespent,timeestimate,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023,issuelinks";
+        const queryWithFields = `${jql}&fields=${fields}`;
+
+        console.log(
+          `Fetching ${batchKeys.length} issues by keys (batch ${Math.floor(i / batchSize) + 1})`
+        );
+
+        const response = await this.requestDataFromServer(queryWithFields);
+
+        const issues = response.issues.map((issue: any) => {
+          // Process issue links
+          const links: Array<{
+            type: string;
+            linkedIssueKey: string;
+            direction: "inward" | "outward";
+          }> = [];
+
+          if (issue.fields.issuelinks) {
+            for (const link of issue.fields.issuelinks) {
+              // Handle both inward and outward links
+              if (link.inwardIssue) {
+                links.push({
+                  type: link.type.name,
+                  linkedIssueKey: link.inwardIssue.key,
+                  direction: "inward",
+                });
+              }
+              if (link.outwardIssue) {
+                links.push({
+                  type: link.type.name,
+                  linkedIssueKey: link.outwardIssue.key,
+                  direction: "outward",
+                });
+              }
+            }
+          }
+
+          return {
+            key: issue.key,
+            summary: issue.fields.summary || "",
+            type: issue.fields.issuetype.name || "",
+            status: issue.fields.status?.name || "",
+            priority: issue.fields.priority?.name || "None",
+            account: issue.fields.customfield_10085?.value || "None",
+            children: [], // We don't fetch children here
+            childCount: 0,
+            url: `${process.env.JIRA_DOMAIN}/browse/${issue.key}`,
+            baselineEstimate: issue.fields.customfield_11753
+              ? issue.fields.customfield_11753
+              : null,
+            originalEstimate: issue.fields.timeoriginalestimate
+              ? issue.fields.timeoriginalestimate / 3600 / 7.5
+              : null,
+            timeSpent: issue.fields.timespent
+              ? issue.fields.timespent / 3600 / 7.5
+              : null,
+            timeRemaining: issue.fields.timeestimate
+              ? issue.fields.timeestimate / 3600 / 7.5
+              : null,
+            dueDate: issue.fields.duedate || null,
+            epicStartDate: issue.fields.customfield_10022 || null,
+            epicEndDate: issue.fields.customfield_10023 || null,
+            links: links,
+            parent: null, // Will be set later when building the tree
+          };
+        });
+
+        allIssues.push(...issues);
+      }
+
+      return allIssues;
+    } catch (error) {
+      console.error(`Error fetching issues by keys:`, error);
+      throw error;
+    }
+  }
+
+  // New method to get all parents for a list of issues (breadth-first, batched)
+  async getAllParentsForIssues(
+    issueKeys: string[]
+  ): Promise<Map<string, LiteJiraIssue>> {
+    try {
+      if (issueKeys.length === 0) {
+        return new Map();
+      }
+
+      const allParents = new Map<string, LiteJiraIssue>();
+      const issuesToProcess = new Set(issueKeys);
+      const processedIssues = new Set<string>();
+      let levelNumber = 0;
+
+      console.log(
+        `Starting recursive parent fetching for ${issueKeys.length} issues`
+      );
+
+      while (issuesToProcess.size > 0) {
+        levelNumber++;
+        const currentLevelKeys = Array.from(issuesToProcess);
+        issuesToProcess.clear();
+
+        console.log(
+          `Level ${levelNumber}: Processing ${currentLevelKeys.length} issues for parents`
+        );
+
+        // Batch fetch parent information for all issues at this level
+        const parentData = await this.getBatchedParentData(currentLevelKeys);
+
+        for (const issueData of parentData) {
+          if (
+            issueData.parentKey &&
+            !processedIssues.has(issueData.parentKey)
+          ) {
+            // Add the parent to the map
+            allParents.set(issueData.parentKey, {
+              key: issueData.parentKey,
+              summary:
+                issueData.parentSummary || `Issue ${issueData.parentKey}`,
+              type: "Parent", // We don't know the type without fetching
+              status: "Unknown",
+              account: "Unknown",
+              children: [],
+              childCount: 0,
+              url: `${process.env.JIRA_DOMAIN}/browse/${issueData.parentKey}`,
+              originalEstimate: null,
+              timeSpent: null,
+              timeRemaining: null,
+              dueDate: null,
+              epicStartDate: null,
+              epicEndDate: null,
+              parent: null,
+            });
+
+            // Add to next level for further parent fetching
+            issuesToProcess.add(issueData.parentKey);
+          }
+
+          processedIssues.add(issueData.issueKey);
+        }
+
+        // Safety check to prevent infinite loops
+        if (levelNumber > 10) {
+          console.warn(
+            `Reached maximum parent level depth (10), stopping to prgetParentKeysForIssuesevent infinite loop`
+          );
+          break;
+        }
+      }
+
+      console.log(
+        `Completed parent fetching: found ${allParents.size} total parents across ${levelNumber} levels`
+      );
+      return allParents;
+    } catch (error) {
+      console.error(`Error fetching parents for issues:`, error);
+      throw error;
+    }
+  }
+
+  // Helper method to batch fetch parent data
+  private async getBatchedParentData(issueKeys: string[]): Promise<
+    Array<{
+      issueKey: string;
+      parentKey: string | null;
+      parentSummary: string | null;
+    }>
+  > {
+    const results: Array<{
+      issueKey: string;
+      parentKey: string | null;
+      parentSummary: string | null;
+    }> = [];
+
+    // Process in batches of 50
+    for (let i = 0; i < issueKeys.length; i += 50) {
+      const batchKeys = issueKeys.slice(i, i + 50);
+
+      // Create JQL query for this batch
+      const jql = batchKeys.map((key) => `key = "${key}"`).join(" OR ");
+      const fields = "key,parent";
+      const query = `${jql}&fields=${fields}`;
+
+      try {
+        const response = await this.requestDataFromServer(query);
+
+        for (const issue of response.issues) {
+          const parent = issue.fields?.parent;
+          results.push({
+            issueKey: issue.key,
+            parentKey: parent?.key || null,
+            parentSummary: parent?.fields?.summary || null,
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching parent data for batch:`, error);
+        // Add null results for this batch
+        for (const key of batchKeys) {
+          results.push({
+            issueKey: key,
+            parentKey: null,
+            parentSummary: null,
+          });
+        }
+      }
+    }
+
+    return results;
   }
 }

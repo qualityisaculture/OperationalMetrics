@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { JiraIssueWithAggregated } from "../types";
 import { UnifiedIssuesTable } from "../../components/tables/UnifiedIssuesTable";
 import { EpicIssuesList } from "./EpicIssuesList";
-import { Collapse, Typography } from "antd";
-import { DownOutlined, RightOutlined } from "@ant-design/icons";
+import { Collapse, Typography, Button, Space } from "antd";
+import { DownOutlined, RightOutlined, SearchOutlined } from "@ant-design/icons";
 
 interface Props {
   currentIssues: JiraIssueWithAggregated[];
@@ -28,6 +28,9 @@ interface Props {
   onRequestTimeBookings?: (fromDate: string) => void;
   timeDataLoaded?: Set<string>;
   currentWorkstreamKey?: string;
+
+  // Orphan Detection
+  onRequestOrphanDetection?: (workstreamKey: string) => void;
 }
 
 export const WorkstreamTable: React.FC<Props> = ({
@@ -42,6 +45,7 @@ export const WorkstreamTable: React.FC<Props> = ({
   onRequestTimeBookings,
   timeDataLoaded = new Set(),
   currentWorkstreamKey,
+  onRequestOrphanDetection,
 }) => {
   const [isTableCollapsed, setIsTableCollapsed] = useState(false);
   const [isEpicListCollapsed, setIsEpicListCollapsed] = useState(false);
@@ -101,14 +105,24 @@ export const WorkstreamTable: React.FC<Props> = ({
         <Collapse.Panel
           key="table"
           header={
-            <div style={{ display: "flex", alignItems: "center" }}>
-              {isTableCollapsed ? <RightOutlined /> : <DownOutlined />}
-              <Typography.Title
-                level={4}
-                style={{ margin: 0, marginLeft: "8px" }}
-              >
-                Issues in {navigationStack[navigationStack.length - 1].name}
-              </Typography.Title>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center" }}>
+                {isTableCollapsed ? <RightOutlined /> : <DownOutlined />}
+                <Typography.Title
+                  level={4}
+                  style={{ margin: 0, marginLeft: "8px" }}
+                >
+                  Issues in {navigationStack[navigationStack.length - 1].name}
+                </Typography.Title>
+              </div>
+              {/* Orphan detect button removed - now auto-triggered on workstream load */}
             </div>
           }
           showArrow={false}

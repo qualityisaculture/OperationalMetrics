@@ -1244,6 +1244,7 @@ export default class JiraReportGraphManager {
         dueDate: child.dueDate || null,
         epicStartDate: child.epicStartDate || null,
         epicEndDate: child.epicEndDate || null,
+        links: child.links || [],
       }));
     } catch (error) {
       console.error(`Error getting children for issue ${issueKey}:`, error);

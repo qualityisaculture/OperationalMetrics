@@ -85,4 +85,11 @@ export interface JiraReportState {
   defectHistoryData: any | null;
   defectHistoryLoading: boolean;
   defectHistoryError: string | null;
+  // New state for orphan detection functionality
+  orphanData: {
+    workstream: LiteJiraIssue;
+    linkedIssuesWithParents: LiteJiraIssue[];
+  } | null;
+  orphanLoading: boolean;
+  orphanError: string | null;
 }

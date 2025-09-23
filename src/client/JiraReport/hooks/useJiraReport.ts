@@ -34,6 +34,10 @@ export const useJiraReport = () => {
     defectHistoryData: null,
     defectHistoryLoading: false,
     defectHistoryError: null,
+    // New state for orphan detection functionality
+    orphanData: null,
+    orphanLoading: false,
+    orphanError: null,
   });
 
   const getWorkstreamDataCellSpan = useCallback(
@@ -521,6 +525,12 @@ export const useJiraReport = () => {
             `=== FRONTEND: Workstream navigation complete for ${workstream.key} ===\n`
           );
 
+          // Automatically trigger orphan detection for workstreams
+          console.log(
+            `Auto-triggering orphan detection for workstream ${workstream.key}`
+          );
+          requestOrphanDetection(workstream.key);
+
           eventSource.close();
         } else if (response.status === "error") {
           console.error(
@@ -631,6 +641,12 @@ export const useJiraReport = () => {
         currentIssuesLoading: false,
         currentIssuesError: null,
       }));
+
+      // Automatically trigger orphan detection for workstreams
+      if (issue.type === "Workstream" || issue.type === "Epic") {
+        console.log(`Auto-triggering orphan detection for ${issue.key}`);
+        requestOrphanDetection(issue.key);
+      }
 
       console.log(
         `=== FRONTEND: Issue navigation complete for ${issue.key} (using existing data) ===\n`
@@ -1059,6 +1075,203 @@ export const useJiraReport = () => {
     }
   };
 
+  const requestOrphanDetection = async (workstreamKey: string) => {
+    console.log(
+      `\n=== FRONTEND: Starting Orphan Detection for ${workstreamKey} ===`
+    );
+
+    setState((prevState) => ({
+      ...prevState,
+      orphanLoading: true,
+      orphanError: null,
+    }));
+
+    try {
+      const response = await fetch(
+        `/api/jiraReport/workstream/${workstreamKey}/orphan-detector`
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No response body reader available");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (data.status === "processing") {
+                setState((prevState) => ({
+                  ...prevState,
+                  progressStatus: data.message || "Processing...",
+                  progressDetails: data.progress,
+                }));
+                console.log(`Progress: ${data.message}`, data.progress);
+              } else if (data.status === "complete") {
+                const orphanData = JSON.parse(data.data);
+                console.log(
+                  `\n=== ORPHAN DETECTION RESULTS FOR ${workstreamKey} ===`
+                );
+                console.log("Raw orphan data:", orphanData);
+                console.log("Workstream:", orphanData.workstream);
+                console.log(
+                  "Linked issues with parents:",
+                  orphanData.linkedIssuesWithParents
+                );
+                console.log(`=== END ORPHAN DETECTION RESULTS ===\n`);
+
+                setState((prevState) => ({
+                  ...prevState,
+                  orphanData: orphanData,
+                  orphanLoading: false,
+                  orphanError: null,
+                }));
+              } else if (data.status === "error") {
+                throw new Error(
+                  data.message || "Unknown error during orphan detection"
+                );
+              }
+            } catch (parseError) {
+              console.error("Error parsing SSE data:", parseError);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error in orphan detection for ${workstreamKey}:`, error);
+      setState((prevState) => ({
+        ...prevState,
+        orphanLoading: false,
+        orphanError:
+          error instanceof Error ? error.message : "Failed to detect orphans",
+      }));
+    }
+  };
+
+  // Function to identify orphans based on the definition
+  const getOrphans = useCallback((): Array<{
+    key: string;
+    summary: string;
+    url: string;
+  }> => {
+    console.log("\n=== ORPHAN ANALYSIS START ===");
+    console.log("Orphan data available:", !!state.orphanData);
+    console.log(
+      "Linked issues count:",
+      state.orphanData?.linkedIssuesWithParents?.length || 0
+    );
+
+    if (!state.orphanData?.linkedIssuesWithParents) {
+      console.log("No orphan data available");
+      return [];
+    }
+
+    const orphans: Array<{ key: string; summary: string; url: string }> = [];
+
+    // Helper function to check if a key matches the valid parent pattern
+    const isValidParentKey = (key: string): boolean => {
+      const isHPD = key.startsWith("HPD");
+      const isDPattern = /^D[0-9]+.*$/.test(key);
+      const isValid = isHPD || isDPattern;
+      console.log(
+        `  Key "${key}" - HPD: ${isHPD}, D Pattern: ${isDPattern}, Valid: ${isValid}`
+      );
+      return isValid;
+    };
+
+    // Helper function to check if an issue has a valid parent in its chain
+    const hasValidParentInChain = (issue: LiteJiraIssue): boolean => {
+      console.log(`\nAnalyzing issue: ${issue.key} - ${issue.summary}`);
+      console.log(`  Has parent: ${!!issue.parent}`);
+
+      let current = issue.parent;
+      let level = 1;
+      const parentChain: string[] = [];
+
+      while (current) {
+        parentChain.push(current.key);
+        console.log(
+          `  Level ${level} parent: ${current.key} - ${current.summary}`
+        );
+
+        if (isValidParentKey(current.key)) {
+          console.log(`  ✓ Found valid parent: ${current.key}`);
+          return true;
+        }
+
+        current = current.parent;
+        level++;
+
+        // Safety check to prevent infinite loops
+        if (level > 10) {
+          console.log(`  ⚠️ Reached maximum parent level (10), stopping`);
+          break;
+        }
+      }
+
+      console.log(
+        `  ✗ No valid parent found in chain: [${parentChain.join(" -> ")}]`
+      );
+      return false;
+    };
+
+    // Filter to only analyze issues that start with "LEN"
+    const lenIssues = state.orphanData.linkedIssuesWithParents.filter((issue) =>
+      issue.key.startsWith("LEN")
+    );
+
+    console.log(
+      `\nAnalyzing ${lenIssues.length} LEN issues out of ${state.orphanData.linkedIssuesWithParents.length} total linked issues:`
+    );
+
+    for (const linkedIssue of lenIssues) {
+      console.log(`\n--- Analyzing ${linkedIssue.key} ---`);
+
+      // First check if the issue itself matches the valid pattern
+      if (isValidParentKey(linkedIssue.key)) {
+        console.log(
+          `  ✓ Issue itself is valid parent (${linkedIssue.key}) - not an orphan`
+        );
+        continue;
+      }
+
+      // Then check if it has a valid parent in its chain
+      if (!hasValidParentInChain(linkedIssue)) {
+        console.log(`  🚨 ORPHAN FOUND: ${linkedIssue.key}`);
+        orphans.push({
+          key: linkedIssue.key,
+          summary: linkedIssue.summary,
+          url: linkedIssue.url,
+        });
+      } else {
+        console.log(`  ✓ Not an orphan: ${linkedIssue.key}`);
+      }
+    }
+
+    console.log(`\n=== ORPHAN ANALYSIS COMPLETE ===`);
+    console.log(`Total orphans found: ${orphans.length}`);
+    console.log(`Orphans:`, orphans);
+    console.log("=== END ORPHAN ANALYSIS ===\n");
+
+    return orphans;
+  }, [state.orphanData]);
+
   return {
     state,
     getWorkstreamDataCellSpan,
@@ -1078,5 +1291,7 @@ export const useJiraReport = () => {
     requestAllWorkstreams,
     requestTimeBookings,
     requestDefectHistory,
+    requestOrphanDetection,
+    getOrphans,
   };
 };
