@@ -17,6 +17,7 @@ import JiraReport from "./JiraReport";
 import BottleneckDetector from "./BottleneckDetector";
 import FormsAnalyzer from "./FormsAnalyzer";
 import TypeBreakdownAnalyser from "./TypeBreakdownAnalyser";
+import WeWork from "./SecurityBarriers";
 
 interface Props {}
 
@@ -37,7 +38,8 @@ interface State {
     | "jiraReport"
     | "bottleneckDetector"
     | "formsAnalyzer"
-    | "typeBreakdownAnalyser";
+    | "typeBreakdownAnalyser"
+    | "wework";
 }
 
 export default class ChartSelector extends React.Component<Props, State> {
@@ -101,6 +103,9 @@ export default class ChartSelector extends React.Component<Props, State> {
     let typeBreakdownAnalyserStyle = {
       display: this.state.chart === "typeBreakdownAnalyser" ? "block" : "none",
     };
+    let weworkStyle = {
+      display: this.state.chart === "wework" ? "block" : "none",
+    };
 
     return (
       <div>
@@ -128,7 +133,10 @@ export default class ChartSelector extends React.Component<Props, State> {
               Bottleneck Detector
             </Radio.Button>
             <Radio.Button value="formsAnalyzer">Forms Analyzer</Radio.Button>
-            <Radio.Button value="typeBreakdownAnalyser">Type Breakdown Analyser</Radio.Button>
+            <Radio.Button value="typeBreakdownAnalyser">
+              Type Breakdown Analyser
+            </Radio.Button>
+            <Radio.Button value="wework">WeWork</Radio.Button>
           </Radio.Group>
         </div>
         <div>
@@ -179,6 +187,9 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={typeBreakdownAnalyserStyle}>
             <TypeBreakdownAnalyser />
+          </div>
+          <div style={weworkStyle}>
+            <WeWork />
           </div>
         </div>
       </div>

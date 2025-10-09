@@ -299,7 +299,7 @@ export default class JiraRequester {
     for (let i = 0; i < issueKeys.length; i += 50) {
       let keys = issueKeys.slice(i, i + 50);
       let jql = keys.map((key) => `key=${key}`).join(" OR ");
-      const query = `${jql}&expand=changelog&fields=issuetype,components,created,customfield_10085,customfield_10022,fixVersions,customfield_10023,priority,resolution,customfield_11753,labels,duedate,updated,status,resolutiondate,summary,timespent`;
+      const query = `${jql}&expand=changelog&fields=issuetype,components,created,customfield_10085,customfield_10022,fixVersions,customfield_10023,priority,resolution,customfield_11753,labels,duedate,updated,status,resolutiondate,summary,timespent,timeoriginalestimate,timeestimate`;
       let data = await this.requestDataFromServer(query);
       allIssues.issues = allIssues.issues.concat(data.issues);
     }
@@ -507,7 +507,7 @@ export default class JiraRequester {
   async getLiteQuery(query: string): Promise<LiteJiraIssue[]> {
     try {
       const domain = process.env.JIRA_DOMAIN;
-      const url = `${domain}/rest/api/3/search/jql?jql=${query}&fields=key,summary,issuetype,status,priority,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023`;
+      const url = `${domain}/rest/api/3/search/jql?jql=${query}&fields=key,summary,issuetype,status,priority,customfield_10085,customfield_11753,duedate,customfield_10022,customfield_10023,timeoriginalestimate,timespent,timeestimate`;
       console.log(`Fetching lite data for ${url}`);
 
       let response = await this.fetchRequest(url);
@@ -546,6 +546,15 @@ export default class JiraRequester {
         url: `${process.env.JIRA_DOMAIN}/browse/${issue.key}`,
         baselineEstimate: issue.fields.customfield_11753
           ? issue.fields.customfield_11753
+          : null,
+        originalEstimate: issue.fields.timeoriginalestimate
+          ? issue.fields.timeoriginalestimate / 3600 / 7.5
+          : null,
+        timeSpent: issue.fields.timespent
+          ? issue.fields.timespent / 3600 / 7.5
+          : null,
+        timeRemaining: issue.fields.timeestimate
+          ? issue.fields.timeestimate / 3600 / 7.5
           : null,
         dueDate: issue.fields.duedate || null, // Always include dueDate field
         epicStartDate: issue.fields.customfield_10022 || null, // Epic Start Date (fallback)
