@@ -1024,6 +1024,76 @@ metricsRoute.get(
   }
 );
 
+// Account Worklogs by Month API route
+metricsRoute.get(
+  "/jiraReport/account/:account/worklogs/:year/:month",
+  async (req: Request, res: TR<{ message: string; data: string }>) => {
+    const account = req.params.account;
+    const year = parseInt(req.params.year);
+    const month = parseInt(req.params.month);
+
+    console.log(
+      `Account worklogs endpoint called for account: ${account}, year: ${year}, month: ${month}`
+    );
+
+    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+      res.json({
+        message: "Invalid year or month parameter",
+        data: JSON.stringify({
+          error: "Year must be a number and month must be between 1 and 12",
+        }),
+      });
+      return;
+    }
+
+    try {
+      console.log(
+        `Starting worklog fetch for account: ${account}, year: ${year}, month: ${month}`
+      );
+
+      const worklogs = await jiraRequester.getWorklogsForAccountMonth(
+        account,
+        year,
+        month
+      );
+
+      console.log(`Retrieved ${worklogs.length} worklogs from JiraRequester`);
+
+      // Calculate summary statistics
+      const totalTimeSpent = worklogs.reduce(
+        (sum, worklog) => sum + worklog.timeSpentSeconds,
+        0
+      );
+      const uniqueIssues = new Set(worklogs.map((w) => w.issueKey)).size;
+      const uniqueAuthors = new Set(worklogs.map((w) => w.author)).size;
+
+      console.log(
+        `Summary: ${worklogs.length} worklogs, ${uniqueIssues} unique issues, ${uniqueAuthors} unique authors, ${totalTimeSpent} total seconds`
+      );
+
+      const summary = {
+        totalWorklogs: worklogs.length,
+        totalTimeSpentSeconds: totalTimeSpent,
+        totalTimeSpentHours: Math.round((totalTimeSpent / 3600) * 100) / 100,
+        uniqueIssues,
+        uniqueAuthors,
+        worklogs,
+      };
+
+      res.json({
+        message: `Worklogs for account ${account} for ${year}-${month.toString().padStart(2, "0")} fetched successfully`,
+        data: JSON.stringify(summary),
+      });
+    } catch (error) {
+      console.error(`Error fetching worklogs for account ${account}:`, error);
+      res.json({
+        message: `Error fetching worklogs for account ${account}: ${error.message}`,
+        data: JSON.stringify({ error: error.message }),
+      });
+    }
+  }
+);
+
 // Workstream Orphan Detector API route
 metricsRoute.get(
   "/jiraReport/workstream/:workstreamKey/orphan-detector",

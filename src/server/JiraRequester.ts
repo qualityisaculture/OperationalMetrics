@@ -1024,4 +1024,138 @@ export default class JiraRequester {
 
     return results;
   }
+
+  // Method to get worklogs for issues by Account and month
+  async getWorklogsForAccountMonth(
+    account: string,
+    year: number,
+    month: number
+  ): Promise<
+    {
+      issueKey: string;
+      worklogId: string;
+      author: string;
+      timeSpent: string;
+      timeSpentSeconds: number;
+      started: string;
+      comment?: string;
+    }[]
+  > {
+    try {
+      console.log(
+        `Fetching worklogs for account ${account} for ${year}-${month.toString().padStart(2, "0")}`
+      );
+
+      // Create date range for the month
+      const startDate = `${year}-${month.toString().padStart(2, "0")}-01`;
+      const endDate = new Date(year, month, 0).toISOString().split("T")[0]; // Last day of the month
+
+      // JQL query to find issues with worklogs in the specified month and account
+      const jql = `"Account" = "${account}" AND worklogDate >= "${startDate}" AND worklogDate <= "${endDate}"`;
+
+      console.log(`JQL Query: ${jql}`);
+
+      // Get issues with worklogs in the specified month
+      const issues = await this.getLiteQuery(jql);
+      console.log(
+        `Found ${issues.length} issues with worklogs for account ${account} in ${year}-${month.toString().padStart(2, "0")}`
+      );
+
+      // Log each issue found
+      for (const issue of issues) {
+        console.log(
+          `Issue found: ${issue.key} (${issue.summary}) - Account: ${issue.account}`
+        );
+      }
+
+      const allWorklogs: {
+        issueKey: string;
+        worklogId: string;
+        author: string;
+        timeSpent: string;
+        timeSpentSeconds: number;
+        started: string;
+        comment?: string;
+      }[] = [];
+
+      // For each issue, get its worklogs
+      for (const issue of issues) {
+        try {
+          console.log(`Fetching worklogs for issue ${issue.key}`);
+          const worklogs = await this.getIssueWorklogs(issue.key);
+          console.log(
+            `Found ${worklogs.length} total worklogs for issue ${issue.key}`
+          );
+
+          // Filter worklogs to only include those from the specified month
+          const monthWorklogs = worklogs.filter((worklog) => {
+            const worklogDate = new Date(worklog.started);
+            const isInMonth =
+              worklogDate.getFullYear() === year &&
+              worklogDate.getMonth() === month - 1; // month is 0-indexed in Date
+            console.log(
+              `Worklog ${worklog.id} started ${worklog.started}, in target month: ${isInMonth}`
+            );
+            return isInMonth;
+          });
+
+          console.log(
+            `Filtered to ${monthWorklogs.length} worklogs in target month for issue ${issue.key}`
+          );
+
+          // Add to results with issue key
+          for (const worklog of monthWorklogs) {
+            console.log(
+              `Adding worklog: ${worklog.id} by ${worklog.author.displayName} for ${worklog.timeSpent}`
+            );
+            allWorklogs.push({
+              issueKey: issue.key,
+              worklogId: worklog.id,
+              author: worklog.author.displayName,
+              timeSpent: worklog.timeSpent, // This is a string like "2h 30m"
+              timeSpentSeconds: worklog.timeSpentSeconds,
+              started: worklog.started,
+              comment: worklog.comment,
+            });
+          }
+        } catch (error) {
+          console.error(
+            `Error fetching worklogs for issue ${issue.key}:`,
+            error
+          );
+        }
+      }
+
+      console.log(
+        `Retrieved ${allWorklogs.length} worklogs for account ${account} for ${year}-${month.toString().padStart(2, "0")}`
+      );
+      return allWorklogs;
+    } catch (error) {
+      console.error(`Error fetching worklogs for account ${account}:`, error);
+      throw error;
+    }
+  }
+
+  // Method to get worklogs for a specific issue
+  private async getIssueWorklogs(issueKey: string): Promise<
+    {
+      id: string;
+      author: { displayName: string };
+      timeSpent: string;
+      timeSpentSeconds: number;
+      started: string;
+      comment?: string;
+    }[]
+  > {
+    try {
+      const domain = process.env.JIRA_DOMAIN;
+      const url = `${domain}/rest/api/3/issue/${issueKey}/worklog`;
+
+      const response = await this.fetchRequest(url);
+      return response.worklogs || [];
+    } catch (error) {
+      console.error(`Error fetching worklogs for issue ${issueKey}:`, error);
+      return [];
+    }
+  }
 }

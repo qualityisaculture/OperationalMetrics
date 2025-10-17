@@ -7,3 +7,4 @@ export { ProjectTable } from "./ProjectTable";
 export { ProjectSummary } from "./ProjectSummary";
 export { TimeBookingsModal } from "./TimeBookingsModal";
 export { DefectHistorySection } from "./DefectHistorySection";
+export { ProjectWorklogsSection } from "./ProjectWorklogsSection";

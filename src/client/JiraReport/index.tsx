@@ -16,6 +16,7 @@ import { RequestAllModal } from "./components/RequestAllModal";
 import { DynamicProjectSummary } from "./components/DynamicProjectSummary";
 import { TimeBookingsModal } from "./components/TimeBookingsModal";
 import { DefectHistorySection } from "./components/DefectHistorySection";
+import { ProjectWorklogsSection } from "./components/ProjectWorklogsSection";
 import OrphanList from "./components/OrphanList";
 import { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
 
@@ -329,6 +330,35 @@ const JiraReport: React.FC = () => {
                   handleWorkstreamClick={handleWorkstreamClick}
                   showRequestAllModal={showRequestAllModal}
                   toggleFavorite={toggleFavorite}
+                />
+
+                <ProjectWorklogsSection
+                  projectKey={selectedProject.key}
+                  projectName={selectedProject.name}
+                  accounts={(() => {
+                    const extractedAccounts = Array.from(
+                      new Set(
+                        projectIssues
+                          .map((issue) => issue.account)
+                          .filter((account) => account && account !== "None")
+                      )
+                    ).sort();
+                    console.log(
+                      `Extracted accounts from projectIssues:`,
+                      extractedAccounts
+                    );
+                    console.log(`Total projectIssues: ${projectIssues.length}`);
+                    console.log(
+                      `Sample projectIssues accounts:`,
+                      projectIssues
+                        .slice(0, 5)
+                        .map((issue) => ({
+                          key: issue.key,
+                          account: issue.account,
+                        }))
+                    );
+                    return extractedAccounts;
+                  })()}
                 />
 
                 <DefectHistorySection
