@@ -7,9 +7,7 @@ import {
   Space,
   Typography,
   Alert,
-  Statistic,
-  Row,
-  Col,
+  Table,
   Spin,
 } from "antd";
 import {
@@ -44,6 +42,17 @@ interface WorklogSummary {
   worklogs: WorklogData[];
 }
 
+interface MonthlySummary {
+  month: string;
+  year: number;
+  monthNumber: number;
+  totalWorklogs: number;
+  totalTimeSpentHours: number;
+  totalDays: number;
+  uniqueIssues: number;
+  uniqueAuthors: number;
+}
+
 interface Props {
   projectKey: string;
   projectName: string;
@@ -57,18 +66,21 @@ export const AccountWorklogSection: React.FC<Props> = ({
 }) => {
   console.log(`AccountWorklogSection received accounts:`, accounts);
 
-  const [worklogData, setWorklogData] = useState<WorklogSummary | null>(null);
+  const [monthlySummaries, setMonthlySummaries] = useState<MonthlySummary[]>(
+    []
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState<{
-    year: number;
-    month: number;
+  const [selectedDateRange, setSelectedDateRange] = useState<{
+    start: dayjs.Dayjs;
+    end: dayjs.Dayjs;
   }>(() => {
-    const now = new Date();
+    const now = dayjs();
+    const sixMonthsAgo = now.subtract(6, "month");
     return {
-      year: now.getFullYear(),
-      month: now.getMonth() + 1,
+      start: sixMonthsAgo,
+      end: now,
     };
   });
 
@@ -80,8 +92,6 @@ export const AccountWorklogSection: React.FC<Props> = ({
     console.log(
       `Fetching worklog data for account: ${account}, year: ${year}, month: ${month}, project: ${projectKey}`
     );
-    setLoading(true);
-    setError(null);
 
     try {
       const url = `/api/jiraReport/account/${encodeURIComponent(account)}/worklogs/${year}/${month}`;
@@ -104,42 +114,182 @@ export const AccountWorklogSection: React.FC<Props> = ({
         throw new Error(data.error);
       }
 
-      setWorklogData(data);
+      // Convert to monthly summary format
+      const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+
+      const monthlySummary: MonthlySummary = {
+        month: monthNames[month - 1],
+        year: year,
+        monthNumber: month,
+        totalWorklogs: data.totalWorklogs,
+        totalTimeSpentHours: data.totalTimeSpentHours,
+        totalDays: Math.round((data.totalTimeSpentHours / 7.5) * 100) / 100,
+        uniqueIssues: data.uniqueIssues,
+        uniqueAuthors: data.uniqueAuthors,
+      };
+
+      // Add or update the monthly summary
+      setMonthlySummaries((prev) => {
+        const existing = prev.findIndex(
+          (item) => item.year === year && item.monthNumber === month
+        );
+
+        if (existing >= 0) {
+          // Update existing entry
+          const updated = [...prev];
+          updated[existing] = monthlySummary;
+          return updated;
+        } else {
+          // Add new entry
+          return [...prev, monthlySummary].sort((a, b) => {
+            if (a.year !== b.year) return a.year - b.year;
+            return a.monthNumber - b.monthNumber;
+          });
+        }
+      });
     } catch (err) {
       console.error("Error fetching worklog data:", err);
+      throw err; // Re-throw to be handled by the calling function
+    }
+  };
+
+  const handleDateRangeChange = (
+    dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null
+  ) => {
+    if (dates && dates[0] && dates[1]) {
+      setSelectedDateRange({
+        start: dates[0],
+        end: dates[1],
+      });
+      // Clear existing data when date range changes
+      setMonthlySummaries([]);
+    }
+  };
+
+  const generateMonthsInRange = (start: dayjs.Dayjs, end: dayjs.Dayjs) => {
+    const months = [];
+    let current = start.startOf("month");
+    const endMonth = end.endOf("month");
+
+    while (current.isBefore(endMonth) || current.isSame(endMonth, "month")) {
+      months.push({
+        year: current.year(),
+        month: current.month() + 1,
+      });
+      current = current.add(1, "month");
+    }
+    return months;
+  };
+
+  const handleAccountChange = (account: string) => {
+    setSelectedAccount(account);
+    // Clear existing data when account changes
+    setMonthlySummaries([]);
+  };
+
+  const handleRefresh = async () => {
+    if (!selectedAccount) {
+      setError("Please select an account first");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const monthsToFetch = generateMonthsInRange(
+        selectedDateRange.start,
+        selectedDateRange.end
+      );
+      console.log(
+        `Fetching data for ${monthsToFetch.length} months:`,
+        monthsToFetch
+      );
+
+      // Fetch data for all months in parallel
+      const fetchPromises = monthsToFetch.map(({ year, month }) =>
+        fetchWorklogData(selectedAccount, year, month)
+      );
+
+      await Promise.all(fetchPromises);
+    } catch (err) {
+      console.error("Error fetching worklog data for range:", err);
       setError(
-        err instanceof Error ? err.message : "Failed to fetch worklog data"
+        err instanceof Error
+          ? err.message
+          : "Failed to fetch worklog data for range"
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDateChange = (date: dayjs.Dayjs | null) => {
-    if (date) {
-      const newDate = {
-        year: date.year(),
-        month: date.month() + 1,
-      };
-      setSelectedDate(newDate);
-      // Clear existing data when date changes
-      setWorklogData(null);
-    }
-  };
-
-  const handleAccountChange = (account: string) => {
-    setSelectedAccount(account);
-    // Clear existing data when account changes
-    setWorklogData(null);
-  };
-
-  const handleRefresh = () => {
-    if (!selectedAccount) {
-      setError("Please select an account first");
-      return;
-    }
-    fetchWorklogData(selectedAccount, selectedDate.year, selectedDate.month);
-  };
+  const tableColumns = [
+    {
+      title: "Month",
+      dataIndex: "month",
+      key: "month",
+      render: (month: string, record: MonthlySummary) => (
+        <span>
+          {month} {record.year}
+        </span>
+      ),
+      sorter: (a: MonthlySummary, b: MonthlySummary) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.monthNumber - b.monthNumber;
+      },
+    },
+    {
+      title: "Worklogs",
+      dataIndex: "totalWorklogs",
+      key: "totalWorklogs",
+      sorter: (a: MonthlySummary, b: MonthlySummary) =>
+        a.totalWorklogs - b.totalWorklogs,
+    },
+    {
+      title: "Hours",
+      dataIndex: "totalTimeSpentHours",
+      key: "totalTimeSpentHours",
+      render: (hours: number) => hours.toFixed(1),
+      sorter: (a: MonthlySummary, b: MonthlySummary) =>
+        a.totalTimeSpentHours - b.totalTimeSpentHours,
+    },
+    {
+      title: "Days",
+      dataIndex: "totalDays",
+      key: "totalDays",
+      render: (days: number) => days.toFixed(1),
+      sorter: (a: MonthlySummary, b: MonthlySummary) =>
+        a.totalDays - b.totalDays,
+    },
+    {
+      title: "Issues",
+      dataIndex: "uniqueIssues",
+      key: "uniqueIssues",
+      sorter: (a: MonthlySummary, b: MonthlySummary) =>
+        a.uniqueIssues - b.uniqueIssues,
+    },
+    {
+      title: "Authors",
+      dataIndex: "uniqueAuthors",
+      key: "uniqueAuthors",
+      sorter: (a: MonthlySummary, b: MonthlySummary) =>
+        a.uniqueAuthors - b.uniqueAuthors,
+    },
+  ];
 
   return (
     <Card
@@ -168,10 +318,10 @@ export const AccountWorklogSection: React.FC<Props> = ({
             }))}
             prefix={<TeamOutlined />}
           />
-          <DatePicker
+          <RangePicker
             picker="month"
-            value={dayjs(new Date(selectedDate.year, selectedDate.month - 1))}
-            onChange={handleDateChange}
+            value={[selectedDateRange.start, selectedDateRange.end]}
+            onChange={handleDateRangeChange}
             format="YYYY-MM"
           />
           <Button
@@ -191,8 +341,9 @@ export const AccountWorklogSection: React.FC<Props> = ({
           <Spin size="large" />
           <div style={{ marginTop: "16px" }}>
             <Text>
-              Loading worklog data for {selectedDate.year}-
-              {selectedDate.month.toString().padStart(2, "0")}...
+              Loading worklog data for{" "}
+              {selectedDateRange.start.format("YYYY-MM")} to{" "}
+              {selectedDateRange.end.format("YYYY-MM")}...
             </Text>
           </div>
         </div>
@@ -213,71 +364,29 @@ export const AccountWorklogSection: React.FC<Props> = ({
         />
       )}
 
-      {!loading && !error && !worklogData && (
+      {!loading && !error && monthlySummaries.length === 0 && (
         <Alert
-          message="Select an Account and Month to View Worklogs"
-          description="Choose an account from the dropdown and a month using the date picker above, then click 'Refresh' to load worklog data for that account and period."
+          message="Select an Account and Date Range to View Worklogs"
+          description="Choose an account from the dropdown and a date range using the range picker above, then click 'Refresh' to load worklog data for that account and period range."
           type="info"
           showIcon
         />
       )}
 
-      {worklogData && !loading && (
-        <>
-          {/* Summary Statistics */}
-          <Row gutter={16} style={{ marginBottom: "24px" }}>
-            <Col span={4}>
-              <Statistic
-                title="Total Worklogs"
-                value={worklogData.totalWorklogs}
-                prefix={<FileTextOutlined />}
-              />
-            </Col>
-            <Col span={4}>
-              <Statistic
-                title="Total Time"
-                value={worklogData.totalTimeSpentHours}
-                suffix="hours"
-                prefix={<ClockCircleOutlined />}
-              />
-            </Col>
-            <Col span={4}>
-              <Statistic
-                title="Total Days"
-                value={
-                  Math.round((worklogData.totalTimeSpentHours / 7.5) * 100) /
-                  100
-                }
-                suffix="days"
-                prefix={<ClockCircleOutlined />}
-              />
-            </Col>
-            <Col span={4}>
-              <Statistic
-                title="Issues"
-                value={worklogData.uniqueIssues}
-                prefix={<FileTextOutlined />}
-              />
-            </Col>
-            <Col span={4}>
-              <Statistic
-                title="Authors"
-                value={worklogData.uniqueAuthors}
-                prefix={<UserOutlined />}
-              />
-            </Col>
-          </Row>
-
-          {/* Summary only - no detailed table */}
-          {worklogData.worklogs.length === 0 && (
-            <Alert
-              message="No Worklogs Found"
-              description={`No worklogs were found for account "${selectedAccount}" in project ${projectName} for ${selectedDate.year}-${selectedDate.month.toString().padStart(2, "0")}.`}
-              type="info"
-              showIcon
-            />
-          )}
-        </>
+      {monthlySummaries.length > 0 && !loading && (
+        <Table
+          dataSource={monthlySummaries}
+          columns={tableColumns}
+          rowKey={(record) => `${record.year}-${record.monthNumber}`}
+          pagination={{
+            pageSize: 12,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) =>
+              `${range[0]}-${range[1]} of ${total} months`,
+          }}
+          scroll={{ x: 600 }}
+        />
       )}
     </Card>
   );
