@@ -17,73 +17,73 @@ const collectAllIssuesRecursively = (
     };
 
     // If this is a top-level workstream (level 0), calculate aggregated values from children
-    if (level === 0 && issue.children && issue.children.length > 0) {
-      const childIssues = collectAllIssuesRecursively(
-        issue.children,
-        level + 1,
-        issue.key
-      );
+    // if (issue.children && issue.children.length > 0) {
+    const childIssues = collectAllIssuesRecursively(
+      issue.children,
+      level + 1,
+      issue.key
+    );
 
-      // Calculate aggregated values from all children
-      const childAggregatedValues = childIssues.reduce(
-        (acc, child) => ({
-          aggregatedOriginalEstimate:
-            acc.aggregatedOriginalEstimate + (child.originalEstimate || 0),
-          aggregatedTimeSpent: acc.aggregatedTimeSpent + (child.timeSpent || 0),
-          aggregatedTimeRemaining:
-            acc.aggregatedTimeRemaining + (child.timeRemaining || 0),
-        }),
-        {
-          aggregatedOriginalEstimate: 0,
-          aggregatedTimeSpent: 0,
-          aggregatedTimeRemaining: 0,
-        }
-      );
-
-      // Add the workstream's own values to the aggregated values
-      aggregatedValues = {
+    // Calculate aggregated values from all children
+    const childAggregatedValues = childIssues.reduce(
+      (acc, child) => ({
         aggregatedOriginalEstimate:
-          (issue.originalEstimate || 0) +
-          childAggregatedValues.aggregatedOriginalEstimate,
-        aggregatedTimeSpent:
-          (issue.timeSpent || 0) + childAggregatedValues.aggregatedTimeSpent,
+          acc.aggregatedOriginalEstimate + (child.originalEstimate || 0),
+        aggregatedTimeSpent: acc.aggregatedTimeSpent + (child.timeSpent || 0),
         aggregatedTimeRemaining:
-          (issue.timeRemaining || 0) +
-          childAggregatedValues.aggregatedTimeRemaining,
-      };
-
-      // Add the current issue with its level information and calculated aggregated values
-      const issueWithLevel = {
-        ...issue,
-        "Issue Level": level,
-        Parent: parentKey,
-        aggregatedOriginalEstimate: aggregatedValues.aggregatedOriginalEstimate,
-        aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
-        aggregatedTimeRemaining: aggregatedValues.aggregatedTimeRemaining,
-      };
-      allIssues.push(issueWithLevel);
-
-      // Add all child issues
-      allIssues.push(...childIssues);
-    } else {
-      // For non-top-level issues, just add them with their existing aggregated values
-      const issueWithLevel = {
-        ...issue,
-        "Issue Level": level,
-        Parent: parentKey,
-      };
-      allIssues.push(issueWithLevel);
-
-      // Recursively add all children if they exist
-      if (issue.children && issue.children.length > 0) {
-        const childIssues = collectAllIssuesRecursively(
-          issue.children,
-          level + 1,
-          issue.key
-        );
-        allIssues.push(...childIssues);
+          acc.aggregatedTimeRemaining + (child.timeRemaining || 0),
+      }),
+      {
+        aggregatedOriginalEstimate: 0,
+        aggregatedTimeSpent: 0,
+        aggregatedTimeRemaining: 0,
       }
-    }
+    );
+
+    // Add the workstream's own values to the aggregated values
+    aggregatedValues = {
+      aggregatedOriginalEstimate:
+        (issue.originalEstimate || 0) +
+        childAggregatedValues.aggregatedOriginalEstimate,
+      aggregatedTimeSpent:
+        (issue.timeSpent || 0) + childAggregatedValues.aggregatedTimeSpent,
+      aggregatedTimeRemaining:
+        (issue.timeRemaining || 0) +
+        childAggregatedValues.aggregatedTimeRemaining,
+    };
+
+    // Add the current issue with its level information and calculated aggregated values
+    const issueWithLevel = {
+      ...issue,
+      "Issue Level": level,
+      Parent: parentKey,
+      aggregatedOriginalEstimate: aggregatedValues.aggregatedOriginalEstimate,
+      aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
+      aggregatedTimeRemaining: aggregatedValues.aggregatedTimeRemaining,
+    };
+    allIssues.push(issueWithLevel);
+
+    // Add all child issues
+    allIssues.push(...childIssues);
+    // } else {
+    //   // For non-top-level issues, just add them with their existing aggregated values
+    //   const issueWithLevel = {
+    //     ...issue,
+    //     "Issue Level": level,
+    //     Parent: parentKey,
+    //   };
+    //   allIssues.push(issueWithLevel);
+
+    //   // Recursively add all children if they exist
+    //   if (issue.children && issue.children.length > 0) {
+    //     const childIssues = collectAllIssuesRecursively(
+    //       issue.children,
+    //       level + 1,
+    //       issue.key
+    //     );
+    //     allIssues.push(...childIssues);
+    //   }
+    // }
   }
 
   return allIssues;

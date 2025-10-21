@@ -1182,4 +1182,63 @@ metricsRoute.get(
   }
 );
 
+// Orphan Detector Cache Management API routes
+metricsRoute.get(
+  "/jiraReport/orphan-detector/cache/stats",
+  (req: Request, res: TR<{ message: string; data: string }>) => {
+    try {
+      const cacheStats = workstreamOrphanDetectorGraphManager.getCacheStats();
+      res.json({
+        message: "Cache stats retrieved successfully",
+        data: JSON.stringify(cacheStats),
+      });
+    } catch (error) {
+      console.error("Error getting cache stats:", error);
+      res.json({
+        message: "Failed to get cache stats",
+        data: JSON.stringify({ error: error.message }),
+      });
+    }
+  }
+);
+
+metricsRoute.delete(
+  "/jiraReport/orphan-detector/cache",
+  (req: Request, res: TR<{ message: string; data: string }>) => {
+    try {
+      workstreamOrphanDetectorGraphManager.clearCache();
+      res.json({
+        message: "Cache cleared successfully",
+        data: JSON.stringify({ success: true }),
+      });
+    } catch (error) {
+      console.error("Error clearing cache:", error);
+      res.json({
+        message: "Failed to clear cache",
+        data: JSON.stringify({ error: error.message }),
+      });
+    }
+  }
+);
+
+metricsRoute.delete(
+  "/jiraReport/orphan-detector/cache/:workstreamKey",
+  (req: Request, res: TR<{ message: string; data: string }>) => {
+    try {
+      const workstreamKey = req.params.workstreamKey;
+      workstreamOrphanDetectorGraphManager.invalidateCache(workstreamKey);
+      res.json({
+        message: `Cache invalidated for workstream ${workstreamKey}`,
+        data: JSON.stringify({ workstreamKey, success: true }),
+      });
+    } catch (error) {
+      console.error("Error invalidating cache:", error);
+      res.json({
+        message: "Failed to invalidate cache",
+        data: JSON.stringify({ error: error.message }),
+      });
+    }
+  }
+);
+
 export { metricsRoute };

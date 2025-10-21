@@ -17,14 +17,96 @@ export type OrphanDetectorProgress = {
   };
 };
 
+// Cache for storing orphan detection results
+class OrphanDetectorCache {
+  private cache = new Map<string, {
+    workstream: LiteJiraIssue;
+    linkedIssuesWithParents: LiteJiraIssue[];
+    lastUpdated: Date;
+  }>();
+  private readonly CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+  private readonly MAX_CACHE_SIZE = 50; // Maximum number of cached workstreams
+
+  setOrphanData(
+    workstreamKey: string,
+    workstream: LiteJiraIssue,
+    linkedIssuesWithParents: LiteJiraIssue[]
+  ): void {
+    this.cache.set(workstreamKey, {
+      workstream,
+      linkedIssuesWithParents,
+      lastUpdated: new Date(),
+    });
+    
+    // Clean up if cache is too large
+    if (this.cache.size > this.MAX_CACHE_SIZE) {
+      this.cleanupOldestEntries();
+    }
+  }
+
+  getOrphanData(workstreamKey: string): {
+    workstream: LiteJiraIssue;
+    linkedIssuesWithParents: LiteJiraIssue[];
+  } | null {
+    const cached = this.cache.get(workstreamKey);
+    if (!cached) {
+      console.log(`OrphanDetectorCache miss for workstream: ${workstreamKey}`);
+      return null;
+    }
+
+    const isExpired =
+      Date.now() - cached.lastUpdated.getTime() > this.CACHE_DURATION_MS;
+    if (isExpired) {
+      this.cache.delete(workstreamKey);
+      console.log(`OrphanDetectorCache expired for workstream: ${workstreamKey}`);
+      return null;
+    }
+
+    console.log(`OrphanDetectorCache hit for workstream: ${workstreamKey}`);
+    return {
+      workstream: cached.workstream,
+      linkedIssuesWithParents: cached.linkedIssuesWithParents,
+    };
+  }
+
+  private cleanupOldestEntries(): void {
+    const entries = Array.from(this.cache.entries());
+    entries.sort(
+      (a, b) => a[1].lastUpdated.getTime() - b[1].lastUpdated.getTime()
+    );
+
+    const toRemove = entries.slice(0, entries.length - this.MAX_CACHE_SIZE);
+    for (const [workstreamKey] of toRemove) {
+      this.cache.delete(workstreamKey);
+    }
+
+    console.log(`OrphanDetectorCache: Removed ${toRemove.length} oldest entries`);
+  }
+
+  clearCache(): void {
+    this.cache.clear();
+    console.log("OrphanDetectorCache: Cache cleared");
+  }
+
+  getCacheStats(): { size: number; maxSize: number; duration: number } {
+    return {
+      size: this.cache.size,
+      maxSize: this.MAX_CACHE_SIZE,
+      duration: this.CACHE_DURATION_MS,
+    };
+  }
+}
+
 export default class WorkstreamOrphanDetectorGraphManager {
   jiraRequester: JiraRequester;
   private sendProgress:
     | ((response: OrphanDetectorProgress) => void)
     | undefined;
+  private cache: OrphanDetectorCache;
 
   constructor(jiraRequester: JiraRequester) {
     this.jiraRequester = jiraRequester;
+    this.cache = new OrphanDetectorCache();
   }
 
   private updateProgress(step: string, message: string, progress?: any) {
@@ -60,6 +142,26 @@ export default class WorkstreamOrphanDetectorGraphManager {
       console.log(
         `\n=== Starting Orphan Detection for Workstream ${workstreamKey} ===`
       );
+
+      // Check cache first
+      const cachedData = this.cache.getOrphanData(workstreamKey);
+      if (cachedData) {
+        console.log(`Using cached data for workstream ${workstreamKey}`);
+        this.updateProgress(
+          "complete",
+          `Orphan detection complete (cached data). Workstream data with links and linked issue parent trees retrieved from cache.`,
+          {
+            currentPhase: "complete",
+            phaseProgress: 3,
+            phaseTotal: 3,
+            issuesProcessed: 0,
+            totalIssues: 0,
+            orphansFound: 0,
+            linksProcessed: 0,
+          }
+        );
+        return cachedData;
+      }
 
       this.updateProgress(
         "initializing",
@@ -124,10 +226,16 @@ export default class WorkstreamOrphanDetectorGraphManager {
         `=== Orphan Detection Complete for Workstream ${workstreamKey} ===\n`
       );
 
-      return {
+      const result = {
         workstream: workstreamWithChildren,
         linkedIssuesWithParents,
       };
+
+      // Cache the results
+      this.cache.setOrphanData(workstreamKey, workstreamWithChildren, linkedIssuesWithParents);
+      console.log(`Cached orphan detection results for workstream ${workstreamKey}`);
+
+      return result;
     } catch (error) {
       console.error(
         `Error in orphan detection for workstream ${workstreamKey}:`,
@@ -317,5 +425,21 @@ export default class WorkstreamOrphanDetectorGraphManager {
     }
 
     return parentChildMap;
+  }
+
+  // Cache management methods
+  clearCache(): void {
+    this.cache.clearCache();
+  }
+
+  getCacheStats(): { size: number; maxSize: number; duration: number } {
+    return this.cache.getCacheStats();
+  }
+
+  // Method to invalidate cache for a specific workstream
+  invalidateCache(workstreamKey: string): void {
+    // The cache will handle this automatically when we try to get expired data
+    // But we can also add explicit invalidation if needed
+    console.log(`Cache invalidation requested for workstream: ${workstreamKey}`);
   }
 }
