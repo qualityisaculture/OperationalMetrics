@@ -16,7 +16,7 @@ import { RequestAllModal } from "./components/RequestAllModal";
 import { DynamicProjectSummary } from "./components/DynamicProjectSummary";
 import { TimeBookingsModal } from "./components/TimeBookingsModal";
 import { DefectHistorySection } from "./components/DefectHistorySection";
-import { ProjectWorklogsSection } from "./components/ProjectWorklogsSection";
+import { AccountWorklogSection } from "./components/AccountWorklogSection";
 import OrphanList from "./components/OrphanList";
 import { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
 
@@ -332,7 +332,7 @@ const JiraReport: React.FC = () => {
                   toggleFavorite={toggleFavorite}
                 />
 
-                <ProjectWorklogsSection
+                <AccountWorklogSection
                   projectKey={selectedProject.key}
                   projectName={selectedProject.name}
                   accounts={(() => {
@@ -350,12 +350,10 @@ const JiraReport: React.FC = () => {
                     console.log(`Total projectIssues: ${projectIssues.length}`);
                     console.log(
                       `Sample projectIssues accounts:`,
-                      projectIssues
-                        .slice(0, 5)
-                        .map((issue) => ({
-                          key: issue.key,
-                          account: issue.account,
-                        }))
+                      projectIssues.slice(0, 5).map((issue) => ({
+                        key: issue.key,
+                        account: issue.account,
+                      }))
                     );
                     return extractedAccounts;
                   })()}
