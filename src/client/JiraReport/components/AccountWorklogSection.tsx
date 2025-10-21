@@ -282,13 +282,6 @@ export const AccountWorklogSection: React.FC<Props> = ({
       sorter: (a: MonthlySummary, b: MonthlySummary) =>
         a.uniqueIssues - b.uniqueIssues,
     },
-    {
-      title: "Authors",
-      dataIndex: "uniqueAuthors",
-      key: "uniqueAuthors",
-      sorter: (a: MonthlySummary, b: MonthlySummary) =>
-        a.uniqueAuthors - b.uniqueAuthors,
-    },
   ];
 
   return (
