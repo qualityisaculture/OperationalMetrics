@@ -230,7 +230,24 @@ export const getIssueColumns = (
       ]
     : []),
   {
-    title: "Baseline Estimate",
+    title: (
+      <Tooltip
+        title={
+          <div>
+            <div>
+              Uses Jira custom field 'customfield_11753' (Baseline Estimate).
+            </div>
+            <div>Value is already in days.</div>
+            <div>
+              Shows the workstream's own baseline estimate (not aggregated from
+              children).
+            </div>
+          </div>
+        }
+      >
+        <span style={{ cursor: "help" }}>Baseline Estimate</span>
+      </Tooltip>
+    ),
     dataIndex: "baselineEstimate",
     key: "baselineEstimate",
     width: 150,
@@ -248,7 +265,24 @@ export const getIssueColumns = (
     sorter: (a, b) => (a.baselineEstimate || 0) - (b.baselineEstimate || 0),
   },
   {
-    title: "Original Estimate",
+    title: (
+      <Tooltip
+        title={
+          <div>
+            <div>
+              Uses Jira field 'timeoriginalestimate' (Original estimate) (in
+              seconds), converted to days: (timeoriginalestimate / 3600 / 7.5).
+            </div>
+            <div>
+              Shows aggregated value: ticket's own value + sum of all children's
+              original estimates recursively.
+            </div>
+          </div>
+        }
+      >
+        <span style={{ cursor: "help" }}>Original Budget</span>
+      </Tooltip>
+    ),
     dataIndex: "originalEstimate",
     key: "originalEstimate",
     width: 150,
@@ -357,7 +391,24 @@ export const getIssueColumns = (
     },
   },
   {
-    title: "Actual Days Logged",
+    title: (
+      <Tooltip
+        title={
+          <div>
+            <div>
+              Uses Jira field 'timespent' (Tempo Logged) (in seconds), converted
+              to days: (timespent / 3600 / 7.5).
+            </div>
+            <div>
+              Shows aggregated value: ticket's own value + sum of all children's
+              time spent recursively.
+            </div>
+          </div>
+        }
+      >
+        <span style={{ cursor: "help" }}>Actual Days Logged</span>
+      </Tooltip>
+    ),
     dataIndex: "timeSpent",
     key: "timeSpent",
     onCell: (record: JiraIssueWithAggregated) =>
@@ -402,7 +453,28 @@ export const getIssueColumns = (
     },
   },
   {
-    title: "Estimate to Complete",
+    title: (
+      <Tooltip
+        title={
+          <div>
+            <div>
+              Uses Jira field 'timeestimate' (Time remaining) (in seconds),
+              converted to days: (timeestimate / 3600 / 7.5).
+            </div>
+            <div>
+              Shows aggregated value: ticket's own value + sum of all children's
+              remaining estimates recursively.
+            </div>
+            <div>
+              NOTE: This is not the estimate minus the days booked. If no Time
+              Remaining value is set, it will be blank.
+            </div>
+          </div>
+        }
+      >
+        <span style={{ cursor: "help" }}>ETC</span>
+      </Tooltip>
+    ),
     dataIndex: "timeRemaining",
     key: "timeRemaining",
     onCell: (record: JiraIssueWithAggregated) =>
@@ -447,7 +519,24 @@ export const getIssueColumns = (
     },
   },
   {
-    title: "Total Forecast (Actual + ETC)",
+    title: (
+      <Tooltip
+        title={
+          <div>
+            <div>Calculated as: Actual Days Logged + ETC.</div>
+            <div>
+              Uses aggregated values (ticket's own value + all children's
+              values): (aggregatedTimeSpent + aggregatedTimeRemaining).
+            </div>
+            <div>
+              Shows the projected total time for the work item when completed.
+            </div>
+          </div>
+        }
+      >
+        <span style={{ cursor: "help" }}>Total Forecast (Actual + ETC)</span>
+      </Tooltip>
+    ),
     key: "totalForecast",
     onCell: (record: JiraIssueWithAggregated) =>
       getWorkstreamDataCellSpan(record, false),
@@ -507,7 +596,28 @@ export const getIssueColumns = (
     },
   },
   {
-    title: "Variance (Days)",
+    title: (
+      <Tooltip
+        title={
+          <div>
+            <div>
+              Calculated as: (Total Forecast - Original Budget) = (Actual Days
+              Logged + ETC - Original Budget).
+            </div>
+            <div>
+              Uses aggregated values (ticket's own value + all children's
+              values).
+            </div>
+            <div>
+              Positive values indicate over-estimation, negative values indicate
+              under-estimation.
+            </div>
+          </div>
+        }
+      >
+        <span style={{ cursor: "help" }}>Variance (Days)</span>
+      </Tooltip>
+    ),
     key: "varianceDays",
     onCell: (record: JiraIssueWithAggregated) =>
       getWorkstreamDataCellSpan(record, false),
@@ -584,7 +694,29 @@ export const getIssueColumns = (
     },
   },
   {
-    title: "Variance (%)",
+    title: (
+      <Tooltip
+        title={
+          <div>
+            <div>
+              Calculated as: ((Total Forecast - Original Budget) / Original
+              Estimate) × 100% = ((Actual Days Logged + ETC - Original Budget) /
+              Original Budget) × 100%.
+            </div>
+            <div>
+              Uses aggregated values (ticket's own value + all children's
+              values).
+            </div>
+            <div>
+              Positive percentages indicate over-estimation, negative
+              percentages indicate under-estimation.
+            </div>
+          </div>
+        }
+      >
+        <span style={{ cursor: "help" }}>Variance (%)</span>
+      </Tooltip>
+    ),
     key: "variancePercent",
     onCell: (record: JiraIssueWithAggregated) =>
       getWorkstreamDataCellSpan(record, false),
