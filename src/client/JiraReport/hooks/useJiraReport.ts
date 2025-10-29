@@ -149,8 +149,45 @@ export const useJiraReport = () => {
   }, [state.favoriteItems]);
 
   const loadProjects = async () => {
-    setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
+    // Reset all local state to return to clean projects table view
+    setState((prevState) => ({
+      ...prevState,
+      isLoading: true,
+      error: null,
+      selectedProject: null,
+      projectIssues: [],
+      issuesLoading: false,
+      issuesError: null,
+      navigationStack: [],
+      currentIssues: [],
+      currentIssuesLoading: false,
+      currentIssuesError: null,
+      loadedWorkstreamData: new Map(),
+      projectAggregatedData: null,
+      progressStatus: "Idle",
+      progressDetails: undefined,
+      currentStep: undefined,
+      isRequestAllModalVisible: false,
+      requestAllProgress: 0,
+      requestAllDetails: undefined,
+      defectHistoryData: null,
+      defectHistoryLoading: false,
+      defectHistoryError: null,
+      orphanData: null,
+      orphanLoading: false,
+      orphanError: null,
+    }));
+
     try {
+      // First, clear the server cache
+      const clearCacheResponse = await fetch("/api/jiraReport/cache", {
+        method: "DELETE",
+      });
+      if (!clearCacheResponse.ok) {
+        console.warn("Failed to clear cache, but continuing to load projects");
+      }
+
+      // Then, load fresh projects
       const response = await fetch("/api/jiraReport/projects");
       const data = await response.json();
       if (response.ok) {

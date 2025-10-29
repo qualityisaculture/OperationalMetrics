@@ -1203,6 +1203,25 @@ metricsRoute.get(
 );
 
 metricsRoute.delete(
+  "/jiraReport/cache",
+  (req: Request, res: TR<{ message: string; data: string }>) => {
+    try {
+      jiraReportGraphManager.clearCache();
+      res.json({
+        message: "Jira Report cache cleared successfully",
+        data: JSON.stringify({ success: true }),
+      });
+    } catch (error) {
+      console.error("Error clearing Jira Report cache:", error);
+      res.json({
+        message: "Failed to clear cache",
+        data: JSON.stringify({ error: (error as Error).message }),
+      });
+    }
+  }
+);
+
+metricsRoute.delete(
   "/jiraReport/orphan-detector/cache",
   (req: Request, res: TR<{ message: string; data: string }>) => {
     try {

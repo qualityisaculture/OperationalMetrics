@@ -67,6 +67,18 @@ const JiraReport: React.FC = () => {
   // State for tracking which workstreams have loaded time data
   const [timeDataLoaded, setTimeDataLoaded] = useState<Set<string>>(new Set());
 
+  const handleClearCache = () => {
+    // Reset local component state
+    setTimeBookingsModal({
+      isVisible: false,
+      workstreamKey: "",
+      workstreamSummary: "",
+    });
+    setTimeDataLoaded(new Set());
+    // Then load projects (which will reset hook state and clear server cache)
+    loadProjects();
+  };
+
   const {
     projects,
     isLoading,
@@ -174,7 +186,7 @@ const JiraReport: React.FC = () => {
           <Button
             type="primary"
             icon={<ReloadOutlined />}
-            onClick={loadProjects}
+            onClick={handleClearCache}
             loading={isLoading}
           >
             Clear Cache
