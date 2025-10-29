@@ -31,6 +31,7 @@ const JiraReport: React.FC = () => {
     getSortedItems,
     getOptimalPageSize,
     loadProjects,
+    clearCacheAndReload,
     handleProjectClick,
     handleWorkstreamClick,
     handleIssueClick,
@@ -75,8 +76,8 @@ const JiraReport: React.FC = () => {
       workstreamSummary: "",
     });
     setTimeDataLoaded(new Set());
-    // Then load projects (which will reset hook state and clear server cache)
-    loadProjects();
+    // Then clear cache and reload (which will reset hook state and clear server cache)
+    clearCacheAndReload();
   };
 
   const {

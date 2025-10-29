@@ -149,6 +149,30 @@ export const useJiraReport = () => {
   }, [state.favoriteItems]);
 
   const loadProjects = async () => {
+    setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      const response = await fetch("/api/jiraReport/projects");
+      const data = await response.json();
+      if (response.ok) {
+        const projects: JiraProject[] = JSON.parse(data.data);
+        setState((prevState) => ({ ...prevState, projects, isLoading: false }));
+      } else {
+        setState((prevState) => ({
+          ...prevState,
+          error: data.message || "Failed to load projects",
+          isLoading: false,
+        }));
+      }
+    } catch (error) {
+      setState((prevState) => ({
+        ...prevState,
+        error: "Network error while loading projects",
+        isLoading: false,
+      }));
+    }
+  };
+
+  const clearCacheAndReload = async () => {
     // Reset all local state to return to clean projects table view
     setState((prevState) => ({
       ...prevState,
@@ -1317,6 +1341,7 @@ export const useJiraReport = () => {
     getSortedItems,
     getOptimalPageSize,
     loadProjects,
+    clearCacheAndReload,
     loadProjectWorkstreams,
     handleProjectClick,
     handleWorkstreamClick,
