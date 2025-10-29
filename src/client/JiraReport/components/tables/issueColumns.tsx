@@ -274,6 +274,44 @@ export const getIssueColumns = (
               seconds), converted to days: (timeoriginalestimate / 3600 / 7.5).
             </div>
             <div>
+              Shows only the workstream's own original estimate value (not
+              aggregated from children).
+            </div>
+          </div>
+        }
+      >
+        <span style={{ cursor: "help" }}>Workstream Estimate</span>
+      </Tooltip>
+    ),
+    dataIndex: "originalEstimate",
+    key: "workstreamEstimate",
+    width: 150,
+    onCell: (record: JiraIssueWithAggregated) =>
+      getWorkstreamDataCellSpan(record, true),
+    render: (estimate: number | null | undefined) => {
+      // Always show the workstream's own value, never aggregated
+      return (
+        <Text>
+          {estimate !== null && estimate !== undefined ? (
+            <Tag color="green">{estimate.toFixed(1)} days</Tag>
+          ) : (
+            <Text type="secondary">-</Text>
+          )}
+        </Text>
+      );
+    },
+    sorter: (a, b) => (a.originalEstimate || 0) - (b.originalEstimate || 0),
+  },
+  {
+    title: (
+      <Tooltip
+        title={
+          <div>
+            <div>
+              Uses Jira field 'timeoriginalestimate' (Original estimate) (in
+              seconds), converted to days: (timeoriginalestimate / 3600 / 7.5).
+            </div>
+            <div>
               Shows aggregated value: ticket's own value + sum of all children's
               original estimates recursively.
             </div>
