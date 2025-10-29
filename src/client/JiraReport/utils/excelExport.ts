@@ -410,6 +410,20 @@ export const exportProjectWorkstreamsToExcel = (
         workstream.aggregatedTimeSpent !== undefined
           ? workstream.aggregatedTimeSpent
           : workstream.timeSpent || 0,
+      "Percentage Booked Against Budget (%)": (() => {
+        const originalEstimate =
+          workstream.aggregatedOriginalEstimate !== undefined
+            ? workstream.aggregatedOriginalEstimate
+            : workstream.originalEstimate || 0;
+        const timeSpent =
+          workstream.aggregatedTimeSpent !== undefined
+            ? workstream.aggregatedTimeSpent
+            : workstream.timeSpent || 0;
+        if (originalEstimate > 0) {
+          return (timeSpent / originalEstimate) * 100;
+        }
+        return 0;
+      })(),
       "Estimate to Complete (days)":
         workstream.aggregatedTimeRemaining !== undefined
           ? workstream.aggregatedTimeRemaining

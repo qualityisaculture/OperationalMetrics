@@ -37,16 +37,16 @@ export const ProjectSummary: React.FC<Props> = ({
     let totalTimeRemaining = 0;
 
     filteredIssues.forEach((issue) => {
-      // Use aggregated values if available, otherwise fall back to individual values
-      const originalEstimate =
-        issue.aggregatedOriginalEstimate ?? issue.originalEstimate ?? 0;
-      const timeSpent = issue.aggregatedTimeSpent ?? issue.timeSpent ?? 0;
-      const timeRemaining =
-        issue.aggregatedTimeRemaining ?? issue.timeRemaining ?? 0;
-
-      totalOriginalEstimate += originalEstimate || 0;
-      totalTimeSpent += timeSpent || 0;
-      totalTimeRemaining += timeRemaining || 0;
+      // Only use aggregated values - don't fall back to individual values to avoid confusion
+      if (issue.aggregatedOriginalEstimate !== undefined) {
+        totalOriginalEstimate += issue.aggregatedOriginalEstimate;
+      }
+      if (issue.aggregatedTimeSpent !== undefined) {
+        totalTimeSpent += issue.aggregatedTimeSpent;
+      }
+      if (issue.aggregatedTimeRemaining !== undefined) {
+        totalTimeRemaining += issue.aggregatedTimeRemaining;
+      }
     });
 
     return {
@@ -145,7 +145,13 @@ export const ProjectSummary: React.FC<Props> = ({
                 ? "Filtered Original Estimate"
                 : "Total Original Estimate"
             }
-            value={formatDays(displayMetrics.totalOriginalEstimateDays)}
+            value={
+              loadedWorkstreamCount > 0 &&
+              (displayMetrics.totalOriginalEstimateDays > 0 ||
+                (isFiltered && filteredMetrics))
+                ? formatDays(displayMetrics.totalOriginalEstimateDays)
+                : "-"
+            }
             prefix={<ClockCircleOutlined />}
             valueStyle={{ color: "#52c41a" }}
           />
@@ -153,7 +159,13 @@ export const ProjectSummary: React.FC<Props> = ({
         <Col span={6}>
           <Statistic
             title={isFiltered ? "Filtered Time Spent" : "Total Time Spent"}
-            value={formatDays(displayMetrics.totalTimeSpentDays)}
+            value={
+              loadedWorkstreamCount > 0 &&
+              (displayMetrics.totalTimeSpentDays > 0 ||
+                (isFiltered && filteredMetrics))
+                ? formatDays(displayMetrics.totalTimeSpentDays)
+                : "-"
+            }
             prefix={<CheckCircleOutlined />}
             valueStyle={{ color: "#1890ff" }}
           />
@@ -163,7 +175,13 @@ export const ProjectSummary: React.FC<Props> = ({
             title={
               isFiltered ? "Filtered Time Remaining" : "Total Time Remaining"
             }
-            value={formatDays(displayMetrics.totalTimeRemainingDays)}
+            value={
+              loadedWorkstreamCount > 0 &&
+              (displayMetrics.totalTimeRemainingDays > 0 ||
+                (isFiltered && filteredMetrics))
+                ? formatDays(displayMetrics.totalTimeRemainingDays)
+                : "-"
+            }
             prefix={<ClockCircleOutlined />}
             valueStyle={{
               color:

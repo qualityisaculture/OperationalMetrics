@@ -196,31 +196,26 @@ export const DynamicProjectSummary: React.FC<Props> = ({
         sumBaselineEstimate += record.baselineEstimate;
       }
 
-      // Original Estimate (use aggregated if available)
-      const originalEstimate =
-        record.aggregatedOriginalEstimate !== undefined
-          ? record.aggregatedOriginalEstimate
-          : record.originalEstimate || 0;
-      sumOriginalEstimate += originalEstimate;
+      // Original Estimate (only use aggregated - leave blank if not available)
+      // Only sum if we have aggregated data to avoid showing misleading values
+      if (record.aggregatedOriginalEstimate !== undefined) {
+        sumOriginalEstimate += record.aggregatedOriginalEstimate;
+      }
 
       // Workstream Estimate (only the workstream's own value, not aggregated)
       if (record.originalEstimate != null) {
         sumWorkstreamEstimate += record.originalEstimate;
       }
 
-      // Actual Days Logged (use aggregated if available)
-      const timeSpent =
-        record.aggregatedTimeSpent !== undefined
-          ? record.aggregatedTimeSpent
-          : record.timeSpent || 0;
-      sumTimeSpent += timeSpent;
+      // Actual Days Logged (only use aggregated - leave blank if not available)
+      if (record.aggregatedTimeSpent !== undefined) {
+        sumTimeSpent += record.aggregatedTimeSpent;
+      }
 
-      // ETC (use aggregated if available)
-      const timeRemaining =
-        record.aggregatedTimeRemaining !== undefined
-          ? record.aggregatedTimeRemaining
-          : record.timeRemaining || 0;
-      sumTimeRemaining += timeRemaining;
+      // ETC (only use aggregated - leave blank if not available)
+      if (record.aggregatedTimeRemaining !== undefined) {
+        sumTimeRemaining += record.aggregatedTimeRemaining;
+      }
     });
 
     const sumTotalForecast = sumTimeSpent + sumTimeRemaining;
@@ -238,6 +233,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
     let originalEstimateIndex = -1;
     let workstreamEstimateIndex = -1;
     let timeSpentIndex = -1;
+    let percentageBookedIndex = -1;
     let timeRemainingIndex = -1;
     let totalForecastIndex = -1;
     let varianceDaysIndex = -1;
@@ -256,6 +252,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
       else if (key === "originalEstimate") originalEstimateIndex = index;
       else if (key === "workstreamEstimate") workstreamEstimateIndex = index;
       else if (key === "timeSpent") timeSpentIndex = index;
+      else if (key === "percentageBooked") percentageBookedIndex = index;
       else if (key === "timeRemaining") timeRemainingIndex = index;
       else if (key === "totalForecast") totalForecastIndex = index;
       else if (key === "varianceDays") varianceDaysIndex = index;
@@ -332,12 +329,17 @@ export const DynamicProjectSummary: React.FC<Props> = ({
         cellIndex++;
       }
 
-      // Original Estimate
+      // Original Estimate (only show if we have aggregated data)
       if (originalEstimateIndex !== -1) {
+        // Check if we have any aggregated data in the dataSource
+        const hasAnyAggregatedData = pageData.some(
+          (record: JiraIssueWithAggregated) =>
+            record.aggregatedOriginalEstimate !== undefined
+        );
         cells.push(
           <Table.Summary.Cell key={cellIndex} index={originalEstimateIndex}>
             <Text strong>
-              {sumOriginalEstimate > 0 ? (
+              {hasAnyAggregatedData && sumOriginalEstimate > 0 ? (
                 <Tag color="green">{sumOriginalEstimate.toFixed(1)} days</Tag>
               ) : (
                 <Text type="secondary">-</Text>
@@ -364,12 +366,16 @@ export const DynamicProjectSummary: React.FC<Props> = ({
         cellIndex++;
       }
 
-      // Actual Days Logged
+      // Actual Days Logged (only show if we have aggregated data)
       if (timeSpentIndex !== -1) {
+        const hasAnyAggregatedTimeSpent = pageData.some(
+          (record: JiraIssueWithAggregated) =>
+            record.aggregatedTimeSpent !== undefined
+        );
         cells.push(
           <Table.Summary.Cell key={cellIndex} index={timeSpentIndex}>
             <Text strong>
-              {sumTimeSpent > 0 ? (
+              {hasAnyAggregatedTimeSpent && sumTimeSpent > 0 ? (
                 <Tag color="blue">{sumTimeSpent.toFixed(1)} days</Tag>
               ) : (
                 <Text type="secondary">-</Text>
@@ -380,12 +386,51 @@ export const DynamicProjectSummary: React.FC<Props> = ({
         cellIndex++;
       }
 
-      // ETC
+      // Percentage Booked Against Budget (only show if we have aggregated data)
+      if (percentageBookedIndex !== -1) {
+        const hasAnyAggregatedData = pageData.some(
+          (record: JiraIssueWithAggregated) =>
+            record.aggregatedOriginalEstimate !== undefined ||
+            record.aggregatedTimeSpent !== undefined
+        );
+        const percentageBooked =
+          sumOriginalEstimate > 0
+            ? (sumTimeSpent / sumOriginalEstimate) * 100
+            : 0;
+        const percentageColor =
+          percentageBooked > 100
+            ? "red"
+            : percentageBooked > 75
+              ? "orange"
+              : percentageBooked > 50
+                ? "blue"
+                : "green";
+        cells.push(
+          <Table.Summary.Cell key={cellIndex} index={percentageBookedIndex}>
+            <Text strong>
+              {hasAnyAggregatedData && sumOriginalEstimate > 0 ? (
+                <Tag color={percentageColor}>
+                  {percentageBooked.toFixed(1)}%
+                </Tag>
+              ) : (
+                <Text type="secondary">-</Text>
+              )}
+            </Text>
+          </Table.Summary.Cell>
+        );
+        cellIndex++;
+      }
+
+      // ETC (only show if we have aggregated data)
       if (timeRemainingIndex !== -1) {
+        const hasAnyAggregatedTimeRemaining = pageData.some(
+          (record: JiraIssueWithAggregated) =>
+            record.aggregatedTimeRemaining !== undefined
+        );
         cells.push(
           <Table.Summary.Cell key={cellIndex} index={timeRemainingIndex}>
             <Text strong>
-              {sumTimeRemaining > 0 ? (
+              {hasAnyAggregatedTimeRemaining && sumTimeRemaining > 0 ? (
                 <Tag color="red">{sumTimeRemaining.toFixed(1)} days</Tag>
               ) : (
                 <Text type="secondary">-</Text>
@@ -396,12 +441,17 @@ export const DynamicProjectSummary: React.FC<Props> = ({
         cellIndex++;
       }
 
-      // Total Forecast
+      // Total Forecast (only show if we have aggregated data)
       if (totalForecastIndex !== -1) {
+        const hasAnyAggregatedForecast = pageData.some(
+          (record: JiraIssueWithAggregated) =>
+            record.aggregatedTimeSpent !== undefined ||
+            record.aggregatedTimeRemaining !== undefined
+        );
         cells.push(
           <Table.Summary.Cell key={cellIndex} index={totalForecastIndex}>
             <Text strong>
-              {sumTotalForecast > 0 ? (
+              {hasAnyAggregatedForecast && sumTotalForecast > 0 ? (
                 <Tag color="purple">{sumTotalForecast.toFixed(1)} days</Tag>
               ) : (
                 <Text type="secondary">-</Text>
@@ -412,14 +462,21 @@ export const DynamicProjectSummary: React.FC<Props> = ({
         cellIndex++;
       }
 
-      // Variance (Days)
+      // Variance (Days) (only show if we have aggregated data)
       if (varianceDaysIndex !== -1) {
+        const hasAnyAggregatedData = pageData.some(
+          (record: JiraIssueWithAggregated) =>
+            record.aggregatedOriginalEstimate !== undefined ||
+            record.aggregatedTimeSpent !== undefined ||
+            record.aggregatedTimeRemaining !== undefined
+        );
         const varianceColor =
           sumVariance > 0 ? "red" : sumVariance < 0 ? "green" : "default";
         cells.push(
           <Table.Summary.Cell key={cellIndex} index={varianceDaysIndex}>
             <Text strong>
-              {sumOriginalEstimate > 0 || sumTotalForecast > 0 ? (
+              {hasAnyAggregatedData &&
+              (sumOriginalEstimate > 0 || sumTotalForecast > 0) ? (
                 <Tag color={varianceColor}>
                   {sumVariance > 0 ? "+" : ""}
                   {sumVariance.toFixed(1)} days
@@ -519,7 +576,10 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                 {navigationStack.length === 1 && (
                   <Button
                     type="primary"
-                    onClick={showRequestAllModal}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      showRequestAllModal();
+                    }}
                     size="small"
                     style={{ marginLeft: "16px" }}
                   >
@@ -547,7 +607,10 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                     type="primary"
                     icon={<DownloadOutlined />}
                     size="small"
-                    onClick={showExportModal}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      showExportModal();
+                    }}
                   >
                     Export Project Workstreams
                   </Button>
@@ -555,7 +618,8 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                 {isFiltered && (
                   <Button
                     size="small"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setFilteredData([]);
                       setIsFiltered(false);
                       // Note: This will clear our local filter state, but the table filters

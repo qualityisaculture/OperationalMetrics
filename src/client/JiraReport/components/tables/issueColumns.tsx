@@ -332,15 +332,20 @@ export const getIssueColumns = (
     ) => {
       // Show aggregated values if available (either for workstreams or items)
       const hasAggregatedData = record.aggregatedOriginalEstimate !== undefined;
-      const valueToShow = hasAggregatedData
-        ? record.aggregatedOriginalEstimate
-        : estimate;
 
-      // At Project Workstreams level, show message if no data
-      if (
-        navigationStack.length === 1 &&
-        (valueToShow === null || valueToShow === undefined || valueToShow === 0)
-      ) {
+      // At Project Workstreams level, only show aggregated values, not individual estimates
+      // to avoid confusion (individual estimates don't include child issues)
+      const valueToShow =
+        navigationStack.length === 1
+          ? hasAggregatedData
+            ? record.aggregatedOriginalEstimate
+            : null // Leave blank at project level if no aggregated data
+          : hasAggregatedData
+            ? record.aggregatedOriginalEstimate
+            : estimate;
+
+      // At Project Workstreams level, show message if no aggregated data
+      if (navigationStack.length === 1 && !hasAggregatedData) {
         // Check if this workstream has been requested
         if (record.hasBeenRequested) {
           if (record.hasData === false) {
@@ -488,6 +493,96 @@ export const getIssueColumns = (
           ? b.aggregatedTimeSpent
           : b.timeSpent || 0;
       return aValue - bValue;
+    },
+  },
+  {
+    title: (
+      <Tooltip
+        title={
+          <div>
+            <div>
+              Calculated as: (Actual Days Logged / Original Budget) × 100%.
+            </div>
+            <div>
+              Uses aggregated values (ticket's own value + all children's
+              values) when available.
+            </div>
+            <div>
+              Shows the percentage of time actually logged against the original
+              budget estimate.
+            </div>
+          </div>
+        }
+      >
+        <span style={{ cursor: "help" }}>Percentage Booked Against Budget</span>
+      </Tooltip>
+    ),
+    key: "percentageBooked",
+    onCell: (record: JiraIssueWithAggregated) =>
+      getWorkstreamDataCellSpan(record, false),
+    render: (_, record: JiraIssueWithAggregated) => {
+      // Show aggregated values if available (either for workstreams or items)
+      const originalEstimate =
+        record.aggregatedOriginalEstimate !== undefined
+          ? record.aggregatedOriginalEstimate
+          : record.originalEstimate || 0;
+      const timeSpent =
+        record.aggregatedTimeSpent !== undefined
+          ? record.aggregatedTimeSpent
+          : record.timeSpent || 0;
+
+      // Only show percentage if we have an original estimate
+      if (originalEstimate > 0) {
+        const percentageBooked = (timeSpent / originalEstimate) * 100;
+        const color =
+          percentageBooked > 100
+            ? "red"
+            : percentageBooked > 75
+              ? "orange"
+              : percentageBooked > 50
+                ? "blue"
+                : "green";
+        return (
+          <Text>
+            <Tag color={color}>
+              {percentageBooked.toFixed(1)}%
+              {(record.aggregatedOriginalEstimate !== undefined ||
+                record.aggregatedTimeSpent !== undefined) && (
+                <Text type="secondary" style={{ marginLeft: "4px" }}>
+                  (agg)
+                </Text>
+              )}
+            </Tag>
+          </Text>
+        );
+      }
+
+      return <Text type="secondary">-</Text>;
+    },
+    sorter: (a, b) => {
+      const aOriginalEstimate =
+        a.aggregatedOriginalEstimate !== undefined
+          ? a.aggregatedOriginalEstimate
+          : a.originalEstimate || 0;
+      const aTimeSpent =
+        a.aggregatedTimeSpent !== undefined
+          ? a.aggregatedTimeSpent
+          : a.timeSpent || 0;
+      const aPercentage =
+        aOriginalEstimate > 0 ? (aTimeSpent / aOriginalEstimate) * 100 : 0;
+
+      const bOriginalEstimate =
+        b.aggregatedOriginalEstimate !== undefined
+          ? b.aggregatedOriginalEstimate
+          : b.originalEstimate || 0;
+      const bTimeSpent =
+        b.aggregatedTimeSpent !== undefined
+          ? b.aggregatedTimeSpent
+          : b.timeSpent || 0;
+      const bPercentage =
+        bOriginalEstimate > 0 ? (bTimeSpent / bOriginalEstimate) * 100 : 0;
+
+      return aPercentage - bPercentage;
     },
   },
   {
