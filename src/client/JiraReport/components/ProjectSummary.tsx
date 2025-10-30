@@ -138,12 +138,12 @@ export const ProjectSummary: React.FC<Props> = ({
             }
           />
         </Col>
-        <Col span={6}>
+      </Row>
+      <Row gutter={16}>
+        <Col span={5}>
           <Statistic
             title={
-              isFiltered
-                ? "Filtered Original Estimate"
-                : "Total Original Estimate"
+              isFiltered ? "Filtered Approved Budget" : "Total Approved Budget"
             }
             value={
               loadedWorkstreamCount > 0 &&
@@ -156,7 +156,7 @@ export const ProjectSummary: React.FC<Props> = ({
             valueStyle={{ color: "#52c41a" }}
           />
         </Col>
-        <Col span={6}>
+        <Col span={5}>
           <Statistic
             title={isFiltered ? "Filtered Time Spent" : "Total Time Spent"}
             value={
@@ -170,11 +170,60 @@ export const ProjectSummary: React.FC<Props> = ({
             valueStyle={{ color: "#1890ff" }}
           />
         </Col>
-        <Col span={6}>
+        <Col span={4}>
           <Statistic
             title={
-              isFiltered ? "Filtered Time Remaining" : "Total Time Remaining"
+              isFiltered ? "Filtered Budget Remaining" : "Budget Remaining"
             }
+            value={
+              loadedWorkstreamCount > 0 &&
+              (displayMetrics.totalOriginalEstimateDays > 0 ||
+                displayMetrics.totalTimeSpentDays > 0)
+                ? (() => {
+                    const remaining =
+                      displayMetrics.totalOriginalEstimateDays -
+                      displayMetrics.totalTimeSpentDays;
+                    return remaining >= 0
+                      ? formatDays(remaining)
+                      : `-${formatDays(Math.abs(remaining))}`;
+                  })()
+                : "-"
+            }
+            prefix={<ClockCircleOutlined />}
+            valueStyle={{
+              color:
+                displayMetrics.totalOriginalEstimateDays -
+                  displayMetrics.totalTimeSpentDays <
+                0
+                  ? "#ff4d4f"
+                  : "#722ed1",
+            }}
+          />
+        </Col>
+        <Col span={5}>
+          <Statistic
+            title={"Usage %"}
+            value={
+              loadedWorkstreamCount > 0 &&
+              displayMetrics.totalOriginalEstimateDays > 0
+                ? Math.round(
+                    (displayMetrics.totalTimeSpentDays /
+                      displayMetrics.totalOriginalEstimateDays) *
+                      100
+                  )
+                : undefined
+            }
+            suffix={
+              loadedWorkstreamCount > 0 &&
+              displayMetrics.totalOriginalEstimateDays > 0
+                ? "%"
+                : undefined
+            }
+          />
+        </Col>
+        <Col span={5}>
+          <Statistic
+            title={isFiltered ? "Filtered ETC" : "Total ETC"}
             value={
               loadedWorkstreamCount > 0 &&
               (displayMetrics.totalTimeRemainingDays > 0 ||

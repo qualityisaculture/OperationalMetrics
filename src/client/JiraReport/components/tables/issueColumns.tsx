@@ -623,7 +623,7 @@ export const getIssueColumns = (
       return (
         <Text>
           {valueToShow !== null && valueToShow !== undefined ? (
-            <Tag color="red">
+            <Tag color="blue">
               {valueToShow.toFixed(1)} days
               {hasAggregatedData && (
                 <Text type="secondary" style={{ marginLeft: "4px" }}>

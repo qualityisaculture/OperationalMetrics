@@ -431,7 +431,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
           <Table.Summary.Cell key={cellIndex} index={timeRemainingIndex}>
             <Text strong>
               {hasAnyAggregatedTimeRemaining && sumTimeRemaining > 0 ? (
-                <Tag color="red">{sumTimeRemaining.toFixed(1)} days</Tag>
+                <Tag color="blue">{sumTimeRemaining.toFixed(1)} days</Tag>
               ) : (
                 <Text type="secondary">-</Text>
               )}
