@@ -27,6 +27,7 @@ interface UnifiedColumnProps {
     isFirstColumn?: boolean
   ) => { colSpan?: number };
   timeBookingsDate?: string; // Add the date prop
+  showAdditionalColumns?: boolean;
 }
 
 export const getUnifiedColumns = ({
@@ -38,6 +39,7 @@ export const getUnifiedColumns = ({
   projectIssues,
   getWorkstreamDataCellSpan,
   timeBookingsDate,
+  showAdditionalColumns,
 }: UnifiedColumnProps): ColumnsType<JiraIssueWithAggregated> => {
   const columns: ColumnsType<JiraIssueWithAggregated> = [];
 
@@ -295,41 +297,50 @@ export const getUnifiedColumns = ({
 
   if (getWorkstreamDataCellSpan) {
     columns.push(
-      {
-        title: (
-          <Tooltip
-            title={
-              <div>
-                <div>
-                  Uses Jira custom field 'customfield_11753' (Baseline
-                  Estimate).
-                </div>
-                <div>Value is already in days.</div>
-                <div>
-                  Shows the workstream's own baseline estimate (not aggregated
-                  from children).
-                </div>
-              </div>
-            }
-          >
-            <span style={{ cursor: "help" }}>Baseline Estimate</span>
-          </Tooltip>
-        ),
-        dataIndex: "baselineEstimate",
-        key: "baselineEstimate",
-        render: (baselineEstimate: number | null | undefined) => {
-          return (
-            <Text>
-              {baselineEstimate !== null && baselineEstimate !== undefined ? (
-                <Tag color="orange">{baselineEstimate.toFixed(1)} days</Tag>
-              ) : (
-                <Text type="secondary">-</Text>
-              )}
-            </Text>
-          );
-        },
-        sorter: (a, b) => (a.baselineEstimate || 0) - (b.baselineEstimate || 0),
-      },
+      // Baseline Estimate (conditional)
+      ...(showAdditionalColumns
+        ? [
+            {
+              title: (
+                <Tooltip
+                  title={
+                    <div>
+                      <div>
+                        Uses Jira custom field 'customfield_11753' (Baseline
+                        Estimate).
+                      </div>
+                      <div>Value is already in days.</div>
+                      <div>
+                        Shows the workstream's own baseline estimate (not
+                        aggregated from children).
+                      </div>
+                    </div>
+                  }
+                >
+                  <span style={{ cursor: "help" }}>Baseline Estimate</span>
+                </Tooltip>
+              ),
+              dataIndex: "baselineEstimate",
+              key: "baselineEstimate",
+              render: (baselineEstimate: number | null | undefined) => {
+                return (
+                  <Text>
+                    {baselineEstimate !== null &&
+                    baselineEstimate !== undefined ? (
+                      <Tag color="orange">
+                        {baselineEstimate.toFixed(1)} days
+                      </Tag>
+                    ) : (
+                      <Text type="secondary">-</Text>
+                    )}
+                  </Text>
+                );
+              },
+              sorter: (a, b) =>
+                (a.baselineEstimate || 0) - (b.baselineEstimate || 0),
+            },
+          ]
+        : []),
       {
         title: (
           <Tooltip

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { JiraIssueWithAggregated } from "../types";
 import { UnifiedIssuesTable } from "../../components/tables/UnifiedIssuesTable";
 import { EpicIssuesList } from "./EpicIssuesList";
-import { Collapse, Typography, Button, Space } from "antd";
+import { Collapse, Typography, Button, Space, Switch } from "antd";
 import { DownOutlined, RightOutlined, SearchOutlined } from "@ant-design/icons";
 
 interface Props {
@@ -31,6 +31,7 @@ interface Props {
 
   // Orphan Detection
   onRequestOrphanDetection?: (workstreamKey: string) => void;
+  // (local toggle inside component)
 }
 
 export const WorkstreamTable: React.FC<Props> = ({
@@ -49,6 +50,8 @@ export const WorkstreamTable: React.FC<Props> = ({
 }) => {
   const [isTableCollapsed, setIsTableCollapsed] = useState(false);
   const [isEpicListCollapsed, setIsEpicListCollapsed] = useState(false);
+  const [showAdditionalColumns, setShowAdditionalColumns] =
+    useState<boolean>(false);
   // Find the complete hierarchical data for the current workstream
   // We need to find the workstream in projectIssues that matches the current level
   const currentLevelData = navigationStack[navigationStack.length - 1];
@@ -122,7 +125,18 @@ export const WorkstreamTable: React.FC<Props> = ({
                   Issues in {navigationStack[navigationStack.length - 1].name}
                 </Typography.Title>
               </div>
-              {/* Orphan detect button removed - now auto-triggered on workstream load */}
+              <Space
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <span>Show additional columns</span>
+                <Switch
+                  checked={showAdditionalColumns}
+                  onChange={(checked) => setShowAdditionalColumns(checked)}
+                  onClick={(e) => e.stopPropagation()}
+                  size="small"
+                />
+              </Space>
             </div>
           }
           showArrow={false}
@@ -144,6 +158,7 @@ export const WorkstreamTable: React.FC<Props> = ({
               navigationStack[navigationStack.length - 1].key
             }
             completeHierarchicalData={completeHierarchicalData}
+            showAdditionalColumns={showAdditionalColumns}
             pagination={{
               pageSize: 50,
               showSizeChanger: true,

@@ -50,6 +50,8 @@ export interface UnifiedIssuesTableProps {
   onRequestTimeBookings?: (fromDate: string) => void;
   timeDataLoaded?: Set<string>;
   currentWorkstreamKey?: string;
+  // UI: Additional columns toggle
+  showAdditionalColumns?: boolean;
 }
 
 export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
@@ -73,6 +75,7 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   onRequestTimeBookings,
   timeDataLoaded = new Set(),
   currentWorkstreamKey,
+  showAdditionalColumns,
 }) => {
   const [exportLoading, setExportLoading] = useState(false);
 
@@ -94,6 +97,7 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
     projectIssues,
     getWorkstreamDataCellSpan,
     timeBookingsDate: timeBookingsDate.format("YYYY-MM-DD"),
+    showAdditionalColumns,
   });
 
   // Use resizable columns hook

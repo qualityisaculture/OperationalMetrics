@@ -24,7 +24,8 @@ export const getIssueColumns = (
   getWorkstreamDataCellSpan: (
     record: JiraIssueWithAggregated,
     isFirstColumn?: boolean
-  ) => { colSpan?: number }
+  ) => { colSpan?: number },
+  showAdditionalColumns?: boolean
 ): ColumnsType<JiraIssueWithAggregated> => [
   {
     title: "Favorite",
@@ -229,79 +230,93 @@ export const getIssueColumns = (
         },
       ]
     : []),
-  {
-    title: (
-      <Tooltip
-        title={
-          <div>
-            <div>
-              Uses Jira custom field 'customfield_11753' (Baseline Estimate).
-            </div>
-            <div>Value is already in days.</div>
-            <div>
-              Shows the workstream's own baseline estimate (not aggregated from
-              children).
-            </div>
-          </div>
-        }
-      >
-        <span style={{ cursor: "help" }}>Baseline Estimate</span>
-      </Tooltip>
-    ),
-    dataIndex: "baselineEstimate",
-    key: "baselineEstimate",
-    width: 150,
-    render: (baselineEstimate: number | null | undefined) => {
-      return (
-        <Text>
-          {baselineEstimate !== null && baselineEstimate !== undefined ? (
-            <Tag color="orange">{baselineEstimate.toFixed(1)} days</Tag>
-          ) : (
-            <Text type="secondary">-</Text>
-          )}
-        </Text>
-      );
-    },
-    sorter: (a, b) => (a.baselineEstimate || 0) - (b.baselineEstimate || 0),
-  },
-  {
-    title: (
-      <Tooltip
-        title={
-          <div>
-            <div>
-              Uses Jira field 'timeoriginalestimate' (Original estimate) (in
-              seconds), converted to days: (timeoriginalestimate / 3600 / 7.5).
-            </div>
-            <div>
-              Shows only the workstream's own original estimate value (not
-              aggregated from children).
-            </div>
-          </div>
-        }
-      >
-        <span style={{ cursor: "help" }}>Workstream Estimate</span>
-      </Tooltip>
-    ),
-    dataIndex: "originalEstimate",
-    key: "workstreamEstimate",
-    width: 150,
-    onCell: (record: JiraIssueWithAggregated) =>
-      getWorkstreamDataCellSpan(record, true),
-    render: (estimate: number | null | undefined) => {
-      // Always show the workstream's own value, never aggregated
-      return (
-        <Text>
-          {estimate !== null && estimate !== undefined ? (
-            <Tag color="green">{estimate.toFixed(1)} days</Tag>
-          ) : (
-            <Text type="secondary">-</Text>
-          )}
-        </Text>
-      );
-    },
-    sorter: (a, b) => (a.originalEstimate || 0) - (b.originalEstimate || 0),
-  },
+  // Conditionally include Baseline Estimate
+  ...((showAdditionalColumns
+    ? [
+        {
+          title: (
+            <Tooltip
+              title={
+                <div>
+                  <div>
+                    Uses Jira custom field 'customfield_11753' (Baseline
+                    Estimate).
+                  </div>
+                  <div>Value is already in days.</div>
+                  <div>
+                    Shows the workstream's own baseline estimate (not aggregated
+                    from children).
+                  </div>
+                </div>
+              }
+            >
+              <span style={{ cursor: "help" }}>Baseline Estimate</span>
+            </Tooltip>
+          ),
+          dataIndex: "baselineEstimate",
+          key: "baselineEstimate",
+          width: 150,
+          render: (baselineEstimate: number | null | undefined) => {
+            return (
+              <Text>
+                {baselineEstimate !== null && baselineEstimate !== undefined ? (
+                  <Tag color="orange">{baselineEstimate.toFixed(1)} days</Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            );
+          },
+          sorter: (a, b) =>
+            (a.baselineEstimate || 0) - (b.baselineEstimate || 0),
+        },
+      ]
+    : []) as any),
+  // Conditionally include Workstream Estimate
+  ...((showAdditionalColumns
+    ? [
+        {
+          title: (
+            <Tooltip
+              title={
+                <div>
+                  <div>
+                    Uses Jira field 'timeoriginalestimate' (Original estimate)
+                    (in seconds), converted to days: (timeoriginalestimate /
+                    3600 / 7.5).
+                  </div>
+                  <div>
+                    Shows only the workstream's own original estimate value (not
+                    aggregated from children).
+                  </div>
+                </div>
+              }
+            >
+              <span style={{ cursor: "help" }}>Workstream Estimate</span>
+            </Tooltip>
+          ),
+          dataIndex: "originalEstimate",
+          key: "workstreamEstimate",
+          width: 150,
+          onCell: (record: JiraIssueWithAggregated) =>
+            getWorkstreamDataCellSpan(record, true),
+          render: (estimate: number | null | undefined) => {
+            // Always show the workstream's own value, never aggregated
+            return (
+              <Text>
+                {estimate !== null && estimate !== undefined ? (
+                  <Tag color="green">{estimate.toFixed(1)} days</Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            );
+          },
+          sorter: (a, b) =>
+            (a.originalEstimate || 0) - (b.originalEstimate || 0),
+        },
+      ]
+    : []) as any),
   {
     title: (
       <Tooltip

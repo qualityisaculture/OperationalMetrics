@@ -11,6 +11,7 @@ import {
   Divider,
   Collapse,
   Tag,
+  Switch,
 } from "antd";
 import {
   InfoCircleOutlined,
@@ -53,6 +54,7 @@ interface Props {
   toggleFavorite: (itemKey: string, event: React.MouseEvent) => void;
   projectAggregatedData: ProjectAggregatedData | null;
   projectName: string;
+  // (local toggle inside component)
 }
 
 export const DynamicProjectSummary: React.FC<Props> = ({
@@ -68,6 +70,8 @@ export const DynamicProjectSummary: React.FC<Props> = ({
   projectAggregatedData,
   projectName,
 }) => {
+  const [showAdditionalColumns, setShowAdditionalColumns] =
+    useState<boolean>(false);
   const [filteredData, setFilteredData] = useState<JiraIssueWithAggregated[]>(
     []
   );
@@ -167,7 +171,8 @@ export const DynamicProjectSummary: React.FC<Props> = ({
         navigationStack,
         [],
         projectIssues,
-        getWorkstreamDataCellSpan
+        getWorkstreamDataCellSpan,
+        showAdditionalColumns
       ),
     [
       favoriteItems,
@@ -175,6 +180,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
       navigationStack,
       projectIssues,
       getWorkstreamDataCellSpan,
+      showAdditionalColumns,
     ]
   );
 
@@ -602,6 +608,18 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                     </span>
                   )}
                 </Text>
+                <Space
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <span>Show additional columns</span>
+                  <Switch
+                    checked={showAdditionalColumns}
+                    onChange={(checked) => setShowAdditionalColumns(checked)}
+                    onClick={(e) => e.stopPropagation()}
+                    size="small"
+                  />
+                </Space>
                 <Tooltip title="Export Project Workstreams table data to Excel">
                   <Button
                     type="primary"
