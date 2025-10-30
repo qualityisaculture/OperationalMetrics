@@ -329,6 +329,22 @@ export const DynamicProjectSummary: React.FC<Props> = ({
         cellIndex++;
       }
 
+      // Workstream Estimate
+      if (workstreamEstimateIndex !== -1) {
+        cells.push(
+          <Table.Summary.Cell key={cellIndex} index={workstreamEstimateIndex}>
+            <Text strong>
+              {sumWorkstreamEstimate > 0 ? (
+                <Tag color="green">{sumWorkstreamEstimate.toFixed(1)} days</Tag>
+              ) : (
+                <Text type="secondary">-</Text>
+              )}
+            </Text>
+          </Table.Summary.Cell>
+        );
+        cellIndex++;
+      }
+
       // Original Estimate (only show if we have aggregated data)
       if (originalEstimateIndex !== -1) {
         // Check if we have any aggregated data in the dataSource
@@ -341,22 +357,6 @@ export const DynamicProjectSummary: React.FC<Props> = ({
             <Text strong>
               {hasAnyAggregatedData && sumOriginalEstimate > 0 ? (
                 <Tag color="green">{sumOriginalEstimate.toFixed(1)} days</Tag>
-              ) : (
-                <Text type="secondary">-</Text>
-              )}
-            </Text>
-          </Table.Summary.Cell>
-        );
-        cellIndex++;
-      }
-
-      // Workstream Estimate
-      if (workstreamEstimateIndex !== -1) {
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={workstreamEstimateIndex}>
-            <Text strong>
-              {sumWorkstreamEstimate > 0 ? (
-                <Tag color="green">{sumWorkstreamEstimate.toFixed(1)} days</Tag>
               ) : (
                 <Text type="secondary">-</Text>
               )}

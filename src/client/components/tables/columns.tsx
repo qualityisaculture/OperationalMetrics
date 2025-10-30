@@ -347,7 +347,7 @@ export const getUnifiedColumns = ({
               </div>
             }
           >
-            <span style={{ cursor: "help" }}>Original Budget</span>
+            <span style={{ cursor: "help" }}>Original Estimate</span>
           </Tooltip>
         ),
         dataIndex: "originalEstimate",
@@ -426,7 +426,7 @@ export const getUnifiedColumns = ({
               </div>
             }
           >
-            <span style={{ cursor: "help" }}>Actual Days Logged</span>
+            <span style={{ cursor: "help" }}>Time Spent</span>
           </Tooltip>
         ),
         dataIndex: "timeSpent",
@@ -542,7 +542,7 @@ export const getUnifiedColumns = ({
           <Tooltip
             title={
               <div>
-                <div>Calculated as: Actual Days Logged + ETC.</div>
+                <div>Calculated as: Time Spent + ETC.</div>
                 <div>
                   Uses aggregated values (ticket's own value + all children's
                   values): (aggregatedTimeSpent + aggregatedTimeRemaining).
@@ -622,8 +622,8 @@ export const getUnifiedColumns = ({
             title={
               <div>
                 <div>
-                  Calculated as: (Total Forecast - Original Budget) = (Actual
-                  Days Logged + ETC - Original Budget).
+                  Calculated as: (Total Forecast - Original Estimate) = (Time
+                  Spent + ETC - Original Estimate).
                 </div>
                 <div>
                   Uses aggregated values (ticket's own value + all children's
@@ -719,9 +719,9 @@ export const getUnifiedColumns = ({
             title={
               <div>
                 <div>
-                  Calculated as: ((Total Forecast - Original Budget) / Original
-                  Budget) × 100% = ((Actual Days Logged + Estimate to Complete -
-                  Original Budget) / Original Budget) × 100%.
+                  Calculated as: ((Total Forecast - Original Estimate) /
+                  Original Estimate) × 100% = ((Time Spent + Estimate to
+                  Complete - Original Estimate) / Original Estimate) × 100%.
                 </div>
                 <div>
                   Uses aggregated values (ticket's own value + all children's
@@ -828,10 +828,10 @@ export const getUnifiedColumns = ({
     );
   }
 
-  // Add the "Actual Days Logged since Date" column at the end
+  // Add the "Time Spent since Date" column at the end
   if (timeBookingsDate) {
     columns.push({
-      title: `Actual Days Logged since ${timeBookingsDate}`,
+      title: `Time Spent since ${timeBookingsDate}`,
       key: "actualDaysLogged",
       onCell: (record: JiraIssueWithAggregated) =>
         getWorkstreamDataCellSpan

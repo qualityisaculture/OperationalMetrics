@@ -318,7 +318,7 @@ export const getIssueColumns = (
           </div>
         }
       >
-        <span style={{ cursor: "help" }}>Original Budget</span>
+        <span style={{ cursor: "help" }}>Original Estimate</span>
       </Tooltip>
     ),
     dataIndex: "originalEstimate",
@@ -449,7 +449,7 @@ export const getIssueColumns = (
           </div>
         }
       >
-        <span style={{ cursor: "help" }}>Actual Days Logged</span>
+        <span style={{ cursor: "help" }}>Time Spent</span>
       </Tooltip>
     ),
     dataIndex: "timeSpent",
@@ -500,9 +500,7 @@ export const getIssueColumns = (
       <Tooltip
         title={
           <div>
-            <div>
-              Calculated as: (Actual Days Logged / Original Budget) × 100%.
-            </div>
+            <div>Calculated as: (Time Spent / Original Estimate) × 100%.</div>
             <div>
               Uses aggregated values (ticket's own value + all children's
               values) when available.
@@ -514,7 +512,7 @@ export const getIssueColumns = (
           </div>
         }
       >
-        <span style={{ cursor: "help" }}>Percentage Booked Against Budget</span>
+        <span style={{ cursor: "help" }}>Usage %</span>
       </Tooltip>
     ),
     key: "percentageBooked",
@@ -656,7 +654,7 @@ export const getIssueColumns = (
       <Tooltip
         title={
           <div>
-            <div>Calculated as: Actual Days Logged + ETC.</div>
+            <div>Calculated as: Time Spent + ETC.</div>
             <div>
               Uses aggregated values (ticket's own value + all children's
               values): (aggregatedTimeSpent + aggregatedTimeRemaining).
@@ -734,8 +732,8 @@ export const getIssueColumns = (
         title={
           <div>
             <div>
-              Calculated as: (Total Forecast - Original Budget) = (Actual Days
-              Logged + ETC - Original Budget).
+              Calculated as: (Total Forecast - Original Estimate) = (Time Spent
+              + ETC - Original Estimate).
             </div>
             <div>
               Uses aggregated values (ticket's own value + all children's
@@ -832,9 +830,9 @@ export const getIssueColumns = (
         title={
           <div>
             <div>
-              Calculated as: ((Total Forecast - Original Budget) / Original
-              Estimate) × 100% = ((Actual Days Logged + ETC - Original Budget) /
-              Original Budget) × 100%.
+              Calculated as: ((Total Forecast - Original Estimate) / Original
+              Estimate) × 100% = ((Time Spent + ETC - Original Estimate) /
+              Original Estimate) × 100%.
             </div>
             <div>
               Uses aggregated values (ticket's own value + all children's

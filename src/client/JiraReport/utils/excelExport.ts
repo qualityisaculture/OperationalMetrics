@@ -406,11 +406,11 @@ export const exportProjectWorkstreamsToExcel = (
         workstream.aggregatedOriginalEstimate !== undefined
           ? workstream.aggregatedOriginalEstimate
           : workstream.originalEstimate || 0,
-      "Actual Days Logged (days)":
+      "Time Spent (days)":
         workstream.aggregatedTimeSpent !== undefined
           ? workstream.aggregatedTimeSpent
           : workstream.timeSpent || 0,
-      "Percentage Booked Against Budget (%)": (() => {
+      "Usage %": (() => {
         const originalEstimate =
           workstream.aggregatedOriginalEstimate !== undefined
             ? workstream.aggregatedOriginalEstimate
