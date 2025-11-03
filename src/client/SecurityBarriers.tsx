@@ -45,6 +45,12 @@ interface CombinedUserData {
   holidayDays: number | string;
 }
 
+interface UserListEntry {
+  firstName: string;
+  lastName: string;
+  fullName: string;
+}
+
 interface WeWorkProps {}
 
 const WeWork: React.FC<WeWorkProps> = () => {
@@ -57,12 +63,15 @@ const WeWork: React.FC<WeWorkProps> = () => {
   const [combinedData, setCombinedData] = useState<CombinedUserData[]>([]);
   const [loading, setLoading] = useState(false);
   const [holidayLoading, setHolidayLoading] = useState(false);
+  const [userListLoading, setUserListLoading] = useState(false);
+  const [userList, setUserList] = useState<UserListEntry[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<PersonSummary | null>(
     null
   );
   const [modalVisible, setModalVisible] = useState(false);
   const [barrierFileUploaded, setBarrierFileUploaded] = useState(false);
   const [holidayFileUploaded, setHolidayFileUploaded] = useState(false);
+  const [userListFileUploaded, setUserListFileUploaded] = useState(false);
 
   const processPersonSummaries = (data: WeWorkEntry[]) => {
     const personMap = new Map<string, PersonSummary>();
@@ -336,6 +345,72 @@ const WeWork: React.FC<WeWorkProps> = () => {
     }
   };
 
+  const parseUserListFile = (file: File) => {
+    setUserListLoading(true);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: "binary" });
+
+        // Get the first worksheet
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+
+        // Convert to JSON array
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        // Process data starting from row 2 (index 1), columns B (last name) and C (first name)
+        const processedData: UserListEntry[] = [];
+
+        for (let i = 1; i < jsonData.length; i++) {
+          const row = jsonData[i] as any[];
+
+          // Check if row has enough columns and data
+          // Column B = index 1, Column C = index 2
+          if (row && row.length >= 3 && row[1] && row[2]) {
+            const lastName = row[1]; // Column B
+            const firstName = row[2]; // Column C
+
+            // Only add if we have valid data
+            if (firstName && lastName) {
+              processedData.push({
+                firstName: firstName.toString().trim(),
+                lastName: lastName.toString().trim(),
+                fullName: `${firstName.toString().trim()} ${lastName.toString().trim()}`,
+              });
+            }
+          }
+        }
+
+        setUserList(processedData);
+        setUserListFileUploaded(true);
+        message.success(
+          `Successfully loaded ${processedData.length} users from spreadsheet`
+        );
+      } catch (error) {
+        console.error("Error parsing user list Excel file:", error);
+        message.error(
+          "Error parsing user list Excel file. Please check the file format."
+        );
+      } finally {
+        setUserListLoading(false);
+      }
+    };
+
+    reader.readAsBinaryString(file);
+  };
+
+  const handleUserListFileUpload = (info: any) => {
+    const file = info.file.originFileObj || info.file;
+    if (file) {
+      parseUserListFile(file);
+    } else {
+      message.error("No file found in upload");
+    }
+  };
+
   const calculateCombinedData = () => {
     const combined: CombinedUserData[] = [];
 
@@ -540,44 +615,75 @@ const WeWork: React.FC<WeWorkProps> = () => {
       holidayMap.set(key, holiday);
     });
 
-    // Only show users from the holiday list
-    // Create combined data for each holiday user
-    holidaySummaries.forEach((holiday) => {
-      // Try exact match first
-      const normalizedHolidayName = normalizeName(holiday.fullName);
-      let barrierPerson = barrierMap.get(normalizedHolidayName);
+    // Use user list to determine which users to show
+    // If user list is available, use it; otherwise fall back to holiday list
+    const usersToShow =
+      userList.length > 0
+        ? userList
+        : holidaySummaries.map((h) => ({
+            firstName: h.firstName,
+            lastName: h.lastName,
+            fullName: h.fullName,
+          }));
 
-      // If no exact match, try smart name matching
+    // Create combined data for each user
+    usersToShow.forEach((user) => {
+      // Try exact match first for barrier data
+      const normalizedUserName = normalizeName(user.fullName);
+      let barrierPerson = barrierMap.get(normalizedUserName);
+
+      // If no exact match, try smart name matching for barrier data
       if (!barrierPerson) {
         barrierPerson = personSummaries.find((person) => {
           return smartNameMatch(
             person.firstName,
             person.lastName,
+            user.firstName,
+            user.lastName
+          );
+        });
+      }
+
+      // Try exact match first for holiday data
+      let holidayPerson = holidayMap.get(normalizedUserName);
+
+      // If no exact match, try smart name matching for holiday data
+      if (!holidayPerson) {
+        holidayPerson = holidaySummaries.find((holiday) => {
+          return smartNameMatch(
             holiday.firstName,
-            holiday.lastName
+            holiday.lastName,
+            user.firstName,
+            user.lastName
           );
         });
       }
 
       // Debug: Log what we found for this user
-      console.log(
-        `Holiday user: ${holiday.fullName} (normalized: ${normalizedHolidayName})`
-      );
+      console.log(`User: ${user.fullName} (normalized: ${normalizedUserName})`);
       console.log(
         `  Barrier match:`,
         barrierPerson
           ? `${barrierPerson.firstName} ${barrierPerson.lastName}`
           : "None"
       );
+      console.log(
+        `  Holiday match:`,
+        holidayPerson
+          ? `${holidayPerson.firstName} ${holidayPerson.lastName}`
+          : "None"
+      );
 
       combined.push({
-        fullName: holiday.fullName,
-        firstName: holiday.firstName,
-        lastName: holiday.lastName,
+        fullName: user.fullName,
+        firstName: user.firstName,
+        lastName: user.lastName,
         barrierDays: barrierPerson
           ? barrierPerson.uniqueDays
           : "Data not found",
-        holidayDays: holiday.totalHolidayDays,
+        holidayDays: holidayPerson
+          ? holidayPerson.totalHolidayDays
+          : "Data not found",
       });
     });
 
@@ -743,6 +849,18 @@ const WeWork: React.FC<WeWorkProps> = () => {
             </Button>
           </Upload>
           {barrierFileUploaded && <Tag color="green">✓ Uploaded</Tag>}
+
+          <Upload
+            accept=".xlsx,.xls,.csv"
+            showUploadList={false}
+            beforeUpload={() => false} // Prevent auto upload
+            onChange={handleUserListFileUpload}
+          >
+            <Button icon={<UploadOutlined />} loading={userListLoading}>
+              Upload User List
+            </Button>
+          </Upload>
+          {userListFileUploaded && <Tag color="green">✓ Uploaded</Tag>}
 
           <Upload
             accept=".xlsx,.xls,.csv"
