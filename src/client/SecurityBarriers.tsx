@@ -533,8 +533,8 @@ const WeWork: React.FC<WeWorkProps> = () => {
       if (n1 === n2) return true;
 
       // Check for double surnames (if one surname matches, it's probably the same person)
-      const words1 = n1.split(" ");
-      const words2 = n2.split(" ");
+      const words1 = n1.split(/[\s-]+/);
+      const words2 = n2.split(/[\s-]+/);
 
       // Check if any surname from one name appears in the other
       const hasMatchingSurname =
