@@ -1,5 +1,14 @@
 import React, { useState } from "react";
-import { Upload, Button, Table, message, Card, Modal, Tag } from "antd";
+import {
+  Upload,
+  Button,
+  Table,
+  message,
+  Card,
+  Modal,
+  Tag,
+  Collapse,
+} from "antd";
 import {
   UploadOutlined,
   EyeOutlined,
@@ -824,6 +833,34 @@ const WeWork: React.FC<WeWorkProps> = () => {
     },
   ];
 
+  const barrierDataColumns = [
+    {
+      title: "First Name",
+      dataIndex: "firstName",
+      key: "firstName",
+      width: 150,
+      sorter: (a: PersonSummary, b: PersonSummary) =>
+        a.firstName.localeCompare(b.firstName),
+    },
+    {
+      title: "Last Name",
+      dataIndex: "lastName",
+      key: "lastName",
+      width: 150,
+      sorter: (a: PersonSummary, b: PersonSummary) =>
+        a.lastName.localeCompare(b.lastName),
+    },
+    {
+      title: "Barrier Days",
+      dataIndex: "uniqueDays",
+      key: "uniqueDays",
+      width: 150,
+      render: (days: number) => <Tag color="blue">{days}</Tag>,
+      sorter: (a: PersonSummary, b: PersonSummary) =>
+        b.uniqueDays - a.uniqueDays,
+    },
+  ];
+
   return (
     <div style={{ padding: "20px" }}>
       <Card
@@ -838,18 +875,6 @@ const WeWork: React.FC<WeWorkProps> = () => {
             flexWrap: "wrap",
           }}
         >
-          <Upload
-            accept=".xlsx,.xls,.csv"
-            showUploadList={false}
-            beforeUpload={() => false} // Prevent auto upload
-            onChange={handleFileUpload}
-          >
-            <Button icon={<UploadOutlined />} loading={loading}>
-              Upload Barrier Data
-            </Button>
-          </Upload>
-          {barrierFileUploaded && <Tag color="green">✓ Uploaded</Tag>}
-
           <Upload
             accept=".xlsx,.xls,.csv"
             showUploadList={false}
@@ -873,6 +898,18 @@ const WeWork: React.FC<WeWorkProps> = () => {
             </Button>
           </Upload>
           {holidayFileUploaded && <Tag color="green">✓ Uploaded</Tag>}
+
+          <Upload
+            accept=".xlsx,.xls,.csv"
+            showUploadList={false}
+            beforeUpload={() => false} // Prevent auto upload
+            onChange={handleFileUpload}
+          >
+            <Button icon={<UploadOutlined />} loading={loading}>
+              Upload Barrier Data
+            </Button>
+          </Upload>
+          {barrierFileUploaded && <Tag color="green">✓ Uploaded</Tag>}
 
           <Button
             type="primary"
@@ -921,6 +958,30 @@ const WeWork: React.FC<WeWorkProps> = () => {
             </p>
           </Card>
         )}
+
+      {barrierFileUploaded && personSummaries.length > 0 && (
+        <Card style={{ marginBottom: "20px" }}>
+          <Collapse
+            items={[
+              {
+                key: "barrier-data",
+                label: `Processed Barrier Data (${personSummaries.length} users)`,
+                children: (
+                  <Table
+                    columns={barrierDataColumns}
+                    dataSource={personSummaries}
+                    rowKey="fullName"
+                    pagination={{ pageSize: 20 }}
+                    scroll={{ x: 450 }}
+                    size="small"
+                  />
+                ),
+              },
+            ]}
+            defaultActiveKey={[]}
+          />
+        </Card>
+      )}
 
       <Modal
         title={selectedPerson ? `Details for ${selectedPerson.fullName}` : ""}
