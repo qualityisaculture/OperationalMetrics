@@ -487,6 +487,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
         rob: ["robert"],
         tim: ["timothy"],
         pete: ["peter"],
+        tony: ["anthony"],
         fara: ["farasat"],
         ioana: ["ioana maria"],
         agi: ["agnes"],
