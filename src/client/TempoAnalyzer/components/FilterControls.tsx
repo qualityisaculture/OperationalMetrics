@@ -4,6 +4,7 @@ import {
   BarChartOutlined,
   UserOutlined,
   TeamOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import { UserGroup } from "../types";
 
@@ -11,8 +12,8 @@ const { Text } = Typography;
 const { Option } = Select;
 
 interface FilterControlsProps {
-  summaryViewMode: "category" | "name";
-  handleSummaryViewModeChange: (mode: "category" | "name") => void;
+  summaryViewMode: "category" | "name" | "issueType";
+  handleSummaryViewModeChange: (mode: "category" | "name" | "issueType") => void;
   secondarySplitMode: "account" | "issueType";
   handleSecondarySplitModeChange: (mode: "account" | "issueType") => void;
   excludeHolidayAbsence: boolean;
@@ -25,6 +26,7 @@ interface FilterControlsProps {
   handleShowOtherTeamsChange: (checked: boolean) => void;
   hasGroupedData: boolean;
   hasGroupedByName: boolean;
+  hasGroupedByIssueType: boolean;
   userGroups: UserGroup[];
   selectedUserGroups: string[];
   onUserGroupsChange: (groupIds: string[]) => void;
@@ -45,6 +47,7 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   handleShowOtherTeamsChange,
   hasGroupedData,
   hasGroupedByName,
+  hasGroupedByIssueType,
   userGroups,
   selectedUserGroups,
   onUserGroupsChange,
@@ -70,6 +73,12 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
             <Radio.Button value="name">
               <UserOutlined style={{ marginRight: "4px" }} />
               Full Name
+            </Radio.Button>
+          )}
+          {hasGroupedByIssueType && (
+            <Radio.Button value="issueType">
+              <FileTextOutlined style={{ marginRight: "4px" }} />
+              Issue Type
             </Radio.Button>
           )}
         </Radio.Group>

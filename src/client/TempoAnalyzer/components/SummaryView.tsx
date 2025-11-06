@@ -6,10 +6,11 @@ import { useResizableColumns } from "../../components/tables/useResizableColumns
 const { Title, Text } = Typography;
 
 interface SummaryViewProps {
-  summaryViewMode: "category" | "name";
+  summaryViewMode: "category" | "name" | "issueType";
   totalHours: number;
   groupedData: { [key: string]: number };
   groupedByName: { [key: string]: number };
+  groupedByIssueType: { [key: string]: number };
   groupedDataByCategory: {
     [category: string]: {
       totalHours: number;
@@ -38,6 +39,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   totalHours,
   groupedData,
   groupedByName,
+  groupedByIssueType,
   groupedDataByCategory,
   secondarySplitMode,
   showOtherTeams,
@@ -47,7 +49,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   // Define columns for resizable functionality
   const columns = [
     {
-      title: summaryViewMode === "category" ? "Account Category" : "Full Name",
+      title: summaryViewMode === "category" ? "Account Category" : summaryViewMode === "name" ? "Full Name" : "Issue Type",
       dataIndex: "item",
       key: "item",
       render: (text: any, record: any) => (
@@ -131,7 +133,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     <>
       <Title level={4}>
         <BarChartOutlined style={{ marginRight: "8px" }} />
-        {summaryViewMode === "category" ? "Account Category" : "Full Name"}{" "}
+        {summaryViewMode === "category" ? "Account Category" : summaryViewMode === "name" ? "Full Name" : "Issue Type"}{" "}
         Summary
       </Title>
 
@@ -160,13 +162,15 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           <Card>
             <Statistic
               title={`Average per ${
-                summaryViewMode === "category" ? "Category" : "Person"
+                summaryViewMode === "category" ? "Category" : summaryViewMode === "name" ? "Person" : "Issue Type"
               }`}
               value={
                 totalHours /
                 (summaryViewMode === "category"
                   ? Object.keys(groupedData).length
-                  : Object.keys(groupedByName).length)
+                  : summaryViewMode === "name"
+                    ? Object.keys(groupedByName).length
+                    : Object.keys(groupedByIssueType).length)
               }
               precision={2}
               suffix="hrs"
@@ -179,7 +183,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         title={`Hours by ${
           summaryViewMode === "category"
             ? `Account Category (split by ${secondarySplitMode === "account" ? "Account Name" : "Issue Type"})`
-            : "Full Name"
+            : summaryViewMode === "name"
+              ? "Full Name"
+              : "Issue Type"
         } (Click a row to drill down)`}
       >
         <Table
@@ -320,14 +326,23 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                     })),
                   })
                 )
-              : Object.entries(groupedByName).map(([item, hours], index) => ({
-                  key: index,
-                  item: item,
-                  hours: hours,
-                  chargeableDays: hours / 7.5,
-                  percentage: ((hours / totalHours) * 100).toFixed(1),
-                  children: undefined,
-                }))
+              : summaryViewMode === "name"
+                ? Object.entries(groupedByName).map(([item, hours], index) => ({
+                    key: index,
+                    item: item,
+                    hours: hours,
+                    chargeableDays: hours / 7.5,
+                    percentage: ((hours / totalHours) * 100).toFixed(1),
+                    children: undefined,
+                  }))
+                : Object.entries(groupedByIssueType).map(([item, hours], index) => ({
+                    key: index,
+                    item: item,
+                    hours: hours,
+                    chargeableDays: hours / 7.5,
+                    percentage: ((hours / totalHours) * 100).toFixed(1),
+                    children: undefined,
+                  }))
           }
           columns={resizableColumns}
           pagination={false}
@@ -351,6 +366,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               } else if (summaryViewMode === "name") {
                 handleUserClick(record.item);
               }
+              // Issue Type mode doesn't have drilldown yet
             },
             style: {
               cursor: record.isAccount || record.isFile ? "default" : "pointer",

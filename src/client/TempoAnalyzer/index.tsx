@@ -117,12 +117,17 @@ const TempoAnalyzer: React.FC<Props> = () => {
             handleShowOtherTeamsChange={analyzer.handleShowOtherTeamsChange}
             hasGroupedData={Object.keys(groupedData).length > 0}
             hasGroupedByName={Object.keys(analyzer.groupedByName).length > 0}
+            hasGroupedByIssueType={
+              Object.keys(analyzer.groupedByIssueType).length > 0
+            }
             userGroups={userGroups.groups}
             selectedUserGroups={selectedUserGroups}
             onUserGroupsChange={setSelectedUserGroups}
           />
 
-          {Object.keys(groupedData).length > 0 && (
+          {(Object.keys(groupedData).length > 0 ||
+            Object.keys(analyzer.groupedByName).length > 0 ||
+            Object.keys(analyzer.groupedByIssueType).length > 0) && (
             <div>
               {!selectedCategory && !selectedUser ? (
                 <SummaryView
@@ -130,6 +135,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
                   totalHours={totalHours}
                   groupedData={analyzer.groupedData}
                   groupedByName={analyzer.groupedByName}
+                  groupedByIssueType={analyzer.groupedByIssueType}
                   groupedDataByCategory={analyzer.groupedDataByCategory}
                   secondarySplitMode={analyzer.secondarySplitMode}
                   showOtherTeams={analyzer.showOtherTeams}

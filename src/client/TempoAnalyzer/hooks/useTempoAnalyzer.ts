@@ -51,6 +51,7 @@ export const useTempoAnalyzer = (
     issueTotalHours: 0,
     summaryViewMode: "category",
     groupedByName: {},
+    groupedByIssueType: {},
     selectedUser: null,
     userCategoryData: {},
     userTotalHours: 0,
@@ -271,6 +272,7 @@ export const useTempoAnalyzer = (
 
     const grouped: { [key: string]: number } = {};
     const groupedByName: { [key: string]: number } = {};
+    const groupedByIssueType: { [key: string]: number } = {};
     const groupedDataByCategory: {
       [category: string]: {
         totalHours: number;
@@ -407,6 +409,27 @@ export const useTempoAnalyzer = (
           groupedByName[name] = (groupedByName[name] || 0) + loggedHours;
         }
       }
+
+      // Group by issue type
+      // Check if this is an absence issue key (ABS-56 or ABS-58) and use "Absence" as the type
+      const rowIssueKey =
+        issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
+      const absenceIssueKeys = ["ABS-56", "ABS-58"];
+      
+      let finalIssueType: string | null = null;
+      if (rowIssueKey && absenceIssueKeys.includes(String(rowIssueKey).trim())) {
+        finalIssueType = "Absence";
+      } else {
+        const issueType =
+          issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
+        if (issueType) {
+          finalIssueType = String(issueType).trim();
+        }
+      }
+      
+      if (finalIssueType) {
+        groupedByIssueType[finalIssueType] = (groupedByIssueType[finalIssueType] || 0) + loggedHours;
+      }
     });
 
     setAnalyzerState((prevState) => ({
@@ -414,6 +437,7 @@ export const useTempoAnalyzer = (
       filteredData,
       groupedData: grouped,
       groupedByName: groupedByName,
+      groupedByIssueType: groupedByIssueType,
       totalHours: totalHours,
       groupedDataByCategory: groupedDataByCategory,
     }));
@@ -504,6 +528,7 @@ export const useTempoAnalyzer = (
       issueTotalHours: 0,
       summaryViewMode: "category",
       groupedByName: {},
+      groupedByIssueType: {},
       selectedUser: null,
       userCategoryData: {},
       userTotalHours: 0,
@@ -778,12 +803,23 @@ export const useTempoAnalyzer = (
     }));
   };
 
-  const handleSummaryViewModeChange = (mode: "category" | "name") => {
-    const { groupedByName } = analyzerState;
+  const handleSummaryViewModeChange = (mode: "category" | "name" | "issueType") => {
+    const { groupedByName, groupedByIssueType, issueTypeIndex } = analyzerState;
 
     if (mode === "name" && Object.keys(groupedByName).length === 0) {
       message.warning("No Full Name data available.");
       return;
+    }
+
+    if (mode === "issueType") {
+      if (issueTypeIndex === -1) {
+        message.warning("Issue Type column not found. Cannot show Issue Type breakdown.");
+        return;
+      }
+      if (Object.keys(groupedByIssueType).length === 0) {
+        message.warning("No Issue Type data available.");
+        return;
+      }
     }
 
     setAnalyzerState((prevState) => ({ ...prevState, summaryViewMode: mode }));
