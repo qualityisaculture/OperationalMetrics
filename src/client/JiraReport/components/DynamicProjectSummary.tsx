@@ -506,10 +506,15 @@ export const DynamicProjectSummary: React.FC<Props> = ({
         );
         const variancePercent =
           sumOriginalEstimate > 0
-            ? ((sumTotalForecast - sumOriginalEstimate) / sumOriginalEstimate) * 100
+            ? ((sumTotalForecast - sumOriginalEstimate) / sumOriginalEstimate) *
+              100
             : 0;
         const variancePercentColor =
-          variancePercent > 0 ? "red" : variancePercent < 0 ? "green" : "default";
+          variancePercent > 0
+            ? "red"
+            : variancePercent < 0
+              ? "green"
+              : "default";
         cells.push(
           <Table.Summary.Cell key={cellIndex} index={variancePercentIndex}>
             <Text strong>
@@ -563,6 +568,31 @@ export const DynamicProjectSummary: React.FC<Props> = ({
   const handleAccountSelectionChange = (checkedValues: string[]) => {
     setSelectedAccounts(checkedValues);
   };
+
+  // Create a lightweight dataSource2 with only the fields needed for the table
+  // Excluding large nested structures like children arrays to reduce memory usage
+  const dataSource2 = useMemo(() => {
+    return dataSource.map((issue) => ({
+      key: issue.key,
+      summary: issue.summary,
+      type: issue.type,
+      status: issue.status,
+      priority: issue.priority,
+      account: issue.account,
+      childCount: issue.childCount,
+      url: issue.url,
+      baselineEstimate: issue.baselineEstimate,
+      originalEstimate: issue.originalEstimate,
+      timeSpent: issue.timeSpent,
+      timeRemaining: issue.timeRemaining,
+      aggregatedOriginalEstimate: issue.aggregatedOriginalEstimate,
+      aggregatedTimeSpent: issue.aggregatedTimeSpent,
+      aggregatedTimeRemaining: issue.aggregatedTimeRemaining,
+      dueDate: issue.dueDate,
+      epicStartDate: issue.epicStartDate,
+      epicEndDate: issue.epicEndDate,
+    })) as JiraIssueWithAggregated[];
+  }, [dataSource]);
 
   return (
     <>
@@ -678,7 +708,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
           <Table
             key={`workstreams-table-${favoriteItems.size}-${navigationStack.length}-${loadedWorkstreamData.size}`}
             columns={issueColumns}
-            dataSource={dataSource}
+            dataSource={dataSource2}
             rowKey="key"
             onChange={handleTableChange}
             pagination={{

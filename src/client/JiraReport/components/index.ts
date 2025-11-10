@@ -3,7 +3,6 @@ export { WorkstreamTable } from "./WorkstreamTable";
 export { EpicIssuesList } from "./EpicIssuesList";
 export { ProjectsTable } from "./ProjectsTable";
 export { RequestAllModal } from "./RequestAllModal";
-export { ProjectTable } from "./ProjectTable";
 export { ProjectSummary } from "./ProjectSummary";
 export { TimeBookingsModal } from "./TimeBookingsModal";
 export { DefectHistorySection } from "./DefectHistorySection";
