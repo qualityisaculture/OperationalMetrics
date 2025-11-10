@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Alert, Button, Space, Typography } from "antd";
 import { LoadingIndicator } from "../components";
 import { useJiraReport } from "./hooks/useJiraReport";
@@ -18,6 +18,9 @@ import { TimeBookingsModal } from "./components/TimeBookingsModal";
 import { DefectHistorySection } from "./components/DefectHistorySection";
 import { AccountWorklogSection } from "./components/AccountWorklogSection";
 import OrphanList from "./components/OrphanList";
+import AccountMismatchList, {
+  findAccountMismatches,
+} from "./components/AccountMismatchList";
 import { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
 
 const { Title, Text } = Typography;
@@ -102,6 +105,12 @@ const JiraReport: React.FC = () => {
     defectHistoryLoading,
     defectHistoryError,
   } = state;
+
+  // Calculate account mismatches - must be at top level (Rules of Hooks)
+  const accountMismatches = useMemo(
+    () => findAccountMismatches(projectIssues),
+    [projectIssues]
+  );
 
   const showTimeBookingsModal = (fromDate: string) => {
     // Update the date state with the selected date
@@ -331,6 +340,10 @@ const JiraReport: React.FC = () => {
               </>
             ) : (
               <>
+                {!issuesLoading && !issuesError && projectIssues.length > 0 && (
+                  <AccountMismatchList mismatches={accountMismatches} />
+                )}
+
                 <DynamicProjectSummary
                   projectAggregatedData={state.projectAggregatedData}
                   projectName={selectedProject.name}

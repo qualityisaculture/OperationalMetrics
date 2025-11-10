@@ -540,11 +540,12 @@ export const useJiraReport = () => {
               prevState.loadedWorkstreamData
             ).set(workstream.key, workstreamAggregatedData);
 
-            // Update projectIssues with the new aggregated values for this workstream
+            // Update projectIssues with the new aggregated values and children for this workstream
             const updatedProjectIssues = prevState.projectIssues.map((ws) => {
               if (ws.key === workstream.key) {
                 return {
                   ...ws,
+                  ...processedWorkstreamData, // Include all properties including children
                   aggregatedOriginalEstimate:
                     processedWorkstreamData.aggregatedOriginalEstimate,
                   aggregatedTimeSpent:
@@ -905,12 +906,13 @@ export const useJiraReport = () => {
                     prevState.loadedWorkstreamData
                   ).set(workstream.key, aggregatedValues);
 
-                  // Update projectIssues with the new aggregated values for this workstream
+                  // Update projectIssues with the new aggregated values and children for this workstream
                   const updatedProjectIssues = prevState.projectIssues.map(
                     (ws) => {
                       if (ws.key === workstream.key) {
                         return {
                           ...ws,
+                          ...workstreamWithIssues, // Include all properties including children
                           aggregatedOriginalEstimate:
                             aggregatedValues.aggregatedOriginalEstimate,
                           aggregatedTimeSpent:
