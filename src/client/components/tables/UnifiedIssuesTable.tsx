@@ -115,88 +115,6 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
       return null;
     }
 
-    const displayData = getSortedItems
-      ? getSortedItems(dataSource)
-      : dataSource;
-    let sumBaselineEstimate = 0;
-    let sumOriginalEstimate = 0;
-    let sumTimeSpent = 0;
-    let sumTimeRemaining = 0;
-    let sumActualDaysSinceDate = 0;
-
-    displayData.forEach((record: JiraIssueWithAggregated) => {
-      // Baseline Estimate (only counts workstream's own value, not aggregated)
-      if (record.baselineEstimate != null) {
-        sumBaselineEstimate += record.baselineEstimate;
-      }
-
-      // Original Estimate (use aggregated if available)
-      const originalEstimate =
-        record.aggregatedOriginalEstimate !== undefined
-          ? record.aggregatedOriginalEstimate
-          : record.originalEstimate || 0;
-      sumOriginalEstimate += originalEstimate;
-
-      // Actual Days Logged (use aggregated if available)
-      const timeSpent =
-        record.aggregatedTimeSpent !== undefined
-          ? record.aggregatedTimeSpent
-          : record.timeSpent || 0;
-      sumTimeSpent += timeSpent;
-
-      // ETC (use aggregated if available)
-      const timeRemaining =
-        record.aggregatedTimeRemaining !== undefined
-          ? record.aggregatedTimeRemaining
-          : record.timeRemaining || 0;
-      sumTimeRemaining += timeRemaining;
-
-      // Actual Days Logged since Date (if timeBookingsDate is set)
-      if (timeBookingsDate) {
-        let totalTimeLogged = 0;
-        const dateString = timeBookingsDate.format("YYYY-MM-DD");
-        if (record.timeDataByKey) {
-          try {
-            Object.values(record.timeDataByKey).forEach((timeDataArray) => {
-              if (Array.isArray(timeDataArray)) {
-                timeDataArray.forEach((timeEntry) => {
-                  if (
-                    timeEntry &&
-                    timeEntry.date &&
-                    timeEntry.timeSpent &&
-                    timeEntry.date >= dateString
-                  ) {
-                    totalTimeLogged += timeEntry.timeSpent;
-                  }
-                });
-              }
-            });
-          } catch (error) {
-            console.warn("Error processing timeDataByKey:", error);
-          }
-        } else if (record.timeBookings) {
-          try {
-            record.timeBookings.forEach((timeEntry) => {
-              if (
-                timeEntry &&
-                timeEntry.date &&
-                timeEntry.timeSpent &&
-                timeEntry.date >= dateString
-              ) {
-                totalTimeLogged += timeEntry.timeSpent;
-              }
-            });
-          } catch (error) {
-            console.warn("Error processing timeBookings:", error);
-          }
-        }
-        sumActualDaysSinceDate += totalTimeLogged;
-      }
-    });
-
-    const sumTotalForecast = sumTimeSpent + sumTimeRemaining;
-    const sumVariance = sumTotalForecast - sumOriginalEstimate;
-
     // Find column indices dynamically
     let favoriteIndex = -1;
     let keyIndex = -1;
@@ -236,6 +154,85 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
     });
 
     return (pageData: JiraIssueWithAggregated[]) => {
+      // Calculate sums from filtered pageData instead of entire dataSource
+      let sumBaselineEstimate = 0;
+      let sumOriginalEstimate = 0;
+      let sumTimeSpent = 0;
+      let sumTimeRemaining = 0;
+      let sumActualDaysSinceDate = 0;
+
+      pageData.forEach((record: JiraIssueWithAggregated) => {
+        // Baseline Estimate (only counts workstream's own value, not aggregated)
+        if (record.baselineEstimate != null) {
+          sumBaselineEstimate += record.baselineEstimate;
+        }
+
+        // Original Estimate (use aggregated if available)
+        const originalEstimate =
+          record.aggregatedOriginalEstimate !== undefined
+            ? record.aggregatedOriginalEstimate
+            : record.originalEstimate || 0;
+        sumOriginalEstimate += originalEstimate;
+
+        // Actual Days Logged (use aggregated if available)
+        const timeSpent =
+          record.aggregatedTimeSpent !== undefined
+            ? record.aggregatedTimeSpent
+            : record.timeSpent || 0;
+        sumTimeSpent += timeSpent;
+
+        // ETC (use aggregated if available)
+        const timeRemaining =
+          record.aggregatedTimeRemaining !== undefined
+            ? record.aggregatedTimeRemaining
+            : record.timeRemaining || 0;
+        sumTimeRemaining += timeRemaining;
+
+        // Actual Days Logged since Date (if timeBookingsDate is set)
+        if (timeBookingsDate) {
+          let totalTimeLogged = 0;
+          const dateString = timeBookingsDate.format("YYYY-MM-DD");
+          if (record.timeDataByKey) {
+            try {
+              Object.values(record.timeDataByKey).forEach((timeDataArray) => {
+                if (Array.isArray(timeDataArray)) {
+                  timeDataArray.forEach((timeEntry) => {
+                    if (
+                      timeEntry &&
+                      timeEntry.date &&
+                      timeEntry.timeSpent &&
+                      timeEntry.date >= dateString
+                    ) {
+                      totalTimeLogged += timeEntry.timeSpent;
+                    }
+                  });
+                }
+              });
+            } catch (error) {
+              console.warn("Error processing timeDataByKey:", error);
+            }
+          } else if (record.timeBookings) {
+            try {
+              record.timeBookings.forEach((timeEntry) => {
+                if (
+                  timeEntry &&
+                  timeEntry.date &&
+                  timeEntry.timeSpent &&
+                  timeEntry.date >= dateString
+                ) {
+                  totalTimeLogged += timeEntry.timeSpent;
+                }
+              });
+            } catch (error) {
+              console.warn("Error processing timeBookings:", error);
+            }
+          }
+          sumActualDaysSinceDate += totalTimeLogged;
+        }
+      });
+
+      const sumTotalForecast = sumTimeSpent + sumTimeRemaining;
+      const sumVariance = sumTotalForecast - sumOriginalEstimate;
       const cells: React.ReactNode[] = [];
       let cellIndex = 0;
 

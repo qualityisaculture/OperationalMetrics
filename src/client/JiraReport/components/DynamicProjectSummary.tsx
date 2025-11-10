@@ -190,43 +190,6 @@ export const DynamicProjectSummary: React.FC<Props> = ({
       return undefined;
     }
 
-    let sumBaselineEstimate = 0;
-    let sumOriginalEstimate = 0;
-    let sumWorkstreamEstimate = 0;
-    let sumTimeSpent = 0;
-    let sumTimeRemaining = 0;
-
-    dataSource.forEach((record: JiraIssueWithAggregated) => {
-      // Baseline Estimate (only counts workstream's own value, not aggregated)
-      if (record.baselineEstimate != null) {
-        sumBaselineEstimate += record.baselineEstimate;
-      }
-
-      // Original Estimate (only use aggregated - leave blank if not available)
-      // Only sum if we have aggregated data to avoid showing misleading values
-      if (record.aggregatedOriginalEstimate !== undefined) {
-        sumOriginalEstimate += record.aggregatedOriginalEstimate;
-      }
-
-      // Workstream Estimate (only the workstream's own value, not aggregated)
-      if (record.originalEstimate != null) {
-        sumWorkstreamEstimate += record.originalEstimate;
-      }
-
-      // Actual Days Logged (only use aggregated - leave blank if not available)
-      if (record.aggregatedTimeSpent !== undefined) {
-        sumTimeSpent += record.aggregatedTimeSpent;
-      }
-
-      // ETC (only use aggregated - leave blank if not available)
-      if (record.aggregatedTimeRemaining !== undefined) {
-        sumTimeRemaining += record.aggregatedTimeRemaining;
-      }
-    });
-
-    const sumTotalForecast = sumTimeSpent + sumTimeRemaining;
-    const sumVariance = sumTotalForecast - sumOriginalEstimate;
-
     // Find column indices dynamically
     let favoriteIndex = -1;
     let keyIndex = -1;
@@ -266,6 +229,43 @@ export const DynamicProjectSummary: React.FC<Props> = ({
     });
 
     return (pageData: JiraIssueWithAggregated[]) => {
+      // Calculate sums from filtered pageData instead of entire dataSource
+      let sumBaselineEstimate = 0;
+      let sumOriginalEstimate = 0;
+      let sumWorkstreamEstimate = 0;
+      let sumTimeSpent = 0;
+      let sumTimeRemaining = 0;
+
+      pageData.forEach((record: JiraIssueWithAggregated) => {
+        // Baseline Estimate (only counts workstream's own value, not aggregated)
+        if (record.baselineEstimate != null) {
+          sumBaselineEstimate += record.baselineEstimate;
+        }
+
+        // Original Estimate (only use aggregated - leave blank if not available)
+        // Only sum if we have aggregated data to avoid showing misleading values
+        if (record.aggregatedOriginalEstimate !== undefined) {
+          sumOriginalEstimate += record.aggregatedOriginalEstimate;
+        }
+
+        // Workstream Estimate (only the workstream's own value, not aggregated)
+        if (record.originalEstimate != null) {
+          sumWorkstreamEstimate += record.originalEstimate;
+        }
+
+        // Actual Days Logged (only use aggregated - leave blank if not available)
+        if (record.aggregatedTimeSpent !== undefined) {
+          sumTimeSpent += record.aggregatedTimeSpent;
+        }
+
+        // ETC (only use aggregated - leave blank if not available)
+        if (record.aggregatedTimeRemaining !== undefined) {
+          sumTimeRemaining += record.aggregatedTimeRemaining;
+        }
+      });
+
+      const sumTotalForecast = sumTimeSpent + sumTimeRemaining;
+      const sumVariance = sumTotalForecast - sumOriginalEstimate;
       const cells: React.ReactNode[] = [];
       let cellIndex = 0;
 
