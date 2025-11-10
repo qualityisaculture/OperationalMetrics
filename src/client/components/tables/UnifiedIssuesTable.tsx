@@ -395,10 +395,27 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
         cellIndex++;
       }
 
-      // Variance (%) - skipped in summary as percentage variance of sums doesn't have correct meaning
+      // Variance (%)
       if (variancePercentIndex !== -1) {
+        const variancePercent =
+          sumOriginalEstimate > 0
+            ? ((sumTotalForecast - sumOriginalEstimate) / sumOriginalEstimate) * 100
+            : 0;
+        const variancePercentColor =
+          variancePercent > 0 ? "red" : variancePercent < 0 ? "green" : "default";
         cells.push(
-          <Table.Summary.Cell key={cellIndex} index={variancePercentIndex} />
+          <Table.Summary.Cell key={cellIndex} index={variancePercentIndex}>
+            <Text strong>
+              {sumOriginalEstimate > 0 ? (
+                <Tag color={variancePercentColor}>
+                  {variancePercent > 0 ? "+" : ""}
+                  {variancePercent.toFixed(1)}%
+                </Tag>
+              ) : (
+                <Text type="secondary">-</Text>
+              )}
+            </Text>
+          </Table.Summary.Cell>
         );
         cellIndex++;
       }
