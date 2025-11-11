@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, List, Typography, Alert, Tag } from "antd";
+import { Card, List, Typography, Alert, Tag, Collapse } from "antd";
 import { JiraIssueWithAggregated } from "../types";
 
 interface AccountMismatchItem {
@@ -98,89 +98,99 @@ export const findAccountMismatches = (
 const AccountMismatchList: React.FC<AccountMismatchListProps> = ({
   mismatches,
 }) => {
-  if (mismatches.length === 0) {
-    return (
-      <Card title="Account Mismatch Detection" style={{ margin: "16px 0" }}>
-        <Alert
-          message="No Account Mismatches Found"
-          description="All tickets have accounts that match their parent workstream account."
-          type="success"
-          showIcon
-        />
-      </Card>
-    );
-  }
+  const panelHeader = mismatches.length === 0 ? (
+    "Account Mismatch Detection"
+  ) : (
+    <div style={{ display: "flex", alignItems: "center" }}>
+      <span style={{ marginRight: "8px" }}>⚠️</span>
+      <span style={{ color: "#fa8c16" }}>
+        Account Mismatch Detection - {mismatches.length} Mismatch
+        {mismatches.length !== 1 ? "es" : ""} Found
+      </span>
+    </div>
+  );
 
-  return (
-    <Card
-      title={
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <span style={{ marginRight: "8px" }}>⚠️</span>
-          <span style={{ color: "#fa8c16" }}>
-            Account Mismatch Detection - {mismatches.length} Mismatch
-            {mismatches.length !== 1 ? "es" : ""} Found
-          </span>
-        </div>
-      }
+  const panelContent = mismatches.length === 0 ? (
+    <Alert
+      message="No Account Mismatches Found"
+      description="All tickets have accounts that match their parent workstream account."
+      type="success"
+      showIcon
+    />
+  ) : (
+    <div
       style={{
-        margin: "16px 0",
-        borderColor: "#fa8c16",
-        borderWidth: "2px",
-      }}
-      headStyle={{
-        backgroundColor: "#fff7e6",
-        borderBottomColor: "#fa8c16",
+        maxHeight: "400px",
+        overflowY: "auto",
+        overflowX: "hidden",
       }}
     >
-      <div
-        style={{
-          maxHeight: "400px",
-          overflowY: "auto",
-          overflowX: "hidden",
-        }}
-      >
-        <List
-          dataSource={mismatches}
-          renderItem={(mismatch) => (
-            <List.Item>
-              <div style={{ width: "100%" }}>
-                <div style={{ marginBottom: "4px" }}>
-                  <Typography.Text strong>
-                    <a
-                      href={mismatch.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        textDecoration: "none",
-                        color: "#1890ff",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      <Tag color="orange">{mismatch.key}</Tag>
-                    </a>
-                  </Typography.Text>
-                  <Typography.Text style={{ marginLeft: "8px" }}>
-                    {mismatch.summary}
-                  </Typography.Text>
-                </div>
-                <div style={{ marginTop: "4px", fontSize: "12px", color: "#666" }}>
-                  <Typography.Text type="secondary">
-                    Workstream:{" "}
-                    <Tag color="blue">{mismatch.workstreamKey}</Tag>{" "}
-                    {mismatch.workstreamName}
-                  </Typography.Text>
-                  <br />
-                  <Typography.Text type="secondary">
-                    Issue Account: <Tag color="red">{mismatch.issueAccount}</Tag>{" "}
-                    | Expected: <Tag color="green">{mismatch.workstreamAccount}</Tag>
-                  </Typography.Text>
-                </div>
+      <List
+        dataSource={mismatches}
+        renderItem={(mismatch) => (
+          <List.Item>
+            <div style={{ width: "100%" }}>
+              <div style={{ marginBottom: "4px" }}>
+                <Typography.Text strong>
+                  <a
+                    href={mismatch.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      textDecoration: "none",
+                      color: "#1890ff",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    <Tag color="orange">{mismatch.key}</Tag>
+                  </a>
+                </Typography.Text>
+                <Typography.Text style={{ marginLeft: "8px" }}>
+                  {mismatch.summary}
+                </Typography.Text>
               </div>
-            </List.Item>
-          )}
-        />
-      </div>
-    </Card>
+              <div style={{ marginTop: "4px", fontSize: "12px", color: "#666" }}>
+                <Typography.Text type="secondary">
+                  Workstream:{" "}
+                  <Tag color="blue">{mismatch.workstreamKey}</Tag>{" "}
+                  {mismatch.workstreamName}
+                </Typography.Text>
+                <br />
+                <Typography.Text type="secondary">
+                  Issue Account: <Tag color="red">{mismatch.issueAccount}</Tag>{" "}
+                  | Expected: <Tag color="green">{mismatch.workstreamAccount}</Tag>
+                </Typography.Text>
+              </div>
+            </div>
+          </List.Item>
+        )}
+      />
+    </div>
+  );
+
+  return (
+    <div
+      style={{
+        margin: "16px 0",
+        ...(mismatches.length > 0
+          ? {
+              border: "2px solid #fa8c16",
+              borderRadius: "6px",
+            }
+          : {}),
+      }}
+    >
+      <Collapse
+        defaultActiveKey={[]}
+        items={[
+          {
+            key: "account-mismatch",
+            label: panelHeader,
+            children: panelContent,
+          },
+        ]}
+      />
+    </div>
   );
 };
 
