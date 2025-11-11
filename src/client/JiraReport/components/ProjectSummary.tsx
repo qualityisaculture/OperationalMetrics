@@ -143,7 +143,7 @@ export const ProjectSummary: React.FC<Props> = ({
         <Col span={5}>
           <Statistic
             title={
-              isFiltered ? "Filtered Approved Budget" : "Total Approved Budget"
+              isFiltered ? "Filtered Original Estimate" : "Total Original Estimate"
             }
             value={
               loadedWorkstreamCount > 0 &&
