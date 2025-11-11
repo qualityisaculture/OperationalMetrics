@@ -11,7 +11,6 @@ import {
   Divider,
   Collapse,
   Tag,
-  Switch,
 } from "antd";
 import {
   InfoCircleOutlined,
@@ -24,6 +23,8 @@ import { getIssueColumns } from "./tables/issueColumns";
 import { ProjectSummary } from "./ProjectSummary";
 import { ProjectAggregatedData } from "../types";
 import { exportProjectWorkstreamsToExcel } from "../utils/excelExport";
+import { ColumnConfig } from "../../components/ColumnConfig";
+import type { ColumnsType } from "antd/es/table";
 
 const { Text } = Typography;
 
@@ -70,8 +71,9 @@ export const DynamicProjectSummary: React.FC<Props> = ({
   projectAggregatedData,
   projectName,
 }) => {
-  const [showAdditionalColumns, setShowAdditionalColumns] =
-    useState<boolean>(false);
+  const [configuredColumns, setConfiguredColumns] = useState<
+    ColumnsType<JiraIssueWithAggregated>
+  >([]);
   const [filteredData, setFilteredData] = useState<JiraIssueWithAggregated[]>(
     []
   );
@@ -163,7 +165,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
     }
   };
 
-  const issueColumns = useMemo(
+  const baseIssueColumns = useMemo(
     () =>
       getIssueColumns(
         favoriteItems,
@@ -171,8 +173,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
         navigationStack,
         [],
         projectIssues,
-        getWorkstreamDataCellSpan,
-        showAdditionalColumns
+        getWorkstreamDataCellSpan
       ),
     [
       favoriteItems,
@@ -180,9 +181,12 @@ export const DynamicProjectSummary: React.FC<Props> = ({
       navigationStack,
       projectIssues,
       getWorkstreamDataCellSpan,
-      showAdditionalColumns,
     ]
   );
+
+  // Use configured columns if available, otherwise use base columns
+  const issueColumns =
+    configuredColumns.length > 0 ? configuredColumns : baseIssueColumns;
 
   // Calculate summary values for numerical columns
   const summary = useMemo(() => {
@@ -647,6 +651,11 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                 )}
               </div>
               <Space>
+                <ColumnConfig
+                  columns={baseIssueColumns}
+                  storageKey="project-workstreams-table-columns"
+                  onColumnsChange={setConfiguredColumns}
+                />
                 <Text type="secondary">
                   Last updated: {new Date().toLocaleString()}
                   {isFiltered && (
@@ -661,18 +670,6 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                     </span>
                   )}
                 </Text>
-                <Space
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  <span>Show additional columns</span>
-                  <Switch
-                    checked={showAdditionalColumns}
-                    onChange={(checked) => setShowAdditionalColumns(checked)}
-                    onClick={(e) => e.stopPropagation()}
-                    size="small"
-                  />
-                </Space>
                 <Tooltip title="Export Project Workstreams table data to Excel">
                   <Button
                     type="primary"

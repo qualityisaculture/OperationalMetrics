@@ -974,7 +974,6 @@ interface UnifiedColumnProps {
     isFirstColumn?: boolean
   ) => { colSpan?: number };
   timeBookingsDate?: string; // Add the date prop
-  showAdditionalColumns?: boolean;
 }
 
 export const getUnifiedColumns = ({
@@ -986,7 +985,6 @@ export const getUnifiedColumns = ({
   projectIssues,
   getWorkstreamDataCellSpan,
   timeBookingsDate,
-  showAdditionalColumns,
 }: UnifiedColumnProps): ColumnsType<JiraIssueWithAggregated> => {
   const columns: ColumnsType<JiraIssueWithAggregated> = [];
 
@@ -1015,12 +1013,10 @@ export const getUnifiedColumns = ({
     // Baseline Estimate (always visible)
     columns.push(getBaselineEstimateColumn());
 
-    // Original Estimate (conditional - only show when toggle is on)
-    if (showAdditionalColumns) {
-      columns.push(
-        getOriginalEstimateColumn(navigationStack, getWorkstreamDataCellSpan)
-      );
-    }
+    // Original Estimate (always visible)
+    columns.push(
+      getOriginalEstimateColumn(navigationStack, getWorkstreamDataCellSpan)
+    );
 
     // Add remaining workstream columns
     columns.push(

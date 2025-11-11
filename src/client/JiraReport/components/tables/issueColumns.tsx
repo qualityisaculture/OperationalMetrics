@@ -936,7 +936,6 @@ export const getIssueColumns = (
     record: JiraIssueWithAggregated,
     isFirstColumn?: boolean
   ) => { colSpan?: number },
-  showAdditionalColumns?: boolean
 ): ColumnsType<JiraIssueWithAggregated> => {
   const columns: ColumnsType<JiraIssueWithAggregated> = [
     getFavoriteColumn(favoriteItems, toggleFavorite),
@@ -955,11 +954,9 @@ export const getIssueColumns = (
   // Baseline Estimate (always visible)
   columns.push(getBaselineEstimateColumn(getWorkstreamDataCellSpan));
 
-  // Conditionally include Workstream Estimate and Original Estimate
-  if (showAdditionalColumns) {
-    columns.push(getWorkstreamEstimateColumn());
-    columns.push(getOriginalEstimateColumn(navigationStack));
-  }
+  // Workstream Estimate and Original Estimate (always visible)
+  columns.push(getWorkstreamEstimateColumn());
+  columns.push(getOriginalEstimateColumn(navigationStack));
 
   // Add remaining columns
   columns.push(

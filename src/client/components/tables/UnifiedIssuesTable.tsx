@@ -13,6 +13,8 @@ import {
   exportCompleteWorkstreamToExcel,
 } from "../../JiraReport/utils/excelExport";
 import { useResizableColumns, ResizableTitle } from "./index";
+import { ColumnConfig } from "../ColumnConfig";
+import type { ColumnsType } from "antd/es/table";
 
 const { Text } = Typography;
 
@@ -50,8 +52,6 @@ export interface UnifiedIssuesTableProps {
   onRequestTimeBookings?: (fromDate: string) => void;
   timeDataLoaded?: Set<string>;
   currentWorkstreamKey?: string;
-  // UI: Additional columns toggle
-  showAdditionalColumns?: boolean;
 }
 
 export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
@@ -75,9 +75,11 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   onRequestTimeBookings,
   timeDataLoaded = new Set(),
   currentWorkstreamKey,
-  showAdditionalColumns,
 }) => {
   const [exportLoading, setExportLoading] = useState(false);
+  const [configuredColumns, setConfiguredColumns] = useState<
+    ColumnsType<JiraIssueWithAggregated>
+  >([]);
 
   // State for time bookings date selector
   const [timeBookingsDate, setTimeBookingsDate] = useState<Dayjs>(() => {
@@ -88,26 +90,47 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   const [dateKey, setDateKey] = useState(0);
 
   // Get base columns
-  const baseColumns = getUnifiedColumns({
-    showFavoriteColumn,
-    favoriteItems,
-    toggleFavorite,
-    navigationStack,
-    currentIssues,
-    projectIssues,
-    getWorkstreamDataCellSpan,
-    timeBookingsDate: timeBookingsDate.format("YYYY-MM-DD"),
-    showAdditionalColumns,
-  });
+  const baseColumns = useMemo(
+    () =>
+      getUnifiedColumns({
+        showFavoriteColumn,
+        favoriteItems,
+        toggleFavorite,
+        navigationStack,
+        currentIssues,
+        projectIssues,
+        getWorkstreamDataCellSpan,
+        timeBookingsDate: timeBookingsDate.format("YYYY-MM-DD"),
+      }),
+    [
+      showFavoriteColumn,
+      favoriteItems,
+      toggleFavorite,
+      navigationStack,
+      currentIssues,
+      projectIssues,
+      getWorkstreamDataCellSpan,
+      timeBookingsDate,
+    ]
+  );
 
   // Use resizable columns hook
   const { getResizableColumns } = useResizableColumns(baseColumns);
 
-  // Get resizable columns
-  const columns = useMemo(
+  // Get resizable columns from base
+  const resizableColumns = useMemo(
     () => getResizableColumns(baseColumns),
     [getResizableColumns, baseColumns]
   );
+
+  // Apply resizing to configured columns if available, otherwise use resizable columns
+  const columns = useMemo(() => {
+    if (configuredColumns.length > 0) {
+      // Apply resizing to configured columns
+      return getResizableColumns(configuredColumns);
+    }
+    return resizableColumns;
+  }, [configuredColumns, resizableColumns, getResizableColumns]);
 
   // Calculate summary values for numerical columns
   const summary = useMemo(() => {
@@ -480,6 +503,11 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
       }
       extra={
         <Space>
+          <ColumnConfig
+            columns={baseColumns}
+            storageKey="workstream-table-columns"
+            onColumnsChange={setConfiguredColumns}
+          />
           <Text type="secondary">
             Last updated: {new Date().toLocaleString()}
           </Text>
