@@ -27,14 +27,17 @@ export const ColumnConfig = <T,>({
   const [columnConfig, setColumnConfig] = useState<ColumnConfigItem[]>([]);
 
   // Helper to extract title from column
-  const getColumnTitle = (col: typeof columns[0], index: number): string => {
+  const getColumnTitle = (col: (typeof columns)[0], index: number): string => {
     if (typeof col.title === "string") return col.title;
     if (React.isValidElement(col.title)) {
       // Try to extract text from React element
       const props = col.title.props;
       if (props?.children) {
         if (typeof props.children === "string") return props.children;
-        if (React.isValidElement(props.children) && props.children.props?.children) {
+        if (
+          React.isValidElement(props.children) &&
+          props.children.props?.children
+        ) {
           return String(props.children.props.children);
         }
       }
@@ -60,10 +63,12 @@ export const ColumnConfig = <T,>({
         const parsed = JSON.parse(savedConfig) as ColumnConfigItem[];
         // Merge with current columns to handle new/removed columns
         const currentKeys = new Set(
-          columns.map((col, idx) => (col.key || col.dataIndex || `col-${idx}`) as string)
+          columns.map(
+            (col, idx) => (col.key || col.dataIndex || `col-${idx}`) as string
+          )
         );
         const savedKeys = new Set(parsed.map((c) => c.key));
-        
+
         // Add new columns that aren't in saved config
         const mergedConfig: ColumnConfigItem[] = [...parsed];
         let maxOrder = Math.max(...parsed.map((p) => p.order), -1);
@@ -78,14 +83,18 @@ export const ColumnConfig = <T,>({
             });
           }
         });
-        
+
         // Remove columns that no longer exist
-        const filteredConfig = mergedConfig.filter((c) => currentKeys.has(c.key));
-        
+        const filteredConfig = mergedConfig.filter((c) =>
+          currentKeys.has(c.key)
+        );
+
         // Re-sort and renumber
         filteredConfig.sort((a, b) => a.order - b.order);
-        
-        setColumnConfig(filteredConfig.map((item, idx) => ({ ...item, order: idx })));
+
+        setColumnConfig(
+          filteredConfig.map((item, idx) => ({ ...item, order: idx }))
+        );
       } catch (e) {
         console.warn("Failed to parse saved column config:", e);
         initializeDefaultConfig();
@@ -101,7 +110,9 @@ export const ColumnConfig = <T,>({
     if (columnConfig.length === 0) return; // Wait for initial config to load
 
     const currentKeys = new Set(
-      columns.map((col, idx) => (col.key || col.dataIndex || `col-${idx}`) as string)
+      columns.map(
+        (col, idx) => (col.key || col.dataIndex || `col-${idx}`) as string
+      )
     );
     const configKeys = new Set(columnConfig.map((c) => c.key));
 
@@ -154,7 +165,7 @@ export const ColumnConfig = <T,>({
       .map((item) => item.key);
 
     // Create a map of columns by key for quick lookup
-    const columnMap = new Map<string, typeof columns[0]>();
+    const columnMap = new Map<string, (typeof columns)[0]>();
     columns.forEach((col) => {
       const key = (col.key || col.dataIndex || "") as string;
       if (key) {
@@ -280,56 +291,92 @@ export const ColumnConfig = <T,>({
           overflowY: "auto",
           padding: "16px 24px",
         }}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        <Space direction="vertical" style={{ width: "100%" }} size="middle">
-          <Text type="secondary">
-            Drag to reorder columns. Check/uncheck to show/hide columns.
-          </Text>
-          <List
-            dataSource={sortedConfig}
-            renderItem={(item, index) => {
-              // Find the actual index in sorted config for drag operations
-              const actualIndex = sortedConfig.findIndex((c) => c.key === item.key);
-              return (
-                <List.Item
-                  key={item.key}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, actualIndex)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, actualIndex)}
-                style={{
-                  padding: "12px",
-                  border: "1px solid #f0f0f0",
-                  borderRadius: "4px",
-                  marginBottom: "8px",
-                  cursor: "move",
-                  backgroundColor: "#fff",
-                  transition: "background-color 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "#f5f5f5";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "#fff";
-                }}
-              >
-                <Space style={{ width: "100%" }}>
-                  <HolderOutlined style={{ color: "#999", cursor: "move" }} />
-                  <Checkbox
-                    checked={item.visible}
-                    onChange={() => handleToggleVisibility(item.key)}
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <Space
+            direction="vertical"
+            style={{ width: "100%" }}
+            size="middle"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <Text
+              type="secondary"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              Drag to reorder columns. Check/uncheck to show/hide columns.
+            </Text>
+            <List
+              dataSource={sortedConfig}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              renderItem={(item, index) => {
+                // Find the actual index in sorted config for drag operations
+                const actualIndex = sortedConfig.findIndex(
+                  (c) => c.key === item.key
+                );
+                return (
+                  <List.Item
+                    key={item.key}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, actualIndex)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, actualIndex)}
                     onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    style={{
+                      padding: "12px",
+                      border: "1px solid #f0f0f0",
+                      borderRadius: "4px",
+                      marginBottom: "8px",
+                      cursor: "move",
+                      backgroundColor: "#fff",
+                      transition: "background-color 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "#f5f5f5";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "#fff";
+                    }}
                   >
-                    <Text>{item.title}</Text>
-                  </Checkbox>
-                </Space>
-              </List.Item>
-              );
-            }}
-          />
-        </Space>
+                    <Space
+                      style={{ width: "100%" }}
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <HolderOutlined
+                        style={{ color: "#999", cursor: "move" }}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      />
+                      <Checkbox
+                        checked={item.visible}
+                        onChange={() => handleToggleVisibility(item.key)}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <Text
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          {item.title}
+                        </Text>
+                      </Checkbox>
+                    </Space>
+                  </List.Item>
+                );
+              }}
+            />
+          </Space>
+        </div>
       </Modal>
     </>
   );
 };
-
