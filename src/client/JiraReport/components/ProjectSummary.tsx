@@ -86,12 +86,19 @@ export const ProjectSummary: React.FC<Props> = ({
 
   const formatDays = (days: number): string => {
     if (days === 0) return "0d";
-    const wholeDays = Math.floor(days);
+    const roundedDays = Math.round(days * 10) / 10;
+    const wholeDays = Math.floor(roundedDays);
     const remainingFraction = days % 1;
     if (remainingFraction === 0) return `${wholeDays}d`;
     // Round to 1 decimal place for better readability
     const roundedFraction = Math.round(remainingFraction * 10) / 10;
-    return `${wholeDays}.${roundedFraction.toString().split(".")[1]}d`;
+    // If rounding results in 0, return whole days only
+    if (Math.abs(roundedFraction) < 0.01) return `${wholeDays}d`;
+    // Use toFixed to ensure we always get a valid decimal part
+    const decimalPart = roundedFraction.toFixed(1).split(".")[1];
+    // Safety check: ensure decimalPart is never undefined
+    if (!decimalPart) return `${wholeDays}d`;
+    return `${wholeDays}.${decimalPart}d`;
   };
 
   const getTitle = () => {
@@ -143,7 +150,9 @@ export const ProjectSummary: React.FC<Props> = ({
         <Col span={5}>
           <Statistic
             title={
-              isFiltered ? "Filtered Original Estimate" : "Total Original Estimate"
+              isFiltered
+                ? "Filtered Original Estimate"
+                : "Total Original Estimate"
             }
             value={
               loadedWorkstreamCount > 0 &&
