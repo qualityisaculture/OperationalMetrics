@@ -887,7 +887,7 @@ const getTimeSpentSinceDateColumn = (
         console.warn("Error processing timeBookings:", error);
       }
     }
-    
+
     // Check if there's any time booking data (including outside the filter)
     const hasAnyTimeData =
       (record.timeDataByKey &&
@@ -896,79 +896,35 @@ const getTimeSpentSinceDateColumn = (
         )) ||
       (record.timeBookings && record.timeBookings.length > 0);
 
-    if (record.childCount > 0 && totalTimeLogged > 0) {
-      return (
-        <Text>
-          <Tag
-            color="blue"
-            style={
-              hasAnyTimeData && onTimeBookingsClick
-                ? { cursor: "pointer" }
-                : {}
-            }
-            onClick={
-              hasAnyTimeData && onTimeBookingsClick
-                ? (e) => {
-                    e.stopPropagation();
-                    onTimeBookingsClick(record);
-                  }
-                : undefined
-            }
-          >
-            {totalTimeLogged.toFixed(1)} days
+    if (!timeBookingsDate) {
+      return <Text type="secondary">-</Text>;
+    }
+
+    return (
+      <Text>
+        <Tag
+          color="blue"
+          style={
+            hasAnyTimeData && onTimeBookingsClick ? { cursor: "pointer" } : {}
+          }
+          onClick={
+            hasAnyTimeData && onTimeBookingsClick
+              ? (e) => {
+                  e.stopPropagation();
+                  onTimeBookingsClick(record);
+                }
+              : undefined
+          }
+        >
+          {totalTimeLogged.toFixed(1)} days
+          {record.childCount > 0 && (
             <Text type="secondary" style={{ marginLeft: "4px" }}>
               (agg)
             </Text>
-          </Tag>
-        </Text>
-      );
-    } else if (totalTimeLogged > 0) {
-      return (
-        <Text>
-          <Tag
-            color="blue"
-            style={
-              hasAnyTimeData && onTimeBookingsClick
-                ? { cursor: "pointer" }
-                : {}
-            }
-            onClick={
-              hasAnyTimeData && onTimeBookingsClick
-                ? (e) => {
-                    e.stopPropagation();
-                    onTimeBookingsClick(record);
-                  }
-                : undefined
-            }
-          >
-            {totalTimeLogged.toFixed(1)} days
-          </Tag>
-        </Text>
-      );
-    }
-    if (timeBookingsDate) {
-      // Even if no time in filter, show clickable if there's any time data
-      if (hasAnyTimeData && onTimeBookingsClick) {
-        return (
-          <Text
-            type="secondary"
-            style={{ fontSize: "11px", cursor: "pointer" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onTimeBookingsClick(record);
-            }}
-          >
-            No time data since {timeBookingsDate} (click to view all)
-          </Text>
-        );
-      }
-      return (
-        <Text type="secondary" style={{ fontSize: "11px" }}>
-          No time data since {timeBookingsDate}
-        </Text>
-      );
-    }
-    return <Text type="secondary">-</Text>;
+          )}
+        </Tag>
+      </Text>
+    );
   },
   sorter: (a, b) => {
     const getTotalTime = (record: JiraIssueWithAggregated): number => {
