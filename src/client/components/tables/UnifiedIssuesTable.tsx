@@ -155,44 +155,6 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
       return null;
     }
 
-    // Find column indices dynamically
-    let favoriteIndex = -1;
-    let keyIndex = -1;
-    let summaryIndex = -1;
-    let typeIndex = -1;
-    let statusIndex = -1;
-    let priorityIndex = -1;
-    let accountIndex = -1;
-    let childrenIndex = -1;
-    let baselineEstimateIndex = -1;
-    let originalEstimateIndex = -1;
-    let timeSpentIndex = -1;
-    let timeRemainingIndex = -1;
-    let totalForecastIndex = -1;
-    let varianceDaysIndex = -1;
-    let variancePercentIndex = -1;
-    let actualDaysSinceDateIndex = -1;
-
-    columns.forEach((col: any, index: number) => {
-      const key = col.key || col.dataIndex;
-      if (key === "favorite") favoriteIndex = index;
-      else if (key === "key") keyIndex = index;
-      else if (key === "summary") summaryIndex = index;
-      else if (key === "type") typeIndex = index;
-      else if (key === "status") statusIndex = index;
-      else if (key === "priority") priorityIndex = index;
-      else if (key === "account") accountIndex = index;
-      else if (key === "children") childrenIndex = index;
-      else if (key === "baselineEstimate") baselineEstimateIndex = index;
-      else if (key === "originalEstimate") originalEstimateIndex = index;
-      else if (key === "timeSpent") timeSpentIndex = index;
-      else if (key === "timeRemaining") timeRemainingIndex = index;
-      else if (key === "totalForecast") totalForecastIndex = index;
-      else if (key === "varianceDays") varianceDaysIndex = index;
-      else if (key === "variancePercent") variancePercentIndex = index;
-      else if (key === "actualDaysLogged") actualDaysSinceDateIndex = index;
-    });
-
     return (pageData: JiraIssueWithAggregated[]) => {
       // Calculate sums from filtered pageData instead of entire dataSource
       let sumBaselineEstimate = 0;
@@ -273,208 +235,159 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
 
       const sumTotalForecast = sumTimeSpent + sumTimeRemaining;
       const sumVariance = sumTotalForecast - sumOriginalEstimate;
+
+      // Build cells in the same order as columns
       const cells: React.ReactNode[] = [];
-      let cellIndex = 0;
 
-      // Favorite column
-      if (showFavoriteColumn && favoriteIndex !== -1) {
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={favoriteIndex} />
-        );
-        cellIndex++;
-      }
+      columns.forEach((col: any, index: number) => {
+        const key = col.key || col.dataIndex;
 
-      // Issue Key
-      if (keyIndex !== -1) {
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={keyIndex}>
-            <Text strong>Total</Text>
-          </Table.Summary.Cell>
-        );
-        cellIndex++;
-      }
-
-      // Summary
-      if (summaryIndex !== -1) {
-        cells.push(<Table.Summary.Cell key={cellIndex} index={summaryIndex} />);
-        cellIndex++;
-      }
-
-      // Issue Type
-      if (typeIndex !== -1) {
-        cells.push(<Table.Summary.Cell key={cellIndex} index={typeIndex} />);
-        cellIndex++;
-      }
-
-      // Status
-      if (statusIndex !== -1) {
-        cells.push(<Table.Summary.Cell key={cellIndex} index={statusIndex} />);
-        cellIndex++;
-      }
-
-      // Priority
-      if (priorityIndex !== -1) {
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={priorityIndex} />
-        );
-        cellIndex++;
-      }
-
-      // Account
-      if (accountIndex !== -1) {
-        cells.push(<Table.Summary.Cell key={cellIndex} index={accountIndex} />);
-        cellIndex++;
-      }
-
-      // Children
-      if (childrenIndex !== -1) {
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={childrenIndex} />
-        );
-        cellIndex++;
-      }
-
-      // Baseline Estimate
-      if (baselineEstimateIndex !== -1) {
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={baselineEstimateIndex}>
-            <Text strong>
-              {sumBaselineEstimate > 0 ? (
-                <Tag color="orange">{sumBaselineEstimate.toFixed(1)} days</Tag>
-              ) : (
-                <Text type="secondary">-</Text>
-              )}
-            </Text>
-          </Table.Summary.Cell>
-        );
-        cellIndex++;
-      }
-
-      // Original Estimate
-      if (originalEstimateIndex !== -1) {
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={originalEstimateIndex}>
-            <Text strong>
-              {sumOriginalEstimate > 0 ? (
-                <Tag color="green">{sumOriginalEstimate.toFixed(1)} days</Tag>
-              ) : (
-                <Text type="secondary">-</Text>
-              )}
-            </Text>
-          </Table.Summary.Cell>
-        );
-        cellIndex++;
-      }
-
-      // Actual Days Logged
-      if (timeSpentIndex !== -1) {
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={timeSpentIndex}>
-            <Text strong>
-              {sumTimeSpent > 0 ? (
-                <Tag color="blue">{sumTimeSpent.toFixed(1)} days</Tag>
-              ) : (
-                <Text type="secondary">-</Text>
-              )}
-            </Text>
-          </Table.Summary.Cell>
-        );
-        cellIndex++;
-      }
-
-      // ETC
-      if (timeRemainingIndex !== -1) {
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={timeRemainingIndex}>
-            <Text strong>
-              {sumTimeRemaining > 0 ? (
-                <Tag color="red">{sumTimeRemaining.toFixed(1)} days</Tag>
-              ) : (
-                <Text type="secondary">-</Text>
-              )}
-            </Text>
-          </Table.Summary.Cell>
-        );
-        cellIndex++;
-      }
-
-      // Total Forecast
-      if (totalForecastIndex !== -1) {
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={totalForecastIndex}>
-            <Text strong>
-              {sumTotalForecast > 0 ? (
-                <Tag color="purple">{sumTotalForecast.toFixed(1)} days</Tag>
-              ) : (
-                <Text type="secondary">-</Text>
-              )}
-            </Text>
-          </Table.Summary.Cell>
-        );
-        cellIndex++;
-      }
-
-      // Variance (Days)
-      if (varianceDaysIndex !== -1) {
-        const varianceColor =
-          sumVariance > 0 ? "red" : sumVariance < 0 ? "green" : "default";
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={varianceDaysIndex}>
-            <Text strong>
-              {sumOriginalEstimate > 0 || sumTotalForecast > 0 ? (
-                <Tag color={varianceColor}>
-                  {sumVariance > 0 ? "+" : ""}
-                  {sumVariance.toFixed(1)} days
-                </Tag>
-              ) : (
-                <Text type="secondary">-</Text>
-              )}
-            </Text>
-          </Table.Summary.Cell>
-        );
-        cellIndex++;
-      }
-
-      // Variance (%)
-      if (variancePercentIndex !== -1) {
-        const variancePercent =
-          sumOriginalEstimate > 0
-            ? ((sumTotalForecast - sumOriginalEstimate) / sumOriginalEstimate) * 100
-            : 0;
-        const variancePercentColor =
-          variancePercent > 0 ? "red" : variancePercent < 0 ? "green" : "default";
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={variancePercentIndex}>
-            <Text strong>
-              {sumOriginalEstimate > 0 ? (
-                <Tag color={variancePercentColor}>
-                  {variancePercent > 0 ? "+" : ""}
-                  {variancePercent.toFixed(1)}%
-                </Tag>
-              ) : (
-                <Text type="secondary">-</Text>
-              )}
-            </Text>
-          </Table.Summary.Cell>
-        );
-        cellIndex++;
-      }
-
-      // Actual Days Logged since Date
-      if (actualDaysSinceDateIndex !== -1 && timeBookingsDate) {
-        cells.push(
-          <Table.Summary.Cell key={cellIndex} index={actualDaysSinceDateIndex}>
-            <Text strong>
-              {sumActualDaysSinceDate > 0 ? (
-                <Tag color="blue">{sumActualDaysSinceDate.toFixed(1)} days</Tag>
-              ) : (
-                <Text type="secondary">-</Text>
-              )}
-            </Text>
-          </Table.Summary.Cell>
-        );
-        cellIndex++;
-      }
+        if (key === "favorite") {
+          // Always add cell if favorite column exists (even if showFavoriteColumn is false, it might be in the columns array)
+          cells.push(
+            <Table.Summary.Cell key={`summary-${index}`} index={index} />
+          );
+        } else if (key === "key") {
+          cells.push(
+            <Table.Summary.Cell key={`summary-${index}`} index={index}>
+              <Text strong>Total</Text>
+            </Table.Summary.Cell>
+          );
+        } else if (
+          key === "summary" ||
+          key === "type" ||
+          key === "status" ||
+          key === "priority" ||
+          key === "account" ||
+          key === "children"
+        ) {
+          // Empty cells for non-numerical columns
+          cells.push(
+            <Table.Summary.Cell key={`summary-${index}`} index={index} />
+          );
+        } else if (key === "baselineEstimate") {
+          cells.push(
+            <Table.Summary.Cell key={`summary-${index}`} index={index}>
+              <Text strong>
+                {sumBaselineEstimate > 0 ? (
+                  <Tag color="orange">{sumBaselineEstimate.toFixed(1)} days</Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            </Table.Summary.Cell>
+          );
+        } else if (key === "originalEstimate") {
+          cells.push(
+            <Table.Summary.Cell key={`summary-${index}`} index={index}>
+              <Text strong>
+                {sumOriginalEstimate > 0 ? (
+                  <Tag color="green">{sumOriginalEstimate.toFixed(1)} days</Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            </Table.Summary.Cell>
+          );
+        } else if (key === "timeSpent") {
+          cells.push(
+            <Table.Summary.Cell key={`summary-${index}`} index={index}>
+              <Text strong>
+                {sumTimeSpent > 0 ? (
+                  <Tag color="blue">{sumTimeSpent.toFixed(1)} days</Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            </Table.Summary.Cell>
+          );
+        } else if (key === "timeRemaining") {
+          cells.push(
+            <Table.Summary.Cell key={`summary-${index}`} index={index}>
+              <Text strong>
+                {sumTimeRemaining > 0 ? (
+                  <Tag color="red">{sumTimeRemaining.toFixed(1)} days</Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            </Table.Summary.Cell>
+          );
+        } else if (key === "totalForecast") {
+          cells.push(
+            <Table.Summary.Cell key={`summary-${index}`} index={index}>
+              <Text strong>
+                {sumTotalForecast > 0 ? (
+                  <Tag color="purple">{sumTotalForecast.toFixed(1)} days</Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            </Table.Summary.Cell>
+          );
+        } else if (key === "varianceDays") {
+          const varianceColor =
+            sumVariance > 0 ? "red" : sumVariance < 0 ? "green" : "default";
+          cells.push(
+            <Table.Summary.Cell key={`summary-${index}`} index={index}>
+              <Text strong>
+                {sumOriginalEstimate > 0 || sumTotalForecast > 0 ? (
+                  <Tag color={varianceColor}>
+                    {sumVariance > 0 ? "+" : ""}
+                    {sumVariance.toFixed(1)} days
+                  </Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            </Table.Summary.Cell>
+          );
+        } else if (key === "variancePercent") {
+          const variancePercent =
+            sumOriginalEstimate > 0
+              ? ((sumTotalForecast - sumOriginalEstimate) / sumOriginalEstimate) * 100
+              : 0;
+          const variancePercentColor =
+            variancePercent > 0 ? "red" : variancePercent < 0 ? "green" : "default";
+          cells.push(
+            <Table.Summary.Cell key={`summary-${index}`} index={index}>
+              <Text strong>
+                {sumOriginalEstimate > 0 ? (
+                  <Tag color={variancePercentColor}>
+                    {variancePercent > 0 ? "+" : ""}
+                    {variancePercent.toFixed(1)}%
+                  </Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            </Table.Summary.Cell>
+          );
+        } else if (key === "actualDaysLogged") {
+          if (timeBookingsDate) {
+            cells.push(
+              <Table.Summary.Cell key={`summary-${index}`} index={index}>
+                <Text strong>
+                  {sumActualDaysSinceDate > 0 ? (
+                    <Tag color="blue">{sumActualDaysSinceDate.toFixed(1)} days</Tag>
+                  ) : (
+                    <Text type="secondary">0.0 days</Text>
+                  )}
+                </Text>
+              </Table.Summary.Cell>
+            );
+          } else {
+            cells.push(
+              <Table.Summary.Cell key={`summary-${index}`} index={index} />
+            );
+          }
+        } else {
+          // Empty cell for any other columns
+          cells.push(
+            <Table.Summary.Cell key={`summary-${index}`} index={index} />
+          );
+        }
+      });
 
       return <Table.Summary.Row>{cells}</Table.Summary.Row>;
     };
