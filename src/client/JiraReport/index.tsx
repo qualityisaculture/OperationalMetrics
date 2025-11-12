@@ -68,9 +68,6 @@ const JiraReport: React.FC = () => {
     return date.toISOString().split("T")[0];
   });
 
-  // State for tracking which workstreams have loaded time data
-  const [timeDataLoaded, setTimeDataLoaded] = useState<Set<string>>(new Set());
-
   const handleClearCache = () => {
     // Reset local component state
     setTimeBookingsModal({
@@ -78,7 +75,6 @@ const JiraReport: React.FC = () => {
       workstreamKey: "",
       workstreamSummary: "",
     });
-    setTimeDataLoaded(new Set());
     // Then clear cache and reload (which will reset hook state and clear server cache)
     clearCacheAndReload();
   };
@@ -111,6 +107,22 @@ const JiraReport: React.FC = () => {
     () => findAccountMismatches(projectIssues),
     [projectIssues]
   );
+
+  // Derive which workstreams have loaded time data from the persisted state
+  // This ensures the data persists across navigation
+  const timeDataLoaded = useMemo(() => {
+    const loaded = new Set<string>();
+    projectIssues.forEach((issue) => {
+      // Check if this workstream has time bookings data loaded
+      if (
+        issue.timeBookings ||
+        (issue.timeDataByKey && Object.keys(issue.timeDataByKey).length > 0)
+      ) {
+        loaded.add(issue.key);
+      }
+    });
+    return loaded;
+  }, [projectIssues]);
 
   const showTimeBookingsModal = (fromDate: string) => {
     // Update the date state with the selected date
@@ -149,10 +161,8 @@ const JiraReport: React.FC = () => {
         timeBookingsModal.workstreamKey,
         timeBookingsDate
       );
-      // Add this workstream to the set of loaded workstreams
-      setTimeDataLoaded((prev) =>
-        new Set(prev).add(timeBookingsModal.workstreamKey)
-      );
+      // Note: timeDataLoaded is now derived from projectIssues, so it will automatically
+      // update when the hook state is updated by requestTimeBookings
     }
     hideTimeBookingsModal();
   };

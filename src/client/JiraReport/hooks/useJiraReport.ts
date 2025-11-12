@@ -566,6 +566,13 @@ export const useJiraReport = () => {
               newLoadedWorkstreamData
             );
 
+            // Merge time bookings data from projectIssues into currentIssues
+            const mergedCurrentIssues = mergeTimeBookingsData(
+              processedChildren,
+              updatedProjectIssues,
+              workstream.key
+            );
+
             return {
               ...prevState,
               projectIssues: updatedProjectIssues,
@@ -573,7 +580,7 @@ export const useJiraReport = () => {
                 ...prevState.navigationStack,
                 newNavigationItem,
               ],
-              currentIssues: processedChildren,
+              currentIssues: mergedCurrentIssues,
               currentIssuesLoading: false,
               loadedWorkstreamData: newLoadedWorkstreamData,
               projectAggregatedData,
@@ -653,6 +660,39 @@ export const useJiraReport = () => {
     return null;
   };
 
+  // Helper function to merge time bookings data from projectIssues into currentIssues
+  const mergeTimeBookingsData = (
+    issues: JiraIssueWithAggregated[],
+    projectIssues: JiraIssueWithAggregated[],
+    workstreamKey?: string
+  ): JiraIssueWithAggregated[] => {
+    // Find the workstream in projectIssues that has time bookings data
+    const workstreamWithTimeData = workstreamKey
+      ? projectIssues.find((ws) => ws.key === workstreamKey)
+      : null;
+
+    if (!workstreamWithTimeData) {
+      return issues;
+    }
+
+    // Merge time bookings data into issues
+    return issues.map((issue) => {
+      // Check if this issue has time data in the workstream's timeDataByKey
+      if (
+        workstreamWithTimeData.timeDataByKey &&
+        workstreamWithTimeData.timeDataByKey[issue.key]
+      ) {
+        const childTimeData = workstreamWithTimeData.timeDataByKey[issue.key];
+        return {
+          ...issue,
+          timeBookings: childTimeData || [],
+          timeBookingsFromDate: workstreamWithTimeData.timeBookingsFromDate,
+        };
+      }
+      return issue;
+    });
+  };
+
   const handleIssueClick = (issue: JiraIssueWithAggregated) => {
     if (issue.childCount === 0) {
       return;
@@ -696,10 +736,23 @@ export const useJiraReport = () => {
 
       console.log(`Adding issue to navigation stack:`, newNavigationItem);
 
+      // Find the parent workstream key from navigation stack
+      // The first item is the project, the second item (if exists) is the workstream
+      const parentWorkstreamKey = state.navigationStack.length > 1
+        ? state.navigationStack[1].key
+        : undefined;
+
+      // Merge time bookings data from projectIssues into currentIssues
+      const mergedCurrentIssues = mergeTimeBookingsData(
+        processedChildren,
+        state.projectIssues,
+        parentWorkstreamKey
+      );
+
       setState((prevState) => ({
         ...prevState,
         navigationStack: [...prevState.navigationStack, newNavigationItem],
-        currentIssues: processedChildren,
+        currentIssues: mergedCurrentIssues,
         currentIssuesLoading: false,
         currentIssuesError: null,
       }));
@@ -817,16 +870,31 @@ export const useJiraReport = () => {
     const targetStack = state.navigationStack.slice(0, index + 1);
     const targetItem = targetStack[targetStack.length - 1];
 
-    setState((prevState) => ({
-      ...prevState,
-      navigationStack: targetStack,
-      currentIssues: targetItem.data,
-      currentIssuesLoading: false,
-      currentIssuesError: null,
-      progressStatus: "Idle",
-      progressDetails: undefined,
-      currentStep: undefined,
-    }));
+    setState((prevState) => {
+      // Find the parent workstream key
+      // The first item is the project, the second item (if exists) is the workstream
+      const parentWorkstreamKey = targetStack.length > 1
+        ? targetStack[1].key
+        : undefined;
+
+      // Merge time bookings data from projectIssues into currentIssues
+      const mergedCurrentIssues = mergeTimeBookingsData(
+        targetItem.data,
+        prevState.projectIssues,
+        parentWorkstreamKey
+      );
+
+      return {
+        ...prevState,
+        navigationStack: targetStack,
+        currentIssues: mergedCurrentIssues,
+        currentIssuesLoading: false,
+        currentIssuesError: null,
+        progressStatus: "Idle",
+        progressDetails: undefined,
+        currentStep: undefined,
+      };
+    });
   };
 
   const showRequestAllModal = () => {

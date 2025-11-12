@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Card, Space, Table, Button, Typography, DatePicker, Tag } from "antd";
 import {
   InfoCircleOutlined,
@@ -90,8 +90,34 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   // Force re-render when date changes to update the "Actual Days since Date" column
   const [dateKey, setDateKey] = useState(0);
 
+  // Sync date picker with loaded data's date when workstream changes or data is loaded
+  useEffect(() => {
+    if (currentWorkstreamKey && timeDataLoaded.has(currentWorkstreamKey)) {
+      // Find the workstream in currentIssues or projectIssues
+      const workstream =
+        currentIssues?.find((issue) => issue.key === currentWorkstreamKey) ||
+        projectIssues?.find((issue) => issue.key === currentWorkstreamKey);
+
+      if (workstream?.timeBookingsFromDate) {
+        const loadedDate = dayjs(workstream.timeBookingsFromDate);
+        // Only update if the date is different to avoid unnecessary re-renders
+        if (!timeBookingsDate.isSame(loadedDate, "day")) {
+          setTimeBookingsDate(loadedDate);
+          setDateKey((prev) => prev + 1); // Force re-render
+        }
+      }
+    }
+  }, [
+    currentWorkstreamKey,
+    timeDataLoaded,
+    currentIssues,
+    projectIssues,
+    timeBookingsDate,
+  ]);
+
   // State for time bookings modal
-  const [timeBookingsModalVisible, setTimeBookingsModalVisible] = useState(false);
+  const [timeBookingsModalVisible, setTimeBookingsModalVisible] =
+    useState(false);
   const [selectedRecordForModal, setSelectedRecordForModal] =
     useState<JiraIssueWithAggregated | null>(null);
 
@@ -270,7 +296,9 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
             <Table.Summary.Cell key={`summary-${index}`} index={index}>
               <Text strong>
                 {sumBaselineEstimate > 0 ? (
-                  <Tag color="orange">{sumBaselineEstimate.toFixed(1)} days</Tag>
+                  <Tag color="orange">
+                    {sumBaselineEstimate.toFixed(1)} days
+                  </Tag>
                 ) : (
                   <Text type="secondary">-</Text>
                 )}
@@ -345,10 +373,16 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
         } else if (key === "variancePercent") {
           const variancePercent =
             sumOriginalEstimate > 0
-              ? ((sumTotalForecast - sumOriginalEstimate) / sumOriginalEstimate) * 100
+              ? ((sumTotalForecast - sumOriginalEstimate) /
+                  sumOriginalEstimate) *
+                100
               : 0;
           const variancePercentColor =
-            variancePercent > 0 ? "red" : variancePercent < 0 ? "green" : "default";
+            variancePercent > 0
+              ? "red"
+              : variancePercent < 0
+                ? "green"
+                : "default";
           cells.push(
             <Table.Summary.Cell key={`summary-${index}`} index={index}>
               <Text strong>
@@ -369,7 +403,9 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
               <Table.Summary.Cell key={`summary-${index}`} index={index}>
                 <Text strong>
                   {sumActualDaysSinceDate > 0 ? (
-                    <Tag color="blue">{sumActualDaysSinceDate.toFixed(1)} days</Tag>
+                    <Tag color="blue">
+                      {sumActualDaysSinceDate.toFixed(1)} days
+                    </Tag>
                   ) : (
                     <Text type="secondary">0.0 days</Text>
                   )}
