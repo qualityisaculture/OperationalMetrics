@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Card, Space, Table, Button, Typography, DatePicker, Tag } from "antd";
 import {
   InfoCircleOutlined,
@@ -15,6 +15,7 @@ import {
 import { useResizableColumns, ResizableTitle } from "./index";
 import { ColumnConfig } from "../ColumnConfig";
 import type { ColumnsType } from "antd/es/table";
+import { TimeBookingsModal } from "./TimeBookingsModal";
 
 const { Text } = Typography;
 
@@ -89,6 +90,20 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   // Force re-render when date changes to update the "Actual Days since Date" column
   const [dateKey, setDateKey] = useState(0);
 
+  // State for time bookings modal
+  const [timeBookingsModalVisible, setTimeBookingsModalVisible] = useState(false);
+  const [selectedRecordForModal, setSelectedRecordForModal] =
+    useState<JiraIssueWithAggregated | null>(null);
+
+  // Handler for opening time bookings modal
+  const handleTimeBookingsClick = useCallback(
+    (record: JiraIssueWithAggregated) => {
+      setSelectedRecordForModal(record);
+      setTimeBookingsModalVisible(true);
+    },
+    []
+  );
+
   // Get base columns
   const baseColumns = useMemo(
     () =>
@@ -101,6 +116,7 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
         projectIssues,
         getWorkstreamDataCellSpan,
         timeBookingsDate: timeBookingsDate.format("YYYY-MM-DD"),
+        onTimeBookingsClick: handleTimeBookingsClick,
       }),
     [
       showFavoriteColumn,
@@ -111,6 +127,7 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
       projectIssues,
       getWorkstreamDataCellSpan,
       timeBookingsDate,
+      handleTimeBookingsClick,
     ]
   );
 
@@ -574,6 +591,15 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
           summary={summary || undefined}
         />
       </div>
+      <TimeBookingsModal
+        visible={timeBookingsModalVisible}
+        onClose={() => {
+          setTimeBookingsModalVisible(false);
+          setSelectedRecordForModal(null);
+        }}
+        record={selectedRecordForModal}
+        filterDate={timeBookingsDate.format("YYYY-MM-DD")}
+      />
     </Card>
   );
 };

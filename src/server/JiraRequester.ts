@@ -424,20 +424,18 @@ export default class JiraRequester {
               const toTime = parseInt(item.toString || "0");
               const timeAdded = toTime - fromTime;
 
-              if (timeAdded > 0) {
-                // Convert seconds to days (assuming 7.5 hours per day)
-                const timeAddedInDays = timeAdded / (3600 * 7.5);
-                const date = history.created.split("T")[0]; // YYYY-MM-DD format
+              // Convert seconds to days (assuming 7.5 hours per day)
+              const timeAddedInDays = timeAdded / (3600 * 7.5);
+              const date = history.created.split("T")[0]; // YYYY-MM-DD format
 
-                timeEntries.push({
-                  date,
-                  timeSpent: timeAddedInDays,
-                });
+              timeEntries.push({
+                date,
+                timeSpent: timeAddedInDays,
+              });
 
-                console.log(
-                  `Added ${timeAddedInDays.toFixed(2)} days for ${issueKey} on ${date}`
-                );
-              }
+              console.log(
+                `Added ${timeAddedInDays.toFixed(2)} days for ${issueKey} on ${date}`
+              );
             }
           }
         } else {

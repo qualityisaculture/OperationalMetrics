@@ -843,7 +843,8 @@ const getTimeSpentSinceDateColumn = (
   getWorkstreamDataCellSpan?: (
     record: JiraIssueWithAggregated,
     isFirstColumn?: boolean
-  ) => { colSpan?: number }
+  ) => { colSpan?: number },
+  onTimeBookingsClick?: (record: JiraIssueWithAggregated) => void
 ) => ({
   title: `Time Spent since ${timeBookingsDate}`,
   key: "actualDaysLogged",
@@ -886,10 +887,34 @@ const getTimeSpentSinceDateColumn = (
         console.warn("Error processing timeBookings:", error);
       }
     }
+    
+    // Check if there's any time booking data (including outside the filter)
+    const hasAnyTimeData =
+      (record.timeDataByKey &&
+        Object.values(record.timeDataByKey).some(
+          (arr) => Array.isArray(arr) && arr.length > 0
+        )) ||
+      (record.timeBookings && record.timeBookings.length > 0);
+
     if (record.childCount > 0 && totalTimeLogged > 0) {
       return (
         <Text>
-          <Tag color="blue">
+          <Tag
+            color="blue"
+            style={
+              hasAnyTimeData && onTimeBookingsClick
+                ? { cursor: "pointer" }
+                : {}
+            }
+            onClick={
+              hasAnyTimeData && onTimeBookingsClick
+                ? (e) => {
+                    e.stopPropagation();
+                    onTimeBookingsClick(record);
+                  }
+                : undefined
+            }
+          >
             {totalTimeLogged.toFixed(1)} days
             <Text type="secondary" style={{ marginLeft: "4px" }}>
               (agg)
@@ -900,11 +925,43 @@ const getTimeSpentSinceDateColumn = (
     } else if (totalTimeLogged > 0) {
       return (
         <Text>
-          <Tag color="blue">{totalTimeLogged.toFixed(1)} days</Tag>
+          <Tag
+            color="blue"
+            style={
+              hasAnyTimeData && onTimeBookingsClick
+                ? { cursor: "pointer" }
+                : {}
+            }
+            onClick={
+              hasAnyTimeData && onTimeBookingsClick
+                ? (e) => {
+                    e.stopPropagation();
+                    onTimeBookingsClick(record);
+                  }
+                : undefined
+            }
+          >
+            {totalTimeLogged.toFixed(1)} days
+          </Tag>
         </Text>
       );
     }
     if (timeBookingsDate) {
+      // Even if no time in filter, show clickable if there's any time data
+      if (hasAnyTimeData && onTimeBookingsClick) {
+        return (
+          <Text
+            type="secondary"
+            style={{ fontSize: "11px", cursor: "pointer" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onTimeBookingsClick(record);
+            }}
+          >
+            No time data since {timeBookingsDate} (click to view all)
+          </Text>
+        );
+      }
       return (
         <Text type="secondary" style={{ fontSize: "11px" }}>
           No time data since {timeBookingsDate}
@@ -974,6 +1031,7 @@ interface UnifiedColumnProps {
     isFirstColumn?: boolean
   ) => { colSpan?: number };
   timeBookingsDate?: string; // Add the date prop
+  onTimeBookingsClick?: (record: JiraIssueWithAggregated) => void; // Callback for opening time bookings modal
 }
 
 export const getUnifiedColumns = ({
@@ -985,6 +1043,7 @@ export const getUnifiedColumns = ({
   projectIssues,
   getWorkstreamDataCellSpan,
   timeBookingsDate,
+  onTimeBookingsClick,
 }: UnifiedColumnProps): ColumnsType<JiraIssueWithAggregated> => {
   const columns: ColumnsType<JiraIssueWithAggregated> = [];
 
@@ -1031,7 +1090,11 @@ export const getUnifiedColumns = ({
   // Time Spent since Date column (conditional)
   if (timeBookingsDate) {
     columns.push(
-      getTimeSpentSinceDateColumn(timeBookingsDate, getWorkstreamDataCellSpan)
+      getTimeSpentSinceDateColumn(
+        timeBookingsDate,
+        getWorkstreamDataCellSpan,
+        onTimeBookingsClick
+      )
     );
   }
 
