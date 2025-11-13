@@ -33,7 +33,12 @@ export type LiteJiraIssue = {
   epicStartDate: string | null; // Epic Start Date (fallback) - always present
   epicEndDate: string | null; // Epic End Date (fallback) - always present
   hasChildren?: boolean | null; // true = has children, false = no children, null/undefined = unknown
-  timeSpentDetail?: Array<{ date: string; timeSpent: number }>; // Time spent detail with dates (only populated when withTimeSpentDetail=true)
+  timeSpentDetail?: Array<{
+    date: string;
+    timeSpent: number;
+    timeSpentMinutes: number;
+    timeSpentDays: number;
+  }>; // Time spent detail with dates (only populated when withTimeSpentDetail=true)
   links?: Array<{
     type: string;
     linkedIssueKey: string;
@@ -370,9 +375,17 @@ export default class JiraRequester {
     return releasedReleases.slice(-count);
   }
 
-  async getTimeTrackingData(
-    issueKeys: string[]
-  ): Promise<Record<string, Array<{ date: string; timeSpent: number }>>> {
+  async getTimeTrackingData(issueKeys: string[]): Promise<
+    Record<
+      string,
+      Array<{
+        date: string;
+        timeSpent: number;
+        timeSpentMinutes: number;
+        timeSpentDays: number;
+      }>
+    >
+  > {
     if (issueKeys.length === 0) {
       return {};
     }
@@ -382,76 +395,48 @@ export default class JiraRequester {
         `Fetching time tracking data for ${issueKeys.length} issues...`
       );
 
-      // Get issues with changelog enabled to track time changes
-      const issuesWithChangelog = await this.requestIssueFromServer(issueKeys);
-      console.log(
-        `Retrieved ${issuesWithChangelog.issues.length} issues with changelog`
+      // Get updated timestamps for all issue keys (required for getFullJiraDataFromKeys)
+      const lastUpdatedKeys = await this.getJiraKeysInQuery(
+        issueKeys.map((key) => `key=${key}`).join(" OR ")
       );
+
+      // Use getFullJiraDataFromKeys which handles caching and updates properly
+      const jiras = await this.getFullJiraDataFromKeys(lastUpdatedKeys);
 
       const timeTrackingData: Record<
         string,
-        Array<{ date: string; timeSpent: number }>
+        Array<{
+          date: string;
+          timeSpent: number;
+          timeSpentMinutes: number;
+          timeSpentDays: number;
+        }>
       > = {};
 
-      for (const issue of issuesWithChangelog.issues) {
-        const issueKey = issue.key;
-        const timeEntries: Array<{ date: string; timeSpent: number }> = [];
+      // Process all Jira objects (from cache or freshly fetched)
+      for (const jira of jiras) {
+        if (!jira) continue;
 
-        if (issue.changelog && issue.changelog.histories) {
-          console.log(
-            `Processing changelog for ${issueKey} with ${issue.changelog.histories.length} history entries`
-          );
-
-          // Process each history entry
-          for (const history of issue.changelog.histories) {
-            // Look for timespent field changes
-            const timeSpentItems = history.items.filter(
-              (item) => item.field === "timespent"
-            );
-
-            if (timeSpentItems.length > 0) {
-              console.log(
-                `Found ${timeSpentItems.length} timespent changes for ${issueKey} on ${history.created}`
-              );
-            }
-
-            for (const item of timeSpentItems) {
-              // Calculate time added in this change
-              const fromTime = parseInt(item.fromString || "0");
-              const toTime = parseInt(item.toString || "0");
-              const timeAdded = toTime - fromTime;
-
-              // Convert seconds to days (assuming 7.5 hours per day)
-              const timeAddedInDays = timeAdded / (3600 * 7.5);
-              const date = history.created.split("T")[0]; // YYYY-MM-DD format
-
-              timeEntries.push({
-                date,
-                timeSpent: timeAddedInDays,
-              });
-
-              console.log(
-                `Added ${timeAddedInDays.toFixed(2)} days for ${issueKey} on ${date}`
-              );
-            }
-          }
-        } else {
-          console.log(`No changelog found for ${issueKey}`);
-        }
-
-        // Aggregate time entries by date (sum multiple entries on the same date)
-        const timeByDate = timeEntries.reduce(
-          (acc, entry) => {
-            acc[entry.date] = (acc[entry.date] || 0) + entry.timeSpent;
-            return acc;
-          },
-          {} as Record<string, number>
+        const issueKey = jira.fields.key;
+        const histories = jira.changelog?.histories || [];
+        console.log(
+          `Processing changelog for ${issueKey} with ${histories.length} history entries`
         );
 
-        // Convert to expected format and sort by date
-        timeTrackingData[issueKey] = Object.entries(timeByDate)
-          .map(([date, timeSpent]) => ({ date, timeSpent }))
-          .sort((a, b) => a.date.localeCompare(b.date));
+        const timeEntriesRaw = this.extractLatestWorklogTimespent(histories);
+
+        // Convert raw seconds to minutes and days
+        timeTrackingData[issueKey] = timeEntriesRaw.map((entry) => {
+          const seconds = entry.timeSpent;
+          const minutes = seconds / 60;
+          const days = minutes / 60 / 7.5; // Assuming 7.5 hours per day
+          return {
+            date: entry.date,
+            timeSpent: seconds, // Keep raw seconds for backward compatibility
+            timeSpentMinutes: minutes,
+            timeSpentDays: days,
+          };
+        });
 
         if (timeTrackingData[issueKey].length > 0) {
           console.log(
@@ -482,6 +467,68 @@ export default class JiraRequester {
       console.error("Error fetching time tracking data:", error);
       throw error;
     }
+  }
+
+  extractLatestWorklogTimespent(
+    histories: any[]
+  ): Array<{ date: string; timeSpent: number }> {
+    if (!histories || histories.length === 0) {
+      return [];
+    }
+
+    // Process histories in chronological order (oldest first)
+    const sortedHistories = [...histories].sort(
+      (a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()
+    );
+
+    // Map to track the final timespent value for each date
+    // Key: date (YYYY-MM-DD), Value: final timespent in seconds for that date
+    const timespentByDate = new Map<string, number>();
+
+    // Process each history entry chronologically
+    for (const history of sortedHistories) {
+      const historyDate = history.created.split("T")[0]; // YYYY-MM-DD format
+
+      // Find timespent changes in this history entry
+      const timespentItem = history.items.find(
+        (item) => item.field === "timespent"
+      );
+
+      if (timespentItem && timespentItem.toString) {
+        // Get the final timespent value for this date (cumulative)
+        const finalTimespentSeconds = parseInt(timespentItem.toString || "0");
+        timespentByDate.set(historyDate, finalTimespentSeconds);
+      }
+    }
+
+    // Convert to incremental time spent per date
+    // For each date, calculate the difference from the previous date's final value
+    const result: Array<{ date: string; timeSpent: number }> = [];
+    let previousTimespentSeconds = 0;
+    const sortedDates = Array.from(timespentByDate.keys()).sort();
+
+    for (const date of sortedDates) {
+      const currentTimespentSeconds = timespentByDate.get(date) || 0;
+      const incrementalSeconds =
+        currentTimespentSeconds - previousTimespentSeconds;
+
+      // Include both positive and negative changes (worklogs can be added or removed)
+      if (incrementalSeconds !== 0) {
+        // Return raw seconds as integer (can be negative)
+        result.push({
+          date,
+          timeSpent: incrementalSeconds,
+        });
+      }
+
+      previousTimespentSeconds = currentTimespentSeconds;
+    }
+
+    console.log(
+      `Extracted time tracking data for ${result.length} dates from ${sortedHistories.length} history entries`
+    );
+
+    return result;
   }
 
   async getProjects() {

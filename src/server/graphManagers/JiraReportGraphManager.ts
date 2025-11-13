@@ -554,7 +554,12 @@ export default class JiraReportGraphManager {
         // Get time tracking data for all issues
         let timeTrackingData: Record<
           string,
-          Array<{ date: string; timeSpent: number }>
+          Array<{
+            date: string;
+            timeSpent: number;
+            timeSpentMinutes: number;
+            timeSpentDays: number;
+          }>
         > = {};
 
         try {

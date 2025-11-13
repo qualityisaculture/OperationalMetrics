@@ -950,15 +950,22 @@ const TimeSpentDetailButton: React.FC<{
     },
     {
       title: "Time Spent (days)",
-      dataIndex: "timeSpent",
-      key: "timeSpent",
-      sorter: (a: any, b: any) => a.timeSpent - b.timeSpent,
+      dataIndex: "timeSpentDays",
+      key: "timeSpentDays",
+      sorter: (a: any, b: any) => a.timeSpentDays - b.timeSpentDays,
+      render: (value: number) => value.toFixed(2),
+    },
+    {
+      title: "Time Spent (minutes)",
+      dataIndex: "timeSpentMinutes",
+      key: "timeSpentMinutes",
+      sorter: (a: any, b: any) => a.timeSpentMinutes - b.timeSpentMinutes,
       render: (value: number) => value.toFixed(2),
     },
   ];
 
   const totalTime = (record.timeSpentDetail || []).reduce(
-    (sum, entry) => sum + entry.timeSpent,
+    (sum, entry) => sum + (entry.timeSpentDays || 0),
     0
   );
 
