@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { Card, Table, Typography, Switch, Space } from "antd";
+import { Card, Table, Typography, Switch, Space, Button, message } from "antd";
+import { DownloadOutlined } from "@ant-design/icons";
+import * as XLSX from "xlsx";
 import { SheetData } from "../types";
 import { useResizableColumns } from "../../components/tables/useResizableColumns";
 
@@ -299,6 +301,108 @@ export const TeamSummary: React.FC<TeamSummaryProps> = ({
   const { getResizableColumns } = useResizableColumns(columns);
   const resizableColumns = getResizableColumns(columns);
 
+  const handleExport = () => {
+    if (summaryData.length === 0) {
+      message.warning("No data to export");
+      return;
+    }
+
+    try {
+      let exportData: any[] = [];
+
+      if (splitByType) {
+        // Export Type view
+        exportData = summaryData.map((row) => {
+          const rowData: any = {
+            "File Name": row.fileName,
+          };
+
+          // Add percentage columns
+          allTypes.forEach((type) => {
+            rowData[`${type} (%)`] = (row[`${type}_percentage`] || 0).toFixed(1);
+          });
+
+          // Add days columns
+          allTypes.forEach((type) => {
+            rowData[`${type} (days)`] = (row[`${type}_days`] || 0).toFixed(1);
+          });
+
+          rowData["Total Days"] = row.totalDays.toFixed(1);
+
+          return rowData;
+        });
+
+        // Add summary row
+        const grandTotal = summaryData.reduce((sum, row) => sum + row.totalDays, 0);
+        const summaryRow: any = { "File Name": "Total" };
+        
+        allTypes.forEach((type) => {
+          const totalDays = summaryData.reduce(
+            (sum, row) => sum + (row[`${type}_days`] || 0),
+            0
+          );
+          const percentage = grandTotal > 0 ? (totalDays / grandTotal) * 100 : 0;
+          summaryRow[`${type} (%)`] = percentage.toFixed(1);
+          summaryRow[`${type} (days)`] = totalDays.toFixed(1);
+        });
+        summaryRow["Total Days"] = grandTotal.toFixed(1);
+        exportData.push(summaryRow);
+      } else {
+        // Export Category view
+        exportData = summaryData.map((row) => ({
+          "File Name": row.fileName,
+          "Chargeable (%)": row.chargeablePercentage.toFixed(1),
+          "Chargeable (days)": row.chargeableDays.toFixed(1),
+          "Non-Chargeable (%)": row.nonChargeablePercentage.toFixed(1),
+          "Non-Chargeable (days)": row.nonChargeableDays.toFixed(1),
+          "Other (%)": row.otherPercentage.toFixed(1),
+          "Other (days)": row.otherDays.toFixed(1),
+          "Total Days": row.totalDays.toFixed(1),
+        }));
+
+        // Add summary row
+        const grandTotal = summaryData.reduce((sum, row) => sum + row.totalDays, 0);
+        const totalChargeable = summaryData.reduce((sum, row) => sum + row.chargeableDays, 0);
+        const totalNonChargeable = summaryData.reduce((sum, row) => sum + row.nonChargeableDays, 0);
+        const totalOther = summaryData.reduce((sum, row) => sum + row.otherDays, 0);
+        
+        const chargeablePercentage = grandTotal > 0 ? (totalChargeable / grandTotal) * 100 : 0;
+        const nonChargeablePercentage = grandTotal > 0 ? (totalNonChargeable / grandTotal) * 100 : 0;
+        const otherPercentage = grandTotal > 0 ? (totalOther / grandTotal) * 100 : 0;
+
+        exportData.push({
+          "File Name": "Total",
+          "Chargeable (%)": chargeablePercentage.toFixed(1),
+          "Chargeable (days)": totalChargeable.toFixed(1),
+          "Non-Chargeable (%)": nonChargeablePercentage.toFixed(1),
+          "Non-Chargeable (days)": totalNonChargeable.toFixed(1),
+          "Other (%)": otherPercentage.toFixed(1),
+          "Other (days)": totalOther.toFixed(1),
+          "Total Days": grandTotal.toFixed(1),
+        });
+      }
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Team Summary");
+
+      // Generate filename
+      const viewType = splitByType ? "Type" : "Category";
+      const holidayStatus = excludeHolidayAbsence ? "ExcludingHoliday" : "IncludingHoliday";
+      const filename = `Team_Summary_${viewType}_${holidayStatus}.xlsx`;
+
+      // Write file
+      XLSX.writeFile(workbook, filename);
+      message.success(`Exported ${summaryData.length} rows to ${filename}`);
+    } catch (error) {
+      console.error("Error exporting to Excel:", error);
+      message.error("Failed to export to Excel");
+    }
+  };
+
   if (summaryData.length === 0) {
     return null;
   }
@@ -318,6 +422,15 @@ export const TeamSummary: React.FC<TeamSummaryProps> = ({
             style={{ marginLeft: "16px" }}
           />
         </Space>
+      }
+      extra={
+        <Button
+          type="primary"
+          icon={<DownloadOutlined />}
+          onClick={handleExport}
+        >
+          Export to Excel
+        </Button>
       }
       style={{ marginBottom: "20px" }}
     >
