@@ -172,6 +172,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
           filteredData={analyzer.filteredData}
           accountCategoryIndex={analyzer.accountCategoryIndex}
           loggedHoursIndex={analyzer.loggedHoursIndex}
+          issueTypeIndex={analyzer.issueTypeIndex}
           excludeHolidayAbsence={analyzer.excludeHolidayAbsence}
         />
       )}
