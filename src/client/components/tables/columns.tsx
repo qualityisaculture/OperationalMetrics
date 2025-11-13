@@ -837,139 +837,6 @@ const getVariancePercentColumn = (
   },
 });
 
-// Helper function to create Time Spent since Date column
-const getTimeSpentSinceDateColumn = (
-  timeBookingsDate: string,
-  getWorkstreamDataCellSpan?: (
-    record: JiraIssueWithAggregated,
-    isFirstColumn?: boolean
-  ) => { colSpan?: number },
-  onTimeBookingsClick?: (record: JiraIssueWithAggregated) => void
-) => ({
-  title: `Time Spent since ${timeBookingsDate}`,
-  key: "actualDaysLogged",
-  onCell: (record: JiraIssueWithAggregated) =>
-    getWorkstreamDataCellSpan ? getWorkstreamDataCellSpan(record, false) : {},
-  render: (_, record: JiraIssueWithAggregated) => {
-    let totalTimeLogged = 0;
-    if (record.timeDataByKey && timeBookingsDate) {
-      try {
-        Object.values(record.timeDataByKey).forEach((timeDataArray) => {
-          if (Array.isArray(timeDataArray)) {
-            timeDataArray.forEach((timeEntry) => {
-              if (
-                timeEntry &&
-                timeEntry.date &&
-                timeEntry.timeSpent &&
-                timeEntry.date >= timeBookingsDate
-              ) {
-                totalTimeLogged += timeEntry.timeSpent;
-              }
-            });
-          }
-        });
-      } catch (error) {
-        console.warn("Error processing timeDataByKey:", error);
-      }
-    } else if (record.timeBookings && timeBookingsDate) {
-      try {
-        record.timeBookings.forEach((timeEntry) => {
-          if (
-            timeEntry &&
-            timeEntry.date &&
-            timeEntry.timeSpent &&
-            timeEntry.date >= timeBookingsDate
-          ) {
-            totalTimeLogged += timeEntry.timeSpent;
-          }
-        });
-      } catch (error) {
-        console.warn("Error processing timeBookings:", error);
-      }
-    }
-
-    // Check if there's any time booking data (including outside the filter)
-    const hasAnyTimeData =
-      (record.timeDataByKey &&
-        Object.values(record.timeDataByKey).some(
-          (arr) => Array.isArray(arr) && arr.length > 0
-        )) ||
-      (record.timeBookings && record.timeBookings.length > 0);
-
-    if (!timeBookingsDate) {
-      return <Text type="secondary">-</Text>;
-    }
-
-    return (
-      <Text>
-        <Tag
-          color="blue"
-          style={
-            hasAnyTimeData && onTimeBookingsClick ? { cursor: "pointer" } : {}
-          }
-          onClick={
-            hasAnyTimeData && onTimeBookingsClick
-              ? (e) => {
-                  e.stopPropagation();
-                  onTimeBookingsClick(record);
-                }
-              : undefined
-          }
-        >
-          {totalTimeLogged.toFixed(1)} days
-          {record.childCount > 0 && (
-            <Text type="secondary" style={{ marginLeft: "4px" }}>
-              (agg)
-            </Text>
-          )}
-        </Tag>
-      </Text>
-    );
-  },
-  sorter: (a, b) => {
-    const getTotalTime = (record: JiraIssueWithAggregated): number => {
-      let totalTime = 0;
-      if (record.timeDataByKey && timeBookingsDate) {
-        try {
-          Object.values(record.timeDataByKey).forEach((timeDataArray) => {
-            if (Array.isArray(timeDataArray)) {
-              timeDataArray.forEach((timeEntry) => {
-                if (
-                  timeEntry &&
-                  timeEntry.date &&
-                  timeEntry.timeSpent &&
-                  timeEntry.date >= timeBookingsDate
-                ) {
-                  totalTime += timeEntry.timeSpent;
-                }
-              });
-            }
-          });
-        } catch (error) {
-          console.warn("Error processing timeDataByKey in sorter:", error);
-        }
-      } else if (record.timeBookings && timeBookingsDate) {
-        try {
-          record.timeBookings.forEach((timeEntry) => {
-            if (
-              timeEntry &&
-              timeEntry.date &&
-              timeEntry.timeSpent &&
-              timeEntry.date >= timeBookingsDate
-            ) {
-              totalTime += timeEntry.timeSpent;
-            }
-          });
-        } catch (error) {
-          console.warn("Error processing timeBookings in sorter:", error);
-        }
-      }
-      return totalTime;
-    };
-    return getTotalTime(a) - getTotalTime(b);
-  },
-});
-
 interface UnifiedColumnProps {
   showFavoriteColumn?: boolean;
   favoriteItems?: Set<string>;
@@ -986,8 +853,6 @@ interface UnifiedColumnProps {
     record: JiraIssueWithAggregated,
     isFirstColumn?: boolean
   ) => { colSpan?: number };
-  timeBookingsDate?: string; // Add the date prop
-  onTimeBookingsClick?: (record: JiraIssueWithAggregated) => void; // Callback for opening time bookings modal
 }
 
 export const getUnifiedColumns = ({
@@ -998,8 +863,6 @@ export const getUnifiedColumns = ({
   currentIssues,
   projectIssues,
   getWorkstreamDataCellSpan,
-  timeBookingsDate,
-  onTimeBookingsClick,
 }: UnifiedColumnProps): ColumnsType<JiraIssueWithAggregated> => {
   const columns: ColumnsType<JiraIssueWithAggregated> = [];
 
@@ -1040,17 +903,6 @@ export const getUnifiedColumns = ({
       getTotalForecastColumn(getWorkstreamDataCellSpan),
       getVarianceDaysColumn(getWorkstreamDataCellSpan),
       getVariancePercentColumn(getWorkstreamDataCellSpan)
-    );
-  }
-
-  // Time Spent since Date column (conditional)
-  if (timeBookingsDate) {
-    columns.push(
-      getTimeSpentSinceDateColumn(
-        timeBookingsDate,
-        getWorkstreamDataCellSpan,
-        onTimeBookingsClick
-      )
     );
   }
 

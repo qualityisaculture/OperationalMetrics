@@ -24,11 +24,6 @@ interface Props {
   // Add projectIssues to access complete hierarchy
   projectIssues?: JiraIssueWithAggregated[];
 
-  // Time Bookings
-  onRequestTimeBookings?: (fromDate: string) => void;
-  timeDataLoaded?: Set<string>;
-  currentWorkstreamKey?: string;
-
   // Orphan Detection
   onRequestOrphanDetection?: (workstreamKey: string) => void;
   // (local toggle inside component)
@@ -43,9 +38,6 @@ export const WorkstreamTable: React.FC<Props> = ({
   handleIssueClick,
   toggleFavorite,
   projectIssues,
-  onRequestTimeBookings,
-  timeDataLoaded = new Set(),
-  currentWorkstreamKey,
   onRequestOrphanDetection,
 }) => {
   const [isTableCollapsed, setIsTableCollapsed] = useState(false);
@@ -159,9 +151,6 @@ export const WorkstreamTable: React.FC<Props> = ({
                   record.childCount > 0 ? "#fafafa" : "transparent",
               },
             })}
-            onRequestTimeBookings={onRequestTimeBookings}
-            timeDataLoaded={timeDataLoaded}
-            currentWorkstreamKey={currentWorkstreamKey}
           />
         </Collapse.Panel>
       </Collapse>

@@ -14,7 +14,6 @@ import { WorkstreamTable } from "./components/WorkstreamTable";
 import { Breadcrumbs } from "./components/Breadcrumbs";
 import { RequestAllModal } from "./components/RequestAllModal";
 import { DynamicProjectSummary } from "./components/DynamicProjectSummary";
-import { TimeBookingsModal } from "./components/TimeBookingsModal";
 import { DefectHistorySection } from "./components/DefectHistorySection";
 import { AccountWorklogSection } from "./components/AccountWorklogSection";
 import OrphanList from "./components/OrphanList";
@@ -44,38 +43,13 @@ const JiraReport: React.FC = () => {
     hideRequestAllModal,
     requestAllWorkstreams,
     loadProjectWorkstreams,
-    requestTimeBookings,
     requestDefectHistory,
     requestOrphanDetection,
     getOrphans,
   } = useJiraReport();
 
-  // State for time bookings modal
-  const [timeBookingsModal, setTimeBookingsModal] = useState<{
-    isVisible: boolean;
-    workstreamKey: string;
-    workstreamSummary: string;
-  }>({
-    isVisible: false,
-    workstreamKey: "",
-    workstreamSummary: "",
-  });
-
-  // State for time bookings date
-  const [timeBookingsDate, setTimeBookingsDate] = useState<string>(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30);
-    return date.toISOString().split("T")[0];
-  });
-
   const handleClearCache = () => {
-    // Reset local component state
-    setTimeBookingsModal({
-      isVisible: false,
-      workstreamKey: "",
-      workstreamSummary: "",
-    });
-    // Then clear cache and reload (which will reset hook state and clear server cache)
+    // Clear cache and reload (which will reset hook state and clear server cache)
     clearCacheAndReload();
   };
 
@@ -107,65 +81,6 @@ const JiraReport: React.FC = () => {
     () => findAccountMismatches(projectIssues),
     [projectIssues]
   );
-
-  // Derive which workstreams have loaded time data from the persisted state
-  // This ensures the data persists across navigation
-  const timeDataLoaded = useMemo(() => {
-    const loaded = new Set<string>();
-    projectIssues.forEach((issue) => {
-      // Check if this workstream has time bookings data loaded
-      if (
-        issue.timeBookings ||
-        (issue.timeDataByKey && Object.keys(issue.timeDataByKey).length > 0)
-      ) {
-        loaded.add(issue.key);
-      }
-    });
-    return loaded;
-  }, [projectIssues]);
-
-  const showTimeBookingsModal = (fromDate: string) => {
-    // Update the date state with the selected date
-    setTimeBookingsDate(fromDate);
-
-    // If we're viewing a specific workstream, use that information
-    if (navigationStack.length > 1) {
-      const currentWorkstream = navigationStack[navigationStack.length - 1];
-      setTimeBookingsModal({
-        isVisible: true,
-        workstreamKey: currentWorkstream.key,
-        workstreamSummary: currentWorkstream.name,
-      });
-    } else {
-      // Fallback for project level
-      setTimeBookingsModal({
-        isVisible: true,
-        workstreamKey: "Multiple Workstreams",
-        workstreamSummary: "Time bookings for all workstreams",
-      });
-    }
-  };
-
-  const hideTimeBookingsModal = () => {
-    setTimeBookingsModal({
-      isVisible: false,
-      workstreamKey: "",
-      workstreamSummary: "",
-    });
-  };
-
-  const handleTimeBookingsConfirm = async () => {
-    // Only make the API call if we have a valid workstream key (not "Multiple Workstreams")
-    if (timeBookingsModal.workstreamKey !== "Multiple Workstreams") {
-      await requestTimeBookings(
-        timeBookingsModal.workstreamKey,
-        timeBookingsDate
-      );
-      // Note: timeDataLoaded is now derived from projectIssues, so it will automatically
-      // update when the hook state is updated by requestTimeBookings
-    }
-    hideTimeBookingsModal();
-  };
 
   if (isLoading) {
     return (
@@ -340,11 +255,6 @@ const JiraReport: React.FC = () => {
                   handleIssueClick={handleIssueClick}
                   toggleFavorite={toggleFavorite}
                   projectIssues={projectIssues}
-                  onRequestTimeBookings={showTimeBookingsModal}
-                  timeDataLoaded={timeDataLoaded}
-                  currentWorkstreamKey={
-                    navigationStack[navigationStack.length - 1]?.key
-                  }
                   onRequestOrphanDetection={requestOrphanDetection}
                 />
               </>
@@ -438,15 +348,6 @@ const JiraReport: React.FC = () => {
         requestAllProgress={requestAllProgress}
         projectIssues={projectIssues}
         requestAllDetails={requestAllDetails}
-      />
-
-      <TimeBookingsModal
-        isVisible={timeBookingsModal.isVisible}
-        workstreamKey={timeBookingsModal.workstreamKey}
-        workstreamSummary={timeBookingsModal.workstreamSummary}
-        fromDate={timeBookingsDate}
-        onCancel={hideTimeBookingsModal}
-        onConfirm={handleTimeBookingsConfirm}
       />
     </div>
   );

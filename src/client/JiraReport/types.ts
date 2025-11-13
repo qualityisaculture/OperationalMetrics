@@ -9,11 +9,6 @@ export interface JiraIssueWithAggregated extends LiteJiraIssue {
   hasBeenRequested?: boolean; // Track if this workstream has been requested
   hasData?: boolean; // Track if this workstream has data available
   hasChildren?: boolean | null; // true = has children, false = no children, null/undefined = unknown
-  timeBookings?: Array<{ date: string; timeSpent: number }>; // Time bookings with dates
-  timeBookingsFromDate?: string; // Date from which time bookings were calculated
-  timeBookingsJiraKeys?: string[]; // Array of all Jira keys in the workstream tree
-  timeBookingsTotalIssues?: number; // Total number of issues in the workstream tree
-  timeDataByKey?: Record<string, Array<{ date: string; timeSpent: number }>>; // Map from Jira key to time data array
   // Note: baselineEstimate, dueDate, epicStartDate, and epicEndDate are inherited from LiteJiraIssue and are NOT aggregated
 }
 

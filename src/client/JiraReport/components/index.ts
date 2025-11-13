@@ -4,6 +4,5 @@ export { EpicIssuesList } from "./EpicIssuesList";
 export { ProjectsTable } from "./ProjectsTable";
 export { RequestAllModal } from "./RequestAllModal";
 export { ProjectSummary } from "./ProjectSummary";
-export { TimeBookingsModal } from "./TimeBookingsModal";
 export { DefectHistorySection } from "./DefectHistorySection";
 export { ProjectWorklogsSection } from "./ProjectWorklogsSection";

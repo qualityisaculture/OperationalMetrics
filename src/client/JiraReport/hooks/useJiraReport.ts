@@ -566,13 +566,6 @@ export const useJiraReport = () => {
               newLoadedWorkstreamData
             );
 
-            // Merge time bookings data from projectIssues into currentIssues
-            const mergedCurrentIssues = mergeTimeBookingsData(
-              processedChildren,
-              updatedProjectIssues,
-              workstream.key
-            );
-
             return {
               ...prevState,
               projectIssues: updatedProjectIssues,
@@ -580,7 +573,7 @@ export const useJiraReport = () => {
                 ...prevState.navigationStack,
                 newNavigationItem,
               ],
-              currentIssues: mergedCurrentIssues,
+              currentIssues: processedChildren,
               currentIssuesLoading: false,
               loadedWorkstreamData: newLoadedWorkstreamData,
               projectAggregatedData,
@@ -660,39 +653,6 @@ export const useJiraReport = () => {
     return null;
   };
 
-  // Helper function to merge time bookings data from projectIssues into currentIssues
-  const mergeTimeBookingsData = (
-    issues: JiraIssueWithAggregated[],
-    projectIssues: JiraIssueWithAggregated[],
-    workstreamKey?: string
-  ): JiraIssueWithAggregated[] => {
-    // Find the workstream in projectIssues that has time bookings data
-    const workstreamWithTimeData = workstreamKey
-      ? projectIssues.find((ws) => ws.key === workstreamKey)
-      : null;
-
-    if (!workstreamWithTimeData) {
-      return issues;
-    }
-
-    // Merge time bookings data into issues
-    return issues.map((issue) => {
-      // Check if this issue has time data in the workstream's timeDataByKey
-      if (
-        workstreamWithTimeData.timeDataByKey &&
-        workstreamWithTimeData.timeDataByKey[issue.key]
-      ) {
-        const childTimeData = workstreamWithTimeData.timeDataByKey[issue.key];
-        return {
-          ...issue,
-          timeBookings: childTimeData || [],
-          timeBookingsFromDate: workstreamWithTimeData.timeBookingsFromDate,
-        };
-      }
-      return issue;
-    });
-  };
-
   const handleIssueClick = (issue: JiraIssueWithAggregated) => {
     if (issue.childCount === 0) {
       return;
@@ -736,23 +696,10 @@ export const useJiraReport = () => {
 
       console.log(`Adding issue to navigation stack:`, newNavigationItem);
 
-      // Find the parent workstream key from navigation stack
-      // The first item is the project, the second item (if exists) is the workstream
-      const parentWorkstreamKey = state.navigationStack.length > 1
-        ? state.navigationStack[1].key
-        : undefined;
-
-      // Merge time bookings data from projectIssues into currentIssues
-      const mergedCurrentIssues = mergeTimeBookingsData(
-        processedChildren,
-        state.projectIssues,
-        parentWorkstreamKey
-      );
-
       setState((prevState) => ({
         ...prevState,
         navigationStack: [...prevState.navigationStack, newNavigationItem],
-        currentIssues: mergedCurrentIssues,
+        currentIssues: processedChildren,
         currentIssuesLoading: false,
         currentIssuesError: null,
       }));
@@ -871,23 +818,10 @@ export const useJiraReport = () => {
     const targetItem = targetStack[targetStack.length - 1];
 
     setState((prevState) => {
-      // Find the parent workstream key
-      // The first item is the project, the second item (if exists) is the workstream
-      const parentWorkstreamKey = targetStack.length > 1
-        ? targetStack[1].key
-        : undefined;
-
-      // Merge time bookings data from projectIssues into currentIssues
-      const mergedCurrentIssues = mergeTimeBookingsData(
-        targetItem.data,
-        prevState.projectIssues,
-        parentWorkstreamKey
-      );
-
       return {
         ...prevState,
         navigationStack: targetStack,
-        currentIssues: mergedCurrentIssues,
+        currentIssues: targetItem.data,
         currentIssuesLoading: false,
         currentIssuesError: null,
         progressStatus: "Idle",
@@ -1075,89 +1009,6 @@ export const useJiraReport = () => {
   useEffect(() => {
     loadProjects();
   }, []);
-
-  const requestTimeBookings = async (
-    workstreamKey: string,
-    fromDate: string
-  ) => {
-    try {
-      console.log(
-        `Requesting time bookings for ${workstreamKey} from ${fromDate}`
-      );
-
-      const response = await fetch(
-        `/api/jiraReport/workstream/${workstreamKey}/timeBookings`
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      const timeBookings = JSON.parse(result.data);
-
-      // Update the workstream with time bookings data
-      setState((prevState) => {
-        // Update projectIssues
-        const updatedProjectIssues = prevState.projectIssues.map((issue) => {
-          if (issue.key === workstreamKey) {
-            return {
-              ...issue,
-              timeBookings,
-              timeBookingsFromDate: fromDate,
-              // Store the Jira keys array for future use
-              timeBookingsJiraKeys: timeBookings.jiraKeys || [],
-              timeBookingsTotalIssues: timeBookings.totalIssues || 0,
-              timeDataByKey: timeBookings.timeDataByKey || {},
-            };
-          }
-          return issue;
-        });
-
-        // Also update currentIssues if the workstream is currently being viewed
-        let updatedCurrentIssues = prevState.currentIssues;
-        if (prevState.currentIssues.length > 0) {
-          updatedCurrentIssues = prevState.currentIssues.map((issue) => {
-            if (issue.key === workstreamKey) {
-              // This is the workstream itself
-              return {
-                ...issue,
-                timeBookings,
-                timeBookingsFromDate: fromDate,
-                timeBookingsJiraKeys: timeBookings.jiraKeys || [],
-                timeBookingsTotalIssues: timeBookings.totalIssues || 0,
-                timeDataByKey: timeBookings.timeDataByKey || {},
-              };
-            } else if (
-              timeBookings.timeDataByKey &&
-              timeBookings.timeDataByKey[issue.key]
-            ) {
-              // This is a child issue that has time data
-              const childTimeData = timeBookings.timeDataByKey[issue.key];
-              return {
-                ...issue,
-                timeBookings: childTimeData || [],
-                timeBookingsFromDate: fromDate,
-              };
-            }
-            return issue;
-          });
-        }
-
-        return {
-          ...prevState,
-          projectIssues: updatedProjectIssues,
-          currentIssues: updatedCurrentIssues,
-        };
-      });
-    } catch (error) {
-      console.error(
-        `Error requesting time bookings for ${workstreamKey}:`,
-        error
-      );
-      // You could add error handling here, like showing a notification
-    }
-  };
 
   const requestDefectHistory = async (projectKey: string) => {
     setState((prevState) => ({
@@ -1421,7 +1272,6 @@ export const useJiraReport = () => {
     showRequestAllModal,
     hideRequestAllModal,
     requestAllWorkstreams,
-    requestTimeBookings,
     requestDefectHistory,
     requestOrphanDetection,
     getOrphans,

@@ -1,11 +1,6 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { Card, Space, Table, Button, Typography, DatePicker, Tag } from "antd";
-import {
-  InfoCircleOutlined,
-  DownloadOutlined,
-  CalendarOutlined,
-} from "@ant-design/icons";
-import dayjs, { Dayjs } from "dayjs";
+import React, { useState, useMemo } from "react";
+import { Card, Space, Table, Button, Typography, Tag } from "antd";
+import { InfoCircleOutlined, DownloadOutlined } from "@ant-design/icons";
 import { getUnifiedColumns } from "./columns";
 import { JiraIssueWithAggregated } from "../../JiraReport/types";
 import {
@@ -15,7 +10,6 @@ import {
 import { useResizableColumns, ResizableTitle } from "./index";
 import { ColumnConfig } from "../ColumnConfig";
 import type { ColumnsType } from "antd/es/table";
-import { TimeBookingsModal } from "./TimeBookingsModal";
 
 const { Text } = Typography;
 
@@ -48,11 +42,6 @@ export interface UnifiedIssuesTableProps {
   parentWorkstreamKey?: string;
   // New prop for complete hierarchical data
   completeHierarchicalData?: any[];
-
-  // Time Bookings
-  onRequestTimeBookings?: (fromDate: string) => void;
-  timeDataLoaded?: Set<string>;
-  currentWorkstreamKey?: string;
 }
 
 export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
@@ -73,62 +62,11 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   workstreamName,
   parentWorkstreamKey,
   completeHierarchicalData,
-  onRequestTimeBookings,
-  timeDataLoaded = new Set(),
-  currentWorkstreamKey,
 }) => {
   const [exportLoading, setExportLoading] = useState(false);
   const [configuredColumns, setConfiguredColumns] = useState<
     ColumnsType<JiraIssueWithAggregated>
   >([]);
-
-  // State for time bookings date selector
-  const [timeBookingsDate, setTimeBookingsDate] = useState<Dayjs>(() => {
-    return dayjs().subtract(30, "day");
-  });
-
-  // Force re-render when date changes to update the "Actual Days since Date" column
-  const [dateKey, setDateKey] = useState(0);
-
-  // Sync date picker with loaded data's date when workstream changes or data is loaded
-  useEffect(() => {
-    if (currentWorkstreamKey && timeDataLoaded.has(currentWorkstreamKey)) {
-      // Find the workstream in currentIssues or projectIssues
-      const workstream =
-        currentIssues?.find((issue) => issue.key === currentWorkstreamKey) ||
-        projectIssues?.find((issue) => issue.key === currentWorkstreamKey);
-
-      if (workstream?.timeBookingsFromDate) {
-        const loadedDate = dayjs(workstream.timeBookingsFromDate);
-        // Only update if the date is different to avoid unnecessary re-renders
-        if (!timeBookingsDate.isSame(loadedDate, "day")) {
-          setTimeBookingsDate(loadedDate);
-          setDateKey((prev) => prev + 1); // Force re-render
-        }
-      }
-    }
-  }, [
-    currentWorkstreamKey,
-    timeDataLoaded,
-    currentIssues,
-    projectIssues,
-    timeBookingsDate,
-  ]);
-
-  // State for time bookings modal
-  const [timeBookingsModalVisible, setTimeBookingsModalVisible] =
-    useState(false);
-  const [selectedRecordForModal, setSelectedRecordForModal] =
-    useState<JiraIssueWithAggregated | null>(null);
-
-  // Handler for opening time bookings modal
-  const handleTimeBookingsClick = useCallback(
-    (record: JiraIssueWithAggregated) => {
-      setSelectedRecordForModal(record);
-      setTimeBookingsModalVisible(true);
-    },
-    []
-  );
 
   // Get base columns
   const baseColumns = useMemo(
@@ -141,8 +79,6 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
         currentIssues,
         projectIssues,
         getWorkstreamDataCellSpan,
-        timeBookingsDate: timeBookingsDate.format("YYYY-MM-DD"),
-        onTimeBookingsClick: handleTimeBookingsClick,
       }),
     [
       showFavoriteColumn,
@@ -152,8 +88,6 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
       currentIssues,
       projectIssues,
       getWorkstreamDataCellSpan,
-      timeBookingsDate,
-      handleTimeBookingsClick,
     ]
   );
 
@@ -187,7 +121,6 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
       let sumOriginalEstimate = 0;
       let sumTimeSpent = 0;
       let sumTimeRemaining = 0;
-      let sumActualDaysSinceDate = 0;
 
       pageData.forEach((record: JiraIssueWithAggregated) => {
         // Baseline Estimate (only counts workstream's own value, not aggregated)
@@ -215,48 +148,6 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
             ? record.aggregatedTimeRemaining
             : record.timeRemaining || 0;
         sumTimeRemaining += timeRemaining;
-
-        // Actual Days Logged since Date (if timeBookingsDate is set)
-        if (timeBookingsDate) {
-          let totalTimeLogged = 0;
-          const dateString = timeBookingsDate.format("YYYY-MM-DD");
-          if (record.timeDataByKey) {
-            try {
-              Object.values(record.timeDataByKey).forEach((timeDataArray) => {
-                if (Array.isArray(timeDataArray)) {
-                  timeDataArray.forEach((timeEntry) => {
-                    if (
-                      timeEntry &&
-                      timeEntry.date &&
-                      timeEntry.timeSpent &&
-                      timeEntry.date >= dateString
-                    ) {
-                      totalTimeLogged += timeEntry.timeSpent;
-                    }
-                  });
-                }
-              });
-            } catch (error) {
-              console.warn("Error processing timeDataByKey:", error);
-            }
-          } else if (record.timeBookings) {
-            try {
-              record.timeBookings.forEach((timeEntry) => {
-                if (
-                  timeEntry &&
-                  timeEntry.date &&
-                  timeEntry.timeSpent &&
-                  timeEntry.date >= dateString
-                ) {
-                  totalTimeLogged += timeEntry.timeSpent;
-                }
-              });
-            } catch (error) {
-              console.warn("Error processing timeBookings:", error);
-            }
-          }
-          sumActualDaysSinceDate += totalTimeLogged;
-        }
       });
 
       const sumTotalForecast = sumTimeSpent + sumTimeRemaining;
@@ -398,25 +289,10 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
             </Table.Summary.Cell>
           );
         } else if (key === "actualDaysLogged") {
-          if (timeBookingsDate) {
-            cells.push(
-              <Table.Summary.Cell key={`summary-${index}`} index={index}>
-                <Text strong>
-                  {sumActualDaysSinceDate > 0 ? (
-                    <Tag color="blue">
-                      {sumActualDaysSinceDate.toFixed(1)} days
-                    </Tag>
-                  ) : (
-                    <Text type="secondary">0.0 days</Text>
-                  )}
-                </Text>
-              </Table.Summary.Cell>
-            );
-          } else {
-            cells.push(
-              <Table.Summary.Cell key={`summary-${index}`} index={index} />
-            );
-          }
+          // Empty cell for actualDaysLogged column
+          cells.push(
+            <Table.Summary.Cell key={`summary-${index}`} index={index} />
+          );
         } else {
           // Empty cell for any other columns
           cells.push(
@@ -433,15 +309,7 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
     getSortedItems,
     columns,
     showFavoriteColumn,
-    timeBookingsDate,
   ]);
-
-  const handleDateChange = (newDate: Dayjs | null) => {
-    if (newDate) {
-      setTimeBookingsDate(newDate);
-      setDateKey((prev) => prev + 1); // Force re-render
-    }
-  };
 
   const handleExport = async () => {
     if (!parentWorkstreamKey || !workstreamName) return;
@@ -488,43 +356,12 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
               Export to Excel
             </Button>
           )}
-
-          {onRequestTimeBookings && (
-            <Space>
-              {timeDataLoaded &&
-                currentWorkstreamKey &&
-                timeDataLoaded.has(currentWorkstreamKey) && (
-                  <DatePicker
-                    value={timeBookingsDate}
-                    onChange={handleDateChange}
-                    size="small"
-                    style={{ width: "140px" }}
-                    format="YYYY-MM-DD"
-                  />
-                )}
-              {(!timeDataLoaded ||
-                !currentWorkstreamKey ||
-                !timeDataLoaded.has(currentWorkstreamKey)) && (
-                <Button
-                  type="primary"
-                  icon={<CalendarOutlined />}
-                  size="small"
-                  onClick={() =>
-                    onRequestTimeBookings(timeBookingsDate.format("YYYY-MM-DD"))
-                  }
-                >
-                  Filter Actual Days by Date
-                </Button>
-              )}
-            </Space>
-          )}
         </Space>
       }
       bodyStyle={{ padding: 0, overflow: "hidden" }}
     >
       <div style={{ overflow: "auto" }}>
         <Table
-          key={dateKey} // Force re-render when date changes
           columns={columns}
           dataSource={getSortedItems ? getSortedItems(dataSource) : dataSource}
           rowKey={rowKey}
@@ -540,15 +377,6 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
           summary={summary || undefined}
         />
       </div>
-      <TimeBookingsModal
-        visible={timeBookingsModalVisible}
-        onClose={() => {
-          setTimeBookingsModalVisible(false);
-          setSelectedRecordForModal(null);
-        }}
-        record={selectedRecordForModal}
-        filterDate={timeBookingsDate.format("YYYY-MM-DD")}
-      />
     </Card>
   );
 };
