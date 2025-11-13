@@ -569,8 +569,9 @@ metricsRoute.get(
   "/jiraReport/workstream/:workstreamKey/workstream",
   (req: Request, res: TR<{ message: string; data: string }>) => {
     const workstreamKey = req.params.workstreamKey;
+    const withTimeSpentDetail = req.query.withTimeSpentDetail === "true";
     console.log(
-      `Jira Report workstream endpoint called for workstream: ${workstreamKey}`
+      `Jira Report workstream endpoint called for workstream: ${workstreamKey}, withTimeSpentDetail: ${withTimeSpentDetail}`
     );
 
     // Set headers for SSE
@@ -601,7 +602,7 @@ metricsRoute.get(
     jiraReportGraphManager
       .getWorkstreamIssues(workstreamKey, (progress) => {
         res.write(`data: ${JSON.stringify(progress)}\n\n`);
-      })
+      }, withTimeSpentDetail)
       .then((workstreamWithIssues) => {
         console.log(
           `Fetched complete issue tree for workstream ${workstreamKey}`
@@ -928,99 +929,6 @@ metricsRoute.get(
         );
         res.end();
       });
-  }
-);
-
-// Time Bookings API route for workstreams
-metricsRoute.get(
-  "/jiraReport/workstream/:workstreamKey/timeBookings",
-  async (req: Request, res: TR<{ message: string; data: string }>) => {
-    const workstreamKey = req.params.workstreamKey;
-    console.log(
-      `Time Bookings endpoint called for workstream: ${workstreamKey}`
-    );
-
-    try {
-      // Get the complete workstream tree from cache or Jira
-      const workstreamTree =
-        await jiraReportGraphManager.getWorkstreamIssues(workstreamKey);
-
-      // Function to recursively extract all Jira keys from the tree
-      const extractAllJiraKeys = (issue: any): string[] => {
-        const keys: string[] = [issue.key];
-        if (issue.children && issue.children.length > 0) {
-          for (const child of issue.children) {
-            keys.push(...extractAllJiraKeys(child));
-          }
-        }
-        return keys;
-      };
-
-      // Extract all Jira keys from the workstream tree
-      const allJiraKeys = extractAllJiraKeys(workstreamTree);
-      console.log(
-        `Extracted ${allJiraKeys.length} Jira keys from workstream ${workstreamKey}:`,
-        allJiraKeys
-      );
-
-      // Get real time tracking data from Jira API
-      let timeTrackingData: Record<
-        string,
-        Array<{ date: string; timeSpent: number }>
-      >;
-
-      try {
-        timeTrackingData = await jiraRequester.getTimeTrackingData(allJiraKeys);
-        console.log(
-          `Successfully fetched time tracking data for ${Object.keys(timeTrackingData).length} issues`
-        );
-      } catch (error) {
-        console.warn(
-          `Failed to fetch real time tracking data, falling back to mock data:`,
-          error
-        );
-        // Fallback to mock data if real API fails
-        timeTrackingData = allJiraKeys.reduce(
-          (acc, jiraKey) => {
-            const dates: Array<{ date: string; timeSpent: number }> = [];
-            const today = new Date();
-            for (let i = 29; i >= 0; i--) {
-              const date = new Date(today);
-              date.setDate(date.getDate() - i);
-              dates.push({
-                date: date.toISOString().split("T")[0],
-                timeSpent: Math.random() * 4 + 0.5, // Random time between 0.5 and 4.5 days
-              });
-            }
-            acc[jiraKey] = dates;
-            return acc;
-          },
-          {} as Record<string, Array<{ date: string; timeSpent: number }>>
-        );
-      }
-
-      const realTimeBookings = {
-        jiraKeys: allJiraKeys,
-        totalIssues: allJiraKeys.length,
-        workstreamKey: workstreamKey,
-        timeDataByKey: timeTrackingData,
-      };
-
-      // Return the response immediately (removed setTimeout for async compatibility)
-      res.json({
-        message: `Time bookings for workstream ${workstreamKey} fetched successfully. Found ${allJiraKeys.length} issues.`,
-        data: JSON.stringify(realTimeBookings),
-      });
-    } catch (error) {
-      console.error(
-        `Error fetching time bookings for workstream ${workstreamKey}:`,
-        error
-      );
-      res.json({
-        message: `Error fetching time bookings for workstream ${workstreamKey}: ${error.message}`,
-        data: JSON.stringify({ error: error.message }),
-      });
-    }
   }
 );
 

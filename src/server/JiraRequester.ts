@@ -33,10 +33,7 @@ export type LiteJiraIssue = {
   epicStartDate: string | null; // Epic Start Date (fallback) - always present
   epicEndDate: string | null; // Epic End Date (fallback) - always present
   hasChildren?: boolean | null; // true = has children, false = no children, null/undefined = unknown
-  timeBookings?: Array<{ date: string; timeSpent: number }>; // Time bookings with dates
-  timeBookingsJiraKeys?: string[]; // Array of all Jira keys in the workstream tree
-  timeBookingsTotalIssues?: number; // Total number of issues in the workstream tree
-  timeDataByKey?: Record<string, Array<{ date: string; timeSpent: number }>>; // Map from Jira key to time data array
+  timeSpentDetail?: Array<{ date: string; timeSpent: number }>; // Time spent detail with dates (only populated when withTimeSpentDetail=true)
   links?: Array<{
     type: string;
     linkedIssueKey: string;
@@ -466,6 +463,20 @@ export default class JiraRequester {
       console.log(
         `Successfully processed time tracking data for ${Object.keys(timeTrackingData).length} issues`
       );
+      console.log(
+        `getTimeTrackingData response - keys with data:`,
+        Object.keys(timeTrackingData)
+      );
+      console.log(
+        `getTimeTrackingData response - requested ${issueKeys.length} keys, got ${Object.keys(timeTrackingData).length} keys`
+      );
+      const missingKeys = issueKeys.filter((key) => !(key in timeTrackingData));
+      if (missingKeys.length > 0) {
+        console.log(
+          `getTimeTrackingData - missing keys (no changelog or not found):`,
+          missingKeys
+        );
+      }
       return timeTrackingData;
     } catch (error) {
       console.error("Error fetching time tracking data:", error);

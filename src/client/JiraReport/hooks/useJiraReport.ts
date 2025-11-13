@@ -1254,6 +1254,211 @@ export const useJiraReport = () => {
     return orphans;
   }, [state.orphanData]);
 
+  const requestWorkstreamWithTimeSpentDetail = async (
+    workstreamKey: string
+  ): Promise<void> => {
+    console.log(
+      `\n=== FRONTEND: Requesting workstream ${workstreamKey} with time spent detail ===`
+    );
+
+    setState((prevState) => ({
+      ...prevState,
+      currentIssuesLoading: true,
+      currentIssuesError: null,
+      progressStatus: "Fetching time spent detail...",
+      progressDetails: undefined,
+      currentStep: undefined,
+    }));
+
+    try {
+      const eventSource = new EventSource(
+        `/api/jiraReport/workstream/${workstreamKey}/workstream?withTimeSpentDetail=true`
+      );
+
+      await new Promise<void>((resolve, reject) => {
+        eventSource.onmessage = (event) => {
+          const response = JSON.parse(event.data);
+
+          if (response.status === "processing") {
+            setState((prevState) => ({
+              ...prevState,
+              progressStatus: response.message || "Processing...",
+              progressDetails: response.progress,
+              currentStep: response.step,
+            }));
+          } else if (response.status === "complete" && response.data) {
+            const workstreamWithIssues: LiteJiraIssue = JSON.parse(
+              response.data
+            );
+
+            console.log(
+              `\n=== FRONTEND: Received workstream data with time spent detail for ${workstreamKey} ===`
+            );
+
+            // Recursively update all issues in the navigation stack and projectIssues
+            // This function takes a tree structure and updates all matching issues
+            const updateIssueWithTimeSpentDetail = (
+              issues: JiraIssueWithAggregated[],
+              updatedTree: LiteJiraIssue
+            ): JiraIssueWithAggregated[] => {
+              // Create a map of all issues in the updated tree for quick lookup
+              const issueMap = new Map<string, LiteJiraIssue>();
+              const buildMap = (issue: LiteJiraIssue) => {
+                issueMap.set(issue.key, issue);
+                if (issue.children && issue.children.length > 0) {
+                  issue.children.forEach(buildMap);
+                }
+              };
+              buildMap(updatedTree);
+
+              console.log("updateIssueWithTimeSpentDetail:", {
+                issuesCount: issues.length,
+                mapSize: issueMap.size,
+                sampleIssueKey: issues[0]?.key,
+                hasInMap: issues[0] ? issueMap.has(issues[0].key) : false,
+              });
+
+              // Now update the issues array using the map
+              const updated = issues.map((issue) => {
+                const updatedIssue = issueMap.get(issue.key);
+                if (updatedIssue) {
+                  // Found a match, update it with timeSpentDetail
+                  const result = {
+                    ...issue,
+                    timeSpentDetail: updatedIssue.timeSpentDetail,
+                    children:
+                      issue.children && issue.children.length > 0
+                        ? updateIssueWithTimeSpentDetail(
+                            issue.children,
+                            updatedTree
+                          )
+                        : updatedIssue.children || [],
+                  };
+                  console.log(
+                    `Updated issue ${issue.key} with timeSpentDetail:`,
+                    {
+                      hasTimeSpentDetail: !!result.timeSpentDetail,
+                      timeSpentDetailLength:
+                        result.timeSpentDetail?.length || 0,
+                    }
+                  );
+                  return result;
+                }
+                // No match found, but still recursively check children
+                if (issue.children && issue.children.length > 0) {
+                  return {
+                    ...issue,
+                    children: updateIssueWithTimeSpentDetail(
+                      issue.children,
+                      updatedTree
+                    ),
+                  };
+                }
+                return issue;
+              });
+              return updated;
+            };
+
+            setState((prevState) => {
+              // Update projectIssues
+              const updatedProjectIssues = updateIssueWithTimeSpentDetail(
+                prevState.projectIssues,
+                workstreamWithIssues
+              );
+
+              // Update currentIssues if we're viewing this workstream
+              // When viewing inside a workstream, currentIssues contains the children
+              // So we need to update them from workstreamWithIssues.children
+              let updatedCurrentIssues = prevState.currentIssues;
+              if (
+                prevState.navigationStack.length > 0 &&
+                prevState.navigationStack[prevState.navigationStack.length - 1]
+                  .key === workstreamKey
+              ) {
+                // If we're viewing the workstream itself, currentIssues should be the children
+                // So we update from workstreamWithIssues.children
+                if (
+                  workstreamWithIssues.children &&
+                  workstreamWithIssues.children.length > 0
+                ) {
+                  updatedCurrentIssues = updateIssueWithTimeSpentDetail(
+                    prevState.currentIssues,
+                    workstreamWithIssues
+                  );
+                } else {
+                  // No children, but still update if there's a direct match
+                  updatedCurrentIssues = updateIssueWithTimeSpentDetail(
+                    prevState.currentIssues,
+                    workstreamWithIssues
+                  );
+                }
+              }
+
+              // Update navigation stack data
+              const updatedNavigationStack = prevState.navigationStack.map(
+                (item) => {
+                  if (item.key === workstreamKey) {
+                    const updatedData = updateIssueWithTimeSpentDetail(
+                      item.data,
+                      workstreamWithIssues
+                    );
+                    return {
+                      ...item,
+                      data: updatedData,
+                    };
+                  }
+                  return item;
+                }
+              );
+
+              return {
+                ...prevState,
+                projectIssues: updatedProjectIssues,
+                currentIssues: updatedCurrentIssues,
+                navigationStack: updatedNavigationStack,
+                currentIssuesLoading: false,
+                progressStatus: "Idle",
+                progressDetails: undefined,
+                currentStep: undefined,
+              };
+            });
+
+            eventSource.close();
+            resolve();
+          } else if (response.status === "error") {
+            eventSource.close();
+            reject(new Error(response.message || "Failed to load workstream"));
+          }
+        };
+
+        eventSource.onerror = () => {
+          eventSource.close();
+          reject(new Error("EventSource error"));
+        };
+
+        setTimeout(() => {
+          eventSource.close();
+          reject(new Error("Request timeout"));
+        }, 600000); // 10 minutes timeout for time spent detail
+      });
+    } catch (error) {
+      console.error(
+        `Error requesting workstream ${workstreamKey} with time spent detail:`,
+        error
+      );
+      setState((prevState) => ({
+        ...prevState,
+        currentIssuesLoading: false,
+        currentIssuesError:
+          error instanceof Error ? error.message : String(error),
+        progressStatus: "Idle",
+        progressDetails: undefined,
+        currentStep: undefined,
+      }));
+      throw error;
+    }
+  };
+
   return {
     state,
     getWorkstreamDataCellSpan,
@@ -1275,5 +1480,6 @@ export const useJiraReport = () => {
     requestDefectHistory,
     requestOrphanDetection,
     getOrphans,
+    requestWorkstreamWithTimeSpentDetail,
   };
 };

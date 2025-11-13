@@ -46,6 +46,7 @@ const JiraReport: React.FC = () => {
     requestDefectHistory,
     requestOrphanDetection,
     getOrphans,
+    requestWorkstreamWithTimeSpentDetail,
   } = useJiraReport();
 
   const handleClearCache = () => {
@@ -256,6 +257,12 @@ const JiraReport: React.FC = () => {
                   toggleFavorite={toggleFavorite}
                   projectIssues={projectIssues}
                   onRequestOrphanDetection={requestOrphanDetection}
+                  requestWorkstreamWithTimeSpentDetail={
+                    requestWorkstreamWithTimeSpentDetail
+                  }
+                  currentIssuesLoading={currentIssuesLoading}
+                  progressStatus={progressStatus}
+                  progressDetails={progressDetails}
                 />
               </>
             ) : (

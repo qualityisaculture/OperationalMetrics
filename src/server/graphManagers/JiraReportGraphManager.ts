@@ -379,7 +379,8 @@ export default class JiraReportGraphManager {
   // Get all issues for a specific workstream (with complete recursive data)
   async getWorkstreamIssues(
     workstreamKey: string,
-    sendProgress?: (response: SSEResponse) => void
+    sendProgress?: (response: SSEResponse) => void,
+    withTimeSpentDetail: boolean = false
   ): Promise<LiteJiraIssue> {
     this.sendProgress = sendProgress;
     try {
@@ -405,8 +406,11 @@ export default class JiraReportGraphManager {
       );
 
       // First, try to find the workstream in our workstream cache
+      // Only use cache if we're not requesting timeSpentDetail (as time data may change)
       const cachedWorkstream =
-        this.workstreamCache.getWorkstream(workstreamKey);
+        !withTimeSpentDetail
+          ? this.workstreamCache.getWorkstream(workstreamKey)
+          : null;
       if (cachedWorkstream) {
         console.log(
           `Found complete workstream ${workstreamKey} in cache, returning cached data`
@@ -510,19 +514,130 @@ export default class JiraReportGraphManager {
       );
 
       // Use the batched approach to get all issues recursively
-      const workstreamWithAllIssues = await this.getIssueWithAllChildrenBatched(
+      let workstreamWithAllIssues = await this.getIssueWithAllChildrenBatched(
         issue,
         sendProgress
       );
 
+      // If withTimeSpentDetail is requested, fetch and populate time tracking data
+      if (withTimeSpentDetail) {
+        this.updateProgress(
+          "fetching_time_detail",
+          `Fetching time spent detail for all issues in workstream ${workstreamKey}...`,
+          {
+            currentPhase: "fetching_time_detail",
+            phaseProgress: 0,
+            phaseTotal: 1,
+          }
+        );
+
+        // Extract all issue keys from the tree
+        const extractAllJiraKeys = (issue: LiteJiraIssue): string[] => {
+          const keys: string[] = [issue.key];
+          if (issue.children && issue.children.length > 0) {
+            for (const child of issue.children) {
+              keys.push(...extractAllJiraKeys(child));
+            }
+          }
+          return keys;
+        };
+
+        const allJiraKeys = extractAllJiraKeys(workstreamWithAllIssues);
+        console.log(
+          `\n=== TIME TRACKING DATA REQUEST ===`
+        );
+        console.log(
+          `Extracted ${allJiraKeys.length} Jira keys from workstream ${workstreamKey} for time tracking data`
+        );
+        console.log(`Requested Jira keys:`, allJiraKeys);
+
+        // Get time tracking data for all issues
+        let timeTrackingData: Record<
+          string,
+          Array<{ date: string; timeSpent: number }>
+        > = {};
+
+        try {
+          timeTrackingData = await this.jiraRequester.getTimeTrackingData(
+            allJiraKeys
+          );
+          console.log(
+            `Successfully fetched time tracking data for ${Object.keys(timeTrackingData).length} issues`
+          );
+          console.log(`Jira keys with time tracking data:`, Object.keys(timeTrackingData));
+          console.log(`Jira keys WITHOUT time tracking data:`, 
+            allJiraKeys.filter(key => !(key in timeTrackingData))
+          );
+          // Log sample of data for first few keys
+          const sampleKeys = Object.keys(timeTrackingData).slice(0, 5);
+          sampleKeys.forEach(key => {
+            console.log(`  ${key}: ${timeTrackingData[key].length} entries`);
+          });
+        } catch (error) {
+          console.error(
+            `Error fetching time tracking data for workstream ${workstreamKey}:`,
+            error
+          );
+          // Continue with empty timeTrackingData - issues will have empty arrays
+        }
+        console.log(`=== END TIME TRACKING DATA REQUEST ===\n`);
+
+        // Recursively add timeSpentDetail to each issue in the tree
+        const addTimeSpentDetail = (
+          issue: LiteJiraIssue,
+          depth: number = 0
+        ): LiteJiraIssue => {
+          const timeDetail = timeTrackingData[issue.key] || [];
+          const hasData = timeDetail.length > 0;
+          console.log(
+            `${"  ".repeat(depth)}[Level ${depth}] Issue ${issue.key}: ${
+              hasData ? `${timeDetail.length} time entries` : "no time data"
+            }`
+          );
+
+          return {
+            ...issue,
+            timeSpentDetail: timeDetail,
+            children: issue.children.map((child) =>
+              addTimeSpentDetail(child, depth + 1)
+            ),
+          };
+        };
+
+        console.log(
+          `\n=== Adding timeSpentDetail to all issues in tree ===`
+        );
+        console.log(
+          `Total issues in timeTrackingData: ${Object.keys(timeTrackingData).length}`
+        );
+        console.log(
+          `Total issues in tree: ${allJiraKeys.length}`
+        );
+        workstreamWithAllIssues = addTimeSpentDetail(workstreamWithAllIssues, 0);
+        console.log(`=== Finished adding timeSpentDetail ===\n`);
+
+        this.updateProgress(
+          "time_detail_complete",
+          `Completed fetching time spent detail for workstream ${workstreamKey}`,
+          {
+            currentPhase: "time_detail_complete",
+            phaseProgress: 1,
+            phaseTotal: 1,
+          }
+        );
+      }
+
       // Cache the complete workstream tree (even if it has no children)
-      this.workstreamCache.setWorkstream(
-        workstreamKey,
-        workstreamWithAllIssues
-      );
-      console.log(
-        `Cached complete workstream tree for ${workstreamKey} with ${workstreamWithAllIssues.children.length} immediate children`
-      );
+      // Note: We don't cache when withTimeSpentDetail is true, as time data may change
+      if (!withTimeSpentDetail) {
+        this.workstreamCache.setWorkstream(
+          workstreamKey,
+          workstreamWithAllIssues
+        );
+        console.log(
+          `Cached complete workstream tree for ${workstreamKey} with ${workstreamWithAllIssues.children.length} immediate children`
+        );
+      }
 
       // Send completion progress update
       this.updateProgress(

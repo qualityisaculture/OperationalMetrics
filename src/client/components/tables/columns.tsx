@@ -1,9 +1,10 @@
-import React from "react";
-import { Button, Tag, Tooltip, Typography } from "antd";
+import React, { useState } from "react";
+import { Button, Tag, Tooltip, Typography, Modal, Table } from "antd";
 import {
   ExclamationCircleOutlined,
   StarFilled,
   StarOutlined,
+  ClockCircleOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { JiraIssueWithAggregated } from "../../JiraReport/types";
@@ -906,5 +907,102 @@ export const getUnifiedColumns = ({
     );
   }
 
+  // Add Time Spent Detail column
+  columns.push(getTimeSpentDetailColumn());
+
   return columns;
 };
+
+// Component for Time Spent Detail button and modal
+const TimeSpentDetailButton: React.FC<{
+  record: JiraIssueWithAggregated;
+}> = ({ record }) => {
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
+  // Button is only disabled if timeSpentDetail is undefined (not loaded yet)
+  // If it's an empty array, the data was loaded but there's no time spent
+  const isDataLoaded = record.timeSpentDetail !== undefined;
+  const hasData = record.timeSpentDetail && record.timeSpentDetail.length > 0;
+
+  if (!isDataLoaded) {
+    return (
+      <Button type="text" icon={<ClockCircleOutlined />} disabled size="small">
+        View
+      </Button>
+    );
+  }
+
+  const columns = [
+    {
+      title: "Date",
+      dataIndex: "date",
+      key: "date",
+      sorter: (a: any, b: any) => a.date.localeCompare(b.date),
+    },
+    {
+      title: "Time Spent (days)",
+      dataIndex: "timeSpent",
+      key: "timeSpent",
+      sorter: (a: any, b: any) => a.timeSpent - b.timeSpent,
+      render: (value: number) => value.toFixed(2),
+    },
+  ];
+
+  const totalTime = (record.timeSpentDetail || []).reduce(
+    (sum, entry) => sum + entry.timeSpent,
+    0
+  );
+
+  return (
+    <>
+      <Button
+        type="link"
+        icon={<ClockCircleOutlined />}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsModalVisible(true);
+        }}
+        size="small"
+      >
+        View
+      </Button>
+      <Modal
+        title={`Time Spent Detail - ${record.key}`}
+        open={isModalVisible}
+        onCancel={() => setIsModalVisible(false)}
+        footer={null}
+        width={600}
+      >
+        {hasData ? (
+          <>
+            <div style={{ marginBottom: "16px" }}>
+              <Typography.Text strong>Total Time Spent: </Typography.Text>
+              <Typography.Text>{totalTime.toFixed(2)} days</Typography.Text>
+            </div>
+            <Table
+              dataSource={record.timeSpentDetail || []}
+              columns={columns}
+              rowKey="date"
+              pagination={{ pageSize: 20 }}
+              size="small"
+            />
+          </>
+        ) : (
+          <Typography.Text type="secondary">
+            No time spent data available for this issue.
+          </Typography.Text>
+        )}
+      </Modal>
+    </>
+  );
+};
+
+// Helper function to create Time Spent Detail column
+const getTimeSpentDetailColumn = () => ({
+  title: "Time Detail",
+  key: "timeSpentDetail",
+  width: 100,
+  render: (_: any, record: JiraIssueWithAggregated) => (
+    <TimeSpentDetailButton record={record} />
+  ),
+});

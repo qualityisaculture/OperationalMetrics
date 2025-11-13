@@ -1,5 +1,5 @@
 import React from "react";
-import { Breadcrumb, Button } from "antd";
+import { Breadcrumb, Button, Tooltip } from "antd";
 import {
   HomeOutlined,
   ProjectOutlined,
@@ -34,18 +34,20 @@ export const Breadcrumbs: React.FC<Props> = ({
         </Breadcrumb.Item>
         {navigationStack.map((item, index) => (
           <Breadcrumb.Item key={item.key}>
-            <Button
-              type="link"
-              onClick={() => handleBreadcrumbClick(index)}
-              style={{ padding: 0, height: "auto" }}
-            >
-              {item.type === "project" ? (
-                <ProjectOutlined style={{ marginRight: "4px" }} />
-              ) : (
-                <InfoCircleOutlined style={{ marginRight: "4px" }} />
-              )}
-              {item.name}
-            </Button>
+            <Tooltip title={item.key}>
+              <Button
+                type="link"
+                onClick={() => handleBreadcrumbClick(index)}
+                style={{ padding: 0, height: "auto" }}
+              >
+                {item.type === "project" ? (
+                  <ProjectOutlined style={{ marginRight: "4px" }} />
+                ) : (
+                  <InfoCircleOutlined style={{ marginRight: "4px" }} />
+                )}
+                {item.name}
+              </Button>
+            </Tooltip>
           </Breadcrumb.Item>
         ))}
       </Breadcrumb>

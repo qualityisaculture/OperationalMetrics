@@ -1,9 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { JiraIssueWithAggregated } from "../types";
 import { UnifiedIssuesTable } from "../../components/tables/UnifiedIssuesTable";
 import { EpicIssuesList } from "./EpicIssuesList";
-import { Collapse, Typography } from "antd";
-import { DownOutlined, RightOutlined } from "@ant-design/icons";
+import { Collapse, Typography, Button, Modal, Space, Alert } from "antd";
+import {
+  DownOutlined,
+  RightOutlined,
+  ClockCircleOutlined,
+  ExclamationCircleOutlined,
+} from "@ant-design/icons";
 
 interface Props {
   currentIssues: JiraIssueWithAggregated[];
@@ -26,7 +31,13 @@ interface Props {
 
   // Orphan Detection
   onRequestOrphanDetection?: (workstreamKey: string) => void;
-  // (local toggle inside component)
+  // Time Spent Detail
+  requestWorkstreamWithTimeSpentDetail?: (
+    workstreamKey: string
+  ) => Promise<void>;
+  currentIssuesLoading?: boolean;
+  progressStatus?: string;
+  progressDetails?: any;
 }
 
 export const WorkstreamTable: React.FC<Props> = ({
@@ -39,9 +50,53 @@ export const WorkstreamTable: React.FC<Props> = ({
   toggleFavorite,
   projectIssues,
   onRequestOrphanDetection,
+  requestWorkstreamWithTimeSpentDetail,
+  currentIssuesLoading,
+  progressStatus,
+  progressDetails,
 }) => {
   const [isTableCollapsed, setIsTableCollapsed] = useState(false);
   const [isEpicListCollapsed, setIsEpicListCollapsed] = useState(false);
+  const [isTimeSpentDetailModalVisible, setIsTimeSpentDetailModalVisible] =
+    useState(false);
+  const [isLoadingTimeSpentDetail, setIsLoadingTimeSpentDetail] =
+    useState(false);
+
+  const currentWorkstreamKey =
+    navigationStack.length > 0
+      ? navigationStack[navigationStack.length - 1].key
+      : null;
+
+  const hasTimeSpentDetail = useMemo(() => {
+    const hasData = currentIssues.some(
+      (issue) => issue.timeSpentDetail && issue.timeSpentDetail.length > 0
+    );
+    console.log("hasTimeSpentDetail check:", {
+      currentIssuesCount: currentIssues.length,
+      hasData,
+      sampleIssue: currentIssues[0]?.key,
+      sampleTimeSpentDetail: currentIssues[0]?.timeSpentDetail,
+    });
+    return hasData;
+  }, [currentIssues]);
+
+  const handleRequestTimeSpentDetail = async () => {
+    if (!currentWorkstreamKey || !requestWorkstreamWithTimeSpentDetail) {
+      return;
+    }
+
+    setIsTimeSpentDetailModalVisible(true);
+    setIsLoadingTimeSpentDetail(true);
+
+    try {
+      await requestWorkstreamWithTimeSpentDetail(currentWorkstreamKey);
+    } catch (error) {
+      console.error("Error requesting time spent detail:", error);
+    } finally {
+      setIsLoadingTimeSpentDetail(false);
+      setIsTimeSpentDetailModalVisible(false);
+    }
+  };
   // Find the complete hierarchical data for the current workstream
   // We need to find the workstream in projectIssues that matches the current level
   const currentLevelData = navigationStack[navigationStack.length - 1];
@@ -89,6 +144,61 @@ export const WorkstreamTable: React.FC<Props> = ({
 
   return (
     <div>
+      {currentWorkstreamKey && (
+        <div style={{ marginBottom: "16px" }}>
+          <Space>
+            <Button
+              type="primary"
+              icon={<ClockCircleOutlined />}
+              onClick={handleRequestTimeSpentDetail}
+              disabled={isLoadingTimeSpentDetail || currentIssuesLoading}
+              loading={isLoadingTimeSpentDetail || currentIssuesLoading}
+            >
+              Get Time Spent In Detail
+            </Button>
+            {hasTimeSpentDetail && (
+              <Alert
+                message="Time spent detail data is available"
+                type="success"
+                showIcon
+                style={{ marginLeft: "8px" }}
+              />
+            )}
+          </Space>
+        </div>
+      )}
+
+      <Modal
+        title="Fetching Time Spent Detail"
+        open={isTimeSpentDetailModalVisible}
+        closable={false}
+        footer={null}
+        maskClosable={false}
+      >
+        <Space direction="vertical" style={{ width: "100%" }}>
+          <Alert
+            message="Warning"
+            description="This operation may take several minutes depending on the number of issues in the workstream. Please do not close this window."
+            type="warning"
+            icon={<ExclamationCircleOutlined />}
+            showIcon
+          />
+          {progressStatus && (
+            <div>
+              <Typography.Text strong>Status: </Typography.Text>
+              <Typography.Text>{progressStatus}</Typography.Text>
+            </div>
+          )}
+          {progressDetails && (
+            <div>
+              <Typography.Text>
+                {progressDetails.currentPhase || "Processing..."}
+              </Typography.Text>
+            </div>
+          )}
+        </Space>
+      </Modal>
+
       <Collapse
         activeKey={isTableCollapsed ? [] : ["table"]}
         onChange={(keys) => setIsTableCollapsed(keys.length === 0)}
