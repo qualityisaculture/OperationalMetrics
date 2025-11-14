@@ -471,6 +471,67 @@ export const TimeSpentDetailTable: React.FC<TimeSpentDetailTableProps> = ({
     return cols;
   }, [firstMonth, allMonths, additionalMonths]);
 
+  // Calculate sums for the summary row
+  const summaryData = useMemo(() => {
+    let totalOriginalEstimate = 0;
+    let totalBeforeFirstMonth = 0;
+    const totalByMonth: { [key: string]: number } = {};
+    let totalTimeBooked = 0;
+    let totalRemaining = 0;
+
+    // Initialize totals for each month
+    allMonths.forEach((month) => {
+      const monthKey = `month${month.getFullYear()}${month.getMonth()}`;
+      totalByMonth[monthKey] = 0;
+    });
+
+    // Calculate totals across all records
+    dataSource.forEach((record) => {
+      // Original Estimate
+      const originalEstimate =
+        record.aggregatedOriginalEstimate !== undefined
+          ? record.aggregatedOriginalEstimate
+          : record.originalEstimate || 0;
+      totalOriginalEstimate += originalEstimate;
+
+      // All time spent detail
+      const allTimeSpentDetail = collectAllTimeSpentDetail(record);
+
+      // Before first month
+      const beforeFirstMonth = aggregateTimeBeforeMonth(
+        allTimeSpentDetail,
+        firstMonth
+      );
+      totalBeforeFirstMonth += beforeFirstMonth;
+
+      // By month
+      allMonths.forEach((month) => {
+        const monthKey = `month${month.getFullYear()}${month.getMonth()}`;
+        const monthTotal = aggregateTimeByMonth(allTimeSpentDetail, month);
+        totalByMonth[monthKey] += monthTotal;
+      });
+
+      // Total Time Booked
+      const recordTotalTimeBooked = allTimeSpentDetail.reduce(
+        (sum, entry) => sum + (entry.timeSpentDays || 0),
+        0
+      );
+      totalTimeBooked += recordTotalTimeBooked;
+
+      // Remaining
+      const remaining = originalEstimate - recordTotalTimeBooked;
+      totalRemaining += remaining;
+    });
+
+    return {
+      totalOriginalEstimate,
+      totalBeforeFirstMonth,
+      totalByMonth,
+      totalTimeBooked,
+      totalRemaining,
+    };
+  }, [dataSource, firstMonth, allMonths]);
+
   return (
     <Table
       columns={columns}
@@ -481,6 +542,105 @@ export const TimeSpentDetailTable: React.FC<TimeSpentDetailTableProps> = ({
       scroll={{ x: "max-content" }}
       size="small"
       style={{ marginTop: 16 }}
+      summary={() => (
+        <Table.Summary fixed>
+          <Table.Summary.Row style={{ backgroundColor: "#fafafa" }}>
+            <Table.Summary.Cell index={0} colSpan={2}>
+              <Text strong>Total</Text>
+            </Table.Summary.Cell>
+            <Table.Summary.Cell index={2}>
+              <Text>
+                {summaryData.totalOriginalEstimate > 0 ? (
+                  <Tag color="green">
+                    {summaryData.totalOriginalEstimate.toFixed(1)} days
+                  </Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            </Table.Summary.Cell>
+            <Table.Summary.Cell index={3}>
+              <Text>
+                {summaryData.totalBeforeFirstMonth > 0 ? (
+                  <Tag color="blue">
+                    {summaryData.totalBeforeFirstMonth.toFixed(1)} days
+                  </Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            </Table.Summary.Cell>
+            {allMonths.map((month) => {
+              const monthKey = `month${month.getFullYear()}${month.getMonth()}`;
+              const monthTotal = summaryData.totalByMonth[monthKey] || 0;
+              return (
+                <Table.Summary.Cell key={monthKey}>
+                  <Text>
+                    {monthTotal > 0 ? (
+                      <Tag color="blue">{monthTotal.toFixed(1)} days</Tag>
+                    ) : (
+                      <Text type="secondary">-</Text>
+                    )}
+                  </Text>
+                </Table.Summary.Cell>
+              );
+            })}
+            <Table.Summary.Cell>
+              <Text>
+                {summaryData.totalTimeBooked > 0 ? (
+                  <Tag color="blue">
+                    {summaryData.totalTimeBooked.toFixed(1)} days
+                  </Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            </Table.Summary.Cell>
+            <Table.Summary.Cell>
+              <Text>
+                {summaryData.totalOriginalEstimate > 0 ? (
+                  (() => {
+                    const overallUsagePercent =
+                      (summaryData.totalTimeBooked /
+                        summaryData.totalOriginalEstimate) *
+                      100;
+                    const color =
+                      overallUsagePercent > 100
+                        ? "red"
+                        : overallUsagePercent > 75
+                          ? "orange"
+                          : overallUsagePercent > 50
+                            ? "blue"
+                            : "green";
+                    return (
+                      <Tag color={color}>
+                        {overallUsagePercent.toFixed(1)}%
+                      </Tag>
+                    );
+                  })()
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            </Table.Summary.Cell>
+            <Table.Summary.Cell>
+              <Text>
+                <Tag
+                  color={
+                    summaryData.totalRemaining < 0
+                      ? "red"
+                      : summaryData.totalRemaining > 0
+                        ? "green"
+                        : "default"
+                  }
+                >
+                  {summaryData.totalRemaining.toFixed(1)} days
+                </Tag>
+              </Text>
+            </Table.Summary.Cell>
+          </Table.Summary.Row>
+        </Table.Summary>
+      )}
     />
   );
 };
