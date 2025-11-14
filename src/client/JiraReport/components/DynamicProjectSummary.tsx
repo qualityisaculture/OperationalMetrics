@@ -11,12 +11,15 @@ import {
   Divider,
   Collapse,
   Tag,
+  Alert,
 } from "antd";
 import {
   InfoCircleOutlined,
   DownloadOutlined,
   DownOutlined,
   RightOutlined,
+  ClockCircleOutlined,
+  ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import { JiraIssueWithAggregated } from "../types";
 import { getIssueColumns } from "./tables/issueColumns";
@@ -55,6 +58,9 @@ interface Props {
   toggleFavorite: (itemKey: string, event: React.MouseEvent) => void;
   projectAggregatedData: ProjectAggregatedData | null;
   projectName: string;
+  requestWorkstreamWithTimeSpentDetail?: (
+    workstreamKey: string
+  ) => Promise<void>;
   // (local toggle inside component)
 }
 
@@ -70,6 +76,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
   toggleFavorite,
   projectAggregatedData,
   projectName,
+  requestWorkstreamWithTimeSpentDetail,
 }) => {
   const [configuredColumns, setConfiguredColumns] = useState<
     ColumnsType<JiraIssueWithAggregated>
@@ -81,6 +88,10 @@ export const DynamicProjectSummary: React.FC<Props> = ({
   const [isExportModalVisible, setIsExportModalVisible] = useState(false);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [isWorkstreamsTableCollapsed, setIsWorkstreamsTableCollapsed] =
+    useState(false);
+  const [isLoadingTimeSpentDetail, setIsLoadingTimeSpentDetail] =
+    useState(false);
+  const [isTimeSpentDetailModalVisible, setIsTimeSpentDetailModalVisible] =
     useState(false);
 
   // Prepare the data source with aggregated values
@@ -573,8 +584,42 @@ export const DynamicProjectSummary: React.FC<Props> = ({
     setSelectedAccounts(checkedValues);
   };
 
+  const handleRequestAllTimeSpentDetail = async () => {
+    if (!requestWorkstreamWithTimeSpentDetail) {
+      return;
+    }
+
+    setIsTimeSpentDetailModalVisible(true);
+    setIsLoadingTimeSpentDetail(true);
+
+    try {
+      // Request timeSpentDetail for all workstreams sequentially
+      for (let i = 0; i < projectIssues.length; i++) {
+        const workstream = projectIssues[i];
+        try {
+          await requestWorkstreamWithTimeSpentDetail(workstream.key);
+        } catch (error) {
+          console.error(
+            `Error requesting time spent detail for ${workstream.key}:`,
+            error
+          );
+          // Continue with next workstream even if one fails
+        }
+      }
+    } catch (error) {
+      console.error(
+        "Error requesting time spent detail for all workstreams:",
+        error
+      );
+    } finally {
+      setIsLoadingTimeSpentDetail(false);
+      setIsTimeSpentDetailModalVisible(false);
+    }
+  };
+
   // Create a lightweight dataSource2 with only the fields needed for the table
   // Excluding large nested structures like children arrays to reduce memory usage
+  // But including timeSpentDetail and children for month column aggregation
   const dataSource2 = useMemo(() => {
     return dataSource.map((issue) => ({
       key: issue.key,
@@ -595,6 +640,8 @@ export const DynamicProjectSummary: React.FC<Props> = ({
       dueDate: issue.dueDate,
       epicStartDate: issue.epicStartDate,
       epicEndDate: issue.epicEndDate,
+      timeSpentDetail: issue.timeSpentDetail, // Include for month columns
+      children: issue.children, // Include for month column aggregation
     })) as JiraIssueWithAggregated[];
   }, [dataSource]);
 
@@ -637,17 +684,35 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                   Project Workstreams ({projectIssues.length})
                 </Typography.Title>
                 {navigationStack.length === 1 && (
-                  <Button
-                    type="primary"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      showRequestAllModal();
-                    }}
-                    size="small"
-                    style={{ marginLeft: "16px" }}
-                  >
-                    Request All
-                  </Button>
+                  <>
+                    <Button
+                      type="primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        showRequestAllModal();
+                      }}
+                      size="small"
+                      style={{ marginLeft: "16px" }}
+                    >
+                      Request All
+                    </Button>
+                    {requestWorkstreamWithTimeSpentDetail && (
+                      <Button
+                        type="primary"
+                        icon={<ClockCircleOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRequestAllTimeSpentDetail();
+                        }}
+                        disabled={isLoadingTimeSpentDetail}
+                        loading={isLoadingTimeSpentDetail}
+                        size="small"
+                        style={{ marginLeft: "8px" }}
+                      >
+                        Get Time Spent Detail (All)
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
               <Space>
@@ -763,6 +828,33 @@ export const DynamicProjectSummary: React.FC<Props> = ({
             </div>
           ))}
         </Checkbox.Group>
+      </Modal>
+
+      {/* Time Spent Detail Modal */}
+      <Modal
+        title="Fetching Time Spent Detail for All Workstreams"
+        open={isTimeSpentDetailModalVisible}
+        closable={false}
+        footer={null}
+        maskClosable={false}
+      >
+        <Space direction="vertical" style={{ width: "100%" }}>
+          <Alert
+            message="Warning"
+            description="This operation may take several minutes depending on the number of workstreams and issues. Please do not close this window."
+            type="warning"
+            icon={<ExclamationCircleOutlined />}
+            showIcon
+          />
+          <div>
+            <Typography.Text strong>Status: </Typography.Text>
+            <Typography.Text>
+              {isLoadingTimeSpentDetail
+                ? "Processing workstreams..."
+                : "Complete"}
+            </Typography.Text>
+          </div>
+        </Space>
       </Modal>
     </>
   );

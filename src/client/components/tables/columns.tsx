@@ -907,11 +907,11 @@ export const getUnifiedColumns = ({
     );
   }
 
-  // Add Time Spent Detail column
-  columns.push(getTimeSpentDetailColumn());
-
   // Add month columns
   columns.push(...getMonthColumns());
+
+  // Add Time Spent Detail column (at the end)
+  columns.push(getTimeSpentDetailColumn());
 
   return columns;
 };

@@ -283,6 +283,9 @@ const JiraReport: React.FC = () => {
                   handleWorkstreamClick={handleWorkstreamClick}
                   showRequestAllModal={showRequestAllModal}
                   toggleFavorite={toggleFavorite}
+                  requestWorkstreamWithTimeSpentDetail={
+                    requestWorkstreamWithTimeSpentDetail
+                  }
                 />
 
                 <AccountWorklogSection
