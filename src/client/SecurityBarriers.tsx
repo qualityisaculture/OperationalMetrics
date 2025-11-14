@@ -533,6 +533,22 @@ const WeWork: React.FC<WeWorkProps> = () => {
       // Exact match
       if (n1 === n2) return true;
 
+      // Check for custom last name aliases
+      const lastNameAliases: { [key: string]: string[] } = {
+        sproule: ["donald"],
+        donald: ["sproule"],
+      };
+
+      // Check if either name is an alias of the other
+      for (const [alias, fullNames] of Object.entries(lastNameAliases)) {
+        if (
+          (n1 === alias && fullNames.includes(n2)) ||
+          (n2 === alias && fullNames.includes(n1))
+        ) {
+          return true;
+        }
+      }
+
       // Check for double surnames (if one surname matches, it's probably the same person)
       const words1 = n1.split(/[\s-]+/);
       const words2 = n2.split(/[\s-]+/);
