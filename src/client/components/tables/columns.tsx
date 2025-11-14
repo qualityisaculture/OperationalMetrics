@@ -910,6 +910,9 @@ export const getUnifiedColumns = ({
   // Add Time Spent Detail column
   columns.push(getTimeSpentDetailColumn());
 
+  // Add month columns
+  columns.push(...getMonthColumns());
+
   return columns;
 };
 
@@ -1013,3 +1016,196 @@ const getTimeSpentDetailColumn = () => ({
     <TimeSpentDetailButton record={record} />
   ),
 });
+
+// Helper function to get month label (e.g., "June '25")
+const getMonthLabel = (date: Date): string => {
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear().toString().slice(-2);
+  return `${month} '${year}`;
+};
+
+// Helper function to recursively collect all timeSpentDetail from an issue and its children
+const collectAllTimeSpentDetail = (
+  issue: JiraIssueWithAggregated
+): Array<{
+  date: string;
+  timeSpent: number;
+  timeSpentMinutes: number;
+  timeSpentDays: number;
+}> => {
+  const allDetails: Array<{
+    date: string;
+    timeSpent: number;
+    timeSpentMinutes: number;
+    timeSpentDays: number;
+  }> = [];
+
+  // Add this issue's timeSpentDetail
+  if (issue.timeSpentDetail && issue.timeSpentDetail.length > 0) {
+    allDetails.push(...issue.timeSpentDetail);
+  }
+
+  // Recursively add children's timeSpentDetail
+  if (issue.children && issue.children.length > 0) {
+    for (const child of issue.children) {
+      const childDetails = collectAllTimeSpentDetail(
+        child as JiraIssueWithAggregated
+      );
+      allDetails.push(...childDetails);
+    }
+  }
+
+  return allDetails;
+};
+
+// Helper function to aggregate time spent by month
+const aggregateTimeByMonth = (
+  timeSpentDetail:
+    | Array<{
+        date: string;
+        timeSpent: number;
+        timeSpentMinutes: number;
+        timeSpentDays: number;
+      }>
+    | undefined,
+  targetMonth: Date
+): number => {
+  if (!timeSpentDetail || timeSpentDetail.length === 0) {
+    return 0;
+  }
+
+  const targetYear = targetMonth.getFullYear();
+  const targetMonthNum = targetMonth.getMonth();
+
+  return timeSpentDetail.reduce((sum, entry) => {
+    const entryDate = new Date(entry.date);
+    if (
+      entryDate.getFullYear() === targetYear &&
+      entryDate.getMonth() === targetMonthNum
+    ) {
+      return sum + (entry.timeSpentDays || 0);
+    }
+    return sum;
+  }, 0);
+};
+
+// Helper function to aggregate time spent before a given month
+const aggregateTimeBeforeMonth = (
+  timeSpentDetail:
+    | Array<{
+        date: string;
+        timeSpent: number;
+        timeSpentMinutes: number;
+        timeSpentDays: number;
+      }>
+    | undefined,
+  beforeMonth: Date
+): number => {
+  if (!timeSpentDetail || timeSpentDetail.length === 0) {
+    return 0;
+  }
+
+  const beforeYear = beforeMonth.getFullYear();
+  const beforeMonthNum = beforeMonth.getMonth();
+
+  return timeSpentDetail.reduce((sum, entry) => {
+    const entryDate = new Date(entry.date);
+    if (
+      entryDate.getFullYear() < beforeYear ||
+      (entryDate.getFullYear() === beforeYear &&
+        entryDate.getMonth() < beforeMonthNum)
+    ) {
+      return sum + (entry.timeSpentDays || 0);
+    }
+    return sum;
+  }, 0);
+};
+
+// Helper function to generate month columns
+export const getMonthColumns = (): ColumnsType<JiraIssueWithAggregated> => {
+  const now = new Date();
+  const columns: ColumnsType<JiraIssueWithAggregated> = [];
+
+  // Calculate the 6 months (5 months back + current month = 6 total month columns)
+  // Plus 1 "Before" column = 7 total columns
+  const months: Date[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(month);
+  }
+
+  // First column: "Before [FirstMonth]"
+  const firstMonth = months[0];
+  const beforeLabel = `Before ${getMonthLabel(firstMonth)}`;
+  columns.push({
+    title: beforeLabel,
+    key: `monthBefore${firstMonth.getFullYear()}${firstMonth.getMonth()}`,
+    width: 120,
+    render: (_: any, record: JiraIssueWithAggregated) => {
+      const allTimeSpentDetail = collectAllTimeSpentDetail(record);
+      const total = aggregateTimeBeforeMonth(allTimeSpentDetail, firstMonth);
+      return (
+        <Text>
+          {total > 0 ? (
+            <Tag color="blue">{total.toFixed(1)} days</Tag>
+          ) : (
+            <Text type="secondary">-</Text>
+          )}
+        </Text>
+      );
+    },
+    sorter: (a, b) => {
+      const aAllDetails = collectAllTimeSpentDetail(a);
+      const bAllDetails = collectAllTimeSpentDetail(b);
+      const aTotal = aggregateTimeBeforeMonth(aAllDetails, firstMonth);
+      const bTotal = aggregateTimeBeforeMonth(bAllDetails, firstMonth);
+      return aTotal - bTotal;
+    },
+  });
+
+  // Add columns for each of the 6 months
+  months.forEach((month) => {
+    const monthLabel = getMonthLabel(month);
+    columns.push({
+      title: monthLabel,
+      key: `month${month.getFullYear()}${month.getMonth()}`,
+      width: 120,
+      render: (_: any, record: JiraIssueWithAggregated) => {
+        const allTimeSpentDetail = collectAllTimeSpentDetail(record);
+        const total = aggregateTimeByMonth(allTimeSpentDetail, month);
+        return (
+          <Text>
+            {total > 0 ? (
+              <Tag color="blue">{total.toFixed(1)} days</Tag>
+            ) : (
+              <Text type="secondary">-</Text>
+            )}
+          </Text>
+        );
+      },
+      sorter: (a, b) => {
+        const aAllDetails = collectAllTimeSpentDetail(a);
+        const bAllDetails = collectAllTimeSpentDetail(b);
+        const aTotal = aggregateTimeByMonth(aAllDetails, month);
+        const bTotal = aggregateTimeByMonth(bAllDetails, month);
+        return aTotal - bTotal;
+      },
+    });
+  });
+
+  return columns;
+};

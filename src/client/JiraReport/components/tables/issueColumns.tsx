@@ -8,6 +8,7 @@ import {
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { JiraIssueWithAggregated } from "../../../JiraReport/types";
+import { getMonthColumns } from "../../../components/tables/columns";
 
 const { Text } = Typography;
 
@@ -1072,6 +1073,9 @@ export const getIssueColumns = (
 
   // Add Time Spent Detail column
   columns.push(getTimeSpentDetailColumn());
+
+  // Add month columns
+  columns.push(...getMonthColumns());
 
   return columns;
 };
