@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { JiraIssueWithAggregated } from "../types";
 import { UnifiedIssuesTable } from "../../components/tables/UnifiedIssuesTable";
+import { TimeSpentDetailTable } from "../../components/tables/TimeSpentDetailTable";
 import { EpicIssuesList } from "./EpicIssuesList";
 import { Collapse, Typography, Button, Modal, Space, Alert } from "antd";
 import {
@@ -8,6 +9,8 @@ import {
   RightOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
+  PlusOutlined,
+  MinusOutlined,
 } from "@ant-design/icons";
 
 interface Props {
@@ -57,6 +60,9 @@ export const WorkstreamTable: React.FC<Props> = ({
 }) => {
   const [isTableCollapsed, setIsTableCollapsed] = useState(false);
   const [isEpicListCollapsed, setIsEpicListCollapsed] = useState(false);
+  const [isTimeSpentDetailCollapsed, setIsTimeSpentDetailCollapsed] =
+    useState(false);
+  const [additionalMonths, setAdditionalMonths] = useState(0);
   const [isTimeSpentDetailModalVisible, setIsTimeSpentDetailModalVisible] =
     useState(false);
   const [isLoadingTimeSpentDetail, setIsLoadingTimeSpentDetail] =
@@ -144,30 +150,6 @@ export const WorkstreamTable: React.FC<Props> = ({
 
   return (
     <div>
-      {currentWorkstreamKey && (
-        <div style={{ marginBottom: "16px" }}>
-          <Space>
-            <Button
-              type="primary"
-              icon={<ClockCircleOutlined />}
-              onClick={handleRequestTimeSpentDetail}
-              disabled={isLoadingTimeSpentDetail || currentIssuesLoading}
-              loading={isLoadingTimeSpentDetail || currentIssuesLoading}
-            >
-              Get Time Spent In Detail
-            </Button>
-            {hasTimeSpentDetail && (
-              <Alert
-                message="Time spent detail data is available"
-                type="success"
-                showIcon
-                style={{ marginLeft: "8px" }}
-              />
-            )}
-          </Space>
-        </div>
-      )}
-
       <Modal
         title="Fetching Time Spent Detail"
         open={isTimeSpentDetailModalVisible}
@@ -290,6 +272,104 @@ export const WorkstreamTable: React.FC<Props> = ({
           </Collapse.Panel>
         </Collapse>
       )}
+
+      <Collapse
+        activeKey={isTimeSpentDetailCollapsed ? [] : ["timeSpentDetail"]}
+        onChange={(keys) => setIsTimeSpentDetailCollapsed(keys.length === 0)}
+        ghost
+        style={{ marginTop: "16px" }}
+      >
+        <Collapse.Panel
+          key="timeSpentDetail"
+          header={
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {isTimeSpentDetailCollapsed ? (
+                <RightOutlined />
+              ) : (
+                <DownOutlined />
+              )}
+              <Typography.Title
+                level={4}
+                style={{ margin: 0, marginLeft: "8px" }}
+              >
+                Time Spent Detail
+              </Typography.Title>
+            </div>
+          }
+          showArrow={false}
+        >
+          {currentWorkstreamKey && (
+            <div style={{ marginBottom: 16 }}>
+              <Space>
+                <Button
+                  type="primary"
+                  icon={<ClockCircleOutlined />}
+                  onClick={handleRequestTimeSpentDetail}
+                  disabled={isLoadingTimeSpentDetail || currentIssuesLoading}
+                  loading={isLoadingTimeSpentDetail || currentIssuesLoading}
+                >
+                  Get Time Spent In Detail
+                </Button>
+                {hasTimeSpentDetail && (
+                  <Alert
+                    message="Time spent detail data is available"
+                    type="success"
+                    showIcon
+                  />
+                )}
+              </Space>
+            </div>
+          )}
+          <div style={{ marginBottom: 16 }}>
+            <Space>
+              <Button
+                type="default"
+                icon={<PlusOutlined />}
+                size="small"
+                onClick={() => setAdditionalMonths((prev) => prev + 1)}
+                title="Add another month in the past"
+              >
+                Add Month
+              </Button>
+              {additionalMonths > 0 && (
+                <Button
+                  type="default"
+                  icon={<MinusOutlined />}
+                  size="small"
+                  onClick={() =>
+                    setAdditionalMonths((prev) => Math.max(0, prev - 1))
+                  }
+                  title="Remove last added month"
+                >
+                  Remove Month
+                </Button>
+              )}
+            </Space>
+          </div>
+          <div style={{ overflow: "auto" }}>
+            <TimeSpentDetailTable
+              dataSource={getSortedItems ? getSortedItems(currentIssues) : currentIssues}
+              onRow={(record) => ({
+                onClick: () => handleIssueClick(record),
+                style: {
+                  cursor: record.childCount > 0 ? "pointer" : "default",
+                  backgroundColor:
+                    record.childCount > 0 ? "#fafafa" : "transparent",
+                },
+              })}
+              pagination={{
+                pageSize: 50,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) =>
+                  `${range[0]}-${range[1]} of ${total} issues`,
+              }}
+              additionalMonths={additionalMonths}
+              onAdditionalMonthsChange={setAdditionalMonths}
+            />
+          </div>
+        </Collapse.Panel>
+      </Collapse>
     </div>
   );
 };

@@ -20,6 +20,8 @@ import {
   RightOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
+  PlusOutlined,
+  MinusOutlined,
 } from "@ant-design/icons";
 import { JiraIssueWithAggregated } from "../types";
 import { getIssueColumns } from "./tables/issueColumns";
@@ -27,6 +29,7 @@ import { ProjectSummary } from "./ProjectSummary";
 import { ProjectAggregatedData } from "../types";
 import { exportProjectWorkstreamsToExcel } from "../utils/excelExport";
 import { ColumnConfig } from "../../components/ColumnConfig";
+import { TimeSpentDetailTable } from "../../components/tables/TimeSpentDetailTable";
 import type { ColumnsType } from "antd/es/table";
 
 const { Text } = Typography;
@@ -89,6 +92,9 @@ export const DynamicProjectSummary: React.FC<Props> = ({
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [isWorkstreamsTableCollapsed, setIsWorkstreamsTableCollapsed] =
     useState(false);
+  const [isTimeSpentDetailCollapsed, setIsTimeSpentDetailCollapsed] =
+    useState(false);
+  const [additionalMonths, setAdditionalMonths] = useState(0);
   const [isLoadingTimeSpentDetail, setIsLoadingTimeSpentDetail] =
     useState(false);
   const [isTimeSpentDetailModalVisible, setIsTimeSpentDetailModalVisible] =
@@ -645,6 +651,12 @@ export const DynamicProjectSummary: React.FC<Props> = ({
     })) as JiraIssueWithAggregated[];
   }, [dataSource]);
 
+  const hasTimeSpentDetail = useMemo(() => {
+    return projectIssues.some(
+      (issue) => issue.timeSpentDetail && issue.timeSpentDetail.length > 0
+    );
+  }, [projectIssues]);
+
   return (
     <>
       <ProjectSummary
@@ -684,35 +696,17 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                   Project Workstreams ({projectIssues.length})
                 </Typography.Title>
                 {navigationStack.length === 1 && (
-                  <>
-                    <Button
-                      type="primary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        showRequestAllModal();
-                      }}
-                      size="small"
-                      style={{ marginLeft: "16px" }}
-                    >
-                      Request All
-                    </Button>
-                    {requestWorkstreamWithTimeSpentDetail && (
-                      <Button
-                        type="primary"
-                        icon={<ClockCircleOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRequestAllTimeSpentDetail();
-                        }}
-                        disabled={isLoadingTimeSpentDetail}
-                        loading={isLoadingTimeSpentDetail}
-                        size="small"
-                        style={{ marginLeft: "8px" }}
-                      >
-                        Get Time Spent Detail (All)
-                      </Button>
-                    )}
-                  </>
+                  <Button
+                    type="primary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      showRequestAllModal();
+                    }}
+                    size="small"
+                    style={{ marginLeft: "16px" }}
+                  >
+                    Request All
+                  </Button>
                 )}
               </div>
               <Space>
@@ -789,6 +783,106 @@ export const DynamicProjectSummary: React.FC<Props> = ({
             })}
             summary={summary}
           />
+        </Collapse.Panel>
+      </Collapse>
+
+      <Collapse
+        activeKey={isTimeSpentDetailCollapsed ? [] : ["timeSpentDetail"]}
+        onChange={(keys) => setIsTimeSpentDetailCollapsed(keys.length === 0)}
+        ghost
+        style={{ marginTop: "16px" }}
+      >
+        <Collapse.Panel
+          key="timeSpentDetail"
+          header={
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {isTimeSpentDetailCollapsed ? (
+                <RightOutlined />
+              ) : (
+                <DownOutlined />
+              )}
+              <Typography.Title
+                level={4}
+                style={{ margin: 0, marginLeft: "8px" }}
+              >
+                Time Spent Detail
+              </Typography.Title>
+            </div>
+          }
+          showArrow={false}
+        >
+          {navigationStack.length === 1 &&
+            requestWorkstreamWithTimeSpentDetail && (
+              <div style={{ marginBottom: 16 }}>
+                <Space>
+                  <Button
+                    type="primary"
+                    icon={<ClockCircleOutlined />}
+                    onClick={handleRequestAllTimeSpentDetail}
+                    disabled={isLoadingTimeSpentDetail}
+                    loading={isLoadingTimeSpentDetail}
+                  >
+                    Get Time Spent Detail (All)
+                  </Button>
+                  {hasTimeSpentDetail && (
+                    <Alert
+                      message="Time spent detail data is available"
+                      type="success"
+                      showIcon
+                    />
+                  )}
+                </Space>
+              </div>
+            )}
+          <div style={{ marginBottom: 16 }}>
+            <Space>
+              <Button
+                type="default"
+                icon={<PlusOutlined />}
+                size="small"
+                onClick={() => setAdditionalMonths((prev) => prev + 1)}
+                title="Add another month in the past"
+              >
+                Add Month
+              </Button>
+              {additionalMonths > 0 && (
+                <Button
+                  type="default"
+                  icon={<MinusOutlined />}
+                  size="small"
+                  onClick={() =>
+                    setAdditionalMonths((prev) => Math.max(0, prev - 1))
+                  }
+                  title="Remove last added month"
+                >
+                  Remove Month
+                </Button>
+              )}
+            </Space>
+          </div>
+          <div style={{ overflow: "auto" }}>
+            <TimeSpentDetailTable
+              dataSource={
+                getSortedItems ? getSortedItems(dataSource2) : dataSource2
+              }
+              onRow={(record) => ({
+                onClick: () => handleWorkstreamClick(record),
+                style: {
+                  cursor: "pointer",
+                  backgroundColor: "#fafafa",
+                },
+              })}
+              pagination={{
+                pageSize: 50,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) =>
+                  `${range[0]}-${range[1]} of ${total} workstreams`,
+              }}
+              additionalMonths={additionalMonths}
+              onAdditionalMonthsChange={setAdditionalMonths}
+            />
+          </div>
         </Collapse.Panel>
       </Collapse>
 

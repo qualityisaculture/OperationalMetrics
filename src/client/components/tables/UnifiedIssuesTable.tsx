@@ -328,55 +328,59 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   };
 
   return (
-    <Card
-      title={
-        <Space>
-          <InfoCircleOutlined />
-          {title}
-        </Space>
-      }
-      extra={
-        <Space>
-          <ColumnConfig
-            columns={baseColumns}
-            storageKey="workstream-table-columns"
-            onColumnsChange={setConfiguredColumns}
+    <>
+      <Card
+        title={
+          <Space>
+            <InfoCircleOutlined />
+            {title}
+          </Space>
+        }
+        extra={
+          <Space>
+            <ColumnConfig
+              columns={baseColumns}
+              storageKey="workstream-table-columns"
+              onColumnsChange={setConfiguredColumns}
+            />
+            <Text type="secondary">
+              Last updated: {new Date().toLocaleString()}
+            </Text>
+            {showExportButton && workstreamName && (
+              <Button
+                type="primary"
+                icon={<DownloadOutlined />}
+                size="small"
+                loading={exportLoading}
+                onClick={handleExport}
+              >
+                Export to Excel
+              </Button>
+            )}
+          </Space>
+        }
+        bodyStyle={{ padding: 0, overflow: "hidden" }}
+      >
+        <div style={{ overflow: "auto" }}>
+          <Table
+            columns={columns}
+            dataSource={
+              getSortedItems ? getSortedItems(dataSource) : dataSource
+            }
+            rowKey={rowKey}
+            pagination={pagination}
+            onRow={onRow}
+            scroll={{ x: "max-content" }}
+            style={{ overflow: "auto" }}
+            components={{
+              header: {
+                cell: ResizableTitle,
+              },
+            }}
+            summary={summary || undefined}
           />
-          <Text type="secondary">
-            Last updated: {new Date().toLocaleString()}
-          </Text>
-          {showExportButton && workstreamName && (
-            <Button
-              type="primary"
-              icon={<DownloadOutlined />}
-              size="small"
-              loading={exportLoading}
-              onClick={handleExport}
-            >
-              Export to Excel
-            </Button>
-          )}
-        </Space>
-      }
-      bodyStyle={{ padding: 0, overflow: "hidden" }}
-    >
-      <div style={{ overflow: "auto" }}>
-        <Table
-          columns={columns}
-          dataSource={getSortedItems ? getSortedItems(dataSource) : dataSource}
-          rowKey={rowKey}
-          pagination={pagination}
-          onRow={onRow}
-          scroll={{ x: "max-content" }}
-          style={{ overflow: "auto" }}
-          components={{
-            header: {
-              cell: ResizableTitle,
-            },
-          }}
-          summary={summary || undefined}
-        />
-      </div>
-    </Card>
+        </div>
+      </Card>
+    </>
   );
 };
