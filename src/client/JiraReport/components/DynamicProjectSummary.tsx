@@ -652,9 +652,16 @@ export const DynamicProjectSummary: React.FC<Props> = ({
   }, [dataSource]);
 
   const hasTimeSpentDetail = useMemo(() => {
+    // Check if any workstream has timeSpentDetail data (array with length > 0)
     return projectIssues.some(
       (issue) => issue.timeSpentDetail && issue.timeSpentDetail.length > 0
     );
+  }, [projectIssues]);
+
+  const isTimeSpentDetailLoaded = useMemo(() => {
+    // Check if timeSpentDetail has been loaded for any workstream (defined, even if empty array)
+    // If undefined, it means data hasn't been requested yet
+    return projectIssues.some((issue) => issue.timeSpentDetail !== undefined);
   }, [projectIssues]);
 
   return (
@@ -812,7 +819,8 @@ export const DynamicProjectSummary: React.FC<Props> = ({
           showArrow={false}
         >
           {navigationStack.length === 1 &&
-            requestWorkstreamWithTimeSpentDetail && (
+            requestWorkstreamWithTimeSpentDetail &&
+            !isTimeSpentDetailLoaded && (
               <div style={{ marginBottom: 16 }}>
                 <Space>
                   <Button
@@ -824,16 +832,18 @@ export const DynamicProjectSummary: React.FC<Props> = ({
                   >
                     Get Time Spent Detail (All)
                   </Button>
-                  {hasTimeSpentDetail && (
-                    <Alert
-                      message="Time spent detail data is available"
-                      type="success"
-                      showIcon
-                    />
-                  )}
                 </Space>
               </div>
             )}
+          {hasTimeSpentDetail && (
+            <div style={{ marginBottom: 16 }}>
+              <Alert
+                message="Time spent detail data is available"
+                type="success"
+                showIcon
+              />
+            </div>
+          )}
           <div style={{ marginBottom: 16 }}>
             <Space>
               <Button

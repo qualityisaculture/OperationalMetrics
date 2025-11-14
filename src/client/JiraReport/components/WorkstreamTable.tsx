@@ -74,16 +74,19 @@ export const WorkstreamTable: React.FC<Props> = ({
       : null;
 
   const hasTimeSpentDetail = useMemo(() => {
+    // Check if any issue has timeSpentDetail data (array with length > 0)
     const hasData = currentIssues.some(
       (issue) => issue.timeSpentDetail && issue.timeSpentDetail.length > 0
     );
-    console.log("hasTimeSpentDetail check:", {
-      currentIssuesCount: currentIssues.length,
-      hasData,
-      sampleIssue: currentIssues[0]?.key,
-      sampleTimeSpentDetail: currentIssues[0]?.timeSpentDetail,
-    });
     return hasData;
+  }, [currentIssues]);
+
+  const isTimeSpentDetailLoaded = useMemo(() => {
+    // Check if timeSpentDetail has been loaded (defined, even if empty array)
+    // If undefined, it means data hasn't been requested yet
+    return currentIssues.some(
+      (issue) => issue.timeSpentDetail !== undefined
+    );
   }, [currentIssues]);
 
   const handleRequestTimeSpentDetail = async () => {
@@ -298,7 +301,7 @@ export const WorkstreamTable: React.FC<Props> = ({
           }
           showArrow={false}
         >
-          {currentWorkstreamKey && (
+          {currentWorkstreamKey && !isTimeSpentDetailLoaded && (
             <div style={{ marginBottom: 16 }}>
               <Space>
                 <Button
@@ -310,14 +313,16 @@ export const WorkstreamTable: React.FC<Props> = ({
                 >
                   Get Time Spent In Detail
                 </Button>
-                {hasTimeSpentDetail && (
-                  <Alert
-                    message="Time spent detail data is available"
-                    type="success"
-                    showIcon
-                  />
-                )}
               </Space>
+            </div>
+          )}
+          {hasTimeSpentDetail && (
+            <div style={{ marginBottom: 16 }}>
+              <Alert
+                message="Time spent detail data is available"
+                type="success"
+                showIcon
+              />
             </div>
           )}
           <div style={{ marginBottom: 16 }}>
