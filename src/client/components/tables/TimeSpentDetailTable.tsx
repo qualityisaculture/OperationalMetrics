@@ -204,6 +204,28 @@ export const TimeSpentDetailTable: React.FC<TimeSpentDetailTableProps> = ({
         sorter: (a, b) => a.summary.localeCompare(b.summary),
       },
       {
+        title: "Account",
+        dataIndex: "account",
+        key: "account",
+        width: 120,
+        render: (account: string) => (
+          <Tag color="cyan">{account || "Unknown"}</Tag>
+        ),
+        sorter: (a, b) => (a.account || "").localeCompare(b.account || ""),
+        filters: (() => {
+          const uniqueAccounts = [
+            ...new Set(
+              dataSource.map((issue) => issue.account).filter(Boolean)
+            ),
+          ].sort();
+          return uniqueAccounts.map((account) => ({
+            text: account,
+            value: account,
+          }));
+        })(),
+        onFilter: (value, record) => record.account === value,
+      },
+      {
         title: "Original Estimate (aggregated)",
         key: "originalEstimate",
         width: 180,
@@ -545,10 +567,10 @@ export const TimeSpentDetailTable: React.FC<TimeSpentDetailTableProps> = ({
       summary={() => (
         <Table.Summary fixed>
           <Table.Summary.Row style={{ backgroundColor: "#fafafa" }}>
-            <Table.Summary.Cell index={0} colSpan={2}>
+            <Table.Summary.Cell index={0} colSpan={3}>
               <Text strong>Total</Text>
             </Table.Summary.Cell>
-            <Table.Summary.Cell index={2}>
+            <Table.Summary.Cell index={3}>
               <Text>
                 {summaryData.totalOriginalEstimate > 0 ? (
                   <Tag color="green">
@@ -559,7 +581,7 @@ export const TimeSpentDetailTable: React.FC<TimeSpentDetailTableProps> = ({
                 )}
               </Text>
             </Table.Summary.Cell>
-            <Table.Summary.Cell index={3}>
+            <Table.Summary.Cell index={4}>
               <Text>
                 {summaryData.totalBeforeFirstMonth > 0 ? (
                   <Tag color="blue">
