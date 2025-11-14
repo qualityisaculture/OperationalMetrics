@@ -26,24 +26,6 @@ export const ColumnConfig = <T,>({
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [columnConfig, setColumnConfig] = useState<ColumnConfigItem[]>([]);
 
-  // Helper to check if a column key is a month column
-  const isMonthColumn = (key: string): boolean => {
-    return key.startsWith("month");
-  };
-
-  // Get all month column keys
-  const monthColumnKeys = useMemo(() => {
-    return columnConfig.filter((item) => isMonthColumn(item.key)).map((item) => item.key);
-  }, [columnConfig]);
-
-  // Check if all month columns are visible
-  const areMonthColumnsVisible = useMemo(() => {
-    if (monthColumnKeys.length === 0) return false;
-    return monthColumnKeys.every((key) => {
-      const item = columnConfig.find((c) => c.key === key);
-      return item?.visible ?? false;
-    });
-  }, [columnConfig, monthColumnKeys]);
 
   // Helper to extract title from column
   const getColumnTitle = (col: (typeof columns)[0], index: number): string => {
@@ -224,13 +206,6 @@ export const ColumnConfig = <T,>({
     );
   };
 
-  const handleToggleMonthColumns = (visible: boolean) => {
-    setColumnConfig((prev) =>
-      prev.map((item) =>
-        isMonthColumn(item.key) ? { ...item, visible } : item
-      )
-    );
-  };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     e.dataTransfer.setData("text/plain", index.toString());
@@ -339,34 +314,6 @@ export const ColumnConfig = <T,>({
             >
               Drag to reorder columns. Check/uncheck to show/hide columns.
             </Text>
-            {monthColumnKeys.length > 0 && (
-              <>
-                <div
-                  style={{
-                    padding: "12px",
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: "4px",
-                    border: "1px solid #d9d9d9",
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  <Space>
-                    <Checkbox
-                      checked={areMonthColumnsVisible}
-                      onChange={(e) =>
-                        handleToggleMonthColumns(e.target.checked)
-                      }
-                      onClick={(e) => e.stopPropagation()}
-                      onMouseDown={(e) => e.stopPropagation()}
-                    >
-                      <Text strong>Show Month Columns</Text>
-                    </Checkbox>
-                  </Space>
-                </div>
-                <Divider style={{ margin: "8px 0" }} />
-              </>
-            )}
             <List
               dataSource={sortedConfig}
               onClick={(e) => e.stopPropagation()}

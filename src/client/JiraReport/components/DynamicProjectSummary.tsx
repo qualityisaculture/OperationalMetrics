@@ -625,7 +625,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
 
   // Create a lightweight dataSource2 with only the fields needed for the table
   // Excluding large nested structures like children arrays to reduce memory usage
-  // But including timeSpentDetail and children for month column aggregation
+  // But including timeSpentDetail and children for TimeSpentDetailTable
   const dataSource2 = useMemo(() => {
     return dataSource.map((issue) => ({
       key: issue.key,
@@ -646,8 +646,8 @@ export const DynamicProjectSummary: React.FC<Props> = ({
       dueDate: issue.dueDate,
       epicStartDate: issue.epicStartDate,
       epicEndDate: issue.epicEndDate,
-      timeSpentDetail: issue.timeSpentDetail, // Include for month columns
-      children: issue.children, // Include for month column aggregation
+      timeSpentDetail: issue.timeSpentDetail, // Include for TimeSpentDetailTable
+      children: issue.children, // Include for TimeSpentDetailTable aggregation
     })) as JiraIssueWithAggregated[];
   }, [dataSource]);
 

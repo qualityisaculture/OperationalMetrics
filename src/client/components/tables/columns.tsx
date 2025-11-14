@@ -906,9 +906,6 @@ export const getUnifiedColumns = ({
     );
   }
 
-  // Add month columns
-  columns.push(...getMonthColumns());
-
   return columns;
 };
 
