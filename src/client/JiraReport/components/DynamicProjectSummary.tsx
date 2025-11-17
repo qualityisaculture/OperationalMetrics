@@ -64,6 +64,7 @@ interface Props {
   requestWorkstreamWithTimeSpentDetail?: (
     workstreamKey: string
   ) => Promise<void>;
+  isChargeableFilterActive?: boolean; // Indicates if chargeable filter is active
   // (local toggle inside component)
 }
 
@@ -80,6 +81,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
   projectAggregatedData,
   projectName,
   requestWorkstreamWithTimeSpentDetail,
+  isChargeableFilterActive = false,
 }) => {
   const [configuredColumns, setConfiguredColumns] = useState<
     ColumnsType<JiraIssueWithAggregated>
@@ -669,8 +671,14 @@ export const DynamicProjectSummary: React.FC<Props> = ({
       <ProjectSummary
         projectAggregatedData={projectAggregatedData}
         projectName={projectName}
-        filteredIssues={isFiltered ? filteredData : undefined}
-        showFilteredMetrics={isFiltered}
+        filteredIssues={
+          isFiltered
+            ? filteredData
+            : isChargeableFilterActive
+              ? dataSource
+              : undefined
+        }
+        showFilteredMetrics={isFiltered || isChargeableFilterActive}
       />
 
       <Collapse

@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from "react";
-import { Alert, Button, Space, Typography } from "antd";
+import React, { useState, useMemo, useEffect } from "react";
+import { Alert, Button, Space, Typography, Radio } from "antd";
 import { LoadingIndicator } from "../components";
 import { useJiraReport } from "./hooks/useJiraReport";
 import {
@@ -24,7 +24,12 @@ import { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
 
 const { Title, Text } = Typography;
 
+type ChargeableFilter = "Chargeable" | "Non-Chargeable" | "Both";
+
 const JiraReport: React.FC = () => {
+  const [chargeableFilter, setChargeableFilter] =
+    useState<ChargeableFilter>("Chargeable");
+
   const {
     state,
     getWorkstreamDataCellSpan,
@@ -77,7 +82,38 @@ const JiraReport: React.FC = () => {
     defectHistoryError,
   } = state;
 
+  // Reset filter to "Chargeable" when project changes
+  useEffect(() => {
+    if (selectedProject) {
+      setChargeableFilter("Chargeable");
+    }
+  }, [selectedProject?.key]);
+
+  // Filter workstreams based on chargeable filter
+  const filteredProjectIssues = useMemo(() => {
+    if (!selectedProject || navigationStack.length !== 1) {
+      return projectIssues;
+    }
+
+    if (chargeableFilter === "Both") {
+      return projectIssues;
+    }
+
+    return projectIssues.filter((issue) => {
+      const account = issue.account || "";
+      const isChargeable = account.includes("(Chargeable)");
+
+      if (chargeableFilter === "Chargeable") {
+        return isChargeable;
+      } else {
+        // Non-Chargeable
+        return !isChargeable;
+      }
+    });
+  }, [projectIssues, chargeableFilter, selectedProject, navigationStack]);
+
   // Calculate account mismatches - must be at top level (Rules of Hooks)
+  // Note: Account mismatches should use unfiltered projectIssues, not filteredProjectIssues
   const accountMismatches = useMemo(
     () => findAccountMismatches(projectIssues),
     [projectIssues]
@@ -271,10 +307,26 @@ const JiraReport: React.FC = () => {
                   <AccountMismatchList mismatches={accountMismatches} />
                 )}
 
+                {navigationStack.length === 1 && (
+                  <div style={{ marginTop: "16px", marginBottom: "16px" }}>
+                    <Radio.Group
+                      value={chargeableFilter}
+                      onChange={(e) => setChargeableFilter(e.target.value)}
+                      buttonStyle="solid"
+                    >
+                      <Radio.Button value="Chargeable">Chargeable</Radio.Button>
+                      <Radio.Button value="Non-Chargeable">
+                        Non-Chargeable
+                      </Radio.Button>
+                      <Radio.Button value="Both">Both</Radio.Button>
+                    </Radio.Group>
+                  </div>
+                )}
+
                 <DynamicProjectSummary
                   projectAggregatedData={state.projectAggregatedData}
                   projectName={selectedProject.name}
-                  projectIssues={projectIssues}
+                  projectIssues={filteredProjectIssues}
                   favoriteItems={favoriteItems}
                   navigationStack={navigationStack}
                   loadedWorkstreamData={state.loadedWorkstreamData}
@@ -286,6 +338,7 @@ const JiraReport: React.FC = () => {
                   requestWorkstreamWithTimeSpentDetail={
                     requestWorkstreamWithTimeSpentDetail
                   }
+                  isChargeableFilterActive={chargeableFilter !== "Both"}
                 />
 
                 <AccountWorklogSection
@@ -294,19 +347,21 @@ const JiraReport: React.FC = () => {
                   accounts={(() => {
                     const extractedAccounts = Array.from(
                       new Set(
-                        projectIssues
+                        filteredProjectIssues
                           .map((issue) => issue.account)
                           .filter((account) => account && account !== "None")
                       )
                     ).sort();
                     console.log(
-                      `Extracted accounts from projectIssues:`,
+                      `Extracted accounts from filteredProjectIssues:`,
                       extractedAccounts
                     );
-                    console.log(`Total projectIssues: ${projectIssues.length}`);
                     console.log(
-                      `Sample projectIssues accounts:`,
-                      projectIssues.slice(0, 5).map((issue) => ({
+                      `Total filteredProjectIssues: ${filteredProjectIssues.length}`
+                    );
+                    console.log(
+                      `Sample filteredProjectIssues accounts:`,
+                      filteredProjectIssues.slice(0, 5).map((issue) => ({
                         key: issue.key,
                         account: issue.account,
                       }))
@@ -327,11 +382,15 @@ const JiraReport: React.FC = () => {
 
           {!issuesLoading &&
             !issuesError &&
-            projectIssues.length === 0 &&
+            filteredProjectIssues.length === 0 &&
             navigationStack.length === 1 && (
               <Alert
                 message="No Workstreams Found"
-                description="No workstreams were found for this project."
+                description={
+                  chargeableFilter === "Both"
+                    ? "No workstreams were found for this project."
+                    : `No ${chargeableFilter.toLowerCase()} workstreams were found for this project.`
+                }
                 type="info"
                 showIcon
               />
