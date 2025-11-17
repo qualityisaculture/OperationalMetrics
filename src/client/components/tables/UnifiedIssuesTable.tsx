@@ -7,6 +7,7 @@ import {
   exportIssuesToExcel,
   exportCompleteWorkstreamToExcel,
 } from "../../JiraReport/utils/excelExport";
+import { processIssuesForAnt } from "../../JiraReport/utils/dataProcessing";
 import { useResizableColumns, ResizableTitle } from "./index";
 import { ColumnConfig } from "../ColumnConfig";
 import type { ColumnsType } from "antd/es/table";
@@ -327,6 +328,13 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
     }
   };
 
+  // Process data for Ant Design: replace empty children arrays with null
+  // This is done at the last possible point, just before rendering
+  const processedDataSource = useMemo(() => {
+    const sortedData = getSortedItems ? getSortedItems(dataSource) : dataSource;
+    return processIssuesForAnt(sortedData);
+  }, [dataSource, getSortedItems]);
+
   return (
     <>
       <Card
@@ -364,9 +372,7 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
         <div style={{ overflow: "auto" }}>
           <Table
             columns={columns}
-            dataSource={
-              getSortedItems ? getSortedItems(dataSource) : dataSource
-            }
+            dataSource={processedDataSource}
             rowKey={rowKey}
             pagination={pagination}
             onRow={onRow}

@@ -28,6 +28,7 @@ import { getIssueColumns } from "./tables/issueColumns";
 import { ProjectSummary } from "./ProjectSummary";
 import { ProjectAggregatedData } from "../types";
 import { exportProjectWorkstreamsToExcel } from "../utils/excelExport";
+import { processIssuesForAnt } from "../utils/dataProcessing";
 import { ColumnConfig } from "../../components/ColumnConfig";
 import { TimeSpentDetailTable } from "../../components/tables/TimeSpentDetailTable";
 import type { ColumnsType } from "antd/es/table";
@@ -543,7 +544,7 @@ export const DynamicProjectSummary: React.FC<Props> = ({
   // Excluding large nested structures like children arrays to reduce memory usage
   // But including timeSpentDetail and children for TimeSpentDetailTable
   const dataSource2 = useMemo(() => {
-    return dataSource.map((issue) => ({
+    const mappedData = dataSource.map((issue) => ({
       key: issue.key,
       summary: issue.summary,
       type: issue.type,
@@ -565,6 +566,10 @@ export const DynamicProjectSummary: React.FC<Props> = ({
       timeSpentDetail: issue.timeSpentDetail, // Include for TimeSpentDetailTable
       children: issue.children, // Include for TimeSpentDetailTable aggregation
     })) as JiraIssueWithAggregated[];
+
+    // Process data for Ant Design: replace empty children arrays with null
+    // This is done at the last possible point, just before rendering
+    return processIssuesForAnt(mappedData);
   }, [dataSource]);
 
   const hasTimeSpentDetail = useMemo(() => {
