@@ -81,6 +81,7 @@ interface State {
   sizeMode: "count" | "time booked" | "estimate";
   sankeyGroups: IssueGroup[];
   includeEpicsAndInitiatives: boolean;
+  excludeNoTimeSpent: boolean;
 }
 
 export default class Throughput extends React.Component<Props, State> {
@@ -119,6 +120,7 @@ export default class Throughput extends React.Component<Props, State> {
       splitMode: "initiatives",
       sankeyGroups: [],
       includeEpicsAndInitiatives: false,
+      excludeNoTimeSpent: true,
     };
   }
 
@@ -758,6 +760,10 @@ export default class Throughput extends React.Component<Props, State> {
     this.setState({ includeEpicsAndInitiatives: e.target.checked });
   };
 
+  handleExcludeNoTimeSpentChange = (e: CheckboxChangeEvent) => {
+    this.setState({ excludeNoTimeSpent: e.target.checked });
+  };
+
   private filterEpicsAndInitiatives(issues: IssueInfo[]): IssueInfo[] {
     if (this.state.includeEpicsAndInitiatives) {
       return issues;
@@ -790,17 +796,31 @@ export default class Throughput extends React.Component<Props, State> {
     });
   }
 
+  private filterNoTimeSpent(issues: IssueInfo[]): IssueInfo[] {
+    if (!this.state.excludeNoTimeSpent) {
+      return issues;
+    }
+    return issues.filter(
+      (issue) =>
+        issue.timespent !== null &&
+        issue.timespent !== undefined &&
+        issue.timespent > 0
+    );
+  }
+
   render() {
     // Filter the data before processing
     const filteredThroughputData = this.state.throughputData.map((sprint) => ({
       ...sprint,
-      issueList: this.filterResolutions(
-        this.filterEpicsAndInitiatives(sprint.issueList)
+      issueList: this.filterNoTimeSpent(
+        this.filterResolutions(this.filterEpicsAndInitiatives(sprint.issueList))
       ),
     }));
 
-    const filteredOpenTicketsData = this.filterResolutions(
-      this.filterEpicsAndInitiatives(this.state.openTicketsData)
+    const filteredOpenTicketsData = this.filterNoTimeSpent(
+      this.filterResolutions(
+        this.filterEpicsAndInitiatives(this.state.openTicketsData)
+      )
     );
 
     let { data, columns } =
@@ -1046,6 +1066,12 @@ export default class Throughput extends React.Component<Props, State> {
               onChange={this.handleIncludeEpicsChange}
             >
               Include Epics and Initiatives
+            </Checkbox>
+            <Checkbox
+              checked={this.state.excludeNoTimeSpent}
+              onChange={this.handleExcludeNoTimeSpentChange}
+            >
+              Exclude issues with no timespent
             </Checkbox>
           </div>
 
