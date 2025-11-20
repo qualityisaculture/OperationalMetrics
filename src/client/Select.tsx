@@ -17,18 +17,43 @@ export default class Select extends React.Component<Props, State> {
     super(props);
     this.state = {
       optionsSelected:
-        this.props.selected || props.options.map((item) => item.value),
+        this.props.selected !== undefined
+          ? this.props.selected
+          : props.options.map((item) => item.value),
     };
   }
   componentDidUpdate(prevProps: Props) {
     if (prevProps.options !== this.props.options) {
-      let options = this.props.options
-        ? this.props.options.map((item) => item.value)
-        : [];
+      // If selected prop is provided, use it; otherwise select all options
+      if (this.props.selected !== undefined) {
+        this.setState({
+          optionsSelected: this.props.selected,
+        });
+        // Only call onChange if the selected value is different from current state
+        if (
+          JSON.stringify(this.state.optionsSelected) !==
+          JSON.stringify(this.props.selected)
+        ) {
+          this.handleChange(this.props.selected);
+        }
+      } else {
+        let options = this.props.options
+          ? this.props.options.map((item) => item.value)
+          : [];
+        this.setState({
+          optionsSelected: options,
+        });
+        this.handleChange(options);
+      }
+    }
+    // Sync with selected prop if it's provided and changed
+    if (
+      this.props.selected !== undefined &&
+      prevProps.selected !== this.props.selected
+    ) {
       this.setState({
-        optionsSelected: options,
+        optionsSelected: this.props.selected,
       });
-      this.handleChange(options);
     }
   }
   handleChange = (value: (string | number | null | undefined)[]) => {

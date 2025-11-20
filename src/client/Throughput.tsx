@@ -75,6 +75,8 @@ interface State {
   typesSelected: string[];
   accounts: SelectProps["options"];
   accountsSelected: string[];
+  resolutions: SelectProps["options"];
+  resolutionsSelected: string[];
   splitMode: "labels" | "initiatives" | "types" | "accounts" | "sankey";
   sizeMode: "count" | "time booked" | "estimate";
   sankeyGroups: IssueGroup[];
@@ -111,6 +113,8 @@ export default class Throughput extends React.Component<Props, State> {
       typesSelected: [],
       accounts: [],
       accountsSelected: [],
+      resolutions: [],
+      resolutionsSelected: [],
       sizeMode: "count",
       splitMode: "initiatives",
       sankeyGroups: [],
@@ -163,7 +167,11 @@ export default class Throughput extends React.Component<Props, State> {
     });
     let arrayOfAllInitiatives: SelectProps["options"] = Array.from(
       allFieldValues.values()
-    ).sort((a, b) => a.label.localeCompare(b.label));
+    ).sort((a, b) => {
+      const labelA = String(a?.label || "");
+      const labelB = String(b?.label || "");
+      return labelA.localeCompare(labelB);
+    });
     return arrayOfAllInitiatives;
   };
   getInitiativesAsSelectProps = (
@@ -245,6 +253,34 @@ export default class Throughput extends React.Component<Props, State> {
     );
     return allAccounts;
   };
+  getResolutionsAsSelectProps = (throughputData: SprintIssueList[]) => {
+    let allResolutions = this.arrayOfAllFieldsAsSelectProps(
+      throughputData,
+      (issue) => {
+        let resolution: string;
+        const res = issue.resolution as any; // Handle both string and object cases
+        if (!res) {
+          resolution = "None";
+        } else if (typeof res === "string") {
+          resolution = res.trim() || "None";
+        } else if (typeof res === "object" && res.name) {
+          resolution = String(res.name).trim() || "None";
+        } else {
+          resolution = String(res).trim() || "None";
+        }
+        return [
+          {
+            key: resolution,
+            value: {
+              label: resolution,
+              value: resolution,
+            },
+          },
+        ];
+      }
+    );
+    return allResolutions;
+  };
   onClick = () => {
     localStorage.setItem("throughputQuery", this.state.input);
 
@@ -280,6 +316,8 @@ export default class Throughput extends React.Component<Props, State> {
         const arrayOfAllTypes = this.getTypesAsSelectProps(throughputData);
         const arrayOfAllAccounts =
           this.getAccountsAsSelectProps(throughputData);
+        const arrayOfAllResolutions =
+          this.getResolutionsAsSelectProps(throughputData);
 
         this.setState({
           throughputData,
@@ -292,6 +330,8 @@ export default class Throughput extends React.Component<Props, State> {
           typesSelected: [],
           accounts: arrayOfAllAccounts,
           accountsSelected: [],
+          resolutions: arrayOfAllResolutions,
+          resolutionsSelected: [],
           isLoading: false,
           statusMessage: "",
           progress: undefined,
@@ -336,6 +376,9 @@ export default class Throughput extends React.Component<Props, State> {
   };
   accountsSelected = (selected: string[]) => {
     this.setState({ accountsSelected: selected });
+  };
+  resolutionsSelected = (selected: string[]) => {
+    this.setState({ resolutionsSelected: selected });
   };
   handleSizeChange = (e: RadioChangeEvent) => {
     this.setState({ sizeMode: e.target.value });
@@ -402,7 +445,7 @@ export default class Throughput extends React.Component<Props, State> {
       return issuesByInitiative;
     }
 
-    this.state.throughputData.forEach((sprint) => {
+    throughputData.forEach((sprint) => {
       let issuesByInitiative = getIssuesByInitiative(sprint.issueList);
       let row: WithWildcards<{}> = {
         date: new Date(sprint.sprintStartingDate),
@@ -474,7 +517,7 @@ export default class Throughput extends React.Component<Props, State> {
       return issuesByLabel;
     }
 
-    this.state.throughputData.forEach((sprint) => {
+    throughputData.forEach((sprint) => {
       let issuesByLabel = getIssuesByLabel(
         sprint.issueList,
         this.state.labelsSelected
@@ -535,7 +578,7 @@ export default class Throughput extends React.Component<Props, State> {
       return issuesByType;
     }
 
-    this.state.throughputData.forEach((sprint) => {
+    throughputData.forEach((sprint) => {
       let issuesByType = getIssuesByType(
         sprint.issueList,
         this.state.typesSelected
@@ -599,7 +642,7 @@ export default class Throughput extends React.Component<Props, State> {
       return issuesByAccount;
     }
 
-    this.state.throughputData.forEach((sprint) => {
+    throughputData.forEach((sprint) => {
       let issuesByAccount = getIssuesByAccount(
         sprint.issueList,
         this.state.accountsSelected
@@ -727,15 +770,37 @@ export default class Throughput extends React.Component<Props, State> {
     );
   }
 
+  private filterResolutions(issues: IssueInfo[]): IssueInfo[] {
+    if (this.state.resolutionsSelected.length === 0) {
+      return issues;
+    }
+    return issues.filter((issue) => {
+      let resolution: string;
+      const res = issue.resolution as any; // Handle both string and object cases
+      if (!res) {
+        resolution = "None";
+      } else if (typeof res === "string") {
+        resolution = res.trim() || "None";
+      } else if (typeof res === "object" && res.name) {
+        resolution = String(res.name).trim() || "None";
+      } else {
+        resolution = String(res).trim() || "None";
+      }
+      return !this.state.resolutionsSelected.includes(resolution);
+    });
+  }
+
   render() {
     // Filter the data before processing
     const filteredThroughputData = this.state.throughputData.map((sprint) => ({
       ...sprint,
-      issueList: this.filterEpicsAndInitiatives(sprint.issueList),
+      issueList: this.filterResolutions(
+        this.filterEpicsAndInitiatives(sprint.issueList)
+      ),
     }));
 
-    const filteredOpenTicketsData = this.filterEpicsAndInitiatives(
-      this.state.openTicketsData
+    const filteredOpenTicketsData = this.filterResolutions(
+      this.filterEpicsAndInitiatives(this.state.openTicketsData)
     );
 
     let { data, columns } =
@@ -982,6 +1047,24 @@ export default class Throughput extends React.Component<Props, State> {
             >
               Include Epics and Initiatives
             </Checkbox>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "1rem",
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ whiteSpace: "nowrap" }}>Exclude Resolutions:</span>
+            <div style={{ minWidth: "200px" }}>
+              <Select
+                onChange={this.resolutionsSelected.bind(this)}
+                options={this.state.resolutions}
+                selected={this.state.resolutionsSelected}
+              />
+            </div>
           </div>
         </div>
 
