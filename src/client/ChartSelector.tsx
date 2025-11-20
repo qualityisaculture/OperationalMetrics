@@ -18,6 +18,7 @@ import BottleneckDetector from "./BottleneckDetector";
 import FormsAnalyzer from "./FormsAnalyzer";
 import TypeBreakdownAnalyser from "./TypeBreakdownAnalyser";
 import WeWork from "./SecurityBarriers";
+import BugsAnalysis from "./BugsAnalysis";
 
 interface Props {}
 
@@ -39,7 +40,8 @@ interface State {
     | "bottleneckDetector"
     | "formsAnalyzer"
     | "typeBreakdownAnalyser"
-    | "wework";
+    | "wework"
+    | "bugsAnalysis";
 }
 
 export default class ChartSelector extends React.Component<Props, State> {
@@ -106,6 +108,9 @@ export default class ChartSelector extends React.Component<Props, State> {
     let weworkStyle = {
       display: this.state.chart === "wework" ? "block" : "none",
     };
+    let bugsAnalysisStyle = {
+      display: this.state.chart === "bugsAnalysis" ? "block" : "none",
+    };
 
     return (
       <div>
@@ -137,6 +142,7 @@ export default class ChartSelector extends React.Component<Props, State> {
               Type Breakdown Analyser
             </Radio.Button>
             <Radio.Button value="wework">WeWork</Radio.Button>
+            <Radio.Button value="bugsAnalysis">Bugs Analysis</Radio.Button>
           </Radio.Group>
         </div>
         <div>
@@ -190,6 +196,9 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={weworkStyle}>
             <WeWork />
+          </div>
+          <div style={bugsAnalysisStyle}>
+            <BugsAnalysis />
           </div>
         </div>
       </div>

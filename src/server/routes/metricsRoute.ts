@@ -23,6 +23,7 @@ import TempoReportGraphManager from "../graphManagers/TempoReportGraphManager";
 import JiraReportGraphManager from "../graphManagers/JiraReportGraphManager";
 import BottleneckDetectorGraphManager from "../graphManagers/BottleneckDetectorGraphManager";
 import WorkstreamOrphanDetectorGraphManager from "../graphManagers/WorkstreamOrphanDetectorGraphManager";
+import BugsAnalysisGraphManager from "../graphManagers/BugsAnalysisGraphManager";
 
 async function getJiraData(issueKey: string) {}
 
@@ -46,6 +47,7 @@ const bottleneckDetectorGraphManager = new BottleneckDetectorGraphManager(
 );
 const workstreamOrphanDetectorGraphManager =
   new WorkstreamOrphanDetectorGraphManager(jiraRequester);
+const bugsAnalysisGraphManager = new BugsAnalysisGraphManager(jiraRequester);
 
 metricsRoute.get(
   "/cumulativeFlowDiagram",
@@ -600,9 +602,13 @@ metricsRoute.get(
     );
 
     jiraReportGraphManager
-      .getWorkstreamIssues(workstreamKey, (progress) => {
-        res.write(`data: ${JSON.stringify(progress)}\n\n`);
-      }, withTimeSpentDetail)
+      .getWorkstreamIssues(
+        workstreamKey,
+        (progress) => {
+          res.write(`data: ${JSON.stringify(progress)}\n\n`);
+        },
+        withTimeSpentDetail
+      )
       .then((workstreamWithIssues) => {
         console.log(
           `Fetched complete issue tree for workstream ${workstreamKey}`
@@ -1165,6 +1171,31 @@ metricsRoute.delete(
         data: JSON.stringify({ error: error.message }),
       });
     }
+  }
+);
+
+// Bugs Analysis API route
+metricsRoute.get(
+  "/bugsAnalysis",
+  (req: TRQ<{ query: string }>, res: TR<{ message: string; data: string }>) => {
+    const query = req.query.query;
+    console.log(`Bugs Analysis endpoint called with query: ${query}`);
+
+    bugsAnalysisGraphManager
+      .getBugsAnalysisData(query)
+      .then((data) => {
+        res.json({
+          message: "Bugs Analysis data fetched successfully",
+          data: JSON.stringify(data),
+        });
+      })
+      .catch((error) => {
+        console.error("Error in Bugs Analysis API:", error);
+        res.json({
+          message: `Error fetching Bugs Analysis data: ${error.message}`,
+          data: JSON.stringify({ issues: [], quarterlyData: [] }),
+        });
+      });
   }
 );
 

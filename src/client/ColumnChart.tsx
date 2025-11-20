@@ -38,13 +38,18 @@ export default class ColumnChart extends React.Component<
 
   componentDidMount() {
     GoogleChartsManager.getInstance().load(() => {
-      this.setState({ isGoogleChartsLoaded: true });
+      this.setState({ isGoogleChartsLoaded: true }, () => {
+        // Draw chart when Google Charts finishes loading if data is available
+        if (this.props.data && this.props.data.length > 0) {
+          this.drawChart();
+        }
+      });
     });
   }
 
   componentDidUpdate(prevProps) {
     if (this.state.isGoogleChartsLoaded && prevProps !== this.props) {
-      if (!this.props.data) {
+      if (!this.props.data || this.props.data.length === 0) {
         return;
       }
       this.drawChart();
