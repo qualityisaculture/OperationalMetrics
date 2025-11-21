@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { message } from "antd";
 import { SheetData, State, UserGroup, UserGroupAssignment } from "../types";
 import { ISSUE_KEY_EXCEPTIONS } from "../constants";
@@ -73,19 +73,60 @@ export const useTempoAnalyzer = (
     displayedRows: [],
   });
 
+  // Use refs to track previous values and prevent infinite loops
+  const prevSheetsRef = useRef<SheetData[]>(sheets);
+  const prevSelectedSheetsRef = useRef<string[]>(selectedSheets);
+  const isProcessingRef = useRef<boolean>(false);
+  const prevProcessDataInputRef = useRef<string>("");
+
   useEffect(() => {
-    if (selectedSheets.length > 0) {
-      combineSheetData();
-    } else {
-      clearData();
+    // Deep compare sheets to see if content actually changed
+    const sheetsChanged =
+      JSON.stringify(prevSheetsRef.current) !== JSON.stringify(sheets);
+    const selectedSheetsChanged =
+      JSON.stringify(prevSelectedSheetsRef.current) !==
+      JSON.stringify(selectedSheets);
+
+    // Only run if content actually changed
+    if (sheetsChanged || selectedSheetsChanged) {
+      if (selectedSheets.length > 0) {
+        combineSheetData();
+      } else {
+        clearData();
+      }
+
+      // Update refs after processing
+      prevSheetsRef.current = sheets;
+      prevSelectedSheetsRef.current = selectedSheets;
     }
   }, [selectedSheets, sheets]);
 
   useEffect(() => {
-    if (analyzerState.rawData.length > 0) {
+    // Create a signature of the input to detect if it actually changed
+    const processInputSignature = JSON.stringify({
+      rawDataLength: analyzerState.rawData.length,
+      headersLength: analyzerState.headers.length,
+      excludeHolidayAbsence: analyzerState.excludeHolidayAbsence,
+      excludeStartDate: analyzerState.excludeStartDate,
+      excludeEndDate: analyzerState.excludeEndDate,
+      selectedUserGroups: selectedUserGroups,
+      userGroupAssignmentsLength: userGroupAssignments.length,
+    });
+
+    const inputChanged =
+      processInputSignature !== prevProcessDataInputRef.current;
+    const shouldProcess =
+      analyzerState.rawData.length > 0 &&
+      !isProcessingRef.current &&
+      inputChanged;
+
+    if (shouldProcess) {
+      prevProcessDataInputRef.current = processInputSignature;
       processData(analyzerState.rawData, analyzerState.headers);
     }
   }, [
+    analyzerState.rawData,
+    analyzerState.headers,
     analyzerState.excludeHolidayAbsence,
     analyzerState.excludeStartDate,
     analyzerState.excludeEndDate,
@@ -183,6 +224,12 @@ export const useTempoAnalyzer = (
   };
 
   const processData = (tableData: any[], headers: string[]) => {
+    // Prevent concurrent processing
+    if (isProcessingRef.current) {
+      return;
+    }
+
+    isProcessingRef.current = true;
     const accountCategoryIndex = headers.findIndex(
       (header) =>
         header.toLowerCase().includes("account category") ||
@@ -415,9 +462,12 @@ export const useTempoAnalyzer = (
       const rowIssueKey =
         issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
       const absenceIssueKeys = ["ABS-56", "ABS-58"];
-      
+
       let finalIssueType: string | null = null;
-      if (rowIssueKey && absenceIssueKeys.includes(String(rowIssueKey).trim())) {
+      if (
+        rowIssueKey &&
+        absenceIssueKeys.includes(String(rowIssueKey).trim())
+      ) {
         finalIssueType = "Absence";
       } else {
         const issueType =
@@ -426,21 +476,30 @@ export const useTempoAnalyzer = (
           finalIssueType = String(issueType).trim();
         }
       }
-      
+
       if (finalIssueType) {
-        groupedByIssueType[finalIssueType] = (groupedByIssueType[finalIssueType] || 0) + loggedHours;
+        groupedByIssueType[finalIssueType] =
+          (groupedByIssueType[finalIssueType] || 0) + loggedHours;
       }
     });
 
-    setAnalyzerState((prevState) => ({
-      ...prevState,
-      filteredData,
-      groupedData: grouped,
-      groupedByName: groupedByName,
-      groupedByIssueType: groupedByIssueType,
-      totalHours: totalHours,
-      groupedDataByCategory: groupedDataByCategory,
-    }));
+    setAnalyzerState((prevState) => {
+      return {
+        ...prevState,
+        filteredData,
+        groupedData: grouped,
+        groupedByName: groupedByName,
+        groupedByIssueType: groupedByIssueType,
+        totalHours: totalHours,
+        groupedDataByCategory: groupedDataByCategory,
+      };
+    });
+
+    // Reset processing flag after state update is queued
+    // Use requestAnimationFrame to ensure it happens after React processes the update
+    requestAnimationFrame(() => {
+      isProcessingRef.current = false;
+    });
   };
 
   const combineSheetData = () => {
@@ -482,11 +541,14 @@ export const useTempoAnalyzer = (
     });
 
     if (combinedData.length > 0) {
-      processData(combinedData, combinedHeaders);
+      // Set rawData and headers first, then let the useEffect handle calling processData
+      // This prevents duplicate processData calls
       setAnalyzerState((prevState) => ({
         ...prevState,
         excelData: combinedData,
         columns: combinedColumns,
+        rawData: combinedData,
+        headers: combinedHeaders,
       }));
       message.success(
         `Combined ${selectedSheets.length} sheet(s) with ${combinedData.length} total rows.`
@@ -803,7 +865,9 @@ export const useTempoAnalyzer = (
     }));
   };
 
-  const handleSummaryViewModeChange = (mode: "category" | "name" | "issueType") => {
+  const handleSummaryViewModeChange = (
+    mode: "category" | "name" | "issueType"
+  ) => {
     const { groupedByName, groupedByIssueType, issueTypeIndex } = analyzerState;
 
     if (mode === "name" && Object.keys(groupedByName).length === 0) {
@@ -813,7 +877,9 @@ export const useTempoAnalyzer = (
 
     if (mode === "issueType") {
       if (issueTypeIndex === -1) {
-        message.warning("Issue Type column not found. Cannot show Issue Type breakdown.");
+        message.warning(
+          "Issue Type column not found. Cannot show Issue Type breakdown."
+        );
         return;
       }
       if (Object.keys(groupedByIssueType).length === 0) {
