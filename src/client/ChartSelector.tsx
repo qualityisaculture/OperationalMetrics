@@ -19,6 +19,7 @@ import FormsAnalyzer from "./FormsAnalyzer";
 import TypeBreakdownAnalyser from "./TypeBreakdownAnalyser";
 import WeWork from "./SecurityBarriers";
 import BugsAnalysis from "./BugsAnalysis";
+import ReleaseLeadTime from "./ReleaseLeadTime";
 
 interface Props {}
 
@@ -41,7 +42,8 @@ interface State {
     | "formsAnalyzer"
     | "typeBreakdownAnalyser"
     | "wework"
-    | "bugsAnalysis";
+    | "bugsAnalysis"
+    | "releaseLeadTime";
 }
 
 export default class ChartSelector extends React.Component<Props, State> {
@@ -111,6 +113,9 @@ export default class ChartSelector extends React.Component<Props, State> {
     let bugsAnalysisStyle = {
       display: this.state.chart === "bugsAnalysis" ? "block" : "none",
     };
+    let releaseLeadTimeStyle = {
+      display: this.state.chart === "releaseLeadTime" ? "block" : "none",
+    };
 
     return (
       <div>
@@ -143,6 +148,7 @@ export default class ChartSelector extends React.Component<Props, State> {
             </Radio.Button>
             <Radio.Button value="wework">WeWork</Radio.Button>
             <Radio.Button value="bugsAnalysis">Bugs Analysis</Radio.Button>
+            <Radio.Button value="releaseLeadTime">Release Lead Time</Radio.Button>
           </Radio.Group>
         </div>
         <div>
@@ -199,6 +205,9 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={bugsAnalysisStyle}>
             <BugsAnalysis />
+          </div>
+          <div style={releaseLeadTimeStyle}>
+            <ReleaseLeadTime />
           </div>
         </div>
       </div>

@@ -1199,4 +1199,37 @@ metricsRoute.get(
   }
 );
 
+metricsRoute.get(
+  "/releases",
+  (
+    req: TRQ<{ projectKey: string }>,
+    res: TR<{ message: string; data: string }>
+  ) => {
+    const projectKey = req.query.projectKey;
+    if (!projectKey) {
+      res.json({
+        message: "projectKey is required",
+        data: JSON.stringify([]),
+      });
+      return;
+    }
+
+    jiraRequester
+      .getReleasesFromProject(projectKey, 100)
+      .then((releases) => {
+        res.json({
+          message: "Releases fetched successfully",
+          data: JSON.stringify(releases),
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching releases:", error);
+        res.json({
+          message: "Error fetching releases",
+          data: JSON.stringify([]),
+        });
+      });
+  }
+);
+
 export { metricsRoute };
