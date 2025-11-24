@@ -6,6 +6,8 @@ import {
   RadioChangeEvent,
   AutoComplete,
   Button,
+  Checkbox,
+  CheckboxChangeEvent,
 } from "antd";
 import Select from "./Select";
 import React from "react";
@@ -30,6 +32,8 @@ interface State {
   splitMode: "timebooked" | "statuses";
   viewMode: "sprint" | "combined";
   leadTimeData: LeadTimeSprints | null;
+  rawLeadTimeData: LeadTimeSprints | null;
+  filterNoTimeBooked: boolean;
   allStatuses: { value: string; label: string }[];
   statusesSelected: string[];
   allTicketTypes: { value: string; label: string }[];
@@ -52,6 +56,8 @@ export default class LeadTime extends React.Component<Props, State> {
       splitMode: "statuses",
       viewMode: "combined",
       leadTimeData: null,
+      rawLeadTimeData: null,
+      filterNoTimeBooked: true,
       allStatuses: [],
       statusesSelected: [],
       allTicketTypes: [],
@@ -90,6 +96,46 @@ export default class LeadTime extends React.Component<Props, State> {
 
   handleViewModeChange = (e: RadioChangeEvent) => {
     this.setState({ viewMode: e.target.value });
+  };
+
+  handleFilterNoTimeBookedChange = (e: CheckboxChangeEvent) => {
+    this.setState({ filterNoTimeBooked: e.target.checked });
+  };
+
+  // Filter issues that have no time booked (timespent is null or 0)
+  filterIssuesByTimeBooked = (
+    issues: LeadTimeIssueInfo[]
+  ): LeadTimeIssueInfo[] => {
+    if (!this.state.filterNoTimeBooked) {
+      return issues;
+    }
+    return issues.filter(
+      (issue) => issue.timespent !== null && issue.timespent > 0
+    );
+  };
+
+  // Get filtered lead time data based on filterNoTimeBooked setting
+  getFilteredLeadTimeData = (): LeadTimeSprints | null => {
+    if (!this.state.rawLeadTimeData) {
+      return null;
+    }
+
+    if (!this.state.filterNoTimeBooked) {
+      return this.state.rawLeadTimeData;
+    }
+
+    // Filter out issues with no time booked from each sprint
+    const filteredSprints = this.state.rawLeadTimeData.sprints.map(
+      (sprint) => ({
+        ...sprint,
+        issues: this.filterIssuesByTimeBooked(sprint.issues),
+      })
+    );
+
+    return {
+      ...this.state.rawLeadTimeData,
+      sprints: filteredSprints,
+    };
   };
 
   filterIssuesByTicketType = (
@@ -163,7 +209,7 @@ export default class LeadTime extends React.Component<Props, State> {
         );
 
         this.setState({
-          leadTimeData,
+          rawLeadTimeData: leadTimeData,
           allStatuses,
           statusesSelected: [],
           allTicketTypes: filteredTicketTypes,
@@ -524,9 +570,9 @@ export default class LeadTime extends React.Component<Props, State> {
     this.setState({ ticketTypesSelected });
   };
   render() {
-    let sprintData = this.state.leadTimeData
-      ? this.state.leadTimeData.sprints
-      : [];
+    // Get filtered data based on filterNoTimeBooked setting
+    const filteredLeadTimeData = this.getFilteredLeadTimeData();
+    let sprintData = filteredLeadTimeData ? filteredLeadTimeData.sprints : [];
     let { data, columns } = this.getLeadTimeData(sprintData);
 
     // Create options for the AutoComplete
@@ -586,6 +632,16 @@ export default class LeadTime extends React.Component<Props, State> {
           <Radio.Button value="combined">All Data Together</Radio.Button>
         </Radio.Group>
         <br />
+        {this.state.rawLeadTimeData && (
+          <Checkbox
+            checked={this.state.filterNoTimeBooked}
+            onChange={this.handleFilterNoTimeBookedChange}
+            style={{ marginBottom: "1rem" }}
+          >
+            Filter out issues with no time booked
+          </Checkbox>
+        )}
+        <br />
         <span
           style={{
             display: this.state.splitMode === "statuses" ? "" : "none",
@@ -600,7 +656,7 @@ export default class LeadTime extends React.Component<Props, State> {
           />
         </span>
         <br />
-        {this.state.leadTimeData && this.state.allTicketTypes.length > 0 && (
+        {this.state.rawLeadTimeData && this.state.allTicketTypes.length > 0 && (
           <span>
             <label style={{ marginRight: "0.5rem", fontWeight: "bold" }}>
               Ticket Types:
@@ -612,7 +668,7 @@ export default class LeadTime extends React.Component<Props, State> {
           </span>
         )}
         <br />
-        {this.state.leadTimeData && (
+        {this.state.rawLeadTimeData && (
           <div
             style={{
               marginBottom: "1rem",
