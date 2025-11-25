@@ -973,12 +973,52 @@ export const useJiraReport = () => {
                   ).set(workstream.key, aggregatedValues);
 
                   // Update projectIssues with the new aggregated values and children for this workstream
+                  // Preserve timeSpentDetail if it was previously loaded
                   const updatedProjectIssues = prevState.projectIssues.map(
                     (ws) => {
                       if (ws.key === workstream.key) {
+                        // Preserve timeSpentDetail from existing workstream if it exists
+                        const preservedTimeSpentDetail = ws.timeSpentDetail;
+                        
+                        // Recursively preserve timeSpentDetail in children
+                        const preserveTimeSpentDetailInChildren = (
+                          existingChildren: JiraIssueWithAggregated[],
+                          newChildren: LiteJiraIssue[]
+                        ): JiraIssueWithAggregated[] => {
+                          return newChildren.map((newChild) => {
+                            const existingChild = existingChildren.find(
+                              (c) => c.key === newChild.key
+                            );
+                            return {
+                              ...newChild,
+                              timeSpentDetail:
+                                existingChild?.timeSpentDetail ||
+                                newChild.timeSpentDetail,
+                              children:
+                                newChild.children && newChild.children.length > 0
+                                  ? preserveTimeSpentDetailInChildren(
+                                      existingChild?.children || [],
+                                      newChild.children
+                                    )
+                                  : newChild.children || [],
+                            } as JiraIssueWithAggregated;
+                          });
+                        };
+
                         return {
                           ...ws,
                           ...workstreamWithIssues, // Include all properties including children
+                          timeSpentDetail:
+                            preservedTimeSpentDetail ||
+                            workstreamWithIssues.timeSpentDetail,
+                          children:
+                            workstreamWithIssues.children &&
+                            workstreamWithIssues.children.length > 0
+                              ? preserveTimeSpentDetailInChildren(
+                                  ws.children || [],
+                                  workstreamWithIssues.children
+                                )
+                              : workstreamWithIssues.children || [],
                           aggregatedOriginalEstimate:
                             aggregatedValues.aggregatedOriginalEstimate,
                           aggregatedTimeSpent:
