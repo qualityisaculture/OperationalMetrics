@@ -1,5 +1,6 @@
 import React from "react";
-import { Card, List, Typography, Alert, Tag, Collapse } from "antd";
+import { Card, List, Typography, Alert, Tag, Collapse, Button, message } from "antd";
+import { CopyOutlined } from "@ant-design/icons";
 import { JiraIssueWithAggregated } from "../types";
 
 interface AccountMismatchItem {
@@ -98,15 +99,49 @@ export const findAccountMismatches = (
 const AccountMismatchList: React.FC<AccountMismatchListProps> = ({
   mismatches,
 }) => {
+  const copyJQLToClipboard = () => {
+    if (mismatches.length === 0) {
+      message.warning("No mismatches to copy");
+      return;
+    }
+
+    const issueKeys = mismatches.map((mismatch) => mismatch.key).join(", ");
+    const jql = `key in (${issueKeys})`;
+
+    navigator.clipboard
+      .writeText(jql)
+      .then(() => {
+        message.success("JQL copied to clipboard!");
+      })
+      .catch((err) => {
+        message.error("Failed to copy JQL to clipboard");
+        console.error("Failed to copy:", err);
+      });
+  };
+
   const panelHeader = mismatches.length === 0 ? (
     "Account Mismatch Detection"
   ) : (
-    <div style={{ display: "flex", alignItems: "center" }}>
-      <span style={{ marginRight: "8px" }}>⚠️</span>
-      <span style={{ color: "#fa8c16" }}>
-        Account Mismatch Detection - {mismatches.length} Mismatch
-        {mismatches.length !== 1 ? "es" : ""} Found
-      </span>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <span style={{ marginRight: "8px" }}>⚠️</span>
+        <span style={{ color: "#fa8c16" }}>
+          Account Mismatch Detection - {mismatches.length} Mismatch
+          {mismatches.length !== 1 ? "es" : ""} Found
+        </span>
+      </div>
+      <Button
+        type="text"
+        icon={<CopyOutlined />}
+        onClick={(e) => {
+          e.stopPropagation();
+          copyJQLToClipboard();
+        }}
+        size="small"
+        style={{ marginLeft: "8px" }}
+      >
+        Copy JQL
+      </Button>
     </div>
   );
 
