@@ -163,7 +163,20 @@ export const WorkstreamTable: React.FC<Props> = ({
         <Space direction="vertical" style={{ width: "100%" }}>
           <Alert
             message="Warning"
-            description="This operation may take several minutes depending on the number of issues in the workstream. Please do not close this window."
+            description={
+              <div>
+                <p>
+                  This operation may take several minutes depending on the number
+                  of issues in the workstream. Please do not close this window.
+                </p>
+                {currentWorkstreamKey && (
+                  <p style={{ marginTop: "8px", marginBottom: 0 }}>
+                    <strong>Requesting for:</strong> {currentWorkstreamKey} and
+                    all child issues recursively (all levels below)
+                  </p>
+                )}
+              </div>
+            }
             type="warning"
             icon={<ExclamationCircleOutlined />}
             showIcon
@@ -179,6 +192,15 @@ export const WorkstreamTable: React.FC<Props> = ({
               <Typography.Text>
                 {progressDetails.currentPhase || "Processing..."}
               </Typography.Text>
+              {progressDetails.phaseProgress !== undefined &&
+                progressDetails.phaseTotal !== undefined && (
+                  <div style={{ marginTop: "8px" }}>
+                    <Typography.Text type="secondary">
+                      Progress: {progressDetails.phaseProgress} of{" "}
+                      {progressDetails.phaseTotal} issues
+                    </Typography.Text>
+                  </div>
+                )}
             </div>
           )}
         </Space>
@@ -301,7 +323,7 @@ export const WorkstreamTable: React.FC<Props> = ({
           }
           showArrow={false}
         >
-          {currentWorkstreamKey && !isTimeSpentDetailLoaded && (
+          {currentWorkstreamKey && (
             <div style={{ marginBottom: 16 }}>
               <Space>
                 <Button
@@ -310,9 +332,16 @@ export const WorkstreamTable: React.FC<Props> = ({
                   onClick={handleRequestTimeSpentDetail}
                   disabled={isLoadingTimeSpentDetail || currentIssuesLoading}
                   loading={isLoadingTimeSpentDetail || currentIssuesLoading}
+                  title="Request time spent detail for this workstream and all child issues recursively (all levels below)"
                 >
-                  Get Time Spent In Detail
+                  Request All (This Level & Below)
                 </Button>
+                {!isTimeSpentDetailLoaded && (
+                  <Typography.Text type="secondary" style={{ fontSize: "12px" }}>
+                    This will fetch time spent detail for {currentWorkstreamKey} and all
+                    nested child issues
+                  </Typography.Text>
+                )}
               </Space>
             </div>
           )}

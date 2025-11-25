@@ -356,6 +356,46 @@ export const TimeSpentDetailTable: React.FC<TimeSpentDetailTableProps> = ({
       },
     });
 
+    // Time Spent Unsplit
+    cols.push({
+      title: "Time Spent Unsplit",
+      key: "timeSpentUnsplit",
+      width: 150,
+      render: (_: any, record: JiraIssueWithAggregated) => {
+        const timeSpent =
+          record.aggregatedTimeSpent !== undefined
+            ? record.aggregatedTimeSpent
+            : record.timeSpent || 0;
+        return (
+          <Text>
+            {timeSpent > 0 ? (
+              <Tag color="gold">
+                {timeSpent.toFixed(1)} days
+                {record.aggregatedTimeSpent !== undefined && (
+                  <Text type="secondary" style={{ marginLeft: "4px" }}>
+                    (agg)
+                  </Text>
+                )}
+              </Tag>
+            ) : (
+              <Text type="secondary">-</Text>
+            )}
+          </Text>
+        );
+      },
+      sorter: (a, b) => {
+        const aValue =
+          a.aggregatedTimeSpent !== undefined
+            ? a.aggregatedTimeSpent
+            : a.timeSpent || 0;
+        const bValue =
+          b.aggregatedTimeSpent !== undefined
+            ? b.aggregatedTimeSpent
+            : b.timeSpent || 0;
+        return aValue - bValue;
+      },
+    });
+
     // Usage %
     cols.push({
       title: "Usage %",
@@ -499,6 +539,7 @@ export const TimeSpentDetailTable: React.FC<TimeSpentDetailTableProps> = ({
     let totalBeforeFirstMonth = 0;
     const totalByMonth: { [key: string]: number } = {};
     let totalTimeBooked = 0;
+    let totalTimeSpentUnsplit = 0;
     let totalRemaining = 0;
 
     // Initialize totals for each month
@@ -540,6 +581,13 @@ export const TimeSpentDetailTable: React.FC<TimeSpentDetailTableProps> = ({
       );
       totalTimeBooked += recordTotalTimeBooked;
 
+      // Time Spent Unsplit
+      const recordTimeSpentUnsplit =
+        record.aggregatedTimeSpent !== undefined
+          ? record.aggregatedTimeSpent
+          : record.timeSpent || 0;
+      totalTimeSpentUnsplit += recordTimeSpentUnsplit;
+
       // Remaining
       const remaining = originalEstimate - recordTotalTimeBooked;
       totalRemaining += remaining;
@@ -550,6 +598,7 @@ export const TimeSpentDetailTable: React.FC<TimeSpentDetailTableProps> = ({
       totalBeforeFirstMonth,
       totalByMonth,
       totalTimeBooked,
+      totalTimeSpentUnsplit,
       totalRemaining,
     };
   }, [dataSource, firstMonth, allMonths]);
@@ -612,6 +661,17 @@ export const TimeSpentDetailTable: React.FC<TimeSpentDetailTableProps> = ({
                 {summaryData.totalTimeBooked > 0 ? (
                   <Tag color="blue">
                     {summaryData.totalTimeBooked.toFixed(1)} days
+                  </Tag>
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
+              </Text>
+            </Table.Summary.Cell>
+            <Table.Summary.Cell>
+              <Text>
+                {summaryData.totalTimeSpentUnsplit > 0 ? (
+                  <Tag color="gold">
+                    {summaryData.totalTimeSpentUnsplit.toFixed(1)} days
                   </Tag>
                 ) : (
                   <Text type="secondary">-</Text>

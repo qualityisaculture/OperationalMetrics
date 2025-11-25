@@ -395,13 +395,33 @@ export default class JiraRequester {
         `Fetching time tracking data for ${issueKeys.length} issues...`
       );
 
-      // Get updated timestamps for all issue keys (required for getFullJiraDataFromKeys)
-      const lastUpdatedKeys = await this.getJiraKeysInQuery(
-        issueKeys.map((key) => `key=${key}`).join(" OR ")
+      // Batch issue keys into groups of 50 to avoid Jira API limits
+      // Similar to how requestIssueFromServer handles batching
+      const batchSize = 50;
+      const allLastUpdatedKeys: lastUpdatedKey[] = [];
+      
+      for (let i = 0; i < issueKeys.length; i += batchSize) {
+        const batchKeys = issueKeys.slice(i, i + batchSize);
+        console.log(
+          `Fetching updated timestamps for batch ${Math.floor(i / batchSize) + 1} (${batchKeys.length} keys)...`
+        );
+        
+        // Get updated timestamps for this batch
+        const batchQuery = batchKeys.map((key) => `key=${key}`).join(" OR ");
+        const batchLastUpdatedKeys = await this.getJiraKeysInQuery(batchQuery);
+        allLastUpdatedKeys.push(...batchLastUpdatedKeys);
+        
+        console.log(
+          `Batch ${Math.floor(i / batchSize) + 1} complete: got ${batchLastUpdatedKeys.length} keys`
+        );
+      }
+
+      console.log(
+        `Total keys retrieved: ${allLastUpdatedKeys.length} out of ${issueKeys.length} requested`
       );
 
       // Use getFullJiraDataFromKeys which handles caching and updates properly
-      const jiras = await this.getFullJiraDataFromKeys(lastUpdatedKeys);
+      const jiras = await this.getFullJiraDataFromKeys(allLastUpdatedKeys);
 
       const timeTrackingData: Record<
         string,
