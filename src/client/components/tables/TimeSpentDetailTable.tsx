@@ -616,8 +616,11 @@ export const TimeSpentDetailTable: React.FC<TimeSpentDetailTableProps> = ({
       summary={() => (
         <Table.Summary fixed>
           <Table.Summary.Row style={{ backgroundColor: "#fafafa" }}>
-            <Table.Summary.Cell index={0} colSpan={3}>
+            <Table.Summary.Cell index={0} colSpan={1}>
               <Text strong>Total</Text>
+            </Table.Summary.Cell>
+            <Table.Summary.Cell index={1} colSpan={2}>
+              <Text type="secondary"></Text>
             </Table.Summary.Cell>
             <Table.Summary.Cell index={3}>
               <Text>
