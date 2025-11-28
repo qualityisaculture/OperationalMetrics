@@ -8,8 +8,14 @@ import { ReleasesTable } from "./components/ReleasesTable";
 const { Title, Text } = Typography;
 
 const ReleaseLeadTime: React.FC = () => {
-  const { state, loadProjects, selectProject, toggleFavorite, getSortedProjects } =
-    useReleaseLeadTime();
+  const {
+    state,
+    loadProjects,
+    selectProject,
+    toggleFavorite,
+    getSortedProjects,
+    loadJiraKeysForRelease,
+  } = useReleaseLeadTime();
 
   const {
     projects,
@@ -58,8 +64,12 @@ const ReleaseLeadTime: React.FC = () => {
       <Space direction="vertical" size="large" style={{ width: "100%" }}>
         <div>
           <Title level={2}>Release Lead Time</Title>
-          <Text type="secondary" style={{ fontSize: "14px", display: "block", marginBottom: "16px" }}>
-            This screen shows the lead time of issues in each release. Select a project below to view its releases.
+          <Text
+            type="secondary"
+            style={{ fontSize: "14px", display: "block", marginBottom: "16px" }}
+          >
+            This screen shows the lead time of issues in each release. Select a
+            project below to view its releases.
           </Text>
         </div>
 
@@ -76,6 +86,11 @@ const ReleaseLeadTime: React.FC = () => {
           isLoading={isLoadingReleases}
           error={releasesError}
           projectName={selectedProject?.name || ""}
+          loadJiraKeysForRelease={loadJiraKeysForRelease}
+          releaseJiraKeys={state.releaseJiraKeys}
+          releaseJiraData={state.releaseJiraData}
+          loadingJiraKeys={state.loadingJiraKeys}
+          jiraKeysError={state.jiraKeysError}
         />
       </Space>
     </div>
@@ -83,4 +98,3 @@ const ReleaseLeadTime: React.FC = () => {
 };
 
 export default ReleaseLeadTime;
-

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { JiraProject } from "../../../server/graphManagers/JiraReportGraphManager";
-import { Release, ReleaseLeadTimeState } from "../types";
+import { Release, ReleaseLeadTimeState, JiraWithStatusChanges } from "../types";
 import { STORAGE_KEY_FAVORITES } from "../constants";
 
 const initialState: ReleaseLeadTimeState = {
@@ -12,6 +12,10 @@ const initialState: ReleaseLeadTimeState = {
   isLoadingReleases: false,
   releasesError: null,
   favoriteProjects: new Set(loadFavoritesFromStorage()),
+  releaseJiraKeys: new Map(),
+  releaseJiraData: new Map(),
+  loadingJiraKeys: new Set(),
+  jiraKeysError: new Map(),
 };
 
 function loadFavoritesFromStorage(): string[] {
@@ -109,6 +113,72 @@ export const useReleaseLeadTime = () => {
     });
   }, []);
 
+  const loadJiraKeysForRelease = useCallback(async (releaseName: string) => {
+    const projectKey = state.selectedProject?.key;
+    if (!projectKey) {
+      return;
+    }
+
+    setState((prev) => {
+      const newLoading = new Set(prev.loadingJiraKeys);
+      newLoading.add(releaseName);
+      const newErrors = new Map(prev.jiraKeysError);
+      newErrors.delete(releaseName);
+      return {
+        ...prev,
+        loadingJiraKeys: newLoading,
+        jiraKeysError: newErrors,
+      };
+    });
+
+    try {
+      // URL encode the release name to handle special characters
+      const encodedReleaseName = encodeURIComponent(releaseName);
+      const response = await fetch(
+        `/api/releases/${encodedReleaseName}/jiras?projectKey=${projectKey}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch Jira keys");
+      }
+      const data = await response.json();
+      const jiraData: JiraWithStatusChanges[] = JSON.parse(data.data);
+      
+      // Extract keys for backward compatibility
+      const jiraKeys = jiraData.map((jira) => jira.key);
+      
+      setState((prev) => {
+        const newKeys = new Map(prev.releaseJiraKeys);
+        newKeys.set(releaseName, jiraKeys);
+        const newJiraData = new Map(prev.releaseJiraData);
+        newJiraData.set(releaseName, jiraData);
+        const newLoading = new Set(prev.loadingJiraKeys);
+        newLoading.delete(releaseName);
+        return {
+          ...prev,
+          releaseJiraKeys: newKeys,
+          releaseJiraData: newJiraData,
+          loadingJiraKeys: newLoading,
+        };
+      });
+    } catch (error) {
+      console.error("Error loading Jira keys:", error);
+      setState((prev) => {
+        const newLoading = new Set(prev.loadingJiraKeys);
+        newLoading.delete(releaseName);
+        const newErrors = new Map(prev.jiraKeysError);
+        newErrors.set(
+          releaseName,
+          error instanceof Error ? error.message : "Failed to load Jira keys"
+        );
+        return {
+          ...prev,
+          loadingJiraKeys: newLoading,
+          jiraKeysError: newErrors,
+        };
+      });
+    }
+  }, [state.selectedProject]);
+
   const getSortedProjects = useCallback(() => {
     const { projects, favoriteProjects } = state;
     const favoriteProjectsList = projects.filter((project) =>
@@ -132,6 +202,7 @@ export const useReleaseLeadTime = () => {
     selectProject,
     toggleFavorite,
     getSortedProjects,
+    loadJiraKeysForRelease,
   };
 };
 

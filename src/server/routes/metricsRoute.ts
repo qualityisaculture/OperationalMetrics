@@ -1232,4 +1232,65 @@ metricsRoute.get(
   }
 );
 
+metricsRoute.get(
+  "/releases/:releaseName/jiras",
+  (req: Request, res: TR<{ message: string; data: string }>) => {
+    const projectKey = req.query.projectKey as string;
+    const releaseName = req.params.releaseName;
+
+    if (!projectKey) {
+      res.json({
+        message: "projectKey is required",
+        data: JSON.stringify([]),
+      });
+      return;
+    }
+
+    if (!releaseName) {
+      res.json({
+        message: "releaseName is required",
+        data: JSON.stringify([]),
+      });
+      return;
+    }
+
+    // Query Jira for issues with this fixVersion
+    const jql = `project="${projectKey}" AND fixVersion="${releaseName}"`;
+
+    jiraRequester
+      .getQuery(jql)
+      .then((jiras) => {
+        // Extract keys and status changes from each Jira
+        const jiraData = jiras.map((jira) => {
+          // Convert status changes to a serializable format
+          const statusChanges = jira.statusChanges.map((change) => ({
+            date: change.date.toISOString(),
+            status: change.status,
+          }));
+
+          return {
+            key: jira.getKey(),
+            url: jira.getUrl(),
+            type: jira.getType(),
+            status: jira.getStatus(),
+            resolutionDate: jira.fields.resolutiondate || null,
+            statusChanges: statusChanges,
+          };
+        });
+
+        res.json({
+          message: "Jira data fetched successfully",
+          data: JSON.stringify(jiraData),
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching Jira data for release:", error);
+        res.json({
+          message: "Error fetching Jira data for release",
+          data: JSON.stringify([]),
+        });
+      });
+  }
+);
+
 export { metricsRoute };
