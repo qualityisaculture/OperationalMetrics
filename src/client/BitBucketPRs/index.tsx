@@ -91,7 +91,7 @@ const BitBucketPRs: React.FC = () => {
     });
   }, [allPRs, selectedAuthors]);
 
-  // Group PRs by month and count them
+  // Group PRs by month and count them (using merged/closed date)
   const prsByMonth = useMemo(() => {
     const monthMap = new Map<
       string,
@@ -99,32 +99,43 @@ const BitBucketPRs: React.FC = () => {
     >();
 
     filteredPRs.forEach((pr) => {
-      let date: Date | null = null;
+      // Only count merged PRs
+      const isMerged =
+        pr.state === "MERGED" ||
+        pr.merged === true ||
+        (pr.closed === true && pr.state !== "DECLINED");
 
-      // Handle different date formats
-      if (pr.created_on) {
-        date = new Date(pr.created_on);
-      } else if (pr.createdDate) {
-        date = new Date(pr.createdDate);
+      if (!isMerged) {
+        return; // Skip non-merged PRs
       }
 
-      if (date && !isNaN(date.getTime())) {
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-        const monthLabel = date.toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-        });
+      let date: Date | null = null;
 
-        const existing = monthMap.get(monthKey);
-        if (existing) {
-          existing.count += 1;
-        } else {
-          monthMap.set(monthKey, {
-            label: monthLabel,
-            count: 1,
-            sortKey: monthKey,
-          });
-        }
+      // Use closed/merged date for grouping
+      if (pr.closedDate) {
+        date = new Date(pr.closedDate);
+      }
+
+      // If no closed date available, skip this PR
+      if (!date || isNaN(date.getTime())) {
+        return;
+      }
+
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const monthLabel = date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+      });
+
+      const existing = monthMap.get(monthKey);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        monthMap.set(monthKey, {
+          label: monthLabel,
+          count: 1,
+          sortKey: monthKey,
+        });
       }
     });
 
@@ -168,12 +179,6 @@ const BitBucketPRs: React.FC = () => {
       dataIndex: "is_private",
       key: "is_private",
       render: (isPrivate: boolean) => (isPrivate ? "Yes" : "No"),
-    },
-    {
-      title: "Created",
-      dataIndex: "created_on",
-      key: "created_on",
-      render: (date: string) => new Date(date).toLocaleDateString(),
     },
     {
       title: "Actions",
@@ -240,16 +245,16 @@ const BitBucketPRs: React.FC = () => {
       dataIndex: "title",
       key: "title",
       render: (text: string, record: BitBucketPullRequest) => {
-        // Handle both API 2.0 (links.html.href) and API 1.0 (links.self array)
+        // API 1.0 uses links.self array
         let href: string | undefined;
-        if (record.links?.html?.href) {
-          href = record.links.html.href;
-        } else if (
+        if (
           record.links?.self &&
           Array.isArray(record.links.self) &&
           record.links.self.length > 0
         ) {
           href = record.links.self[0].href;
+        } else if (record.links?.html?.href) {
+          href = record.links.html.href;
         }
 
         if (href) {
@@ -303,9 +308,10 @@ const BitBucketPRs: React.FC = () => {
     },
     {
       title: "Created",
-      dataIndex: "created_on",
-      key: "created_on",
-      render: (date: string) => new Date(date).toLocaleDateString(),
+      dataIndex: "createdDate",
+      key: "createdDate",
+      render: (date: number | undefined) =>
+        date ? new Date(date).toLocaleDateString() : "-",
     },
   ];
 

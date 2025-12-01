@@ -5,8 +5,6 @@ export type BitBucketRepository = {
   slug: string;
   description: string | null;
   is_private: boolean;
-  created_on: string;
-  updated_on: string;
   links?: {
     html?: {
       href: string;
@@ -47,13 +45,12 @@ export type BitBucketPullRequest = {
     uuid?: string;
     account_id?: string;
   };
-  created_on?: string; // API 2.0 format
-  createdDate?: number; // API 1.0 format (timestamp in milliseconds)
-  updated_on?: string; // API 2.0 format
-  updatedDate?: number; // API 1.0 format (timestamp in milliseconds)
+  createdDate?: number; // Timestamp in milliseconds
+  updatedDate?: number; // Timestamp in milliseconds
+  closedDate?: number; // Timestamp in milliseconds - date when PR was closed/merged
   merged?: boolean;
-  open?: boolean; // API 1.0 format
-  closed?: boolean; // API 1.0 format
+  open?: boolean;
+  closed?: boolean;
   links?: {
     html?: {
       href: string;
