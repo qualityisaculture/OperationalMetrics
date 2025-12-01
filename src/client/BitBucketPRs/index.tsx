@@ -54,6 +54,7 @@ const BitBucketPRs: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isProgressModalVisible, setIsProgressModalVisible] = useState(false);
   const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   // Get all PRs from all repositories
   const allPRs = useMemo(() => {
@@ -140,10 +141,14 @@ const BitBucketPRs: React.FC = () => {
     });
 
     // Convert to array and sort by sortKey (which is YYYY-MM format)
-    const entries = Array.from(monthMap.values());
-    entries.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+    const entries = Array.from(monthMap.entries());
+    entries.sort((a, b) => a[1].sortKey.localeCompare(b[1].sortKey));
 
-    return entries.map(({ label, count }) => ({ month: label, count }));
+    return entries.map(([monthKey, { label, count }]) => ({
+      month: label,
+      count,
+      monthKey,
+    }));
   }, [filteredPRs]);
 
   const columns = [
@@ -228,16 +233,49 @@ const BitBucketPRs: React.FC = () => {
     },
   ];
 
-  // Get PRs for the selected repository
-  const selectedRepoPRs = selectedRepository
-    ? pullRequests.find(
-        (r) =>
-          (r.repository.full_name || r.repository.uuid || r.repository.slug) ===
-          (selectedRepository.full_name ||
-            selectedRepository.uuid ||
-            selectedRepository.slug)
-      )?.pullRequests || []
-    : [];
+  // Get PRs for the selected repository or selected month
+  const selectedRepoPRs = useMemo(() => {
+    if (selectedRepository) {
+      return (
+        pullRequests.find(
+          (r) =>
+            (r.repository.full_name ||
+              r.repository.uuid ||
+              r.repository.slug) ===
+            (selectedRepository.full_name ||
+              selectedRepository.uuid ||
+              selectedRepository.slug)
+        )?.pullRequests || []
+      );
+    }
+    if (selectedMonth) {
+      // Filter PRs by the selected month
+      return filteredPRs.filter((pr) => {
+        // Only merged PRs
+        const isMerged =
+          pr.state === "MERGED" ||
+          pr.merged === true ||
+          (pr.closed === true && pr.state !== "DECLINED");
+
+        if (!isMerged) {
+          return false;
+        }
+
+        if (!pr.closedDate) {
+          return false;
+        }
+
+        const date = new Date(pr.closedDate);
+        if (isNaN(date.getTime())) {
+          return false;
+        }
+
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        return monthKey === selectedMonth;
+      });
+    }
+    return [];
+  }, [selectedRepository, selectedMonth, pullRequests, filteredPRs]);
 
   const prColumns = [
     {
@@ -318,6 +356,13 @@ const BitBucketPRs: React.FC = () => {
   const handleCloseModal = () => {
     setIsModalVisible(false);
     setSelectedRepository(null);
+    setSelectedMonth(null);
+  };
+
+  const handleViewPRsForMonth = (monthKey: string, monthLabel: string) => {
+    setSelectedMonth(monthKey);
+    setSelectedRepository(null);
+    setIsModalVisible(true);
   };
 
   const handleCloseProgressModal = () => {
@@ -386,12 +431,16 @@ const BitBucketPRs: React.FC = () => {
                 type="primary"
                 onClick={async () => {
                   setIsProgressModalVisible(true);
-                  await loadPullRequestsForAllRepositories(false);
+                  // If PRs have been loaded before, refresh (clear cache)
+                  const hasLoadedPRs = pullRequests.length > 0;
+                  await loadPullRequestsForAllRepositories(hasLoadedPRs);
                 }}
                 loading={isLoadingAllPRs}
                 disabled={isLoadingAllPRs}
               >
-                Load PRs for All Repositories
+                {pullRequests.length > 0
+                  ? "Refresh All Repositories"
+                  : "Load PRs for All Repositories"}
               </Button>
             </Space>
 
@@ -481,6 +530,29 @@ const BitBucketPRs: React.FC = () => {
                       dataIndex: "count",
                       key: "count",
                       render: (count: number) => <Text strong>{count}</Text>,
+                    },
+                    {
+                      title: "Actions",
+                      key: "actions",
+                      render: (
+                        _: any,
+                        record: {
+                          month: string;
+                          count: number;
+                          monthKey: string;
+                        }
+                      ) => (
+                        <Button
+                          size="small"
+                          type="link"
+                          onClick={() =>
+                            handleViewPRsForMonth(record.monthKey, record.month)
+                          }
+                          disabled={record.count === 0}
+                        >
+                          View PRs
+                        </Button>
+                      ),
                     },
                   ]}
                   rowKey="month"
@@ -629,8 +701,10 @@ const BitBucketPRs: React.FC = () => {
       <Modal
         title={
           selectedRepository
-            ? `Pull Requests - ${selectedRepository.full_name || selectedRepository.name} (Last 3 Months)`
-            : "Pull Requests (Last 3 Months)"
+            ? `Pull Requests - ${selectedRepository.full_name || selectedRepository.name}`
+            : selectedMonth
+              ? `Pull Requests - ${prsByMonth.find((m) => m.monthKey === selectedMonth)?.month || selectedMonth}`
+              : "Pull Requests"
         }
         open={isModalVisible}
         onCancel={handleCloseModal}
@@ -641,11 +715,16 @@ const BitBucketPRs: React.FC = () => {
         ]}
         width={1200}
       >
-        {selectedRepository && (
+        {(selectedRepository || selectedMonth) && (
           <div style={{ marginBottom: "16px" }}>
             <Text>
-              Showing {selectedRepoPRs.length} pull requests for{" "}
-              {selectedRepository.full_name || selectedRepository.name}
+              Showing {selectedRepoPRs.length} pull request
+              {selectedRepoPRs.length !== 1 ? "s" : ""}
+              {selectedRepository
+                ? ` for ${selectedRepository.full_name || selectedRepository.name}`
+                : selectedMonth
+                  ? ` for ${prsByMonth.find((m) => m.monthKey === selectedMonth)?.month || selectedMonth}`
+                  : ""}
             </Text>
           </div>
         )}
