@@ -34,8 +34,67 @@ export type BitBucketRepositoriesResponse = {
   [key: string]: any;
 };
 
+export type BitBucketPullRequest = {
+  id: number;
+  title: string;
+  state: "OPEN" | "MERGED" | "DECLINED" | "SUPERSEDED";
+  author: {
+    display_name?: string;
+    user?: {
+      displayName: string;
+      name?: string;
+    };
+    uuid?: string;
+    account_id?: string;
+  };
+  created_on?: string; // API 2.0 format
+  createdDate?: number; // API 1.0 format (timestamp in milliseconds)
+  updated_on?: string; // API 2.0 format
+  updatedDate?: number; // API 1.0 format (timestamp in milliseconds)
+  merged?: boolean;
+  open?: boolean; // API 1.0 format
+  closed?: boolean; // API 1.0 format
+  links?: {
+    html?: {
+      href: string;
+    };
+    self?: Array<{
+      href: string;
+    }>;
+  };
+  // Additional fields that might come from API 1.0
+  [key: string]: any;
+};
+
+export type BitBucketPullRequestsResponse = {
+  size?: number;
+  page?: number;
+  pagelen?: number;
+  limit?: number;
+  next?: string | null;
+  previous?: string | null;
+  isLastPage?: boolean;
+  nextPageStart?: number;
+  values?: BitBucketPullRequest[];
+  // API 1.0 might return pull requests directly
+  [key: string]: any;
+};
+
+export type CachedPRData = {
+  data: Array<{
+    repository: BitBucketRepository;
+    pullRequests: BitBucketPullRequest[];
+  }>;
+  timestamp: number;
+  repositoryIds: string[];
+};
+
 export default class BitBucketRequester {
-  constructor() {}
+  private prCache: Map<string, CachedPRData>;
+
+  constructor() {
+    this.prCache = new Map();
+  }
 
   async getAllRepositories(workspace?: string): Promise<BitBucketRepository[]> {
     const domain = process.env.BITBUCKET_DOMAIN;
@@ -213,11 +272,6 @@ export default class BitBucketRequester {
       throw new Error("BITBUCKET_API_TOKEN environment variable is not set");
     }
 
-    console.log(`Making request to: ${url}`);
-    console.log(
-      `Using Authorization header with token (length: ${apiToken.length})`
-    );
-
     const response = await fetch(url, {
       method: "GET",
       headers: {
@@ -225,12 +279,6 @@ export default class BitBucketRequester {
         Accept: "application/json",
       },
     });
-
-    console.log(`Response status: ${response.status} ${response.statusText}`);
-    console.log(
-      `Response headers:`,
-      Object.fromEntries(response.headers.entries())
-    );
 
     if (!response.ok) {
       // Try to get error details from response body
@@ -266,5 +314,302 @@ export default class BitBucketRequester {
     }
 
     return response.json();
+  }
+
+  async getPullRequestsForRepositories(
+    repositories: BitBucketRepository[],
+    monthsBack: number = 3,
+    useCache: boolean = true
+  ): Promise<
+    Array<{
+      repository: BitBucketRepository;
+      pullRequests: BitBucketPullRequest[];
+    }>
+  > {
+    // Create cache key from repository IDs
+    const repoIds = repositories
+      .map((r) => r.full_name || r.uuid || r.slug)
+      .sort()
+      .join(",");
+    const cacheKey = `prs_${repoIds}`;
+
+    // Check cache if useCache is true
+    if (useCache && this.prCache.has(cacheKey)) {
+      const cached = this.prCache.get(cacheKey)!;
+      console.log(
+        `Returning cached PR data (cached at: ${new Date(cached.timestamp).toISOString()})`
+      );
+      return cached.data;
+    }
+
+    const domain = process.env.BITBUCKET_DOMAIN;
+    if (!domain) {
+      throw new Error("BITBUCKET_DOMAIN environment variable is not set");
+    }
+
+    const isBitBucketServer = !domain.includes("api.bitbucket.org");
+
+    const results: Array<{
+      repository: BitBucketRepository;
+      pullRequests: BitBucketPullRequest[];
+    }> = [];
+
+    for (let i = 0; i < repositories.length; i++) {
+      const repo = repositories[i];
+
+      try {
+        const prs = await this.getPullRequestsForRepository(
+          repo,
+          null, // No date filter - get all PRs
+          isBitBucketServer
+        );
+        results.push({
+          repository: repo,
+          pullRequests: prs,
+        });
+      } catch (error) {
+        console.error(
+          `Error fetching PRs for ${repo.full_name || repo.name}:`,
+          error
+        );
+        // Continue with other repositories even if one fails
+        results.push({
+          repository: repo,
+          pullRequests: [],
+        });
+      }
+    }
+
+    // Cache the results
+    this.prCache.set(cacheKey, {
+      data: results,
+      timestamp: Date.now(),
+      repositoryIds: repositories.map((r) => r.full_name || r.uuid || r.slug),
+    });
+
+    return results;
+  }
+
+  getCachedPRDataTimestamp(repositories: BitBucketRepository[]): number | null {
+    const repoIds = repositories
+      .map((r) => r.full_name || r.uuid || r.slug)
+      .sort()
+      .join(",");
+    const cacheKey = `prs_${repoIds}`;
+    const cached = this.prCache.get(cacheKey);
+    return cached ? cached.timestamp : null;
+  }
+
+  clearPRCache(repositories: BitBucketRepository[]): void {
+    const repoIds = repositories
+      .map((r) => r.full_name || r.uuid || r.slug)
+      .sort()
+      .join(",");
+    const cacheKey = `prs_${repoIds}`;
+    this.prCache.delete(cacheKey);
+    console.log(`Cleared PR cache for: ${cacheKey}`);
+  }
+
+  async getPullRequestsForRepository(
+    repository: BitBucketRepository,
+    dateFilter: string | null,
+    isBitBucketServer: boolean
+  ): Promise<BitBucketPullRequest[]> {
+    const domain = process.env.BITBUCKET_DOMAIN;
+    if (!domain) {
+      throw new Error("BITBUCKET_DOMAIN environment variable is not set");
+    }
+
+    // Try multiple methods to extract project key and repo slug
+    let projectKey: string | undefined;
+    let repoSlug: string | undefined;
+    let workspace: string | undefined;
+
+    // Method 1: Try full_name (format: "project/repo" or "workspace/repo")
+    const fullName = repository.full_name || "";
+    if (fullName) {
+      const parts = fullName.split("/");
+      if (parts.length >= 2) {
+        projectKey = parts[0];
+        workspace = parts[0];
+        repoSlug = parts[1];
+      }
+    }
+
+    // Method 2: Try extracting from self link URL
+    if (!projectKey || !repoSlug) {
+      const selfLink = repository.links?.self?.href;
+      if (selfLink) {
+        // Extract from URL like: /rest/api/2.0/repositories/{project}/{repo}
+        const match = selfLink.match(/repositories\/([^\/]+)\/([^\/]+)/);
+        if (match) {
+          projectKey = match[1];
+          workspace = match[1];
+          repoSlug = match[2];
+        } else {
+          // Try API 1.0 format: /rest/api/1.0/projects/{project}/repos/{repo}
+          const match1 = selfLink.match(/projects\/([^\/]+)\/repos\/([^\/]+)/);
+          if (match1) {
+            projectKey = match1[1];
+            repoSlug = match1[2];
+          }
+        }
+      }
+    }
+
+    // Method 3: Try repository object fields (API 1.0 might have project field)
+    if (!projectKey || !repoSlug) {
+      if ((repository as any).project?.key) {
+        projectKey = (repository as any).project.key;
+      }
+      if (repository.slug) {
+        repoSlug = repository.slug;
+      }
+    }
+
+    // Method 4: Use slug as fallback if we have at least that
+    if (!repoSlug && repository.slug) {
+      repoSlug = repository.slug;
+    }
+
+    // If we still don't have what we need, log the repository structure for debugging
+    if (!projectKey || !repoSlug) {
+      console.error(
+        "Repository structure:",
+        JSON.stringify(repository, null, 2)
+      );
+      throw new Error(
+        `Cannot determine repository path. full_name: "${fullName}", slug: "${repository.slug}", self link: "${repository.links?.self?.href}"`
+      );
+    }
+
+    let baseUrl: string;
+    if (isBitBucketServer) {
+      // BitBucket Server: /rest/api/1.0/projects/{projectKey}/repos/{repoSlug}/pull-requests
+      // or /rest/api/2.0/repositories/{workspace}/{repo_slug}/pullrequests
+      // Try API 2.0 first - filter for merged PRs only (no date filter)
+      if (dateFilter) {
+        baseUrl = `${domain}/rest/api/2.0/repositories/${projectKey}/${repoSlug}/pullrequests?q=state="MERGED"+AND+created_on>${dateFilter}&pagelen=100`;
+      } else {
+        baseUrl = `${domain}/rest/api/2.0/repositories/${projectKey}/${repoSlug}/pullrequests?q=state="MERGED"&pagelen=100`;
+      }
+    } else {
+      // BitBucket Cloud: /2.0/repositories/{workspace}/{repo_slug}/pullrequests
+      // Filter for merged PRs only (no date filter)
+      if (dateFilter) {
+        baseUrl = `${domain}/2.0/repositories/${workspace || projectKey}/${repoSlug}/pullrequests?q=state="MERGED"+AND+created_on>${dateFilter}&pagelen=100`;
+      } else {
+        baseUrl = `${domain}/2.0/repositories/${workspace || projectKey}/${repoSlug}/pullrequests?q=state="MERGED"&pagelen=100`;
+      }
+    }
+
+    let allPRs: BitBucketPullRequest[] = [];
+    let url: string | null = baseUrl;
+    let page = 1;
+    const maxPages = 100;
+    const seenUrls = new Set<string>();
+
+    while (url && page <= maxPages) {
+      if (seenUrls.has(url)) {
+        console.warn(
+          `Detected loop: URL ${url} was already fetched. Stopping pagination.`
+        );
+        break;
+      }
+      seenUrls.add(url);
+
+      try {
+        console.log(`  Requesting: ${url}`);
+        const response: BitBucketPullRequestsResponse =
+          await this.fetchRequest(url);
+
+        const prs = response.values || [];
+        console.log(
+          `  Page ${page}: Received ${prs.length} PRs from API (total so far: ${allPRs.length + prs.length})`
+        );
+        allPRs = allPRs.concat(prs);
+
+        // Check for next page using isLastPage
+        let nextUrl: string | null = null;
+        const isLastPage =
+          response.isLastPage !== undefined
+            ? response.isLastPage
+            : (response as any).isLastPage;
+
+        if (isLastPage === false) {
+          // There are more pages, construct next page URL
+          const currentUrl = new URL(url);
+
+          // Try different pagination methods
+          if (response.page !== undefined) {
+            // Page-based pagination
+            const nextPage = response.page + 1;
+            currentUrl.searchParams.set("page", nextPage.toString());
+            nextUrl = currentUrl.toString();
+            console.log(
+              `  Not last page, constructing next page URL: page ${nextPage}`
+            );
+          } else if ((response as any).nextPageStart !== undefined) {
+            // Start-based pagination (API 1.0)
+            currentUrl.searchParams.set(
+              "start",
+              (response as any).nextPageStart.toString()
+            );
+            nextUrl = currentUrl.toString();
+            console.log(
+              `  Not last page, constructing next page URL: start=${(response as any).nextPageStart}`
+            );
+          } else {
+            // Try incrementing start parameter if it exists
+            const currentStart = parseInt(
+              currentUrl.searchParams.get("start") || "0"
+            );
+            const nextStart = currentStart + prs.length;
+            currentUrl.searchParams.set("start", nextStart.toString());
+            nextUrl = currentUrl.toString();
+            console.log(
+              `  Not last page, constructing next page URL: start=${nextStart}`
+            );
+          }
+        } else {
+          console.log(`  Last page reached (isLastPage: ${isLastPage})`);
+        }
+
+        url = nextUrl;
+        page++;
+      } catch (error) {
+        // If API 2.0 fails, try API 1.0 for BitBucket Server
+        if (
+          isBitBucketServer &&
+          url?.includes("/rest/api/2.0/") &&
+          page === 1 &&
+          projectKey &&
+          repoSlug
+        ) {
+          // For API 1.0, we need to fetch all and filter by state=MERGED
+          // API 1.0 doesn't support state filter in query, so we'll fetch all and filter
+          baseUrl = `${domain}/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests?limit=1000&state=MERGED`;
+          url = baseUrl;
+          page = 1;
+          allPRs = [];
+          seenUrls.clear();
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    // Filter PRs by merged state only (no date filter)
+    const mergedPRs = allPRs.filter((pr) => {
+      const isMerged =
+        pr.state === "MERGED" ||
+        (pr.closed === true &&
+          pr.state !== "DECLINED" &&
+          pr.state !== "SUPERSEDED");
+      return isMerged;
+    });
+    console.log(`  After filtering by merged state: ${mergedPRs.length} PRs`);
+
+    return mergedPRs;
   }
 }

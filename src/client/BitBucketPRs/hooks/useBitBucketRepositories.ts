@@ -1,5 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { BitBucketRepository } from "../../../server/BitBucketRequester";
+import {
+  BitBucketRepository,
+  BitBucketPullRequest,
+} from "../../../server/BitBucketRequester";
 import { BitBucketPRsState } from "../types";
 
 const loadWorkspaceFromStorage = (): string => {
@@ -25,6 +28,12 @@ export const useBitBucketRepositories = () => {
     isLoading: false,
     error: null,
     workspace: loadWorkspaceFromStorage(),
+    pullRequests: [],
+    isLoadingPRs: false,
+    prsError: null,
+    loadingRepoId: null,
+    selectedRepository: null,
+    prsLastUpdated: null,
   });
 
   // Use ref to always get the latest workspace value
@@ -69,10 +78,95 @@ export const useBitBucketRepositories = () => {
     saveWorkspaceToStorage(workspace);
   }, []);
 
+  const loadPullRequestsForRepository = useCallback(
+    async (repository: BitBucketRepository, refresh: boolean = false) => {
+      // Use full_name as primary identifier since it's unique (workspace/repo)
+      const repoId = repository.full_name || repository.uuid || repository.slug;
+
+      setState((prev) => ({
+        ...prev,
+        isLoadingPRs: true,
+        loadingRepoId: repoId,
+        prsError: null,
+      }));
+
+      try {
+        const response = await fetch("/api/bitbucket/pull-requests", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            repositories: [repository],
+            refresh,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch pull requests");
+        }
+
+        const data = await response.json();
+        const results: Array<{
+          repository: BitBucketRepository;
+          pullRequests: BitBucketPullRequest[];
+        }> = JSON.parse(data.data);
+
+        // Update or add PRs for this repository
+        setState((prev) => {
+          const existingIndex = prev.pullRequests.findIndex(
+            (r) =>
+              (r.repository.full_name || r.repository.uuid || r.repository.slug) ===
+              repoId
+          );
+
+          const newPullRequests = [...prev.pullRequests];
+          if (existingIndex >= 0) {
+            // Update existing entry
+            newPullRequests[existingIndex] = results[0];
+          } else {
+            // Add new entry
+            newPullRequests.push(results[0]);
+          }
+
+          return {
+            ...prev,
+            pullRequests: newPullRequests,
+            isLoadingPRs: false,
+            loadingRepoId: null,
+            selectedRepository: repository, // Set as selected for modal
+            prsLastUpdated: data.lastUpdated || Date.now(),
+          };
+        });
+      } catch (error) {
+        console.error("Error loading pull requests:", error);
+        setState((prev) => ({
+          ...prev,
+          isLoadingPRs: false,
+          loadingRepoId: null,
+          prsError:
+            error instanceof Error
+              ? error.message
+              : "Failed to load pull requests",
+        }));
+      }
+    },
+    []
+  );
+
+  const setSelectedRepository = useCallback(
+    (repository: BitBucketRepository | null) => {
+      setState((prev) => ({ ...prev, selectedRepository: repository }));
+    },
+    []
+  );
+
   return {
     state,
     loadRepositories,
     setWorkspace,
+    loadPullRequestsForRepository,
+    setSelectedRepository,
   };
 };
 

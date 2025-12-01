@@ -1298,7 +1298,10 @@ metricsRoute.get(
 // BitBucket API route for repositories
 metricsRoute.get(
   "/bitbucket/repositories",
-  (req: TRQ<{ workspace?: string }>, res: TR<{ message: string; data: string }>) => {
+  (
+    req: TRQ<{ workspace?: string }>,
+    res: TR<{ message: string; data: string }>
+  ) => {
     const workspace = req.query.workspace;
     console.log("BitBucket repositories endpoint called");
 
@@ -1314,8 +1317,68 @@ metricsRoute.get(
       .catch((error) => {
         console.error("Error fetching repositories from BitBucket:", error);
         res.json({
-          message: "Error fetching repositories from BitBucket: " + error.message,
+          message:
+            "Error fetching repositories from BitBucket: " + error.message,
           data: JSON.stringify([]),
+        });
+      });
+  }
+);
+
+// BitBucket API route for pull requests
+metricsRoute.post(
+  "/bitbucket/pull-requests",
+  (
+    req: TRB<{ repositories: any[]; monthsBack?: number; refresh?: boolean }>,
+    res: TR<{
+      message: string;
+      data: string;
+      cached?: boolean;
+      lastUpdated?: number;
+    }>
+  ) => {
+    const { repositories, monthsBack = 3, refresh = false } = req.body;
+    console.log(
+      `BitBucket pull requests endpoint called for ${repositories.length} repositories (refresh: ${refresh})`
+    );
+
+    // Clear cache if refresh is requested
+    if (refresh) {
+      bitBucketRequester.clearPRCache(repositories);
+    }
+
+    // Check cache timestamp
+    const cacheTimestamp =
+      bitBucketRequester.getCachedPRDataTimestamp(repositories);
+    const useCache = !refresh && cacheTimestamp !== null;
+
+    bitBucketRequester
+      .getPullRequestsForRepositories(repositories, monthsBack, useCache)
+      .then((results) => {
+        const totalPRs = results.reduce(
+          (sum, r) => sum + r.pullRequests.length,
+          0
+        );
+        const currentCacheTimestamp =
+          bitBucketRequester.getCachedPRDataTimestamp(repositories);
+
+        console.log(
+          `Found ${totalPRs} total PRs across ${repositories.length} repositories (cached: ${useCache})`
+        );
+        res.json({
+          message: "BitBucket pull requests fetched successfully",
+          data: JSON.stringify(results),
+          cached: useCache,
+          lastUpdated: currentCacheTimestamp || undefined,
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching pull requests from BitBucket:", error);
+        res.json({
+          message:
+            "Error fetching pull requests from BitBucket: " + error.message,
+          data: JSON.stringify([]),
+          cached: false,
         });
       });
   }
