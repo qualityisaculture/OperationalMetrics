@@ -3,6 +3,13 @@ import {
   BitBucketPullRequest,
 } from "../../server/BitBucketRequester";
 
+export interface RepositoryProgress {
+  repository: BitBucketRepository;
+  status: "pending" | "loading" | "completed" | "error";
+  error?: string;
+  prCount?: number;
+}
+
 export interface BitBucketPRsState {
   repositories: BitBucketRepository[];
   isLoading: boolean;
@@ -17,5 +24,8 @@ export interface BitBucketPRsState {
   loadingRepoId: string | null; // Track which repository is currently loading PRs
   selectedRepository: BitBucketRepository | null; // Track which repository's PRs to show in modal
   prsLastUpdated: number | null; // Timestamp of when PRs were last fetched
+  // Progress tracking for loading all repositories
+  isLoadingAllPRs: boolean;
+  repositoryProgress: Map<string, RepositoryProgress>;
 }
 

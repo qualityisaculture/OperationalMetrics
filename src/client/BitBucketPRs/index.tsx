@@ -10,7 +10,15 @@ import {
   Select,
   Card,
   Divider,
+  Progress,
+  List,
+  Tag,
 } from "antd";
+import {
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  LoadingOutlined,
+} from "@ant-design/icons";
 import { useBitBucketRepositories } from "./hooks/useBitBucketRepositories";
 import {
   BitBucketRepository,
@@ -27,6 +35,7 @@ const BitBucketPRs: React.FC = () => {
     setWorkspace,
     loadPullRequestsForRepository,
     setSelectedRepository,
+    loadPullRequestsForAllRepositories,
   } = useBitBucketRepositories();
   const {
     repositories,
@@ -39,8 +48,11 @@ const BitBucketPRs: React.FC = () => {
     loadingRepoId,
     selectedRepository,
     prsLastUpdated,
+    isLoadingAllPRs,
+    repositoryProgress,
   } = state;
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isProgressModalVisible, setIsProgressModalVisible] = useState(false);
   const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
 
   // Get all PRs from all repositories
@@ -298,6 +310,27 @@ const BitBucketPRs: React.FC = () => {
     setSelectedRepository(null);
   };
 
+  const handleCloseProgressModal = () => {
+    if (!isLoadingAllPRs) {
+      setIsProgressModalVisible(false);
+    }
+  };
+
+  // Calculate progress statistics
+  const progressStats = useMemo(() => {
+    const progressArray = Array.from(repositoryProgress.values());
+    const total = progressArray.length;
+    const completed = progressArray.filter(
+      (p) => p.status === "completed"
+    ).length;
+    const loading = progressArray.filter((p) => p.status === "loading").length;
+    const error = progressArray.filter((p) => p.status === "error").length;
+    const pending = progressArray.filter((p) => p.status === "pending").length;
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    return { total, completed, loading, error, pending, percent };
+  }, [repositoryProgress]);
+
   return (
     <div style={{ padding: "20px" }}>
       <Title level={2}>BitBucket Repositories</Title>
@@ -339,6 +372,17 @@ const BitBucketPRs: React.FC = () => {
                   PRs last updated: {new Date(prsLastUpdated).toLocaleString()}
                 </Text>
               )}
+              <Button
+                type="primary"
+                onClick={async () => {
+                  setIsProgressModalVisible(true);
+                  await loadPullRequestsForAllRepositories(false);
+                }}
+                loading={isLoadingAllPRs}
+                disabled={isLoadingAllPRs}
+              >
+                Load PRs for All Repositories
+              </Button>
             </Space>
 
             {prsError && (
@@ -438,6 +482,139 @@ const BitBucketPRs: React.FC = () => {
           </Card>
         </>
       )}
+
+      {/* Progress Modal */}
+      <Modal
+        title="Loading PRs for All Repositories"
+        open={isProgressModalVisible}
+        onCancel={handleCloseProgressModal}
+        footer={[
+          <Button
+            key="close"
+            onClick={handleCloseProgressModal}
+            disabled={isLoadingAllPRs}
+          >
+            {isLoadingAllPRs ? "Processing..." : "Close"}
+          </Button>,
+        ]}
+        width={800}
+        closable={!isLoadingAllPRs}
+        maskClosable={!isLoadingAllPRs}
+      >
+        <Space direction="vertical" style={{ width: "100%" }}>
+          <Alert
+            message="Loading PRs"
+            description={
+              isLoadingAllPRs
+                ? "Loading pull requests for all repositories in parallel. Since they are cached, this should be fast after the first time."
+                : "All repositories have been processed."
+            }
+            type={isLoadingAllPRs ? "info" : "success"}
+            showIcon
+            style={{ marginBottom: "16px" }}
+          />
+
+          {progressStats.total > 0 && (
+            <>
+              <div>
+                <Text strong>Overall Progress: </Text>
+                <Progress
+                  percent={progressStats.percent}
+                  status={
+                    isLoadingAllPRs
+                      ? "active"
+                      : progressStats.error > 0
+                        ? "exception"
+                        : "success"
+                  }
+                  style={{ marginTop: "8px" }}
+                />
+                <Text
+                  type="secondary"
+                  style={{ display: "block", marginTop: "8px" }}
+                >
+                  {progressStats.completed} of {progressStats.total}{" "}
+                  repositories completed
+                  {progressStats.error > 0 &&
+                    ` (${progressStats.error} errors)`}
+                </Text>
+              </div>
+
+              <Divider />
+
+              <div>
+                <Text strong>Repository Status:</Text>
+                <List
+                  size="small"
+                  dataSource={Array.from(repositoryProgress.values())}
+                  renderItem={(progress) => {
+                    const repoName =
+                      progress.repository.full_name ||
+                      progress.repository.name ||
+                      progress.repository.slug;
+                    const repoId =
+                      progress.repository.full_name ||
+                      progress.repository.uuid ||
+                      progress.repository.slug;
+
+                    let icon;
+                    let statusColor;
+                    let statusText;
+
+                    switch (progress.status) {
+                      case "completed":
+                        icon = (
+                          <CheckCircleOutlined style={{ color: "#52c41a" }} />
+                        );
+                        statusColor = "success";
+                        statusText = `Completed (${progress.prCount || 0} PRs)`;
+                        break;
+                      case "loading":
+                        icon = <LoadingOutlined style={{ color: "#1890ff" }} />;
+                        statusColor = "processing";
+                        statusText = "Loading...";
+                        break;
+                      case "error":
+                        icon = (
+                          <CloseCircleOutlined style={{ color: "#ff4d4f" }} />
+                        );
+                        statusColor = "error";
+                        statusText = progress.error || "Error";
+                        break;
+                      default:
+                        icon = null;
+                        statusColor = "default";
+                        statusText = "Pending";
+                    }
+
+                    return (
+                      <List.Item>
+                        <Space
+                          style={{
+                            width: "100%",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <Space>
+                            {icon}
+                            <Text>{repoName}</Text>
+                          </Space>
+                          <Tag color={statusColor}>{statusText}</Tag>
+                        </Space>
+                      </List.Item>
+                    );
+                  }}
+                  style={{
+                    maxHeight: "400px",
+                    overflowY: "auto",
+                    marginTop: "12px",
+                  }}
+                />
+              </div>
+            </>
+          )}
+        </Space>
+      </Modal>
 
       <Modal
         title={
