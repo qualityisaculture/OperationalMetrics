@@ -24,6 +24,7 @@ import JiraReportGraphManager from "../graphManagers/JiraReportGraphManager";
 import BottleneckDetectorGraphManager from "../graphManagers/BottleneckDetectorGraphManager";
 import WorkstreamOrphanDetectorGraphManager from "../graphManagers/WorkstreamOrphanDetectorGraphManager";
 import BugsAnalysisGraphManager from "../graphManagers/BugsAnalysisGraphManager";
+import BitBucketRequester from "../BitBucketRequester";
 
 async function getJiraData(issueKey: string) {}
 
@@ -48,6 +49,7 @@ const bottleneckDetectorGraphManager = new BottleneckDetectorGraphManager(
 const workstreamOrphanDetectorGraphManager =
   new WorkstreamOrphanDetectorGraphManager(jiraRequester);
 const bugsAnalysisGraphManager = new BugsAnalysisGraphManager(jiraRequester);
+const bitBucketRequester = new BitBucketRequester();
 
 metricsRoute.get(
   "/cumulativeFlowDiagram",
@@ -1287,6 +1289,32 @@ metricsRoute.get(
         console.error("Error fetching Jira data for release:", error);
         res.json({
           message: "Error fetching Jira data for release",
+          data: JSON.stringify([]),
+        });
+      });
+  }
+);
+
+// BitBucket API route for repositories
+metricsRoute.get(
+  "/bitbucket/repositories",
+  (req: TRQ<{ workspace?: string }>, res: TR<{ message: string; data: string }>) => {
+    const workspace = req.query.workspace;
+    console.log("BitBucket repositories endpoint called");
+
+    bitBucketRequester
+      .getAllRepositories(workspace)
+      .then((repositories) => {
+        console.log(`Found ${repositories.length} repositories from BitBucket`);
+        res.json({
+          message: "BitBucket repositories fetched successfully",
+          data: JSON.stringify(repositories),
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching repositories from BitBucket:", error);
+        res.json({
+          message: "Error fetching repositories from BitBucket: " + error.message,
           data: JSON.stringify([]),
         });
       });
