@@ -9,6 +9,7 @@ import {
   Modal,
   Timeline,
   Select,
+  Tooltip,
 } from "antd";
 import { Release, JiraWithStatusChanges, StatusChange } from "../types";
 import type { ColumnsType } from "antd/es/table";
@@ -46,6 +47,7 @@ export const ReleasesTable: React.FC<Props> = ({
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [selectedRelease, setSelectedRelease] = useState<Release | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const [mainTableStatus, setMainTableStatus] = useState<string | null>(null);
 
   // Sort releases in reverse chronological order (newest first)
   const sortedReleases = useMemo(() => {
@@ -152,6 +154,54 @@ export const ReleasesTable: React.FC<Props> = ({
     return Array.from(allStatuses).sort();
   };
 
+  // Get all unique statuses across all releases
+  const getAllAvailableStatuses = (): string[] => {
+    const allStatuses = new Set<string>();
+    releaseJiraData.forEach((jiraData) => {
+      jiraData.forEach((jira) => {
+        jira.statusChanges.forEach((change) => {
+          allStatuses.add(change.status);
+        });
+      });
+    });
+    return Array.from(allStatuses).sort();
+  };
+
+  // Calculate average days from status to delivery for a release
+  const getAverageDaysFromStatusToDelivery = (
+    release: Release,
+    status: string | null
+  ): number | null => {
+    if (!status || !release.releaseDate) return null;
+
+    const jiraData = releaseJiraData.get(release.name);
+    if (!jiraData || jiraData.length === 0) return null;
+
+    const releaseDate = new Date(release.releaseDate);
+    const validDays: number[] = [];
+
+    jiraData.forEach((jira) => {
+      // Find first time entering the selected status
+      const firstStatusEntry = jira.statusChanges.find(
+        (change) => change.status === status
+      );
+
+      if (firstStatusEntry) {
+        const firstStatusDate = new Date(firstStatusEntry.date);
+        const workDays = getWorkDaysBetween(firstStatusDate, releaseDate);
+
+        // Only include positive values and values <= 100
+        if (workDays > 0 && workDays <= 100) {
+          validDays.push(workDays);
+        }
+      }
+    });
+
+    if (validDays.length === 0) return null;
+    const sum = validDays.reduce((acc, val) => acc + val, 0);
+    return sum / validDays.length;
+  };
+
   // Get table data for the details modal
   const getDetailsTableData = () => {
     if (!selectedRelease || !selectedStatus) return [];
@@ -235,6 +285,47 @@ export const ReleasesTable: React.FC<Props> = ({
       },
     },
     {
+      title: (
+        <Tooltip
+          title={
+            <div>
+              <div>
+                Average days from first entry into the selected status until
+                release date.
+              </div>
+              <div>
+                Only includes positive values (excludes negative and absent
+                values).
+              </div>
+              <div>Values over 100 days are excluded from the calculation.</div>
+            </div>
+          }
+        >
+          <span style={{ cursor: "help" }}>
+            Average Days from Status to Delivery
+          </span>
+        </Tooltip>
+      ),
+      key: "averageDaysFromStatusToDelivery",
+      width: 250,
+      sorter: (a: Release, b: Release) => {
+        const aVal = getAverageDaysFromStatusToDelivery(a, mainTableStatus);
+        const bVal = getAverageDaysFromStatusToDelivery(b, mainTableStatus);
+        if (aVal === null && bVal === null) return 0;
+        if (aVal === null) return 1;
+        if (bVal === null) return -1;
+        return aVal - bVal;
+      },
+      render: (_, record) => {
+        const average = getAverageDaysFromStatusToDelivery(
+          record,
+          mainTableStatus
+        );
+        if (average === null) return <Text type="secondary">-</Text>;
+        return <Tag color="purple">{average.toFixed(1)} days</Tag>;
+      },
+    },
+    {
       title: "Jiras",
       key: "jiras",
       width: 200,
@@ -302,27 +393,50 @@ export const ReleasesTable: React.FC<Props> = ({
     );
   }
 
+  const allStatuses = getAllAvailableStatuses();
+
   return (
     <div style={{ marginTop: "24px" }}>
-      <Text
-        strong
-        style={{ fontSize: "16px", marginBottom: "16px", display: "block" }}
-      >
-        Releases for {projectName}
-      </Text>
-      <Table
-        columns={columns}
-        dataSource={sortedReleases}
-        rowKey="id"
-        loading={isLoading}
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) =>
-            `${range[0]}-${range[1]} of ${total} releases`,
-        }}
-      />
+      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+        <div>
+          <Text
+            strong
+            style={{ fontSize: "16px", marginBottom: "16px", display: "block" }}
+          >
+            Releases for {projectName}
+          </Text>
+          {allStatuses.length > 0 && (
+            <div style={{ marginBottom: "16px" }}>
+              <Text strong style={{ display: "block", marginBottom: "8px" }}>
+                Select Status for Average Calculation:
+              </Text>
+              <Select
+                style={{ width: "100%", maxWidth: "400px" }}
+                placeholder="Select a status to calculate average days"
+                value={mainTableStatus}
+                onChange={(value) => setMainTableStatus(value)}
+                options={allStatuses.map((status) => ({
+                  label: status,
+                  value: status,
+                }))}
+              />
+            </div>
+          )}
+        </div>
+        <Table
+          columns={columns}
+          dataSource={sortedReleases}
+          rowKey="id"
+          loading={isLoading}
+          pagination={{
+            pageSize: 20,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) =>
+              `${range[0]}-${range[1]} of ${total} releases`,
+          }}
+        />
+      </Space>
       {/* Status Changelog Modal */}
       <Modal
         title={
