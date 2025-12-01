@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Button,
   Input,
@@ -7,6 +7,9 @@ import {
   Space,
   Alert,
   Modal,
+  Select,
+  Card,
+  Divider,
 } from "antd";
 import { useBitBucketRepositories } from "./hooks/useBitBucketRepositories";
 import {
@@ -15,6 +18,7 @@ import {
 } from "../../server/BitBucketRequester";
 
 const { Title, Text } = Typography;
+const { Option } = Select;
 
 const BitBucketPRs: React.FC = () => {
   const {
@@ -37,6 +41,87 @@ const BitBucketPRs: React.FC = () => {
     prsLastUpdated,
   } = state;
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
+
+  // Get all PRs from all repositories
+  const allPRs = useMemo(() => {
+    return pullRequests.flatMap((repoData) => repoData.pullRequests);
+  }, [pullRequests]);
+
+  // Extract unique authors from all PRs
+  const uniqueAuthors = useMemo(() => {
+    const authorSet = new Set<string>();
+    allPRs.forEach((pr) => {
+      const authorName =
+        pr.author?.display_name ||
+        pr.author?.user?.displayName ||
+        pr.author?.user?.name ||
+        "Unknown";
+      if (authorName) {
+        authorSet.add(authorName);
+      }
+    });
+    return Array.from(authorSet).sort();
+  }, [allPRs]);
+
+  // Filter PRs by selected authors (if any selected)
+  const filteredPRs = useMemo(() => {
+    if (selectedAuthors.length === 0) {
+      return allPRs;
+    }
+    return allPRs.filter((pr) => {
+      const authorName =
+        pr.author?.display_name ||
+        pr.author?.user?.displayName ||
+        pr.author?.user?.name ||
+        "Unknown";
+      return selectedAuthors.includes(authorName);
+    });
+  }, [allPRs, selectedAuthors]);
+
+  // Group PRs by month and count them
+  const prsByMonth = useMemo(() => {
+    const monthMap = new Map<
+      string,
+      { label: string; count: number; sortKey: string }
+    >();
+
+    filteredPRs.forEach((pr) => {
+      let date: Date | null = null;
+
+      // Handle different date formats
+      if (pr.created_on) {
+        date = new Date(pr.created_on);
+      } else if (pr.createdDate) {
+        date = new Date(pr.createdDate);
+      }
+
+      if (date && !isNaN(date.getTime())) {
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const monthLabel = date.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+        });
+
+        const existing = monthMap.get(monthKey);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          monthMap.set(monthKey, {
+            label: monthLabel,
+            count: 1,
+            sortKey: monthKey,
+          });
+        }
+      }
+    });
+
+    // Convert to array and sort by sortKey (which is YYYY-MM format)
+    const entries = Array.from(monthMap.values());
+    entries.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+    return entries.map(({ label, count }) => ({ month: label, count }));
+  }, [filteredPRs]);
 
   const columns = [
     {
@@ -87,8 +172,9 @@ const BitBucketPRs: React.FC = () => {
         const isThisRepoLoading = loadingRepoId === repoId;
         const repoPRs = pullRequests.find(
           (r) =>
-            (r.repository.full_name || r.repository.uuid || r.repository.slug) ===
-            repoId
+            (r.repository.full_name ||
+              r.repository.uuid ||
+              r.repository.slug) === repoId
         );
         const hasPRs = repoPRs && repoPRs.pullRequests.length > 0;
         const prCount = repoPRs?.pullRequests.length || 0;
@@ -142,10 +228,14 @@ const BitBucketPRs: React.FC = () => {
         let href: string | undefined;
         if (record.links?.html?.href) {
           href = record.links.html.href;
-        } else if (record.links?.self && Array.isArray(record.links.self) && record.links.self.length > 0) {
+        } else if (
+          record.links?.self &&
+          Array.isArray(record.links.self) &&
+          record.links.self.length > 0
+        ) {
           href = record.links.self[0].href;
         }
-        
+
         if (href) {
           return (
             <a href={href} target="_blank" rel="noopener noreferrer">
@@ -175,10 +265,10 @@ const BitBucketPRs: React.FC = () => {
           state === "MERGED"
             ? "green"
             : state === "OPEN"
-            ? "blue"
-            : state === "DECLINED"
-            ? "red"
-            : "default";
+              ? "blue"
+              : state === "DECLINED"
+                ? "red"
+                : "default";
         return <Text style={{ color }}>{state}</Text>;
       },
     },
@@ -211,8 +301,11 @@ const BitBucketPRs: React.FC = () => {
   return (
     <div style={{ padding: "20px" }}>
       <Title level={2}>BitBucket Repositories</Title>
-      
-      <Space direction="vertical" style={{ width: "100%", marginBottom: "20px" }}>
+
+      <Space
+        direction="vertical"
+        style={{ width: "100%", marginBottom: "20px" }}
+      >
         <Space>
           <Input
             placeholder="Workspace (optional for BitBucket Cloud)"
@@ -272,6 +365,80 @@ const BitBucketPRs: React.FC = () => {
         )}
       </Space>
 
+      {/* Author Filter and Monthly PR Count Section */}
+      {allPRs.length > 0 && (
+        <>
+          <Divider />
+          <Card>
+            <Title level={3}>PR Analytics</Title>
+            <Space
+              direction="vertical"
+              style={{ width: "100%", marginBottom: "20px" }}
+            >
+              <div>
+                <Text strong style={{ marginRight: "8px" }}>
+                  Filter by Author:
+                </Text>
+                <Select
+                  mode="multiple"
+                  placeholder="Select authors (leave empty to show all)"
+                  value={selectedAuthors}
+                  onChange={setSelectedAuthors}
+                  style={{ width: "100%", maxWidth: "600px" }}
+                  allowClear
+                  showSearch
+                  filterOption={(input, option) => {
+                    const label =
+                      typeof option?.label === "string"
+                        ? option.label
+                        : String(option?.label ?? "");
+                    return label.toLowerCase().includes(input.toLowerCase());
+                  }}
+                >
+                  {uniqueAuthors.map((author) => (
+                    <Option key={author} value={author} label={author}>
+                      {author}
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+              <Text type="secondary">
+                Showing {filteredPRs.length} PR
+                {filteredPRs.length !== 1 ? "s" : ""}
+                {selectedAuthors.length > 0
+                  ? ` from ${selectedAuthors.length} selected author${selectedAuthors.length !== 1 ? "s" : ""}`
+                  : " from all authors"}
+              </Text>
+            </Space>
+
+            {prsByMonth.length > 0 && (
+              <div>
+                <Title level={4}>PRs per Month</Title>
+                <Table
+                  dataSource={prsByMonth}
+                  columns={[
+                    {
+                      title: "Month",
+                      dataIndex: "month",
+                      key: "month",
+                    },
+                    {
+                      title: "Number of PRs",
+                      dataIndex: "count",
+                      key: "count",
+                      render: (count: number) => <Text strong>{count}</Text>,
+                    },
+                  ]}
+                  rowKey="month"
+                  pagination={false}
+                  size="small"
+                />
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+
       <Modal
         title={
           selectedRepository
@@ -308,4 +475,3 @@ const BitBucketPRs: React.FC = () => {
 };
 
 export default BitBucketPRs;
-
