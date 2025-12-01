@@ -188,20 +188,23 @@ const BitBucketPRs: React.FC = () => {
               r.repository.uuid ||
               r.repository.slug) === repoId
         );
-        const hasPRs = repoPRs && repoPRs.pullRequests.length > 0;
+        // Check if PRs have been loaded (even if count is 0)
+        const hasLoadedPRs = repoPRs !== undefined;
         const prCount = repoPRs?.pullRequests.length || 0;
 
         return (
           <Space>
             <Button
               size="small"
-              type={hasPRs ? "default" : "primary"}
-              onClick={() => loadPullRequestsForRepository(record, hasPRs)}
+              type={hasLoadedPRs ? "default" : "primary"}
+              onClick={() =>
+                loadPullRequestsForRepository(record, hasLoadedPRs)
+              }
               loading={isThisRepoLoading}
             >
-              {hasPRs ? "Refresh PRs" : "Request PRs"}
+              {hasLoadedPRs ? "Refresh PRs" : "Request PRs"}
             </Button>
-            {hasPRs && (
+            {hasLoadedPRs && (
               <Button
                 size="small"
                 type="link"
@@ -209,6 +212,7 @@ const BitBucketPRs: React.FC = () => {
                   setSelectedRepository(record);
                   setIsModalVisible(true);
                 }}
+                disabled={prCount === 0}
               >
                 View PRs ({prCount})
               </Button>
