@@ -1295,6 +1295,46 @@ metricsRoute.get(
   }
 );
 
+// API route to get parent ancestors for a list of Jira issues
+metricsRoute.post(
+  "/tempo-analyzer/parent-ancestors",
+  (req: TRB<{ issueKeys: string[] }>, res: TR<{ message: string; data: string }>) => {
+    const { issueKeys } = req.body;
+
+    if (!issueKeys || !Array.isArray(issueKeys) || issueKeys.length === 0) {
+      res.json({
+        message: "issueKeys array is required and must not be empty",
+        data: JSON.stringify(new Map()),
+      });
+      return;
+    }
+
+    console.log(`Fetching parent ancestors for ${issueKeys.length} issues`);
+
+    jiraRequester
+      .getParentAncestorsForIssues(issueKeys)
+      .then((ancestorMap) => {
+        // Convert Map to object for JSON serialization
+        const result: Record<string, Array<{ key: string; summary: string; type: string }>> = {};
+        ancestorMap.forEach((ancestors, key) => {
+          result[key] = ancestors;
+        });
+
+        res.json({
+          message: "Parent ancestors fetched successfully",
+          data: JSON.stringify(result),
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching parent ancestors:", error);
+        res.json({
+          message: "Error fetching parent ancestors",
+          data: JSON.stringify({}),
+        });
+      });
+  }
+);
+
 // BitBucket API route for repositories
 metricsRoute.get(
   "/bitbucket/repositories",

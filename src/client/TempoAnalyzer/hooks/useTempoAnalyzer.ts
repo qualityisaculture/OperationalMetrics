@@ -64,6 +64,9 @@ export const useTempoAnalyzer = (
     selectedWorkDescriptions: [],
     selectedWorkDescriptionTitle: "",
     selectedWorkDescriptionDetails: [],
+    showParentAncestorsModal: false,
+    selectedAncestorsIssueKey: null,
+    selectedAncestorsIssueType: null,
     excludeHolidayAbsence: true,
     excludeStartDate: null,
     excludeEndDate: null,
@@ -603,6 +606,9 @@ export const useTempoAnalyzer = (
       selectedWorkDescriptions: [],
       selectedWorkDescriptionTitle: "",
       selectedWorkDescriptionDetails: [],
+      showParentAncestorsModal: false,
+      selectedAncestorsIssueKey: null,
+      selectedAncestorsIssueType: null,
       excludeHolidayAbsence: false,
       excludeStartDate: null,
       excludeEndDate: null,
@@ -1300,6 +1306,24 @@ export const useTempoAnalyzer = (
     }));
   };
 
+  const showParentAncestors = (issueKey: string, issueType: string) => {
+    setAnalyzerState((prevState) => ({
+      ...prevState,
+      showParentAncestorsModal: true,
+      selectedAncestorsIssueKey: issueKey,
+      selectedAncestorsIssueType: issueType,
+    }));
+  };
+
+  const hideParentAncestorsModal = () => {
+    setAnalyzerState((prevState) => ({
+      ...prevState,
+      showParentAncestorsModal: false,
+      selectedAncestorsIssueKey: null,
+      selectedAncestorsIssueType: null,
+    }));
+  };
+
   const handleExcludeHolidayAbsenceChange = (checked: boolean) => {
     setAnalyzerState((prevState) => ({
       ...prevState,
@@ -1358,6 +1382,8 @@ export const useTempoAnalyzer = (
     handleBackToIssueView,
     showWorkDescriptions,
     hideWorkDescriptionModal,
+    showParentAncestors,
+    hideParentAncestorsModal,
     handleExcludeHolidayAbsenceChange,
     handleExcludeStartDateChange,
     handleExcludeEndDateChange,

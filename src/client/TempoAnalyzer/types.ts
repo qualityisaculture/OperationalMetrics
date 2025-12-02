@@ -82,6 +82,9 @@ export interface State {
   selectedWorkDescriptions: string[];
   selectedWorkDescriptionTitle: string;
   selectedWorkDescriptionDetails: Array<{ fullName: string; date: string }>;
+  showParentAncestorsModal: boolean;
+  selectedAncestorsIssueKey: string | null;
+  selectedAncestorsIssueType: string | null;
   // New state for multiple sheets
   sheets: SheetData[];
   selectedSheets: string[];

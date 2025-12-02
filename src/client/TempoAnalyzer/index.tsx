@@ -4,6 +4,7 @@ import { Card, Space } from "antd";
 import { useExcelProcessor } from "./hooks/useExcelProcessor";
 import { useTempoAnalyzer } from "./hooks/useTempoAnalyzer";
 import { useUserGroups } from "./hooks/useUserGroups";
+import { useParentAncestors } from "./hooks/useParentAncestors";
 import { Props } from "./types";
 import { FileUpload } from "./components/FileUpload";
 import { SheetManager } from "./components/SheetManager";
@@ -14,6 +15,8 @@ import { RawDataTable } from "./components/RawDataTable";
 import { WorkDescriptionModal } from "./components/WorkDescriptionModal";
 import { UserGroupManager } from "./components/UserGroupManager";
 import { TeamSummary } from "./components/TeamSummary";
+import { ParentAncestorsView } from "./components/ParentAncestorsView";
+import { ParentAncestorsModal } from "./components/ParentAncestorsModal";
 
 const TempoAnalyzer: React.FC<Props> = () => {
   const {
@@ -71,6 +74,9 @@ const TempoAnalyzer: React.FC<Props> = () => {
     selectedWorkDescriptionTitle,
     selectedWorkDescriptions,
     selectedWorkDescriptionDetails,
+    showParentAncestorsModal,
+    selectedAncestorsIssueKey,
+    selectedAncestorsIssueType,
   } = analyzer;
 
   // Calculate total hours from filtered data
@@ -80,6 +86,19 @@ const TempoAnalyzer: React.FC<Props> = () => {
       0
     );
   }, [analyzer.groupedByName]);
+
+  // Fetch parent ancestors for all issues in the filtered data (manual trigger)
+  const {
+    parentAncestors,
+    isLoading: isLoadingAncestors,
+    fetchParentAncestors,
+    extractUniqueIssueKeys,
+  } = useParentAncestors(analyzer.filteredData, analyzer.issueKeyIndex);
+
+  // Get issue count for display
+  const issueCount = React.useMemo(() => {
+    return extractUniqueIssueKeys().length;
+  }, [extractUniqueIssueKeys]);
 
   return (
     <div style={{ padding: "20px" }}>
@@ -148,9 +167,11 @@ const TempoAnalyzer: React.FC<Props> = () => {
                   handleBackToSummary={analyzer.handleBackToSummary}
                   handleUserCategoryClick={analyzer.handleUserCategoryClick}
                   showWorkDescriptions={analyzer.showWorkDescriptions}
+                  showParentAncestors={analyzer.showParentAncestors}
                   handleViewModeChange={analyzer.handleViewModeChange}
                   handleIssueKeyClick={analyzer.handleIssueKeyClick}
                   handleBackToIssueView={analyzer.handleBackToIssueView}
+                  parentAncestors={parentAncestors}
                 />
               )}
             </div>
@@ -191,12 +212,35 @@ const TempoAnalyzer: React.FC<Props> = () => {
         fullNameIndex={analyzer.fullNameIndex}
       />
 
+      {/* Parent Ancestors View - Show when data is available */}
+      {Object.keys(analyzer.groupedData).length > 0 && (
+        <ParentAncestorsView
+          parentAncestors={parentAncestors}
+          isLoading={isLoadingAncestors}
+          onFetchClick={fetchParentAncestors}
+          hasData={analyzer.filteredData.length > 0}
+          issueCount={issueCount}
+        />
+      )}
+
       <WorkDescriptionModal
         visible={showWorkDescriptionModal}
         title={selectedWorkDescriptionTitle}
         descriptions={selectedWorkDescriptions}
         details={selectedWorkDescriptionDetails}
         onClose={analyzer.hideWorkDescriptionModal}
+      />
+
+      <ParentAncestorsModal
+        visible={showParentAncestorsModal}
+        issueKey={selectedAncestorsIssueKey || ""}
+        issueType={selectedAncestorsIssueType || ""}
+        ancestors={
+          selectedAncestorsIssueKey
+            ? parentAncestors[selectedAncestorsIssueKey] || []
+            : []
+        }
+        onClose={analyzer.hideParentAncestorsModal}
       />
     </div>
   );

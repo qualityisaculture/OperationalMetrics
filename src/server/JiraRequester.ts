@@ -399,18 +399,18 @@ export default class JiraRequester {
       // Similar to how requestIssueFromServer handles batching
       const batchSize = 50;
       const allLastUpdatedKeys: lastUpdatedKey[] = [];
-      
+
       for (let i = 0; i < issueKeys.length; i += batchSize) {
         const batchKeys = issueKeys.slice(i, i + batchSize);
         console.log(
           `Fetching updated timestamps for batch ${Math.floor(i / batchSize) + 1} (${batchKeys.length} keys)...`
         );
-        
+
         // Get updated timestamps for this batch
         const batchQuery = batchKeys.map((key) => `key=${key}`).join(" OR ");
         const batchLastUpdatedKeys = await this.getJiraKeysInQuery(batchQuery);
         allLastUpdatedKeys.push(...batchLastUpdatedKeys);
-        
+
         console.log(
           `Batch ${Math.floor(i / batchSize) + 1} complete: got ${batchLastUpdatedKeys.length} keys`
         );
@@ -1093,6 +1093,200 @@ export default class JiraRequester {
             issueKey: key,
             parentKey: null,
             parentSummary: null,
+          });
+        }
+      }
+    }
+
+    return results;
+  }
+
+  // Method to get all parent ancestors recursively for a list of issues
+  // Returns a map from original issue key to array of ancestors (key, summary, type)
+  async getParentAncestorsForIssues(
+    issueKeys: string[]
+  ): Promise<
+    Map<string, Array<{ key: string; summary: string; type: string }>>
+  > {
+    try {
+      if (issueKeys.length === 0) {
+        return new Map();
+      }
+
+      // Map to store all fetched issues by key (to avoid refetching)
+      const issueCache = new Map<
+        string,
+        { key: string; summary: string; type: string; parentKey: string | null }
+      >();
+
+      // Set of all issue keys we need to process (original + all parents)
+      const allIssueKeys = new Set(issueKeys);
+
+      // Track which issues we've already processed to avoid infinite loops
+      const processedIssues = new Set<string>();
+
+      let levelNumber = 0;
+      let currentLevelKeys = Array.from(issueKeys);
+
+      console.log(
+        `Starting recursive parent ancestor fetching for ${issueKeys.length} issues`
+      );
+
+      // Process level by level (breadth-first) to fetch all parent issues
+      while (currentLevelKeys.length > 0) {
+        levelNumber++;
+        console.log(
+          `Level ${levelNumber}: Processing ${currentLevelKeys.length} issues for parents`
+        );
+
+        // Fetch all issues at this level in batches
+        const issuesAtLevel =
+          await this.getBatchedIssuesWithParents(currentLevelKeys);
+
+        // Process each issue and collect parent keys for next level
+        const nextLevelKeys: string[] = [];
+
+        for (const issue of issuesAtLevel) {
+          // Cache the issue data
+          issueCache.set(issue.key, {
+            key: issue.key,
+            summary: issue.summary,
+            type: issue.type,
+            parentKey: issue.parentKey,
+          });
+
+          // If this issue has a parent, add it to the next level
+          // Only add if we haven't processed it yet (to avoid infinite loops)
+          if (issue.parentKey && !processedIssues.has(issue.parentKey)) {
+            // Only add to nextLevelKeys if not already scheduled
+            if (!nextLevelKeys.includes(issue.parentKey)) {
+              nextLevelKeys.push(issue.parentKey);
+            }
+            allIssueKeys.add(issue.parentKey);
+          }
+
+          processedIssues.add(issue.key);
+        }
+
+        // Safety check to prevent infinite loops
+        if (levelNumber > 20) {
+          console.warn(
+            `Reached maximum parent level depth (20), stopping to prevent infinite loop`
+          );
+          break;
+        }
+
+        currentLevelKeys = nextLevelKeys;
+      }
+
+      // Now build the final ancestor chains for each original issue
+      const finalAncestorMap = new Map<
+        string,
+        Array<{ key: string; summary: string; type: string }>
+      >();
+
+      for (const originalKey of issueKeys) {
+        const chain: Array<{ key: string; summary: string; type: string }> = [];
+        const visited = new Set<string>();
+
+        // Follow parent links to build the chain
+        // Start from the original issue and follow its parent chain
+        let currentKey: string | null = originalKey;
+
+        while (currentKey && issueCache.has(currentKey)) {
+          if (visited.has(currentKey)) {
+            console.warn(
+              `Circular reference detected for ${currentKey}, breaking chain`
+            );
+            break;
+          }
+          visited.add(currentKey);
+
+          const issue = issueCache.get(currentKey)!;
+          if (issue.parentKey) {
+            if (issueCache.has(issue.parentKey)) {
+              const parent = issueCache.get(issue.parentKey)!;
+              chain.push({
+                key: parent.key,
+                summary: parent.summary,
+                type: parent.type,
+              });
+              // Move to the parent (not the parent's parent) for the next iteration
+              // This ensures we process every link in the chain
+              currentKey = parent.key;
+            } else {
+              // Parent not in cache, this shouldn't happen if we fetched correctly
+              console.warn(
+                `Parent ${issue.parentKey} not found in cache for ${currentKey}`
+              );
+              break;
+            }
+          } else {
+            // No more parents
+            break;
+          }
+        }
+
+        finalAncestorMap.set(originalKey, chain);
+      }
+
+      console.log(
+        `Completed parent ancestor fetching: built chains for ${finalAncestorMap.size} issues across ${levelNumber} levels`
+      );
+
+      return finalAncestorMap;
+    } catch (error) {
+      console.error(`Error fetching parent ancestors for issues:`, error);
+      throw error;
+    }
+  }
+
+  // Helper method to batch fetch issues with their parent information
+  private async getBatchedIssuesWithParents(issueKeys: string[]): Promise<
+    Array<{
+      key: string;
+      summary: string;
+      type: string;
+      parentKey: string | null;
+    }>
+  > {
+    const results: Array<{
+      key: string;
+      summary: string;
+      type: string;
+      parentKey: string | null;
+    }> = [];
+
+    // Process in batches of 50
+    for (let i = 0; i < issueKeys.length; i += 50) {
+      const batchKeys = issueKeys.slice(i, i + 50);
+
+      // Create JQL query for this batch
+      const jql = batchKeys.map((key) => `key = "${key}"`).join(" OR ");
+      const fields = "key,summary,issuetype,parent";
+      const query = `${jql}&fields=${fields}`;
+
+      try {
+        const response = await this.requestDataFromServer(query);
+
+        for (const issue of response.issues) {
+          const parent = issue.fields?.parent;
+          results.push({
+            key: issue.key,
+            summary: issue.fields?.summary || "",
+            type: issue.fields?.issuetype?.name || "Unknown",
+            parentKey: parent?.key || null,
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching issues with parents for batch:`, error);
+        // Add null results for this batch
+        for (const key of batchKeys) {
+          results.push({
+            key: key,
+            summary: "",
+            type: "Unknown",
+            parentKey: null,
           });
         }
       }

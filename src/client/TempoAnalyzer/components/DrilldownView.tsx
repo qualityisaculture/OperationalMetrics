@@ -20,9 +20,11 @@ interface DrilldownViewProps {
   handleBackToSummary: () => void;
   handleUserCategoryClick: (category: string) => void;
   showWorkDescriptions: (issueKey: string, descriptions: any[]) => void;
+  showParentAncestors: (issueKey: string, issueType: string) => void;
   handleViewModeChange: (mode: "name" | "issue" | "type" | "account") => void;
   handleIssueKeyClick: (issueKey: string) => void;
   handleBackToIssueView: () => void;
+  parentAncestors: Record<string, Array<{ key: string; summary: string; type: string }>>;
 }
 
 export const DrilldownView: React.FC<DrilldownViewProps> = ({
@@ -30,9 +32,11 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
   handleBackToSummary,
   handleUserCategoryClick,
   showWorkDescriptions,
+  showParentAncestors,
   handleViewModeChange,
   handleIssueKeyClick,
   handleBackToIssueView,
+  parentAncestors,
 }) => {
   // Reusable style objects
   const styles = {
@@ -174,6 +178,27 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
       },
     },
     {
+      title: "Parent Ancestors",
+      key: "parentAncestors",
+      render: (_: any, record: any) => {
+        const ancestors = parentAncestors[record.issueKey] || [];
+        return ancestors.length > 0 ? (
+          <Button
+            size="small"
+            type="link"
+            onClick={(e: any) => {
+              e.stopPropagation();
+              showParentAncestors(record.issueKey, record.type);
+            }}
+          >
+            View Ancestors ({ancestors.length})
+          </Button>
+        ) : (
+          <Text type="secondary">No ancestors</Text>
+        );
+      },
+    },
+    {
       title: "Logged Hours",
       dataIndex: "hours",
       key: "hours",
@@ -274,6 +299,27 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                   </Button>
                 ) : (
                   <Text type="secondary">No descriptions</Text>
+                );
+              },
+            },
+            {
+              title: "Parent Ancestors",
+              key: "parentAncestors",
+              render: (_: any, record: any) => {
+                const ancestors = parentAncestors[record.item] || [];
+                return ancestors.length > 0 ? (
+                  <Button
+                    size="small"
+                    type="link"
+                    onClick={(e: any) => {
+                      e.stopPropagation();
+                      showParentAncestors(record.item, record.type);
+                    }}
+                  >
+                    View Ancestors ({ancestors.length})
+                  </Button>
+                ) : (
+                  <Text type="secondary">No ancestors</Text>
                 );
               },
             },
