@@ -92,8 +92,10 @@ export const UserGroupManager: React.FC<UserGroupManagerProps> = ({
   };
 
   const getUsersInGroup = (groupId: string | null) => {
+    // For uncategorised group, look for assignments with groupId === null
+    const targetGroupId = groupId === 'uncategorised' ? null : groupId;
     return userGroups.assignments
-      .filter((assignment) => assignment.groupId === groupId)
+      .filter((assignment) => assignment.groupId === targetGroupId)
       .map((assignment) => assignment.fullName);
   };
 
@@ -144,8 +146,13 @@ export const UserGroupManager: React.FC<UserGroupManagerProps> = ({
             <div>
               <Title level={5}>Groups and Users</Title>
               <Space direction="vertical" style={{ width: "100%" }}>
-                {userGroups.groups.map((group) => {
-                  const usersInGroup = getUsersInGroup(group.id);
+                {userGroups.groups.length === 0 ? (
+                  <Text type="secondary">
+                    No groups found. Users will be shown in "Uncategorised" when data is loaded.
+                  </Text>
+                ) : (
+                  userGroups.groups.map((group) => {
+                    const usersInGroup = getUsersInGroup(group.id);
 
                   return (
                     <div
@@ -304,7 +311,8 @@ export const UserGroupManager: React.FC<UserGroupManagerProps> = ({
                       )}
                     </div>
                   );
-                })}
+                  })
+                )}
               </Space>
             </div>
 

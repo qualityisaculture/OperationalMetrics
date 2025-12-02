@@ -43,8 +43,10 @@ export const GroupTimeBreakdown: React.FC<GroupTimeBreakdownProps> = ({
   // Calculate breakdown for each group
   const getGroupBreakdown = (groupId: string | null) => {
     // Get users in this group
+    // For uncategorised group, look for assignments with groupId === null
+    const targetGroupId = groupId === 'uncategorised' ? null : groupId;
     const usersInGroup = userGroups.assignments
-      .filter((assignment) => assignment.groupId === groupId)
+      .filter((assignment) => assignment.groupId === targetGroupId)
       .map((assignment) => assignment.fullName);
 
     if (usersInGroup.length === 0) {
