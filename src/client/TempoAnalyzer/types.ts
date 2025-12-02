@@ -3,6 +3,7 @@ export interface IssueDetail {
   type: string;
   summary: string;
   typeOfWork: string;
+  ancestorType?: string;
 }
 
 export interface IssueKeyException {

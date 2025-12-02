@@ -58,12 +58,30 @@ const TempoAnalyzer: React.FC<Props> = () => {
     // This allows for "show all data" by default
   }, [userGroups.groups]);
 
-  // Create analyzer with user group filtering
+  // Fetch parent ancestors for all issues in the filtered data (manual trigger)
+  // Use initialAnalyzer to get filteredData and issueKeyIndex
+  const {
+    parentAncestors,
+    isLoading: isLoadingAncestors,
+    fetchParentAncestors,
+    extractUniqueIssueKeys,
+  } = useParentAncestors(
+    initialAnalyzer.filteredData,
+    initialAnalyzer.issueKeyIndex
+  );
+
+  // Get issue count for display
+  const issueCount = React.useMemo(() => {
+    return extractUniqueIssueKeys().length;
+  }, [extractUniqueIssueKeys]);
+
+  // Create analyzer with user group filtering and parent ancestors
   const analyzer = useTempoAnalyzer(
     sheets,
     selectedSheets,
     selectedUserGroups,
-    userGroups.assignments
+    userGroups.assignments,
+    parentAncestors
   );
 
   const {
@@ -86,19 +104,6 @@ const TempoAnalyzer: React.FC<Props> = () => {
       0
     );
   }, [analyzer.groupedByName]);
-
-  // Fetch parent ancestors for all issues in the filtered data (manual trigger)
-  const {
-    parentAncestors,
-    isLoading: isLoadingAncestors,
-    fetchParentAncestors,
-    extractUniqueIssueKeys,
-  } = useParentAncestors(analyzer.filteredData, analyzer.issueKeyIndex);
-
-  // Get issue count for display
-  const issueCount = React.useMemo(() => {
-    return extractUniqueIssueKeys().length;
-  }, [extractUniqueIssueKeys]);
 
   return (
     <div style={{ padding: "20px" }}>

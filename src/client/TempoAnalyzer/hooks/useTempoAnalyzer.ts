@@ -1,13 +1,48 @@
 import { useState, useEffect, useRef } from "react";
 import { message } from "antd";
-import { SheetData, State, UserGroup, UserGroupAssignment } from "../types";
+import {
+  SheetData,
+  State,
+  UserGroup,
+  UserGroupAssignment,
+  IssueDetail,
+} from "../types";
 import { ISSUE_KEY_EXCEPTIONS } from "../constants";
+
+// Helper function to determine ancestor type from ancestors array
+const getAncestorType = (
+  ancestors: Array<{ key: string; summary: string; type: string }> | undefined
+): string => {
+  if (!ancestors || ancestors.length === 0) {
+    return "Other";
+  }
+
+  // Check for "Fault" first (higher priority)
+  const hasFault = ancestors.some((ancestor) => ancestor.type === "Fault");
+  if (hasFault) {
+    return "Fault";
+  }
+
+  // Check for "Service Request"
+  const hasServiceRequest = ancestors.some(
+    (ancestor) => ancestor.type === "Service Request"
+  );
+  if (hasServiceRequest) {
+    return "Service Request";
+  }
+
+  return "Other";
+};
 
 export const useTempoAnalyzer = (
   sheets: SheetData[],
   selectedSheets: string[],
   selectedUserGroups: string[] = [],
-  userGroupAssignments: UserGroupAssignment[] = []
+  userGroupAssignments: UserGroupAssignment[] = [],
+  parentAncestors: Record<
+    string,
+    Array<{ key: string; summary: string; type: string }>
+  > = {}
 ) => {
   const [analyzerState, setAnalyzerState] = useState<
     Omit<
@@ -747,6 +782,10 @@ export const useTempoAnalyzer = (
                 typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : "";
               const workType = String(typeOfWorkValue).trim() || "";
 
+              // Get ancestor type from parentAncestors
+              const ancestors = parentAncestors[key];
+              const ancestorType = getAncestorType(ancestors);
+
               if (detailedByIssueWithType[key]) {
                 detailedByIssueWithType[key].hours += loggedHours;
               } else {
@@ -755,7 +794,8 @@ export const useTempoAnalyzer = (
                   type: type,
                   summary: summary,
                   typeOfWork: workType,
-                };
+                  ancestorType: ancestorType,
+                } as IssueDetail;
               }
 
               if (workDescriptionIndex !== -1) {
@@ -1059,6 +1099,10 @@ export const useTempoAnalyzer = (
               typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : "";
             const workType = String(typeOfWork).trim() || "";
 
+            // Get ancestor type from parentAncestors
+            const ancestors = parentAncestors[key];
+            const ancestorType = getAncestorType(ancestors);
+
             if (userCategoryIssueDataWithType[key]) {
               userCategoryIssueDataWithType[key].hours += loggedHours;
             } else {
@@ -1067,7 +1111,8 @@ export const useTempoAnalyzer = (
                 type: type,
                 summary: summary,
                 typeOfWork: workType,
-              };
+                ancestorType: ancestorType,
+              } as IssueDetail;
             }
 
             if (workDescriptionIndex !== -1) {

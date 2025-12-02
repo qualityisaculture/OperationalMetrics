@@ -148,6 +148,12 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
       render: (text: any) => <Text>{text}</Text>,
     },
     {
+      title: "Ancestor Type",
+      dataIndex: "ancestorType",
+      key: "ancestorType",
+      render: (text: any) => <Text>{text || "Other"}</Text>,
+    },
+    {
       title: "Issue Summary",
       dataIndex: "summary",
       key: "summary",
@@ -264,6 +270,12 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
               dataIndex: "type",
               key: "type",
               render: (text: any) => <Text>{text}</Text>,
+            },
+            {
+              title: "Ancestor Type",
+              dataIndex: "ancestorType",
+              key: "ancestorType",
+              render: (text: any) => <Text>{text || "Other"}</Text>,
             },
             {
               title: "Issue Summary",
@@ -614,6 +626,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                 key: index,
                 issueKey: issueKey,
                 type: data.type,
+                ancestorType: data.ancestorType || "Other",
                 summary: data.summary,
                 hours: data.hours,
                 chargeableDays: data.hours / 7.5,
@@ -792,6 +805,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                       item: issueKey,
                       hours: data.hours,
                       type: data.type,
+                      ancestorType: data.ancestorType || "Other",
                       summary: data.summary,
                       chargeableDays: data.hours / 7.5,
                       percentage: (
