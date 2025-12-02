@@ -1368,6 +1368,181 @@ export const useTempoAnalyzer = (
     }));
   };
 
+  const handleAncestryTypeCategoryClick = (
+    ancestryType: string,
+    category: string
+  ) => {
+    const {
+      filteredData,
+      loggedHoursIndex,
+      issueKeyIndex,
+      issueTypeIndex,
+      issueSummaryIndex,
+      workDescriptionIndex,
+      dateIndex,
+      accountCategoryIndex,
+      typeOfWorkIndex,
+    } = analyzerState;
+
+    if (issueKeyIndex === -1) {
+      message.warning(
+        "Issue Key column not found. Cannot show issue breakdown."
+      );
+      return;
+    }
+
+    let originalCategory = category;
+    let exceptionIssueKeys: string[] | null = null;
+
+    for (const exception of ISSUE_KEY_EXCEPTIONS) {
+      if (category.endsWith(` ${exception.categorySuffix}`)) {
+        originalCategory = category.replace(` ${exception.categorySuffix}`, "");
+        exceptionIssueKeys = exception.issueKeys || [];
+        break;
+      }
+    }
+
+    const ancestryTypeIssueData: { [key: string]: number } = {};
+    const ancestryTypeIssueDataWithType: { [key: string]: IssueDetail } = {};
+    const ancestryTypeIssueWorkDescriptions: {
+      [key: string]: Array<{
+        description: string;
+        fullName: string;
+        date: string;
+      }>;
+    } = {};
+    let ancestryTypeIssueTotal = 0;
+    const ancestryTypeRows: any[] = [];
+
+    filteredData.forEach((row) => {
+      const rowIssueKey =
+        issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
+      const rowCategory = row[accountCategoryIndex.toString()];
+      const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
+
+      if (rowIssueKey) {
+        const key = String(rowIssueKey).trim();
+        if (key) {
+          const ancestors = parentAncestors[key];
+          const rowAncestorType = getAncestorType(ancestors);
+
+          // Check both ancestry type and category match
+          if (rowAncestorType === ancestryType) {
+            const categoryMatch =
+              String(rowCategory).trim() === originalCategory;
+
+            if (categoryMatch) {
+              // Handle exception issue keys
+              if (
+                exceptionIssueKeys &&
+                !exceptionIssueKeys.includes(rowIssueKey)
+              ) {
+                return;
+              } else if (!exceptionIssueKeys) {
+                const typeOfWork =
+                  typeOfWorkIndex !== -1
+                    ? row[typeOfWorkIndex.toString()]
+                    : null;
+                const isExceptionRow = ISSUE_KEY_EXCEPTIONS.some((exp) => {
+                  if (exp.issueKeys && exp.issueKeys.includes(rowIssueKey)) {
+                    return true;
+                  }
+                  if (exp.typeOfWork && exp.typeOfWork === typeOfWork) {
+                    return true;
+                  }
+                  return false;
+                });
+                if (isExceptionRow) {
+                  return;
+                }
+              }
+
+              ancestryTypeIssueTotal += loggedHours;
+              ancestryTypeRows.push(row);
+
+              ancestryTypeIssueData[key] =
+                (ancestryTypeIssueData[key] || 0) + loggedHours;
+
+              const issueType =
+                issueTypeIndex !== -1
+                  ? row[issueTypeIndex.toString()]
+                  : "Unknown";
+              const type = String(issueType).trim() || "Unknown";
+
+              const issueSummary =
+                issueSummaryIndex !== -1
+                  ? row[issueSummaryIndex.toString()]
+                  : "";
+              const summary = String(issueSummary).trim() || "";
+
+              const typeOfWork =
+                typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : "";
+              const workType = String(typeOfWork).trim() || "";
+
+              if (ancestryTypeIssueDataWithType[key]) {
+                ancestryTypeIssueDataWithType[key].hours += loggedHours;
+              } else {
+                ancestryTypeIssueDataWithType[key] = {
+                  hours: loggedHours,
+                  type: type,
+                  summary: summary,
+                  typeOfWork: workType,
+                  ancestorType: rowAncestorType,
+                } as IssueDetail;
+              }
+
+              if (workDescriptionIndex !== -1) {
+                const workDescription = row[workDescriptionIndex.toString()];
+                if (workDescription) {
+                  const description = String(workDescription).trim();
+                  if (description) {
+                    const date =
+                      dateIndex !== -1 ? row[dateIndex.toString()] : null;
+                    const fullName =
+                      analyzerState.fullNameIndex !== -1
+                        ? row[analyzerState.fullNameIndex.toString()]
+                        : "";
+
+                    if (!ancestryTypeIssueWorkDescriptions[key]) {
+                      ancestryTypeIssueWorkDescriptions[key] = [];
+                    }
+
+                    const workEntry = {
+                      description: description,
+                      fullName: fullName ? String(fullName).trim() : "Unknown",
+                      date: date ? String(date).trim() : "N/A",
+                    };
+
+                    const exists = ancestryTypeIssueWorkDescriptions[key].some(
+                      (entry) =>
+                        entry.description === workEntry.description &&
+                        entry.fullName === workEntry.fullName &&
+                        entry.date === workEntry.date
+                    );
+
+                    if (!exists) {
+                      ancestryTypeIssueWorkDescriptions[key].push(workEntry);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    setAnalyzerState((prevState) => ({
+      ...prevState,
+      selectedAncestryType: ancestryType,
+      userCategoryIssueData: ancestryTypeIssueData,
+      userCategoryIssueDataWithType: ancestryTypeIssueDataWithType,
+      userCategoryIssueWorkDescriptions: ancestryTypeIssueWorkDescriptions,
+      userCategoryIssueTotal: ancestryTypeIssueTotal,
+      displayedRows: ancestryTypeRows,
+    }));
+  };
+
   const handleAncestryTypeClick = (ancestryType: string) => {
     const {
       filteredData,
@@ -1755,6 +1930,7 @@ export const useTempoAnalyzer = (
     handleUserClick,
     handleUserCategoryClick,
     handleAncestryTypeClick,
+    handleAncestryTypeCategoryClick,
     handleViewModeChange,
     handleIssueKeyClick,
     handleBackToIssueView,

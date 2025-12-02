@@ -53,6 +53,10 @@ interface SummaryViewProps {
   handleRowClick: (category: string) => void;
   handleUserClick: (userName: string) => void;
   handleAncestryTypeClick: (ancestryType: string) => void;
+  handleAncestryTypeCategoryClick: (
+    ancestryType: string,
+    category: string
+  ) => void;
 }
 
 export const SummaryView: React.FC<SummaryViewProps> = ({
@@ -69,6 +73,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   handleRowClick,
   handleUserClick,
   handleAncestryTypeClick,
+  handleAncestryTypeCategoryClick,
 }) => {
   // Define columns for resizable functionality
   const columns = [
@@ -548,7 +553,15 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               } else if (summaryViewMode === "name") {
                 handleUserClick(record.item);
               } else if (summaryViewMode === "ancestryType") {
-                handleAncestryTypeClick(record.item);
+                // Check if this is a category within "Other" ancestry type
+                const otherData = groupedDataByAncestryType["Other"];
+                if (otherData && otherData[record.item]) {
+                  // This is a category within "Other", filter by both ancestry type and category
+                  handleAncestryTypeCategoryClick("Other", record.item);
+                } else {
+                  // This is a top-level ancestry type (Fault, Service Request, etc.)
+                  handleAncestryTypeClick(record.item);
+                }
               }
               // Issue Type mode doesn't have drilldown yet
             },

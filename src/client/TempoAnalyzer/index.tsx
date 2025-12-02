@@ -173,6 +173,9 @@ const TempoAnalyzer: React.FC<Props> = () => {
                   handleRowClick={analyzer.handleRowClick}
                   handleUserClick={analyzer.handleUserClick}
                   handleAncestryTypeClick={analyzer.handleAncestryTypeClick}
+                  handleAncestryTypeCategoryClick={
+                    analyzer.handleAncestryTypeCategoryClick
+                  }
                 />
               ) : (
                 <DrilldownView
