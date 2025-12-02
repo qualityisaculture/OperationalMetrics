@@ -38,6 +38,20 @@ const getAncestorType = (
     return "Service Request";
   }
 
+  // Check for "Enquiry"
+  const hasEnquiry = ancestors.some((ancestor) => ancestor.type === "Enquiry");
+  if (hasEnquiry) {
+    return "Enquiry";
+  }
+
+  // Check for "Enhancement"
+  const hasEnhancement = ancestors.some(
+    (ancestor) => ancestor.type === "Enhancement"
+  );
+  if (hasEnhancement) {
+    return "Enhancement";
+  }
+
   return "Other";
 };
 
@@ -49,11 +63,13 @@ const getAncestryType = (
   // First check ancestors
   const ancestorType = getAncestorType(ancestors);
 
-  // If ancestor type is already Fault or Service Request, use it
+  // If ancestor type is already one of the special types, use it
   if (
     ancestorType === "Fault" ||
     ancestorType === "Service Request" ||
-    ancestorType === "Incident"
+    ancestorType === "Incident" ||
+    ancestorType === "Enquiry" ||
+    ancestorType === "Enhancement"
   ) {
     return ancestorType;
   }
@@ -69,6 +85,12 @@ const getAncestryType = (
     }
     if (type === "Incident") {
       return "Incident";
+    }
+    if (type === "Enquiry") {
+      return "Enquiry";
+    }
+    if (type === "Enhancement") {
+      return "Enhancement";
     }
   }
 

@@ -1116,10 +1116,10 @@ export default class JiraRequester {
       // Map to store all fetched issues by key (to avoid refetching)
       const issueCache = new Map<
         string,
-        { 
-          key: string; 
-          summary: string; 
-          type: string; 
+        {
+          key: string;
+          summary: string;
+          type: string;
           parentKey: string | null;
           resolvesKey: string | null; // Key of issue that this issue resolves
         }
@@ -1173,7 +1173,11 @@ export default class JiraRequester {
           }
 
           // If this issue has no parent but has a "Resolves" link, treat the resolved issue as a parent
-          if (!issue.parentKey && issue.resolvesKey && !processedIssues.has(issue.resolvesKey)) {
+          if (
+            !issue.parentKey &&
+            issue.resolvesKey &&
+            !processedIssues.has(issue.resolvesKey)
+          ) {
             // Only add to nextLevelKeys if not already scheduled
             if (!nextLevelKeys.includes(issue.resolvesKey)) {
               nextLevelKeys.push(issue.resolvesKey);
@@ -1336,16 +1340,13 @@ export default class JiraRequester {
 
         for (const issue of response.issues) {
           const parent = issue.fields?.parent;
-          
+
           // Check for "Resolves" link - look for outwardIssue with type "Resolves"
           let resolvesKey: string | null = null;
           const issueLinks = issue.fields?.issuelinks || [];
           for (const link of issueLinks) {
             // Check if this is a "Resolves" link with an outwardIssue
-            if (
-              link.type?.name === "Resolves" &&
-              link.outwardIssue?.key
-            ) {
+            if (link.type?.name === "Resolves" && link.outwardIssue?.key) {
               resolvesKey = link.outwardIssue.key;
               break; // Take the first "Resolves" link found
             }
