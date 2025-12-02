@@ -12,8 +12,10 @@ const { Text } = Typography;
 const { Option } = Select;
 
 interface FilterControlsProps {
-  summaryViewMode: "category" | "name" | "issueType";
-  handleSummaryViewModeChange: (mode: "category" | "name" | "issueType") => void;
+  summaryViewMode: "category" | "name" | "issueType" | "ancestryType";
+  handleSummaryViewModeChange: (
+    mode: "category" | "name" | "issueType" | "ancestryType"
+  ) => void;
   secondarySplitMode: "account" | "issueType";
   handleSecondarySplitModeChange: (mode: "account" | "issueType") => void;
   excludeHolidayAbsence: boolean;
@@ -27,6 +29,7 @@ interface FilterControlsProps {
   hasGroupedData: boolean;
   hasGroupedByName: boolean;
   hasGroupedByIssueType: boolean;
+  hasGroupedByAncestryType: boolean;
   userGroups: UserGroup[];
   selectedUserGroups: string[];
   onUserGroupsChange: (groupIds: string[]) => void;
@@ -48,6 +51,7 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   hasGroupedData,
   hasGroupedByName,
   hasGroupedByIssueType,
+  hasGroupedByAncestryType,
   userGroups,
   selectedUserGroups,
   onUserGroupsChange,
@@ -79,6 +83,12 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
             <Radio.Button value="issueType">
               <FileTextOutlined style={{ marginRight: "4px" }} />
               Issue Type
+            </Radio.Button>
+          )}
+          {hasGroupedByAncestryType && (
+            <Radio.Button value="ancestryType">
+              <FileTextOutlined style={{ marginRight: "4px" }} />
+              Ancestry Type
             </Radio.Button>
           )}
         </Radio.Group>

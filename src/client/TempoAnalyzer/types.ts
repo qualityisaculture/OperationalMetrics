@@ -62,10 +62,12 @@ export interface State {
   selectedIssueKey: string | null;
   issueUserData: { [key: string]: number };
   issueTotalHours: number;
-  summaryViewMode: "category" | "name" | "issueType";
+  summaryViewMode: "category" | "name" | "issueType" | "ancestryType";
   groupedByName: { [key: string]: number };
   groupedByIssueType: { [key: string]: number };
+  groupedByAncestryType: { [key: string]: number };
   selectedUser: string | null;
+  selectedAncestryType: string | null;
   userCategoryData: { [key: string]: number };
   userTotalHours: number;
   selectedUserCategory: string | null;

@@ -88,6 +88,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
     groupedData,
     selectedCategory,
     selectedUser,
+    selectedAncestryType,
     showWorkDescriptionModal,
     selectedWorkDescriptionTitle,
     selectedWorkDescriptions,
@@ -144,6 +145,9 @@ const TempoAnalyzer: React.FC<Props> = () => {
             hasGroupedByIssueType={
               Object.keys(analyzer.groupedByIssueType).length > 0
             }
+            hasGroupedByAncestryType={
+              Object.keys(analyzer.groupedByAncestryType).length > 0
+            }
             userGroups={userGroups.groups}
             selectedUserGroups={selectedUserGroups}
             onUserGroupsChange={setSelectedUserGroups}
@@ -151,20 +155,23 @@ const TempoAnalyzer: React.FC<Props> = () => {
 
           {(Object.keys(groupedData).length > 0 ||
             Object.keys(analyzer.groupedByName).length > 0 ||
-            Object.keys(analyzer.groupedByIssueType).length > 0) && (
+            Object.keys(analyzer.groupedByIssueType).length > 0 ||
+            Object.keys(analyzer.groupedByAncestryType).length > 0) && (
             <div>
-              {!selectedCategory && !selectedUser ? (
+              {!selectedCategory && !selectedUser && !selectedAncestryType ? (
                 <SummaryView
                   summaryViewMode={analyzer.summaryViewMode}
                   totalHours={totalHours}
                   groupedData={analyzer.groupedData}
                   groupedByName={analyzer.groupedByName}
                   groupedByIssueType={analyzer.groupedByIssueType}
+                  groupedByAncestryType={analyzer.groupedByAncestryType}
                   groupedDataByCategory={analyzer.groupedDataByCategory}
                   secondarySplitMode={analyzer.secondarySplitMode}
                   showOtherTeams={analyzer.showOtherTeams}
                   handleRowClick={analyzer.handleRowClick}
                   handleUserClick={analyzer.handleUserClick}
+                  handleAncestryTypeClick={analyzer.handleAncestryTypeClick}
                 />
               ) : (
                 <DrilldownView

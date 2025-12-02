@@ -373,6 +373,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
     selectedCategory,
     selectedUser,
     selectedUserCategory,
+    selectedAncestryType,
     userTotalHours,
     userCategoryData,
     userCategoryIssueTotal,
@@ -632,6 +633,135 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
                 chargeableDays: data.hours / 7.5,
                 percentage: (
                   (data.hours / userCategoryIssueTotal) *
+                  100
+                ).toFixed(1),
+              })
+            )}
+            columns={resizableUserCategoryIssueColumns}
+            pagination={false}
+            size="small"
+            components={{
+              header: {
+                cell: (props: any) => {
+                  const { onResize, width, ...restProps } = props;
+                  return (
+                    <th
+                      {...restProps}
+                      style={{
+                        ...styles.tableHeader,
+                        width: width,
+                      }}
+                    >
+                      {restProps.children}
+                      <div
+                        style={styles.resizeHandle}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const startX = e.clientX;
+                          const startWidth = width;
+
+                          const handleMouseMove = (e: MouseEvent) => {
+                            const deltaX = e.clientX - startX;
+                            const newWidth = Math.max(50, startWidth + deltaX);
+                            onResize({ width: newWidth });
+                          };
+
+                          const handleMouseUp = () => {
+                            document.removeEventListener(
+                              "mousemove",
+                              handleMouseMove
+                            );
+                            document.removeEventListener(
+                              "mouseup",
+                              handleMouseUp
+                            );
+                          };
+
+                          document.addEventListener(
+                            "mousemove",
+                            handleMouseMove
+                          );
+                          document.addEventListener("mouseup", handleMouseUp);
+                        }}
+                      />
+                    </th>
+                  );
+                },
+              },
+            }}
+          />
+        </Card>
+      </>
+    );
+  } else if (selectedAncestryType) {
+    // Ancestry Type Issue Breakdown View (Ancestry Type → Issue)
+    return (
+      <>
+        <div style={styles.headerContainer}>
+          <Button
+            icon={<BarChartOutlined />}
+            onClick={handleBackToSummary}
+            style={styles.breadcrumbButton}
+          >
+            Summary
+          </Button>
+          <Text style={styles.breadcrumbDivider}>/</Text>
+          <Title level={4} style={styles.title}>
+            <BarChartOutlined style={{ marginRight: "8px" }} />
+            {selectedAncestryType} - Issues
+          </Title>
+        </div>
+
+        <Row gutter={16} style={styles.statsRow}>
+          <Col span={8}>
+            <Card>
+              <Statistic
+                title="Total Hours"
+                value={userCategoryIssueTotal}
+                precision={2}
+                suffix="hrs"
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card>
+              <Statistic
+                title="Issues"
+                value={Object.keys(userCategoryIssueData).length}
+                suffix=""
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card>
+              <Statistic
+                title="Average per Issue"
+                value={
+                  userCategoryIssueTotal /
+                  Object.keys(userCategoryIssueData).length
+                }
+                precision={2}
+                suffix="hrs"
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        <Card
+          title={`${selectedAncestryType} - Hours by Issue Key`}
+        >
+          <Table
+            dataSource={Object.entries(userCategoryIssueDataWithType).map(
+              ([issueKey, issueData]: [string, IssueDetail], index) => ({
+                key: index,
+                issueKey: issueKey,
+                type: issueData.type,
+                ancestorType: issueData.ancestorType || "Other",
+                summary: issueData.summary,
+                hours: issueData.hours,
+                chargeableDays: issueData.hours / 7.5,
+                percentage: (
+                  (issueData.hours / userCategoryIssueTotal) *
                   100
                 ).toFixed(1),
               })

@@ -6,11 +6,12 @@ import { useResizableColumns } from "../../components/tables/useResizableColumns
 const { Title, Text } = Typography;
 
 interface SummaryViewProps {
-  summaryViewMode: "category" | "name" | "issueType";
+  summaryViewMode: "category" | "name" | "issueType" | "ancestryType";
   totalHours: number;
   groupedData: { [key: string]: number };
   groupedByName: { [key: string]: number };
   groupedByIssueType: { [key: string]: number };
+  groupedByAncestryType: { [key: string]: number };
   groupedDataByCategory: {
     [category: string]: {
       totalHours: number;
@@ -32,6 +33,7 @@ interface SummaryViewProps {
   showOtherTeams: boolean;
   handleRowClick: (category: string) => void;
   handleUserClick: (userName: string) => void;
+  handleAncestryTypeClick: (ancestryType: string) => void;
 }
 
 export const SummaryView: React.FC<SummaryViewProps> = ({
@@ -40,16 +42,25 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   groupedData,
   groupedByName,
   groupedByIssueType,
+  groupedByAncestryType,
   groupedDataByCategory,
   secondarySplitMode,
   showOtherTeams,
   handleRowClick,
   handleUserClick,
+  handleAncestryTypeClick,
 }) => {
   // Define columns for resizable functionality
   const columns = [
     {
-      title: summaryViewMode === "category" ? "Account Category" : summaryViewMode === "name" ? "Full Name" : "Issue Type",
+      title:
+        summaryViewMode === "category"
+          ? "Account Category"
+          : summaryViewMode === "name"
+            ? "Full Name"
+            : summaryViewMode === "issueType"
+              ? "Issue Type"
+              : "Ancestry Type",
       dataIndex: "item",
       key: "item",
       render: (text: any, record: any) => (
@@ -133,7 +144,13 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     <>
       <Title level={4}>
         <BarChartOutlined style={{ marginRight: "8px" }} />
-        {summaryViewMode === "category" ? "Account Category" : summaryViewMode === "name" ? "Full Name" : "Issue Type"}{" "}
+        {summaryViewMode === "category"
+          ? "Account Category"
+          : summaryViewMode === "name"
+            ? "Full Name"
+            : summaryViewMode === "issueType"
+              ? "Issue Type"
+              : "Ancestry Type"}{" "}
         Summary
       </Title>
 
@@ -162,7 +179,13 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           <Card>
             <Statistic
               title={`Average per ${
-                summaryViewMode === "category" ? "Category" : summaryViewMode === "name" ? "Person" : "Issue Type"
+                summaryViewMode === "category"
+                  ? "Category"
+                  : summaryViewMode === "name"
+                    ? "Person"
+                    : summaryViewMode === "issueType"
+                      ? "Issue Type"
+                      : "Ancestry Type"
               }`}
               value={
                 totalHours /
@@ -170,7 +193,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                   ? Object.keys(groupedData).length
                   : summaryViewMode === "name"
                     ? Object.keys(groupedByName).length
-                    : Object.keys(groupedByIssueType).length)
+                    : summaryViewMode === "issueType"
+                      ? Object.keys(groupedByIssueType).length
+                      : Object.keys(groupedByAncestryType).length)
               }
               precision={2}
               suffix="hrs"
@@ -185,7 +210,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             ? `Account Category (split by ${secondarySplitMode === "account" ? "Account Name" : "Issue Type"})`
             : summaryViewMode === "name"
               ? "Full Name"
-              : "Issue Type"
+              : summaryViewMode === "issueType"
+                ? "Issue Type"
+                : "Ancestry Type"
         } (Click a row to drill down)`}
       >
         <Table
@@ -335,14 +362,27 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                     percentage: ((hours / totalHours) * 100).toFixed(1),
                     children: undefined,
                   }))
-                : Object.entries(groupedByIssueType).map(([item, hours], index) => ({
-                    key: index,
-                    item: item,
-                    hours: hours,
-                    chargeableDays: hours / 7.5,
-                    percentage: ((hours / totalHours) * 100).toFixed(1),
-                    children: undefined,
-                  }))
+                : summaryViewMode === "issueType"
+                  ? Object.entries(groupedByIssueType).map(
+                      ([item, hours], index) => ({
+                        key: index,
+                        item: item,
+                        hours: hours,
+                        chargeableDays: hours / 7.5,
+                        percentage: ((hours / totalHours) * 100).toFixed(1),
+                        children: undefined,
+                      })
+                    )
+                  : Object.entries(groupedByAncestryType).map(
+                      ([item, hours], index) => ({
+                        key: index,
+                        item: item,
+                        hours: hours,
+                        chargeableDays: hours / 7.5,
+                        percentage: ((hours / totalHours) * 100).toFixed(1),
+                        children: undefined,
+                      })
+                    )
           }
           columns={resizableColumns}
           pagination={false}
@@ -365,11 +405,22 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 handleRowClick(record.item);
               } else if (summaryViewMode === "name") {
                 handleUserClick(record.item);
+              } else if (summaryViewMode === "ancestryType") {
+                handleAncestryTypeClick(record.item);
               }
               // Issue Type mode doesn't have drilldown yet
             },
             style: {
-              cursor: record.isAccount || record.isFile ? "default" : "pointer",
+              cursor:
+                record.isAccount || record.isFile
+                  ? "default"
+                  : summaryViewMode === "ancestryType" ||
+                      summaryViewMode === "name" ||
+                      (summaryViewMode === "category" &&
+                        !record.isAccount &&
+                        !record.isFile)
+                    ? "pointer"
+                    : "default",
               fontWeight: record.isAccount || record.isFile ? "normal" : "bold",
             },
           })}
