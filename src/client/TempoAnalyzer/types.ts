@@ -117,6 +117,26 @@ export interface State {
       };
     };
   };
+  // New state for hierarchical ancestry type data (for "Other" split by Account Category)
+  groupedDataByAncestryType: {
+    [ancestryType: string]: {
+      [category: string]: {
+        totalHours: number;
+        accounts: {
+          [accountName: string]: {
+            totalHours: number;
+            files: { [fileName: string]: number };
+          };
+        };
+        issueTypes: {
+          [issueType: string]: {
+            totalHours: number;
+            files: { [fileName: string]: number };
+          };
+        };
+      };
+    };
+  };
   // New state for secondary split mode
   secondarySplitMode: "account" | "issueType";
   // New state for tracking which rows to show in the expandable table

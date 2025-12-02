@@ -29,6 +29,25 @@ interface SummaryViewProps {
       };
     };
   };
+  groupedDataByAncestryType: {
+    [ancestryType: string]: {
+      [category: string]: {
+        totalHours: number;
+        accounts: {
+          [accountName: string]: {
+            totalHours: number;
+            files: { [fileName: string]: number };
+          };
+        };
+        issueTypes: {
+          [issueType: string]: {
+            totalHours: number;
+            files: { [fileName: string]: number };
+          };
+        };
+      };
+    };
+  };
   secondarySplitMode: "account" | "issueType";
   showOtherTeams: boolean;
   handleRowClick: (category: string) => void;
@@ -44,6 +63,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   groupedByIssueType,
   groupedByAncestryType,
   groupedDataByCategory,
+  groupedDataByAncestryType,
   secondarySplitMode,
   showOtherTeams,
   handleRowClick,
@@ -373,16 +393,138 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                         children: undefined,
                       })
                     )
-                  : Object.entries(groupedByAncestryType).map(
-                      ([item, hours], index) => ({
-                        key: index,
-                        item: item,
-                        hours: hours,
-                        chargeableDays: hours / 7.5,
-                        percentage: ((hours / totalHours) * 100).toFixed(1),
-                        children: undefined,
-                      })
-                    )
+                  : (() => {
+                      // For ancestry type, check if "Other" has hierarchical data
+                      const otherData = groupedDataByAncestryType["Other"];
+                      const ancestryTypeEntries = Object.entries(
+                        groupedByAncestryType
+                      );
+                      const result: any[] = [];
+
+                      ancestryTypeEntries.forEach(
+                        ([ancestryType, hours], index) => {
+                          if (ancestryType === "Other" && otherData) {
+                            // "Other" should be split by Account Category
+                            Object.entries(otherData).forEach(
+                              ([category, data], catIndex) => {
+                                result.push({
+                                  key: `other-${catIndex}`,
+                                  item: category,
+                                  hours: data.totalHours,
+                                  chargeableDays: data.totalHours / 7.5,
+                                  percentage: (
+                                    (data.totalHours / totalHours) *
+                                    100
+                                  ).toFixed(1),
+                                  children: (secondarySplitMode === "account"
+                                    ? Object.entries(data.accounts)
+                                    : Object.entries(data.issueTypes)
+                                  ).map(([itemName, itemData], itemIndex) => ({
+                                    key: `other-${catIndex}-${itemIndex}`,
+                                    item: itemName,
+                                    hours: itemData.totalHours,
+                                    chargeableDays: itemData.totalHours / 7.5,
+                                    percentage: (
+                                      (itemData.totalHours / totalHours) *
+                                      100
+                                    ).toFixed(1),
+                                    subPercentage: (
+                                      (itemData.totalHours / data.totalHours) *
+                                      100
+                                    ).toFixed(1),
+                                    isAccount: true,
+                                    children:
+                                      Object.keys(itemData.files).length > 1
+                                        ? Object.entries(itemData.files)
+                                            .sort(([, a], [, b]) => b - a)
+                                            .map(
+                                              (
+                                                [fileName, fileHours],
+                                                fileIndex
+                                              ) => ({
+                                                key: `other-file-${catIndex}-${itemIndex}-${fileIndex}`,
+                                                item: fileName,
+                                                hours: fileHours,
+                                                chargeableDays: fileHours / 7.5,
+                                                percentage: (
+                                                  (fileHours / totalHours) *
+                                                  100
+                                                ).toFixed(1),
+                                                subPercentage: (
+                                                  (fileHours /
+                                                    itemData.totalHours) *
+                                                  100
+                                                ).toFixed(1),
+                                                isFile: true,
+                                              })
+                                            )
+                                        : undefined,
+                                    otherTeamDays:
+                                      showOtherTeams &&
+                                      Object.keys(itemData.files).length > 1
+                                        ? (() => {
+                                            const fileEntries = Object.entries(
+                                              itemData.files
+                                            );
+                                            const sortedFiles =
+                                              fileEntries.sort(
+                                                ([, a], [, b]) => b - a
+                                              );
+                                            const otherTeamHours = sortedFiles
+                                              .slice(1)
+                                              .reduce(
+                                                (sum, [, hours]) => sum + hours,
+                                                0
+                                              );
+                                            return otherTeamHours / 7.5;
+                                          })()
+                                        : 0,
+                                    otherTeamPercent:
+                                      showOtherTeams &&
+                                      Object.keys(itemData.files).length > 1
+                                        ? (() => {
+                                            const fileEntries = Object.entries(
+                                              itemData.files
+                                            );
+                                            const sortedFiles =
+                                              fileEntries.sort(
+                                                ([, a], [, b]) => b - a
+                                              );
+                                            const otherTeamHours = sortedFiles
+                                              .slice(1)
+                                              .reduce(
+                                                (sum, [, hours]) => sum + hours,
+                                                0
+                                              );
+                                            return (
+                                              (otherTeamHours /
+                                                itemData.totalHours) *
+                                              100
+                                            ).toFixed(1);
+                                          })()
+                                        : "0.0",
+                                  })),
+                                });
+                              }
+                            );
+                          } else {
+                            // Other ancestry types (Fault, Service Request) as simple entries
+                            result.push({
+                              key: `ancestry-${index}`,
+                              item: ancestryType,
+                              hours: hours,
+                              chargeableDays: hours / 7.5,
+                              percentage: ((hours / totalHours) * 100).toFixed(
+                                1
+                              ),
+                              children: undefined,
+                            });
+                          }
+                        }
+                      );
+
+                      return result;
+                    })()
           }
           columns={resizableColumns}
           pagination={false}

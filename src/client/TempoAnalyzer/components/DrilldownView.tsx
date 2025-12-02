@@ -24,7 +24,10 @@ interface DrilldownViewProps {
   handleViewModeChange: (mode: "name" | "issue" | "type" | "account") => void;
   handleIssueKeyClick: (issueKey: string) => void;
   handleBackToIssueView: () => void;
-  parentAncestors: Record<string, Array<{ key: string; summary: string; type: string }>>;
+  parentAncestors: Record<
+    string,
+    Array<{ key: string; summary: string; type: string }>
+  >;
 }
 
 export const DrilldownView: React.FC<DrilldownViewProps> = ({
@@ -747,9 +750,7 @@ export const DrilldownView: React.FC<DrilldownViewProps> = ({
           </Col>
         </Row>
 
-        <Card
-          title={`${selectedAncestryType} - Hours by Issue Key`}
-        >
+        <Card title={`${selectedAncestryType} - Hours by Issue Key`}>
           <Table
             dataSource={Object.entries(userCategoryIssueDataWithType).map(
               ([issueKey, issueData]: [string, IssueDetail], index) => ({

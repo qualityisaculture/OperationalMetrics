@@ -88,6 +88,7 @@ export const useTempoAnalyzer = (
     groupedByName: {},
     groupedByIssueType: {},
     groupedByAncestryType: {},
+    groupedDataByAncestryType: {},
     selectedUser: null,
     selectedAncestryType: null,
     userCategoryData: {},
@@ -175,6 +176,139 @@ export const useTempoAnalyzer = (
     userGroupAssignments,
     parentAncestors,
   ]);
+
+  // Helper function to group rows by Account Category with nested structure
+  const groupByAccountCategory = (
+    rows: any[],
+    accountCategoryIndex: number,
+    accountNameIndex: number,
+    issueTypeIndex: number,
+    loggedHoursIndex: number,
+    issueKeyIndex: number,
+    typeOfWorkIndex: number
+  ): {
+    [category: string]: {
+      totalHours: number;
+      accounts: {
+        [accountName: string]: {
+          totalHours: number;
+          files: { [fileName: string]: number };
+        };
+      };
+      issueTypes: {
+        [issueType: string]: {
+          totalHours: number;
+          files: { [fileName: string]: number };
+        };
+      };
+    };
+  } => {
+    const result: {
+      [category: string]: {
+        totalHours: number;
+        accounts: {
+          [accountName: string]: {
+            totalHours: number;
+            files: { [fileName: string]: number };
+          };
+        };
+        issueTypes: {
+          [issueType: string]: {
+            totalHours: number;
+            files: { [fileName: string]: number };
+          };
+        };
+      };
+    } = {};
+
+    rows.forEach((row) => {
+      const accountCategory = row[accountCategoryIndex.toString()];
+      const accountName = row[accountNameIndex.toString()];
+      const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
+      const issueKey =
+        issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
+      const typeOfWork =
+        typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : null;
+
+      if (accountCategory) {
+        const category = String(accountCategory).trim();
+        if (category) {
+          const exception = ISSUE_KEY_EXCEPTIONS.find((exp) => {
+            if (exp.issueKeys && issueKey) {
+              return exp.issueKeys.includes(issueKey);
+            }
+            if (exp.typeOfWork && typeOfWork) {
+              return exp.typeOfWork === typeOfWork;
+            }
+            return false;
+          });
+          let finalCategory = category;
+
+          if (exception) {
+            finalCategory = `${category} ${exception.categorySuffix}`;
+          }
+
+          if (!result[finalCategory]) {
+            result[finalCategory] = {
+              totalHours: 0,
+              accounts: {},
+              issueTypes: {},
+            };
+          }
+          result[finalCategory].totalHours += loggedHours;
+
+          if (accountName) {
+            const account = String(accountName).trim();
+            if (account) {
+              if (!result[finalCategory].accounts[account]) {
+                result[finalCategory].accounts[account] = {
+                  totalHours: 0,
+                  files: {},
+                };
+              }
+
+              result[finalCategory].accounts[account].totalHours += loggedHours;
+
+              // Add file-level breakdown
+              const fileName = (row as any)._fileName;
+              if (fileName) {
+                result[finalCategory].accounts[account].files[fileName] =
+                  (result[finalCategory].accounts[account].files[fileName] ||
+                    0) + loggedHours;
+              }
+            }
+          }
+
+          // Also group by issue type
+          const issueType =
+            issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
+          if (issueType) {
+            const type = String(issueType).trim();
+            if (type) {
+              if (!result[finalCategory].issueTypes[type]) {
+                result[finalCategory].issueTypes[type] = {
+                  totalHours: 0,
+                  files: {},
+                };
+              }
+
+              result[finalCategory].issueTypes[type].totalHours += loggedHours;
+
+              // Add file-level breakdown for issue types
+              const fileName = (row as any)._fileName;
+              if (fileName) {
+                result[finalCategory].issueTypes[type].files[fileName] =
+                  (result[finalCategory].issueTypes[type].files[fileName] ||
+                    0) + loggedHours;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return result;
+  };
 
   const applyFilters = (tableData: any[]) => {
     const {
@@ -380,6 +514,26 @@ export const useTempoAnalyzer = (
         };
       };
     } = {};
+    const groupedDataByAncestryType: {
+      [ancestryType: string]: {
+        [category: string]: {
+          totalHours: number;
+          accounts: {
+            [accountName: string]: {
+              totalHours: number;
+              files: { [fileName: string]: number };
+            };
+          };
+          issueTypes: {
+            [issueType: string]: {
+              totalHours: number;
+              files: { [fileName: string]: number };
+            };
+          };
+        };
+      };
+    } = {};
+    const otherAncestryRows: any[] = [];
     let totalHours = 0;
 
     filteredData.forEach((row) => {
@@ -533,9 +687,27 @@ export const useTempoAnalyzer = (
           const ancestorType = getAncestorType(ancestors);
           groupedByAncestryType[ancestorType] =
             (groupedByAncestryType[ancestorType] || 0) + loggedHours;
+
+          // If "Other", collect rows for Account Category grouping
+          if (ancestorType === "Other") {
+            otherAncestryRows.push(row);
+          }
         }
       }
     });
+
+    // Group "Other" ancestry type by Account Category
+    if (otherAncestryRows.length > 0 && accountCategoryIndex !== -1) {
+      groupedDataByAncestryType["Other"] = groupByAccountCategory(
+        otherAncestryRows,
+        accountCategoryIndex,
+        accountNameIndex,
+        issueTypeIndex,
+        loggedHoursIndex,
+        issueKeyIndex,
+        typeOfWorkIndex
+      );
+    }
 
     setAnalyzerState((prevState) => {
       return {
@@ -545,6 +717,7 @@ export const useTempoAnalyzer = (
         groupedByName: groupedByName,
         groupedByIssueType: groupedByIssueType,
         groupedByAncestryType: groupedByAncestryType,
+        groupedDataByAncestryType: groupedDataByAncestryType,
         totalHours: totalHours,
         groupedDataByCategory: groupedDataByCategory,
       };
@@ -647,6 +820,7 @@ export const useTempoAnalyzer = (
       groupedByName: {},
       groupedByIssueType: {},
       groupedByAncestryType: {},
+      groupedDataByAncestryType: {},
       selectedUser: null,
       selectedAncestryType: null,
       userCategoryData: {},

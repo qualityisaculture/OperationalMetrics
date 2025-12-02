@@ -167,6 +167,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
                   groupedByIssueType={analyzer.groupedByIssueType}
                   groupedByAncestryType={analyzer.groupedByAncestryType}
                   groupedDataByCategory={analyzer.groupedDataByCategory}
+                  groupedDataByAncestryType={analyzer.groupedDataByAncestryType}
                   secondarySplitMode={analyzer.secondarySplitMode}
                   showOtherTeams={analyzer.showOtherTeams}
                   handleRowClick={analyzer.handleRowClick}
