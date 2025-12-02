@@ -22,6 +22,13 @@ const getAncestorType = (
   if (hasFault) {
     return "Fault";
   }
+  // Check for "Service Request"
+  const hasIncident = ancestors.some(
+    (ancestor) => ancestor.type === "Incident"
+  );
+  if (hasIncident) {
+    return "Incident";
+  }
 
   // Check for "Service Request"
   const hasServiceRequest = ancestors.some(
@@ -43,7 +50,11 @@ const getAncestryType = (
   const ancestorType = getAncestorType(ancestors);
 
   // If ancestor type is already Fault or Service Request, use it
-  if (ancestorType === "Fault" || ancestorType === "Service Request") {
+  if (
+    ancestorType === "Fault" ||
+    ancestorType === "Service Request" ||
+    ancestorType === "Incident"
+  ) {
     return ancestorType;
   }
 
@@ -55,6 +66,9 @@ const getAncestryType = (
     }
     if (type === "Service Request") {
       return "Service Request";
+    }
+    if (type === "Incident") {
+      return "Incident";
     }
   }
 
