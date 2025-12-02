@@ -34,6 +34,33 @@ const getAncestorType = (
   return "Other";
 };
 
+// Helper function to determine ancestry type from both ancestors and issue type
+const getAncestryType = (
+  ancestors: Array<{ key: string; summary: string; type: string }> | undefined,
+  issueType: string | null
+): string => {
+  // First check ancestors
+  const ancestorType = getAncestorType(ancestors);
+
+  // If ancestor type is already Fault or Service Request, use it
+  if (ancestorType === "Fault" || ancestorType === "Service Request") {
+    return ancestorType;
+  }
+
+  // Otherwise, check the issue type
+  if (issueType) {
+    const type = String(issueType).trim();
+    if (type === "Fault") {
+      return "Fault";
+    }
+    if (type === "Service Request") {
+      return "Service Request";
+    }
+  }
+
+  return "Other";
+};
+
 export const useTempoAnalyzer = (
   sheets: SheetData[],
   selectedSheets: string[],
@@ -684,12 +711,14 @@ export const useTempoAnalyzer = (
         const key = String(rowIssueKey).trim();
         if (key) {
           const ancestors = parentAncestors[key];
-          const ancestorType = getAncestorType(ancestors);
-          groupedByAncestryType[ancestorType] =
-            (groupedByAncestryType[ancestorType] || 0) + loggedHours;
+          const issueType =
+            issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
+          const ancestryType = getAncestryType(ancestors, issueType);
+          groupedByAncestryType[ancestryType] =
+            (groupedByAncestryType[ancestryType] || 0) + loggedHours;
 
           // If "Other", collect rows for Account Category grouping
-          if (ancestorType === "Other") {
+          if (ancestryType === "Other") {
             otherAncestryRows.push(row);
           }
         }
@@ -975,9 +1004,11 @@ export const useTempoAnalyzer = (
                 typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : "";
               const workType = String(typeOfWorkValue).trim() || "";
 
-              // Get ancestor type from parentAncestors
+              // Get ancestry type from parentAncestors and issue type
               const ancestors = parentAncestors[key];
-              const ancestorType = getAncestorType(ancestors);
+              const issueTypeValue =
+                issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
+              const ancestorType = getAncestryType(ancestors, issueTypeValue);
 
               if (detailedByIssueWithType[key]) {
                 detailedByIssueWithType[key].hours += loggedHours;
@@ -1305,9 +1336,11 @@ export const useTempoAnalyzer = (
               typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : "";
             const workType = String(typeOfWork).trim() || "";
 
-            // Get ancestor type from parentAncestors
+            // Get ancestry type from parentAncestors and issue type
             const ancestors = parentAncestors[key];
-            const ancestorType = getAncestorType(ancestors);
+            const issueTypeValue =
+              issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
+            const ancestorType = getAncestryType(ancestors, issueTypeValue);
 
             if (userCategoryIssueDataWithType[key]) {
               userCategoryIssueDataWithType[key].hours += loggedHours;
@@ -1424,7 +1457,9 @@ export const useTempoAnalyzer = (
         const key = String(rowIssueKey).trim();
         if (key) {
           const ancestors = parentAncestors[key];
-          const rowAncestorType = getAncestorType(ancestors);
+          const issueTypeValue =
+            issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
+          const rowAncestorType = getAncestryType(ancestors, issueTypeValue);
 
           // Check both ancestry type and category match
           if (rowAncestorType === ancestryType) {
@@ -1583,7 +1618,9 @@ export const useTempoAnalyzer = (
         const key = String(rowIssueKey).trim();
         if (key) {
           const ancestors = parentAncestors[key];
-          const rowAncestorType = getAncestorType(ancestors);
+          const issueTypeValue =
+            issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
+          const rowAncestorType = getAncestryType(ancestors, issueTypeValue);
 
           if (rowAncestorType === ancestryType) {
             ancestryTypeIssueTotal += loggedHours;
