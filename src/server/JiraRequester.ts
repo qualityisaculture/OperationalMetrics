@@ -1116,7 +1116,13 @@ export default class JiraRequester {
       // Map to store all fetched issues by key (to avoid refetching)
       const issueCache = new Map<
         string,
-        { key: string; summary: string; type: string; parentKey: string | null }
+        { 
+          key: string; 
+          summary: string; 
+          type: string; 
+          parentKey: string | null;
+          resolvesKey: string | null; // Key of issue that this issue resolves
+        }
       >();
 
       // Set of all issue keys we need to process (original + all parents)
@@ -1153,6 +1159,7 @@ export default class JiraRequester {
             summary: issue.summary,
             type: issue.type,
             parentKey: issue.parentKey,
+            resolvesKey: issue.resolvesKey,
           });
 
           // If this issue has a parent, add it to the next level
@@ -1163,6 +1170,18 @@ export default class JiraRequester {
               nextLevelKeys.push(issue.parentKey);
             }
             allIssueKeys.add(issue.parentKey);
+          }
+
+          // If this issue has no parent but has a "Resolves" link, treat the resolved issue as a parent
+          if (!issue.parentKey && issue.resolvesKey && !processedIssues.has(issue.resolvesKey)) {
+            // Only add to nextLevelKeys if not already scheduled
+            if (!nextLevelKeys.includes(issue.resolvesKey)) {
+              nextLevelKeys.push(issue.resolvesKey);
+            }
+            allIssueKeys.add(issue.resolvesKey);
+            console.log(
+              `Issue ${issue.key} has no parent but resolves ${issue.resolvesKey}, treating as parent`
+            );
           }
 
           processedIssues.add(issue.key);
@@ -1221,8 +1240,52 @@ export default class JiraRequester {
               );
               break;
             }
+          } else if (issue.resolvesKey) {
+            // No parent, but check if this issue "Resolves" another issue
+            // Treat the resolved issue as the next parent in the chain
+            if (issueCache.has(issue.resolvesKey)) {
+              const resolvedIssue = issueCache.get(issue.resolvesKey)!;
+              chain.push({
+                key: resolvedIssue.key,
+                summary: resolvedIssue.summary,
+                type: resolvedIssue.type,
+              });
+              console.log(
+                `Following "Resolves" link from ${currentKey} to ${issue.resolvesKey}`
+              );
+              // Move to the resolved issue and continue building the chain
+              currentKey = resolvedIssue.key;
+            } else {
+              // Resolved issue not in cache, need to fetch it
+              console.log(
+                `Resolved issue ${issue.resolvesKey} not in cache for ${currentKey}, fetching...`
+              );
+              // Fetch the resolved issue
+              const resolvedIssues = await this.getBatchedIssuesWithParents([
+                issue.resolvesKey,
+              ]);
+              if (resolvedIssues.length > 0) {
+                const resolvedIssue = resolvedIssues[0];
+                issueCache.set(resolvedIssue.key, {
+                  key: resolvedIssue.key,
+                  summary: resolvedIssue.summary,
+                  type: resolvedIssue.type,
+                  parentKey: resolvedIssue.parentKey,
+                  resolvesKey: resolvedIssue.resolvesKey,
+                });
+                chain.push({
+                  key: resolvedIssue.key,
+                  summary: resolvedIssue.summary,
+                  type: resolvedIssue.type,
+                });
+                currentKey = resolvedIssue.key;
+              } else {
+                // Couldn't fetch resolved issue
+                break;
+              }
+            }
           } else {
-            // No more parents
+            // No more parents and no resolves link
             break;
           }
         }
@@ -1241,13 +1304,14 @@ export default class JiraRequester {
     }
   }
 
-  // Helper method to batch fetch issues with their parent information
+  // Helper method to batch fetch issues with their parent information and issue links
   private async getBatchedIssuesWithParents(issueKeys: string[]): Promise<
     Array<{
       key: string;
       summary: string;
       type: string;
       parentKey: string | null;
+      resolvesKey: string | null; // Key of issue that this issue resolves (from "Resolves" link)
     }>
   > {
     const results: Array<{
@@ -1255,6 +1319,7 @@ export default class JiraRequester {
       summary: string;
       type: string;
       parentKey: string | null;
+      resolvesKey: string | null;
     }> = [];
 
     // Process in batches of 50
@@ -1263,7 +1328,7 @@ export default class JiraRequester {
 
       // Create JQL query for this batch
       const jql = batchKeys.map((key) => `key = "${key}"`).join(" OR ");
-      const fields = "key,summary,issuetype,parent";
+      const fields = "key,summary,issuetype,parent,issuelinks";
       const query = `${jql}&fields=${fields}`;
 
       try {
@@ -1271,11 +1336,27 @@ export default class JiraRequester {
 
         for (const issue of response.issues) {
           const parent = issue.fields?.parent;
+          
+          // Check for "Resolves" link - look for outwardIssue with type "Resolves"
+          let resolvesKey: string | null = null;
+          const issueLinks = issue.fields?.issuelinks || [];
+          for (const link of issueLinks) {
+            // Check if this is a "Resolves" link with an outwardIssue
+            if (
+              link.type?.name === "Resolves" &&
+              link.outwardIssue?.key
+            ) {
+              resolvesKey = link.outwardIssue.key;
+              break; // Take the first "Resolves" link found
+            }
+          }
+
           results.push({
             key: issue.key,
             summary: issue.fields?.summary || "",
             type: issue.fields?.issuetype?.name || "Unknown",
             parentKey: parent?.key || null,
+            resolvesKey: resolvesKey,
           });
         }
       } catch (error) {
@@ -1287,6 +1368,7 @@ export default class JiraRequester {
             summary: "",
             type: "Unknown",
             parentKey: null,
+            resolvesKey: null,
           });
         }
       }
