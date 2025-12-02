@@ -1121,7 +1121,7 @@ export default class JiraRequester {
           summary: string;
           type: string;
           parentKey: string | null;
-          resolvesKey: string | null; // Key of issue that this issue resolves
+          resolvesKey: string | null; // Key of issue linked via "Resolves" (outward) or "Approval" (inward) link
         }
       >();
 
@@ -1245,51 +1245,51 @@ export default class JiraRequester {
               break;
             }
           } else if (issue.resolvesKey) {
-            // No parent, but check if this issue "Resolves" another issue
-            // Treat the resolved issue as the next parent in the chain
+            // No parent, but check if this issue "Resolves" or is "Approved by" another issue
+            // Treat the linked issue as the next parent in the chain
             if (issueCache.has(issue.resolvesKey)) {
-              const resolvedIssue = issueCache.get(issue.resolvesKey)!;
+              const linkedIssue = issueCache.get(issue.resolvesKey)!;
               chain.push({
-                key: resolvedIssue.key,
-                summary: resolvedIssue.summary,
-                type: resolvedIssue.type,
+                key: linkedIssue.key,
+                summary: linkedIssue.summary,
+                type: linkedIssue.type,
               });
               console.log(
-                `Following "Resolves" link from ${currentKey} to ${issue.resolvesKey}`
+                `Following link (Resolves/Approval) from ${currentKey} to ${issue.resolvesKey}`
               );
-              // Move to the resolved issue and continue building the chain
-              currentKey = resolvedIssue.key;
+              // Move to the linked issue and continue building the chain
+              currentKey = linkedIssue.key;
             } else {
-              // Resolved issue not in cache, need to fetch it
+              // Linked issue not in cache, need to fetch it
               console.log(
-                `Resolved issue ${issue.resolvesKey} not in cache for ${currentKey}, fetching...`
+                `Linked issue ${issue.resolvesKey} not in cache for ${currentKey}, fetching...`
               );
-              // Fetch the resolved issue
-              const resolvedIssues = await this.getBatchedIssuesWithParents([
+              // Fetch the linked issue
+              const linkedIssues = await this.getBatchedIssuesWithParents([
                 issue.resolvesKey,
               ]);
-              if (resolvedIssues.length > 0) {
-                const resolvedIssue = resolvedIssues[0];
-                issueCache.set(resolvedIssue.key, {
-                  key: resolvedIssue.key,
-                  summary: resolvedIssue.summary,
-                  type: resolvedIssue.type,
-                  parentKey: resolvedIssue.parentKey,
-                  resolvesKey: resolvedIssue.resolvesKey,
+              if (linkedIssues.length > 0) {
+                const linkedIssue = linkedIssues[0];
+                issueCache.set(linkedIssue.key, {
+                  key: linkedIssue.key,
+                  summary: linkedIssue.summary,
+                  type: linkedIssue.type,
+                  parentKey: linkedIssue.parentKey,
+                  resolvesKey: linkedIssue.resolvesKey,
                 });
                 chain.push({
-                  key: resolvedIssue.key,
-                  summary: resolvedIssue.summary,
-                  type: resolvedIssue.type,
+                  key: linkedIssue.key,
+                  summary: linkedIssue.summary,
+                  type: linkedIssue.type,
                 });
-                currentKey = resolvedIssue.key;
+                currentKey = linkedIssue.key;
               } else {
-                // Couldn't fetch resolved issue
+                // Couldn't fetch linked issue
                 break;
               }
             }
           } else {
-            // No more parents and no resolves link
+            // No more parents and no resolves/approval link
             break;
           }
         }
@@ -1315,7 +1315,7 @@ export default class JiraRequester {
       summary: string;
       type: string;
       parentKey: string | null;
-      resolvesKey: string | null; // Key of issue that this issue resolves (from "Resolves" link)
+      resolvesKey: string | null; // Key of issue linked via "Resolves" (outward) or "Approval" (inward) link
     }>
   > {
     const results: Array<{
@@ -1342,13 +1342,21 @@ export default class JiraRequester {
           const parent = issue.fields?.parent;
 
           // Check for "Resolves" link - look for outwardIssue with type "Resolves"
+          // Also check for "Approval" link - look for inwardIssue with type "Approval"
+          // (inwardIssue is the issue that approves this one, so we treat it as a parent)
           let resolvesKey: string | null = null;
           const issueLinks = issue.fields?.issuelinks || [];
           for (const link of issueLinks) {
             // Check if this is a "Resolves" link with an outwardIssue
             if (link.type?.name === "Resolves" && link.outwardIssue?.key) {
               resolvesKey = link.outwardIssue.key;
-              break; // Take the first "Resolves" link found
+              break; // Take the first "Resolves" link found (prefer Resolves over Approval)
+            }
+            // Check if this is an "Approval" link with an inwardIssue
+            // (inwardIssue is the issue that approves this one)
+            if (link.type?.name === "Approval" && link.inwardIssue?.key) {
+              resolvesKey = link.inwardIssue.key;
+              break; // Take the first "Approval" link found
             }
           }
 

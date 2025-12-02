@@ -52,6 +52,14 @@ const getAncestorType = (
     return "Enhancement";
   }
 
+  // Check for "Problem Management"
+  const hasProblemManagement = ancestors.some(
+    (ancestor) => ancestor.type === "Problem Management"
+  );
+  if (hasProblemManagement) {
+    return "Problem Management";
+  }
+
   return "Other";
 };
 
@@ -69,7 +77,8 @@ const getAncestryType = (
     ancestorType === "Service Request" ||
     ancestorType === "Incident" ||
     ancestorType === "Enquiry" ||
-    ancestorType === "Enhancement"
+    ancestorType === "Enhancement" ||
+    ancestorType === "Problem Management"
   ) {
     return ancestorType;
   }
@@ -91,6 +100,9 @@ const getAncestryType = (
     }
     if (type === "Enhancement") {
       return "Enhancement";
+    }
+    if (type === "Problem Management") {
+      return "Problem Management";
     }
   }
 
