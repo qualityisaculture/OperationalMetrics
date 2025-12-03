@@ -66,10 +66,16 @@ const getAncestorType = (
 // Helper function to determine ancestry type from both ancestors and issue type
 const getAncestryType = (
   ancestors: Array<{ key: string; summary: string; type: string }> | undefined,
-  issueType: string | null
+  issueType: string | null,
+  issueKey: string | null
 ): string => {
   // First check ancestors
   const ancestorType = getAncestorType(ancestors);
+
+  const type = String(issueType).trim();
+  if (type === "Bug") {
+    return "Bug";
+  }
 
   // If ancestor type is already one of the special types, use it
   if (
@@ -85,7 +91,6 @@ const getAncestryType = (
 
   // Otherwise, check the issue type
   if (issueType) {
-    const type = String(issueType).trim();
     if (type === "Fault") {
       return "Fault";
     }
@@ -104,6 +109,11 @@ const getAncestryType = (
     if (type === "Problem Management") {
       return "Problem Management";
     }
+  }
+
+  // If nothing else matches, check if issue key starts with "GEM"
+  if (issueKey && String(issueKey).trim().toUpperCase().startsWith("GEM")) {
+    return "GEM";
   }
 
   return "Other";
@@ -761,7 +771,7 @@ export const useTempoAnalyzer = (
           const ancestors = parentAncestors[key];
           const issueType =
             issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
-          const ancestryType = getAncestryType(ancestors, issueType);
+          const ancestryType = getAncestryType(ancestors, issueType, key);
           groupedByAncestryType[ancestryType] =
             (groupedByAncestryType[ancestryType] || 0) + loggedHours;
 
@@ -1056,7 +1066,11 @@ export const useTempoAnalyzer = (
               const ancestors = parentAncestors[key];
               const issueTypeValue =
                 issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
-              const ancestorType = getAncestryType(ancestors, issueTypeValue);
+              const ancestorType = getAncestryType(
+                ancestors,
+                issueTypeValue,
+                key
+              );
 
               if (detailedByIssueWithType[key]) {
                 detailedByIssueWithType[key].hours += loggedHours;
@@ -1388,7 +1402,11 @@ export const useTempoAnalyzer = (
             const ancestors = parentAncestors[key];
             const issueTypeValue =
               issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
-            const ancestorType = getAncestryType(ancestors, issueTypeValue);
+            const ancestorType = getAncestryType(
+              ancestors,
+              issueTypeValue,
+              key
+            );
 
             if (userCategoryIssueDataWithType[key]) {
               userCategoryIssueDataWithType[key].hours += loggedHours;
@@ -1507,7 +1525,11 @@ export const useTempoAnalyzer = (
           const ancestors = parentAncestors[key];
           const issueTypeValue =
             issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
-          const rowAncestorType = getAncestryType(ancestors, issueTypeValue);
+          const rowAncestorType = getAncestryType(
+            ancestors,
+            issueTypeValue,
+            key
+          );
 
           // Check both ancestry type and category match
           if (rowAncestorType === ancestryType) {
@@ -1668,7 +1690,11 @@ export const useTempoAnalyzer = (
           const ancestors = parentAncestors[key];
           const issueTypeValue =
             issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
-          const rowAncestorType = getAncestryType(ancestors, issueTypeValue);
+          const rowAncestorType = getAncestryType(
+            ancestors,
+            issueTypeValue,
+            key
+          );
 
           if (rowAncestorType === ancestryType) {
             ancestryTypeIssueTotal += loggedHours;

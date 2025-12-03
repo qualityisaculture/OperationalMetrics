@@ -42,10 +42,10 @@ export const ISSUE_KEY_EXCEPTIONS: IssueKeyException[] = [
     issueKeys: ["STR-45"],
     categorySuffix: "XFT Reorg",
   },
-  {
-    typeOfWork: "Functional feature investment",
-    categorySuffix: "Product",
-  },
+  // {
+  //   typeOfWork: "Functional feature investment",
+  //   categorySuffix: "Product",
+  // },
   // Add more exceptions here as needed:
   // { issueKeys: ["ABS-57", "ABS-58"], categorySuffix: "Sick Leave" },
   // { issueKeys: ["LD-51", "LD-52", "LD-53"], categorySuffix: "Advanced Training" },
