@@ -9,6 +9,7 @@ export interface IssueDetail {
 export interface IssueKeyException {
   issueKeys?: string[];
   typeOfWork?: string;
+  account?: string;
   categorySuffix: string;
 }
 

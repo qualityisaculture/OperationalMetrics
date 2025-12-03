@@ -42,6 +42,14 @@ export const ISSUE_KEY_EXCEPTIONS: IssueKeyException[] = [
     issueKeys: ["STR-45"],
     categorySuffix: "XFT Reorg",
   },
+  {
+    account: "PMO Projects",
+    categorySuffix: "PMO Projects",
+  },
+  {
+    account: "Technical Services",
+    categorySuffix: "Technical Services",
+  },
   // {
   //   typeOfWork: "Functional feature investment",
   //   categorySuffix: "Product",

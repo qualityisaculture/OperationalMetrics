@@ -318,12 +318,17 @@ export const useTempoAnalyzer = (
       if (accountCategory) {
         const category = String(accountCategory).trim();
         if (category) {
+          const accountName = row[accountNameIndex.toString()];
+          const account = accountName ? String(accountName).trim() : null;
           const exception = ISSUE_KEY_EXCEPTIONS.find((exp) => {
             if (exp.issueKeys && issueKey) {
               return exp.issueKeys.includes(issueKey);
             }
             if (exp.typeOfWork && typeOfWork) {
               return exp.typeOfWork === typeOfWork;
+            }
+            if (exp.account && account) {
+              return exp.account === account;
             }
             return false;
           });
@@ -633,17 +638,21 @@ export const useTempoAnalyzer = (
       if (accountCategory) {
         const category = String(accountCategory).trim();
         if (category) {
+          const issueKey =
+            issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
+          const typeOfWork =
+            typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : null;
+          const accountName = row[accountNameIndex.toString()];
+          const account = accountName ? String(accountName).trim() : null;
           const exception = ISSUE_KEY_EXCEPTIONS.find((exp) => {
-            const issueKey =
-              issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
-            const typeOfWork =
-              typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : null;
-
             if (exp.issueKeys && issueKey) {
               return exp.issueKeys.includes(issueKey);
             }
             if (exp.typeOfWork && typeOfWork) {
               return exp.typeOfWork === typeOfWork;
+            }
+            if (exp.account && account) {
+              return exp.account === account;
             }
             return false;
           });
@@ -1001,12 +1010,14 @@ export const useTempoAnalyzer = (
     let originalCategory = category;
     let exceptionIssueKeys: string[] | null = null;
     let exceptionTypeOfWork: string | null = null;
+    let exceptionAccount: string | null = null;
 
     for (const exception of ISSUE_KEY_EXCEPTIONS) {
       if (category.endsWith(` ${exception.categorySuffix}`)) {
         originalCategory = category.replace(` ${exception.categorySuffix}`, "");
         exceptionIssueKeys = exception.issueKeys || [];
         exceptionTypeOfWork = exception.typeOfWork || null;
+        exceptionAccount = exception.account || null;
         break;
       }
     }
@@ -1042,12 +1053,18 @@ export const useTempoAnalyzer = (
         const typeOfWork =
           typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : null;
 
-        if (exceptionIssueKeys) {
+        const accountName = row[accountNameIndex.toString()];
+        const account = accountName ? String(accountName).trim() : null;
+
+        if (exceptionIssueKeys || exceptionTypeOfWork || exceptionAccount) {
           let matches = false;
           if (exceptionIssueKeys && exceptionIssueKeys.includes(rowIssueKey)) {
             matches = true;
           }
           if (exceptionTypeOfWork && exceptionTypeOfWork === typeOfWork) {
+            matches = true;
+          }
+          if (exceptionAccount && exceptionAccount === account) {
             matches = true;
           }
           if (!matches) {
@@ -1059,6 +1076,9 @@ export const useTempoAnalyzer = (
               return true;
             }
             if (exp.typeOfWork && exp.typeOfWork === typeOfWork) {
+              return true;
+            }
+            if (exp.account && exp.account === account) {
               return true;
             }
             return false;
@@ -1289,9 +1309,11 @@ export const useTempoAnalyzer = (
     const {
       filteredData,
       accountCategoryIndex,
+      accountNameIndex,
       loggedHoursIndex,
       fullNameIndex,
       issueKeyIndex,
+      typeOfWorkIndex,
     } = analyzerState;
 
     if (fullNameIndex === -1) {
@@ -1319,9 +1341,22 @@ export const useTempoAnalyzer = (
         if (accountCategory) {
           const category = String(accountCategory).trim();
           if (category) {
-            const exception = ISSUE_KEY_EXCEPTIONS.find((exp) =>
-              exp.issueKeys?.includes(issueKey)
-            );
+            const accountName = row[accountNameIndex.toString()];
+            const account = accountName ? String(accountName).trim() : null;
+            const typeOfWork =
+              typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : null;
+            const exception = ISSUE_KEY_EXCEPTIONS.find((exp) => {
+              if (exp.issueKeys && issueKey) {
+                return exp.issueKeys.includes(issueKey);
+              }
+              if (exp.typeOfWork && typeOfWork) {
+                return exp.typeOfWork === typeOfWork;
+              }
+              if (exp.account && account) {
+                return exp.account === account;
+              }
+              return false;
+            });
             let finalCategory = category;
 
             if (exception) {
@@ -1348,6 +1383,7 @@ export const useTempoAnalyzer = (
     const {
       filteredData,
       accountCategoryIndex,
+      accountNameIndex,
       loggedHoursIndex,
       fullNameIndex,
       issueKeyIndex,
@@ -1368,11 +1404,15 @@ export const useTempoAnalyzer = (
 
     let originalCategory = category;
     let exceptionIssueKeys: string[] | null = null;
+    let exceptionTypeOfWork: string | null = null;
+    let exceptionAccount: string | null = null;
 
     for (const exception of ISSUE_KEY_EXCEPTIONS) {
       if (category.endsWith(` ${exception.categorySuffix}`)) {
         originalCategory = category.replace(` ${exception.categorySuffix}`, "");
         exceptionIssueKeys = exception.issueKeys || [];
+        exceptionTypeOfWork = exception.typeOfWork || null;
+        exceptionAccount = exception.account || null;
         break;
       }
     }
@@ -1406,12 +1446,38 @@ export const useTempoAnalyzer = (
         String(rowFullName).trim() === selectedUser &&
         String(rowCategory).trim() === originalCategory
       ) {
-        if (exceptionIssueKeys && !exceptionIssueKeys.includes(rowIssueKey)) {
-          return;
-        } else if (!exceptionIssueKeys) {
-          const isExceptionRow = ISSUE_KEY_EXCEPTIONS.some((exp) =>
-            exp.issueKeys?.includes(rowIssueKey)
-          );
+        const accountName = row[accountNameIndex.toString()];
+        const account = accountName ? String(accountName).trim() : null;
+        const typeOfWork =
+          typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : null;
+
+        if (exceptionIssueKeys || exceptionTypeOfWork || exceptionAccount) {
+          let matches = false;
+          if (exceptionIssueKeys && exceptionIssueKeys.includes(rowIssueKey)) {
+            matches = true;
+          }
+          if (exceptionTypeOfWork && exceptionTypeOfWork === typeOfWork) {
+            matches = true;
+          }
+          if (exceptionAccount && exceptionAccount === account) {
+            matches = true;
+          }
+          if (!matches) {
+            return;
+          }
+        } else {
+          const isExceptionRow = ISSUE_KEY_EXCEPTIONS.some((exp) => {
+            if (exp.issueKeys && exp.issueKeys.includes(rowIssueKey)) {
+              return true;
+            }
+            if (exp.typeOfWork && exp.typeOfWork === typeOfWork) {
+              return true;
+            }
+            if (exp.account && exp.account === account) {
+              return true;
+            }
+            return false;
+          });
           if (isExceptionRow) {
             return;
           }
@@ -1522,6 +1588,7 @@ export const useTempoAnalyzer = (
       workDescriptionIndex,
       dateIndex,
       accountCategoryIndex,
+      accountNameIndex,
       typeOfWorkIndex,
     } = analyzerState;
 
@@ -1534,11 +1601,15 @@ export const useTempoAnalyzer = (
 
     let originalCategory = category;
     let exceptionIssueKeys: string[] | null = null;
+    let exceptionTypeOfWork: string | null = null;
+    let exceptionAccount: string | null = null;
 
     for (const exception of ISSUE_KEY_EXCEPTIONS) {
       if (category.endsWith(` ${exception.categorySuffix}`)) {
         originalCategory = category.replace(` ${exception.categorySuffix}`, "");
         exceptionIssueKeys = exception.issueKeys || [];
+        exceptionTypeOfWork = exception.typeOfWork || null;
+        exceptionAccount = exception.account || null;
         break;
       }
     }
@@ -1579,22 +1650,42 @@ export const useTempoAnalyzer = (
               String(rowCategory).trim() === originalCategory;
 
             if (categoryMatch) {
-              // Handle exception issue keys
+              // Handle exception issue keys, typeOfWork, and account
+              const accountName = row[accountNameIndex.toString()];
+              const account = accountName ? String(accountName).trim() : null;
+              const typeOfWork =
+                typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : null;
+
               if (
-                exceptionIssueKeys &&
-                !exceptionIssueKeys.includes(rowIssueKey)
+                exceptionIssueKeys ||
+                exceptionTypeOfWork ||
+                exceptionAccount
               ) {
-                return;
-              } else if (!exceptionIssueKeys) {
-                const typeOfWork =
-                  typeOfWorkIndex !== -1
-                    ? row[typeOfWorkIndex.toString()]
-                    : null;
+                let matches = false;
+                if (
+                  exceptionIssueKeys &&
+                  exceptionIssueKeys.includes(rowIssueKey)
+                ) {
+                  matches = true;
+                }
+                if (exceptionTypeOfWork && exceptionTypeOfWork === typeOfWork) {
+                  matches = true;
+                }
+                if (exceptionAccount && exceptionAccount === account) {
+                  matches = true;
+                }
+                if (!matches) {
+                  return;
+                }
+              } else {
                 const isExceptionRow = ISSUE_KEY_EXCEPTIONS.some((exp) => {
                   if (exp.issueKeys && exp.issueKeys.includes(rowIssueKey)) {
                     return true;
                   }
                   if (exp.typeOfWork && exp.typeOfWork === typeOfWork) {
+                    return true;
+                  }
+                  if (exp.account && exp.account === account) {
                     return true;
                   }
                   return false;
@@ -1622,9 +1713,10 @@ export const useTempoAnalyzer = (
                   : "";
               const summary = String(issueSummary).trim() || "";
 
-              const typeOfWork =
-                typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : "";
-              const workType = String(typeOfWork).trim() || "";
+              const workType =
+                typeOfWorkIndex !== -1
+                  ? String(row[typeOfWorkIndex.toString()] || "").trim()
+                  : "";
 
               if (ancestryTypeIssueDataWithType[key]) {
                 ancestryTypeIssueDataWithType[key].hours += loggedHours;
@@ -1884,6 +1976,7 @@ export const useTempoAnalyzer = (
     const {
       filteredData,
       accountCategoryIndex,
+      accountNameIndex,
       loggedHoursIndex,
       fullNameIndex,
       issueKeyIndex,
@@ -1901,6 +1994,7 @@ export const useTempoAnalyzer = (
     let originalCategory = selectedCategory;
     let exceptionIssueKeys: string[] | null = null;
     let exceptionTypeOfWork: string | null = null;
+    let exceptionAccount: string | null = null;
 
     for (const exception of ISSUE_KEY_EXCEPTIONS) {
       if (
@@ -1913,6 +2007,7 @@ export const useTempoAnalyzer = (
         );
         exceptionIssueKeys = exception.issueKeys || [];
         exceptionTypeOfWork = exception.typeOfWork || null;
+        exceptionAccount = exception.account || null;
         break;
       }
     }
@@ -1925,6 +2020,8 @@ export const useTempoAnalyzer = (
       const rowCategory = row[accountCategoryIndex.toString()];
       const rowIssueKey = row[issueKeyIndex.toString()];
       const typeOfWork = row[typeOfWorkIndex.toString()];
+      const accountName = row[accountNameIndex.toString()];
+      const account = accountName ? String(accountName).trim() : null;
 
       if (
         String(rowCategory).trim() === originalCategory &&
@@ -1948,7 +2045,17 @@ export const useTempoAnalyzer = (
       } else if (
         String(rowCategory).trim() === originalCategory &&
         exceptionTypeOfWork &&
-        exceptionTypeOfWork.includes(typeOfWork)
+        exceptionTypeOfWork === typeOfWork
+      ) {
+        const rowData = {
+          fullName: row[fullNameIndex.toString()],
+          loggedHours: parseFloat(row[loggedHoursIndex.toString()]) || 0,
+        };
+        issueRows.push(rowData);
+      } else if (
+        String(rowCategory).trim() === originalCategory &&
+        exceptionAccount &&
+        exceptionAccount === account
       ) {
         const rowData = {
           fullName: row[fullNameIndex.toString()],
