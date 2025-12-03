@@ -25,6 +25,7 @@ import BottleneckDetectorGraphManager from "../graphManagers/BottleneckDetectorG
 import WorkstreamOrphanDetectorGraphManager from "../graphManagers/WorkstreamOrphanDetectorGraphManager";
 import BugsAnalysisGraphManager from "../graphManagers/BugsAnalysisGraphManager";
 import BitBucketRequester from "../BitBucketRequester";
+import AverageResolutionTimeGraphManager from "../graphManagers/AverageResolutionTimeGraphManager";
 
 async function getJiraData(issueKey: string) {}
 
@@ -50,6 +51,9 @@ const workstreamOrphanDetectorGraphManager =
   new WorkstreamOrphanDetectorGraphManager(jiraRequester);
 const bugsAnalysisGraphManager = new BugsAnalysisGraphManager(jiraRequester);
 const bitBucketRequester = new BitBucketRequester();
+const averageResolutionTimeGraphManager = new AverageResolutionTimeGraphManager(
+  jiraRequester
+);
 
 metricsRoute.get(
   "/cumulativeFlowDiagram",
@@ -1419,6 +1423,79 @@ metricsRoute.post(
             "Error fetching pull requests from BitBucket: " + error.message,
           data: JSON.stringify([]),
           cached: false,
+        });
+      });
+  }
+);
+
+metricsRoute.get(
+  "/averageResolutionTime",
+  (
+    req: TRQ<{ jql?: string; projectKeys?: string; resolutionDateAfter?: string }>,
+    res: TR<{ message: string; data: string }>
+  ) => {
+    const jqlParam = req.query.jql;
+    const projectKeysParam = req.query.projectKeys;
+    const resolutionDateAfterParam = req.query.resolutionDateAfter;
+
+    // If JQL is provided, use it directly
+    if (jqlParam) {
+      averageResolutionTimeGraphManager
+        .getResolutionTimeDataFromJQL(jqlParam)
+        .then((data) => {
+          res.json({
+            message: "Resolution time data fetched successfully",
+            data: JSON.stringify(data),
+          });
+        })
+        .catch((error) => {
+          console.error("Error fetching resolution time data:", error);
+          res.json({
+            message: "Error fetching resolution time data",
+            data: JSON.stringify([]),
+          });
+        });
+      return;
+    }
+
+    // Otherwise, use the old method with projectKeys and date
+    if (!projectKeysParam) {
+      res.json({
+        message: "projectKeys or jql is required",
+        data: JSON.stringify([]),
+      });
+      return;
+    }
+
+    if (!resolutionDateAfterParam) {
+      res.json({
+        message: "resolutionDateAfter is required when using projectKeys",
+        data: JSON.stringify([]),
+      });
+      return;
+    }
+
+    // Handle multiple project keys
+    const projectKeys = projectKeysParam
+      .split(",")
+      .map((key) => key.trim())
+      .filter((key) => key.length > 0);
+
+    const resolutionDateAfter = new Date(resolutionDateAfterParam);
+
+    averageResolutionTimeGraphManager
+      .getResolutionTimeData(projectKeys, resolutionDateAfter)
+      .then((data) => {
+        res.json({
+          message: "Resolution time data fetched successfully",
+          data: JSON.stringify(data),
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching resolution time data:", error);
+        res.json({
+          message: "Error fetching resolution time data",
+          data: JSON.stringify([]),
         });
       });
   }

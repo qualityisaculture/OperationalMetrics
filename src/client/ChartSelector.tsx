@@ -21,6 +21,7 @@ import WeWork from "./SecurityBarriers";
 import BugsAnalysis from "./BugsAnalysis";
 import ReleaseLeadTime from "./ReleaseLeadTime";
 import BitBucketPRs from "./BitBucketPRs";
+import AverageResolutionTime from "./AverageResolutionTime";
 
 interface Props {}
 
@@ -45,7 +46,8 @@ interface State {
     | "wework"
     | "bugsAnalysis"
     | "releaseLeadTime"
-    | "bitbucketPRs";
+    | "bitbucketPRs"
+    | "averageResolutionTime";
 }
 
 export default class ChartSelector extends React.Component<Props, State> {
@@ -121,6 +123,9 @@ export default class ChartSelector extends React.Component<Props, State> {
     let bitbucketPRsStyle = {
       display: this.state.chart === "bitbucketPRs" ? "block" : "none",
     };
+    let averageResolutionTimeStyle = {
+      display: this.state.chart === "averageResolutionTime" ? "block" : "none",
+    };
 
     return (
       <div>
@@ -155,6 +160,9 @@ export default class ChartSelector extends React.Component<Props, State> {
             <Radio.Button value="bugsAnalysis">Bugs Analysis</Radio.Button>
             <Radio.Button value="releaseLeadTime">Release Lead Time</Radio.Button>
             <Radio.Button value="bitbucketPRs">BitBucket PRs</Radio.Button>
+            <Radio.Button value="averageResolutionTime">
+              Average Resolution Time
+            </Radio.Button>
           </Radio.Group>
         </div>
         <div>
@@ -217,6 +225,9 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={bitbucketPRsStyle}>
             <BitBucketPRs />
+          </div>
+          <div style={averageResolutionTimeStyle}>
+            <AverageResolutionTime />
           </div>
         </div>
       </div>
