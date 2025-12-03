@@ -656,18 +656,19 @@ export const useTempoAnalyzer = (
           grouped[finalCategory] = (grouped[finalCategory] || 0) + loggedHours;
           totalHours += loggedHours;
 
+          // Always initialize groupedDataByCategory for the category to ensure totalHours is tracked
+          if (!groupedDataByCategory[finalCategory]) {
+            groupedDataByCategory[finalCategory] = {
+              totalHours: 0,
+              accounts: {},
+              issueTypes: {},
+            };
+          }
+          groupedDataByCategory[finalCategory].totalHours += loggedHours;
+
           if (accountName) {
             const account = String(accountName).trim();
             if (account) {
-              if (!groupedDataByCategory[finalCategory]) {
-                groupedDataByCategory[finalCategory] = {
-                  totalHours: 0,
-                  accounts: {},
-                  issueTypes: {},
-                };
-              }
-              groupedDataByCategory[finalCategory].totalHours += loggedHours;
-
               if (!groupedDataByCategory[finalCategory].accounts[account]) {
                 groupedDataByCategory[finalCategory].accounts[account] = {
                   totalHours: 0,
@@ -698,14 +699,6 @@ export const useTempoAnalyzer = (
           if (issueType) {
             const type = String(issueType).trim();
             if (type) {
-              if (!groupedDataByCategory[finalCategory]) {
-                groupedDataByCategory[finalCategory] = {
-                  totalHours: 0,
-                  accounts: {},
-                  issueTypes: {},
-                };
-              }
-
               if (!groupedDataByCategory[finalCategory].issueTypes[type]) {
                 groupedDataByCategory[finalCategory].issueTypes[type] = {
                   totalHours: 0,
@@ -856,6 +849,55 @@ export const useTempoAnalyzer = (
     });
 
     if (combinedData.length > 0) {
+      // Normalize blank/empty Account Category and Account Name values to "None"
+      const accountCategoryIndex = combinedHeaders.findIndex(
+        (header) =>
+          header.toLowerCase().includes("account category") ||
+          header.toLowerCase().includes("accountcategory")
+      );
+      const accountNameIndex = combinedHeaders.findIndex(
+        (header) =>
+          header.toLowerCase().includes("account name") ||
+          header.toLowerCase().includes("accountname") ||
+          (header.toLowerCase().includes("name") &&
+            !header.toLowerCase().includes("full name") &&
+            !header.toLowerCase().includes("fullname"))
+      );
+
+      if (accountCategoryIndex !== -1 || accountNameIndex !== -1) {
+        combinedData = combinedData.map((row) => {
+          const updatedRow = { ...row };
+
+          // Normalize Account Category
+          if (accountCategoryIndex !== -1) {
+            const accountCategory = row[accountCategoryIndex.toString()];
+            // Check if Account Category is blank, empty, null, or undefined
+            if (
+              !accountCategory ||
+              String(accountCategory).trim() === "" ||
+              String(accountCategory).trim().toLowerCase() === "null"
+            ) {
+              updatedRow[accountCategoryIndex.toString()] = "None";
+            }
+          }
+
+          // Normalize Account Name
+          if (accountNameIndex !== -1) {
+            const accountName = row[accountNameIndex.toString()];
+            // Check if Account Name is blank, empty, null, or undefined
+            if (
+              !accountName ||
+              String(accountName).trim() === "" ||
+              String(accountName).trim().toLowerCase() === "null"
+            ) {
+              updatedRow[accountNameIndex.toString()] = "None";
+            }
+          }
+
+          return updatedRow;
+        });
+      }
+
       // Set rawData and headers first, then let the useEffect handle calling processData
       // This prevents duplicate processData calls
       setAnalyzerState((prevState) => ({
