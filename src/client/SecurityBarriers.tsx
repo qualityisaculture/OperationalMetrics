@@ -877,9 +877,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
         barrierDays: barrierPerson
           ? barrierPerson.uniqueDays
           : "Data not found",
-        holidayDays: holidayPerson
-          ? holidayPerson.totalHolidayDays
-          : "Data not found",
+        holidayDays: holidayPerson ? holidayPerson.totalHolidayDays : 0,
         weeklyHours: partTimePerson
           ? partTimePerson.weeklyHours
           : "Data not found",
