@@ -78,6 +78,17 @@ interface PartTimeSummary {
   daysInOffice: number;
 }
 
+interface DailyAttendance {
+  dayOfWeek: string;
+  date: string;
+  count: number;
+}
+
+interface WeeklyAttendanceSummary {
+  dayOfWeek: string;
+  totalCount: number;
+}
+
 interface WeWorkProps {}
 
 const WeWork: React.FC<WeWorkProps> = () => {
@@ -105,6 +116,10 @@ const WeWork: React.FC<WeWorkProps> = () => {
   );
   const [partTimeLoading, setPartTimeLoading] = useState(false);
   const [partTimeFileUploaded, setPartTimeFileUploaded] = useState(false);
+  const [dailyAttendance, setDailyAttendance] = useState<DailyAttendance[]>([]);
+  const [weeklyAttendanceSummary, setWeeklyAttendanceSummary] = useState<
+    WeeklyAttendanceSummary[]
+  >([]);
 
   const processPersonSummaries = (data: WeWorkEntry[]) => {
     const personMap = new Map<string, PersonSummary>();
@@ -148,6 +163,123 @@ const WeWork: React.FC<WeWorkProps> = () => {
     });
 
     setPersonSummaries(summaries);
+  };
+
+  const calculateDailyAttendance = (data: WeWorkEntry[]) => {
+    // Map to store unique people per day (day -> Set of fullNames)
+    const dayMap = new Map<string, Set<string>>();
+
+    data.forEach((entry) => {
+      // Extract date part (before comma if it exists)
+      let datePart = entry.date;
+      if (entry.date.includes(",")) {
+        datePart = entry.date.split(",")[0].trim();
+      } else {
+        datePart = entry.date.trim();
+      }
+
+      // Try to parse the date
+      let date: Date | null = null;
+
+      if (datePart) {
+        // First try parsing as is (handles locale date strings like "1/15/2024")
+        date = new Date(datePart);
+
+        // If invalid, try parsing as Excel date number
+        // if (isNaN(date.getTime())) {
+        //   const dateNum = parseFloat(datePart);
+        //   if (!isNaN(dateNum) && dateNum > 25000) {
+        //     // Likely an Excel date
+        //     const excelEpoch = new Date(1900, 0, 1);
+        //     date = new Date(
+        //       excelEpoch.getTime() + (dateNum - 2) * 24 * 60 * 60 * 1000
+        //     );
+        //   } else {
+        // Try with different separators (DD/MM/YYYY format)
+        const parts = datePart.split(/[\/\-]/);
+        if (parts.length === 3) {
+          // Try DD/MM/YYYY format
+          const day = parseInt(parts[0]);
+          const month = parseInt(parts[1]) - 1;
+          const year = parseInt(parts[2]);
+          if (!isNaN(month) && !isNaN(day) && !isNaN(year) && year > 1900) {
+            date = new Date(year, month, day);
+          }
+        }
+        // }
+        // }
+      }
+
+      if (date && !isNaN(date.getTime())) {
+        const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+        if (!dayMap.has(dayKey)) {
+          dayMap.set(dayKey, new Set());
+        }
+
+        dayMap.get(dayKey)!.add(entry.fullName);
+      }
+    });
+
+    // Convert to array and sort by date
+    const attendance: DailyAttendance[] = Array.from(dayMap.entries()).map(
+      ([dayKey, people]) => {
+        const [year, month, day] = dayKey.split("-");
+        const date = new Date(
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day)
+        );
+        return {
+          dayOfWeek: date.toLocaleDateString("en-US", { weekday: "long" }),
+          date: date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          }),
+          count: people.size,
+        };
+      }
+    );
+
+    // Sort by date
+    attendance.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    setDailyAttendance(attendance);
+
+    // Calculate weekly summary (aggregate by day of week)
+    const weeklyMap = new Map<string, number>();
+    attendance.forEach((entry) => {
+      const currentCount = weeklyMap.get(entry.dayOfWeek) || 0;
+      weeklyMap.set(entry.dayOfWeek, currentCount + entry.count);
+    });
+
+    // Convert to array and sort by day of week order
+    const daysOfWeek = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const summary: WeeklyAttendanceSummary[] = Array.from(weeklyMap.entries())
+      .map(([dayOfWeek, totalCount]) => ({
+        dayOfWeek,
+        totalCount,
+      }))
+      .sort((a, b) => {
+        const indexA = daysOfWeek.indexOf(a.dayOfWeek);
+        const indexB = daysOfWeek.indexOf(b.dayOfWeek);
+        return indexA - indexB;
+      });
+
+    setWeeklyAttendanceSummary(summary);
   };
 
   const processHolidaySummaries = (data: HolidayEntry[]) => {
@@ -303,6 +435,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
 
         setRawData(processedData);
         processPersonSummaries(processedData);
+        calculateDailyAttendance(processedData);
         message.success(
           `Successfully loaded ${processedData.length} entries from spreadsheet`
         );
@@ -1127,6 +1260,75 @@ const WeWork: React.FC<WeWorkProps> = () => {
     },
   ];
 
+  const dailyAttendanceColumns = [
+    {
+      title: "Day of the Week",
+      dataIndex: "dayOfWeek",
+      key: "dayOfWeek",
+      width: 150,
+      sorter: (a: DailyAttendance, b: DailyAttendance) => {
+        const daysOfWeek = [
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+        ];
+        const indexA = daysOfWeek.indexOf(a.dayOfWeek);
+        const indexB = daysOfWeek.indexOf(b.dayOfWeek);
+        return indexA - indexB;
+      },
+    },
+    {
+      title: "Date",
+      dataIndex: "date",
+      key: "date",
+      width: 150,
+    },
+    {
+      title: "Number of People",
+      dataIndex: "count",
+      key: "count",
+      width: 150,
+      render: (count: number) => <Tag color="cyan">{count}</Tag>,
+      sorter: (a: DailyAttendance, b: DailyAttendance) => b.count - a.count,
+    },
+  ];
+
+  const weeklyAttendanceSummaryColumns = [
+    {
+      title: "Day of the Week",
+      dataIndex: "dayOfWeek",
+      key: "dayOfWeek",
+      width: 150,
+      sorter: (a: WeeklyAttendanceSummary, b: WeeklyAttendanceSummary) => {
+        const daysOfWeek = [
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+        ];
+        const indexA = daysOfWeek.indexOf(a.dayOfWeek);
+        const indexB = daysOfWeek.indexOf(b.dayOfWeek);
+        return indexA - indexB;
+      },
+    },
+    {
+      title: "Total Count",
+      dataIndex: "totalCount",
+      key: "totalCount",
+      width: 150,
+      render: (count: number) => <Tag color="blue">{count}</Tag>,
+      sorter: (a: WeeklyAttendanceSummary, b: WeeklyAttendanceSummary) =>
+        b.totalCount - a.totalCount,
+    },
+  ];
+
   return (
     <div style={{ padding: "20px" }}>
       <Card
@@ -1288,6 +1490,38 @@ const WeWork: React.FC<WeWorkProps> = () => {
           </div>
         )}
       </Modal>
+
+      {dailyAttendance.length > 0 && (
+        <Card
+          title={`Daily Attendance by Day of Month (${dailyAttendance.length} days)`}
+          style={{ marginTop: "20px" }}
+        >
+          <Table
+            columns={dailyAttendanceColumns}
+            dataSource={dailyAttendance}
+            rowKey={(record) => `${record.dayOfWeek}-${record.date}`}
+            pagination={{ pageSize: 31 }}
+            scroll={{ x: 400 }}
+            size="small"
+          />
+        </Card>
+      )}
+
+      {weeklyAttendanceSummary.length > 0 && (
+        <Card
+          title="Weekly Attendance Summary by Day of Week"
+          style={{ marginTop: "20px" }}
+        >
+          <Table
+            columns={weeklyAttendanceSummaryColumns}
+            dataSource={weeklyAttendanceSummary}
+            rowKey="dayOfWeek"
+            pagination={false}
+            scroll={{ x: 300 }}
+            size="small"
+          />
+        </Card>
+      )}
     </div>
   );
 };
