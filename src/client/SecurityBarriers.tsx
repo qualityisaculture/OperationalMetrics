@@ -54,6 +54,7 @@ interface CombinedUserData {
   holidayDays: number | string;
   weeklyHours: number | string;
   daysInOffice: number | string;
+  difference: number | string;
 }
 
 interface UserListEntry {
@@ -870,20 +871,31 @@ const WeWork: React.FC<WeWorkProps> = () => {
           : "None"
       );
 
+      const barrierDaysValue = barrierPerson
+        ? barrierPerson.uniqueDays
+        : "Data not found";
+      const daysInOfficeValue = partTimePerson
+        ? partTimePerson.daysInOffice * 4.5
+        : 9;
+
+      // Calculate difference: Barrier Days - Agreed Days in Office per month
+      const difference =
+        typeof barrierDaysValue === "number" &&
+        typeof daysInOfficeValue === "number"
+          ? barrierDaysValue - daysInOfficeValue
+          : "Data not found";
+
       combined.push({
         fullName: user.fullName,
         firstName: user.firstName,
         lastName: user.lastName,
-        barrierDays: barrierPerson
-          ? barrierPerson.uniqueDays
-          : "Data not found",
+        barrierDays: barrierDaysValue,
         holidayDays: holidayPerson ? holidayPerson.totalHolidayDays : 0,
         weeklyHours: partTimePerson
           ? partTimePerson.weeklyHours
           : "Data not found",
-        daysInOffice: partTimePerson
-          ? partTimePerson.daysInOffice
-          : "Data not found",
+        daysInOffice: daysInOfficeValue,
+        difference: difference,
       });
     });
 
@@ -931,7 +943,8 @@ const WeWork: React.FC<WeWorkProps> = () => {
       "Barrier Days",
       "Holiday Days",
       "Weekly Hours",
-      "Agreed Days in Office Per Week",
+      "Agreed Days in Office Per Month",
+      "Difference",
     ];
 
     // Create data rows
@@ -942,6 +955,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
       user.holidayDays,
       user.weeklyHours,
       user.daysInOffice,
+      user.difference,
     ]);
 
     // Create worksheet
@@ -1030,7 +1044,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
       },
     },
     {
-      title: "Agreed Days in Office Per Week",
+      title: "Agreed Days in Office Per Month",
       dataIndex: "daysInOffice",
       key: "daysInOffice",
       width: 150,
@@ -1044,6 +1058,24 @@ const WeWork: React.FC<WeWorkProps> = () => {
         const aDays = typeof a.daysInOffice === "number" ? a.daysInOffice : -1;
         const bDays = typeof b.daysInOffice === "number" ? b.daysInOffice : -1;
         return aDays - bDays;
+      },
+    },
+    {
+      title: "Difference",
+      dataIndex: "difference",
+      key: "difference",
+      width: 150,
+      render: (diff: number | string) => {
+        if (typeof diff === "number") {
+          const color = diff < 0 ? "red" : "blue";
+          return <Tag color={color}>{diff}</Tag>;
+        }
+        return <Tag color="red">{diff}</Tag>;
+      },
+      sorter: (a: CombinedUserData, b: CombinedUserData) => {
+        const aDiff = typeof a.difference === "number" ? a.difference : -1;
+        const bDiff = typeof b.difference === "number" ? b.difference : -1;
+        return aDiff - bDiff;
       },
     },
   ];
