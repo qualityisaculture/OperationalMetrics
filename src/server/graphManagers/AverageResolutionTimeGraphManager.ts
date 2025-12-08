@@ -7,6 +7,7 @@ export interface ResolutionTimeIssue {
   summary: string;
   type: string;
   status: string;
+  createdDate: string;
   resolutionDate: string;
   url: string;
   timeInStates: { status: string; days: number }[];
@@ -59,6 +60,7 @@ export default class AverageResolutionTimeGraphManager {
             summary: jira.getSummary(),
             type: jira.getType(),
             status: jira.getStatus(),
+            createdDate: jira.getCreated() ? jira.getCreated().toISOString() : "",
             resolutionDate: jira.fields.resolutiondate || "",
             url: jira.getUrl(),
             timeInStates: timeInStates,
@@ -103,6 +105,7 @@ export default class AverageResolutionTimeGraphManager {
             summary: jira.getSummary(),
             type: jira.getType(),
             status: jira.getStatus(),
+            createdDate: jira.getCreated() ? jira.getCreated().toISOString() : "",
             resolutionDate: jira.fields.resolutiondate || "",
             url: jira.getUrl(),
             timeInStates: timeInStates,
