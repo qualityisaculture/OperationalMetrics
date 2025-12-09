@@ -544,6 +544,53 @@ export default class AverageResolutionTime extends React.Component<
     });
   };
 
+  getQuarterEndDate = (quarter: string): dayjs.Dayjs | null => {
+    if (!quarter) return null;
+    const [quarterStr, yearStr] = quarter.split(" ");
+    const quarterNum = parseInt(quarterStr.replace("Q", ""));
+    const year = parseInt(yearStr);
+
+    // Get the last day of the quarter
+    let month: number;
+    let day: number;
+    if (quarterNum === 1) {
+      month = 3; // March
+      day = 31;
+    } else if (quarterNum === 2) {
+      month = 6; // June
+      day = 30;
+    } else if (quarterNum === 3) {
+      month = 9; // September
+      day = 30;
+    } else {
+      month = 12; // December
+      day = 31;
+    }
+
+    return dayjs(`${year}-${month}-${day}`);
+  };
+
+  isTimePeriodComplete = (
+    quarter: string,
+    category: "1month" | "1quarter" | "2quarters" | "1year" | "greaterThan1Year"
+  ): boolean => {
+    const quarterEnd = this.getQuarterEndDate(quarter);
+    if (!quarterEnd) return true;
+
+    const now = dayjs();
+    const daysSinceQuarterEnd = now.diff(quarterEnd, "day");
+
+    const timePeriods = {
+      "1month": 30,
+      "1quarter": 90,
+      "2quarters": 180,
+      "1year": 365,
+      greaterThan1Year: 365,
+    };
+
+    return daysSinceQuarterEnd >= timePeriods[category];
+  };
+
   render() {
     const {
       projectKeys,
@@ -568,7 +615,7 @@ export default class AverageResolutionTime extends React.Component<
     // Build columns for quarterly summary table
     const quarterlyColumns: ColumnsType<QuarterData> = [
       {
-        title: "Quarter",
+        title: "Quarter Created",
         dataIndex: "quarter",
         key: "quarter",
       },
@@ -635,10 +682,24 @@ export default class AverageResolutionTime extends React.Component<
             record.resolvedWithin2Quarters.length +
             record.resolvedWithin1Year.length +
             record.resolvedGreaterThan1Year.length;
-          const count = record.resolvedWithin1Month.length;
-          const percentage =
-            total > 0 ? ((count / total) * 100).toFixed(1) : "0.0";
-          return `${percentage}% (${count})`;
+          const cumulativeCount = record.resolvedWithin1Month.length;
+          const cumulativePercentage =
+            total > 0 ? ((cumulativeCount / total) * 100).toFixed(1) : "0.0";
+          const isComplete = this.isTimePeriodComplete(
+            record.quarter,
+            "1month"
+          );
+          return (
+            <div
+              style={{
+                backgroundColor: isComplete ? "transparent" : "#fffbe6",
+                padding: "4px 8px",
+                margin: "-4px -8px",
+              }}
+            >
+              {cumulativePercentage}% ({cumulativeCount})
+            </div>
+          );
         },
         sorter: (a: QuarterData, b: QuarterData) =>
           a.resolvedWithin1Month.length - b.resolvedWithin1Month.length,
@@ -655,10 +716,26 @@ export default class AverageResolutionTime extends React.Component<
             record.resolvedWithin2Quarters.length +
             record.resolvedWithin1Year.length +
             record.resolvedGreaterThan1Year.length;
-          const count = record.resolvedWithin1Quarter.length;
-          const percentage =
-            total > 0 ? ((count / total) * 100).toFixed(1) : "0.0";
-          return `${percentage}% (${count})`;
+          const cumulativeCount =
+            record.resolvedWithin1Month.length +
+            record.resolvedWithin1Quarter.length; // 1 month + 1 quarter
+          const cumulativePercentage =
+            total > 0 ? ((cumulativeCount / total) * 100).toFixed(1) : "0.0";
+          const isComplete = this.isTimePeriodComplete(
+            record.quarter,
+            "1quarter"
+          );
+          return (
+            <div
+              style={{
+                backgroundColor: isComplete ? "transparent" : "#fffbe6",
+                padding: "4px 8px",
+                margin: "-4px -8px",
+              }}
+            >
+              {cumulativePercentage}% ({cumulativeCount})
+            </div>
+          );
         },
         sorter: (a: QuarterData, b: QuarterData) =>
           a.resolvedWithin1Quarter.length - b.resolvedWithin1Quarter.length,
@@ -675,10 +752,27 @@ export default class AverageResolutionTime extends React.Component<
             record.resolvedWithin2Quarters.length +
             record.resolvedWithin1Year.length +
             record.resolvedGreaterThan1Year.length;
-          const count = record.resolvedWithin2Quarters.length;
-          const percentage =
-            total > 0 ? ((count / total) * 100).toFixed(1) : "0.0";
-          return `${percentage}% (${count})`;
+          const cumulativeCount =
+            record.resolvedWithin1Month.length +
+            record.resolvedWithin1Quarter.length +
+            record.resolvedWithin2Quarters.length; // 1 month + 1 quarter + 2 quarters
+          const cumulativePercentage =
+            total > 0 ? ((cumulativeCount / total) * 100).toFixed(1) : "0.0";
+          const isComplete = this.isTimePeriodComplete(
+            record.quarter,
+            "2quarters"
+          );
+          return (
+            <div
+              style={{
+                backgroundColor: isComplete ? "transparent" : "#fffbe6",
+                padding: "4px 8px",
+                margin: "-4px -8px",
+              }}
+            >
+              {cumulativePercentage}% ({cumulativeCount})
+            </div>
+          );
         },
         sorter: (a: QuarterData, b: QuarterData) =>
           a.resolvedWithin2Quarters.length - b.resolvedWithin2Quarters.length,
@@ -695,10 +789,25 @@ export default class AverageResolutionTime extends React.Component<
             record.resolvedWithin2Quarters.length +
             record.resolvedWithin1Year.length +
             record.resolvedGreaterThan1Year.length;
-          const count = record.resolvedWithin1Year.length;
-          const percentage =
-            total > 0 ? ((count / total) * 100).toFixed(1) : "0.0";
-          return `${percentage}% (${count})`;
+          const cumulativeCount =
+            record.resolvedWithin1Month.length +
+            record.resolvedWithin1Quarter.length +
+            record.resolvedWithin2Quarters.length +
+            record.resolvedWithin1Year.length; // 1 month + 1 quarter + 2 quarters + 1 year
+          const cumulativePercentage =
+            total > 0 ? ((cumulativeCount / total) * 100).toFixed(1) : "0.0";
+          const isComplete = this.isTimePeriodComplete(record.quarter, "1year");
+          return (
+            <div
+              style={{
+                backgroundColor: isComplete ? "transparent" : "#fffbe6",
+                padding: "4px 8px",
+                margin: "-4px -8px",
+              }}
+            >
+              {cumulativePercentage}% ({cumulativeCount})
+            </div>
+          );
         },
         sorter: (a: QuarterData, b: QuarterData) =>
           a.resolvedWithin1Year.length - b.resolvedWithin1Year.length,
@@ -715,10 +824,25 @@ export default class AverageResolutionTime extends React.Component<
             record.resolvedWithin2Quarters.length +
             record.resolvedWithin1Year.length +
             record.resolvedGreaterThan1Year.length;
-          const count = record.resolvedGreaterThan1Year.length;
-          const percentage =
-            total > 0 ? ((count / total) * 100).toFixed(1) : "0.0";
-          return `${percentage}% (${count})`;
+          const cumulativeCount =
+            record.resolvedWithin1Month.length +
+            record.resolvedWithin1Quarter.length +
+            record.resolvedWithin2Quarters.length +
+            record.resolvedWithin1Year.length +
+            record.resolvedGreaterThan1Year.length; // All resolved
+          const cumulativePercentage =
+            total > 0 ? ((cumulativeCount / total) * 100).toFixed(1) : "0.0";
+          return (
+            <div
+              style={{
+                backgroundColor: "#fffbe6",
+                padding: "4px 8px",
+                margin: "-4px -8px",
+              }}
+            >
+              {cumulativePercentage}% ({cumulativeCount})
+            </div>
+          );
         },
         sorter: (a: QuarterData, b: QuarterData) =>
           a.resolvedGreaterThan1Year.length - b.resolvedGreaterThan1Year.length,
