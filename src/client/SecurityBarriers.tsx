@@ -1004,19 +1004,13 @@ const WeWork: React.FC<WeWorkProps> = () => {
           : "None"
       );
 
-      const barrierDaysValue = barrierPerson
-        ? barrierPerson.uniqueDays
-        : "Data not found";
+      const barrierDaysValue = barrierPerson ? barrierPerson.uniqueDays : 0;
       const daysInOfficeValue = partTimePerson
-        ? partTimePerson.daysInOffice * 4.5
-        : 9;
+        ? partTimePerson.daysInOffice * 4
+        : 8;
 
       // Calculate difference: Barrier Days - Agreed Days in Office per month
-      const difference =
-        typeof barrierDaysValue === "number" &&
-        typeof daysInOfficeValue === "number"
-          ? barrierDaysValue - daysInOfficeValue
-          : "Data not found";
+      const difference = barrierDaysValue - daysInOfficeValue;
 
       combined.push({
         fullName: user.fullName,
@@ -1075,7 +1069,6 @@ const WeWork: React.FC<WeWorkProps> = () => {
       "Last Name",
       "Barrier Days",
       "Holiday Days",
-      "Weekly Hours",
       "Agreed Days in Office Per Month",
       "Difference",
     ];
@@ -1086,7 +1079,6 @@ const WeWork: React.FC<WeWorkProps> = () => {
       user.lastName,
       user.barrierDays,
       user.holidayDays,
-      user.weeklyHours,
       user.daysInOffice,
       user.difference,
     ]);
