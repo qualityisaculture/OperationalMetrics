@@ -1339,6 +1339,46 @@ metricsRoute.post(
   }
 );
 
+// API route to get labels for a list of Jira issues
+metricsRoute.post(
+  "/tempo-analyzer/labels",
+  (req: TRB<{ issueKeys: string[] }>, res: TR<{ message: string; data: string }>) => {
+    const { issueKeys } = req.body;
+
+    if (!issueKeys || !Array.isArray(issueKeys) || issueKeys.length === 0) {
+      res.json({
+        message: "issueKeys array is required and must not be empty",
+        data: JSON.stringify({}),
+      });
+      return;
+    }
+
+    console.log(`Fetching labels for ${issueKeys.length} issues`);
+
+    jiraRequester
+      .getLabelsForIssues(issueKeys)
+      .then((labelsMap) => {
+        // Convert Map to object for JSON serialization
+        const result: Record<string, string[]> = {};
+        labelsMap.forEach((labels, key) => {
+          result[key] = labels;
+        });
+
+        res.json({
+          message: "Labels fetched successfully",
+          data: JSON.stringify(result),
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching labels:", error);
+        res.json({
+          message: "Error fetching labels",
+          data: JSON.stringify({}),
+        });
+      });
+  }
+);
+
 // BitBucket API route for repositories
 metricsRoute.get(
   "/bitbucket/repositories",

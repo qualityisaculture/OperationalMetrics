@@ -5,6 +5,7 @@ import { useExcelProcessor } from "./hooks/useExcelProcessor";
 import { useTempoAnalyzer } from "./hooks/useTempoAnalyzer";
 import { useUserGroups } from "./hooks/useUserGroups";
 import { useParentAncestors } from "./hooks/useParentAncestors";
+import { useLabels } from "./hooks/useLabels";
 import { Props } from "./types";
 import { FileUpload } from "./components/FileUpload";
 import { SheetManager } from "./components/SheetManager";
@@ -17,6 +18,11 @@ import { UserGroupManager } from "./components/UserGroupManager";
 import { TeamSummary } from "./components/TeamSummary";
 import { ParentAncestorsView } from "./components/ParentAncestorsView";
 import { ParentAncestorsModal } from "./components/ParentAncestorsModal";
+import {
+  SankeySelector,
+  SankeySelectorConfig,
+} from "./components/SankeySelector";
+import { SankeyView } from "./components/SankeyView";
 
 const TempoAnalyzer: React.FC<Props> = () => {
   const {
@@ -52,6 +58,11 @@ const TempoAnalyzer: React.FC<Props> = () => {
     []
   );
 
+  // Sankey selector configuration
+  const [sankeySelectors, setSankeySelectors] = React.useState<
+    SankeySelectorConfig[]
+  >([]);
+
   // Update selected groups when user groups change (default to no filtering)
   React.useEffect(() => {
     // Don't auto-select all groups - let user choose
@@ -69,6 +80,15 @@ const TempoAnalyzer: React.FC<Props> = () => {
     initialAnalyzer.filteredData,
     initialAnalyzer.issueKeyIndex
   );
+
+  // Fetch labels for all issues in the filtered data (manual trigger)
+  // Use initialAnalyzer to get filteredData and issueKeyIndex
+  const {
+    labels,
+    isLoading: isLoadingLabels,
+    fetchLabels,
+    getAllLabels,
+  } = useLabels(initialAnalyzer.filteredData, initialAnalyzer.issueKeyIndex);
 
   // Get issue count for display
   const issueCount = React.useMemo(() => {
@@ -105,6 +125,31 @@ const TempoAnalyzer: React.FC<Props> = () => {
       0
     );
   }, [analyzer.groupedByName]);
+
+  // Get available issue types for Sankey selector
+  const availableIssueTypes = React.useMemo(() => {
+    return Object.keys(analyzer.groupedByIssueType).sort();
+  }, [analyzer.groupedByIssueType]);
+
+  // Get available projects for Sankey selector (extract from issue keys)
+  const availableProjects = React.useMemo(() => {
+    const projects = new Set<string>();
+    if (analyzer.issueKeyIndex !== -1) {
+      analyzer.filteredData.forEach((row) => {
+        const issueKey = row[analyzer.issueKeyIndex.toString()];
+        if (issueKey) {
+          const issueKeyStr = String(issueKey).trim();
+          // Extract project prefix (e.g., "ABC-1" -> "ABC" or "ABC123-4" -> "ABC123")
+          // Match letters and numbers up to the first dash or end of string
+          const projectMatch = issueKeyStr.match(/^([A-Z0-9]+)(?:-|$)/);
+          if (projectMatch) {
+            projects.add(projectMatch[1]);
+          }
+        }
+      });
+    }
+    return Array.from(projects).sort();
+  }, [analyzer.filteredData, analyzer.issueKeyIndex]);
 
   return (
     <div style={{ padding: "20px" }}>
@@ -158,7 +203,33 @@ const TempoAnalyzer: React.FC<Props> = () => {
             Object.keys(analyzer.groupedByIssueType).length > 0 ||
             Object.keys(analyzer.groupedByAncestryType).length > 0) && (
             <div>
-              {!selectedCategory && !selectedUser && !selectedAncestryType ? (
+              {analyzer.summaryViewMode === "sankey" ? (
+                <>
+                  <SankeySelector
+                    availableIssueTypes={availableIssueTypes}
+                    availableLabels={getAllLabels()}
+                    availableProjects={availableProjects}
+                    selectors={sankeySelectors}
+                    onSelectorsChange={setSankeySelectors}
+                    onRequestLabels={fetchLabels}
+                    isLoadingLabels={isLoadingLabels}
+                  />
+                  {sankeySelectors.length > 0 && (
+                    <SankeyView
+                      filteredData={analyzer.filteredData}
+                      issueTypeIndex={analyzer.issueTypeIndex}
+                      issueKeyIndex={analyzer.issueKeyIndex}
+                      loggedHoursIndex={analyzer.loggedHoursIndex}
+                      fullNameIndex={analyzer.fullNameIndex}
+                      accountCategoryIndex={analyzer.accountCategoryIndex}
+                      selectors={sankeySelectors}
+                      labels={labels}
+                    />
+                  )}
+                </>
+              ) : !selectedCategory &&
+                !selectedUser &&
+                !selectedAncestryType ? (
                 <SummaryView
                   summaryViewMode={analyzer.summaryViewMode}
                   totalHours={totalHours}

@@ -1303,6 +1303,51 @@ export default class JiraRequester {
 
       return finalAncestorMap;
     } catch (error) {
+      console.error("Error fetching parent ancestors:", error);
+      throw error;
+    }
+  }
+
+  // Method to get labels for a list of issues
+  async getLabelsForIssues(issueKeys: string[]): Promise<Map<string, string[]>> {
+    try {
+      if (issueKeys.length === 0) {
+        return new Map();
+      }
+
+      const labelsMap = new Map<string, string[]>();
+      const batchSize = 50; // Process 50 issues at a time
+
+      for (let i = 0; i < issueKeys.length; i += batchSize) {
+        const batchKeys = issueKeys.slice(i, i + batchSize);
+
+        const keyConditions = batchKeys
+          .map((key) => `key = "${key}"`)
+          .join(" OR ");
+
+        const jql = `(${keyConditions})`;
+        const fields = "key,labels";
+        const queryWithFields = `${jql}&fields=${fields}`;
+
+        console.log(
+          `Fetching labels for ${batchKeys.length} issues (batch ${Math.floor(i / batchSize) + 1})`
+        );
+
+        const response = await this.requestDataFromServer(queryWithFields);
+
+        for (const issue of response.issues) {
+          const issueKey = issue.key;
+          const labels = issue.fields?.labels || [];
+          labelsMap.set(issueKey, labels);
+        }
+      }
+
+      console.log(
+        `Successfully fetched labels for ${labelsMap.size} issues`
+      );
+
+      return labelsMap;
+    } catch (error) {
       console.error(`Error fetching parent ancestors for issues:`, error);
       throw error;
     }

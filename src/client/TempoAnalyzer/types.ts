@@ -63,7 +63,7 @@ export interface State {
   selectedIssueKey: string | null;
   issueUserData: { [key: string]: number };
   issueTotalHours: number;
-  summaryViewMode: "category" | "name" | "issueType" | "ancestryType";
+  summaryViewMode: "category" | "name" | "issueType" | "ancestryType" | "sankey";
   groupedByName: { [key: string]: number };
   groupedByIssueType: { [key: string]: number };
   groupedByAncestryType: { [key: string]: number };

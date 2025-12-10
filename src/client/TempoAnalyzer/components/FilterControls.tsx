@@ -5,6 +5,7 @@ import {
   UserOutlined,
   TeamOutlined,
   FileTextOutlined,
+  PartitionOutlined,
 } from "@ant-design/icons";
 import { UserGroup } from "../types";
 
@@ -12,9 +13,9 @@ const { Text } = Typography;
 const { Option } = Select;
 
 interface FilterControlsProps {
-  summaryViewMode: "category" | "name" | "issueType" | "ancestryType";
+  summaryViewMode: "category" | "name" | "issueType" | "ancestryType" | "sankey";
   handleSummaryViewModeChange: (
-    mode: "category" | "name" | "issueType" | "ancestryType"
+    mode: "category" | "name" | "issueType" | "ancestryType" | "sankey"
   ) => void;
   secondarySplitMode: "account" | "issueType";
   handleSecondarySplitModeChange: (mode: "account" | "issueType") => void;
@@ -89,6 +90,12 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
             <Radio.Button value="ancestryType">
               <FileTextOutlined style={{ marginRight: "4px" }} />
               Ancestry Type
+            </Radio.Button>
+          )}
+          {hasGroupedByIssueType && (
+            <Radio.Button value="sankey">
+              <PartitionOutlined style={{ marginRight: "4px" }} />
+              Sankey
             </Radio.Button>
           )}
         </Radio.Group>
