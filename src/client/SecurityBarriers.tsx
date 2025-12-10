@@ -1005,9 +1005,22 @@ const WeWork: React.FC<WeWorkProps> = () => {
       );
 
       const barrierDaysValue = barrierPerson ? barrierPerson.uniqueDays : 0;
-      const daysInOfficeValue = partTimePerson
+      const holidayDaysValue = holidayPerson
+        ? holidayPerson.totalHolidayDays
+        : 0;
+
+      // Calculate base days in office
+      const baseDaysInOffice = partTimePerson
         ? partTimePerson.daysInOffice * 4
         : 8;
+
+      // Reduce required days by 8 * (holidays / 20)
+      // Example: 10 holidays = 8 * (10/20) = 4 days reduction
+      const holidayReduction = Math.ceil(8 * (holidayDaysValue / 20));
+      const daysInOfficeValue = Math.max(
+        0,
+        Math.floor(baseDaysInOffice - holidayReduction)
+      );
 
       // Calculate difference: Barrier Days - Agreed Days in Office per month
       const difference = barrierDaysValue - daysInOfficeValue;
