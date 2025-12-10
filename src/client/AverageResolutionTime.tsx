@@ -9,9 +9,12 @@ import {
   Input,
   Modal,
   Tag,
+  message,
 } from "antd";
+import { DownloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import dayjs, { Dayjs } from "dayjs";
+import * as XLSX from "xlsx";
 
 const { TextArea } = Input;
 
@@ -591,6 +594,223 @@ export default class AverageResolutionTime extends React.Component<
     return daysSinceQuarterEnd >= timePeriods[category];
   };
 
+  exportQuarterlyTableToExcel = (
+    quarterlyData: QuarterData[],
+    issueType: string
+  ) => {
+    if (quarterlyData.length === 0) {
+      message.warning("No data to export");
+      return;
+    }
+
+    try {
+      // Prepare data for export (all data)
+      const exportData = quarterlyData.map((record) => {
+        const total =
+          record.unresolved.length +
+          record.resolvedWithin1Month.length +
+          record.resolvedWithin1Quarter.length +
+          record.resolvedWithin2Quarters.length +
+          record.resolvedWithin1Year.length +
+          record.resolvedGreaterThan1Year.length;
+
+        const unresolvedCount = record.unresolved.length;
+        const unresolvedPercentage =
+          total > 0 ? ((unresolvedCount / total) * 100).toFixed(1) : "0.0";
+
+        const resolvedWithin1MonthCount = record.resolvedWithin1Month.length;
+        const resolvedWithin1MonthCumulative = resolvedWithin1MonthCount;
+        const resolvedWithin1MonthPercentage =
+          total > 0
+            ? ((resolvedWithin1MonthCumulative / total) * 100).toFixed(1)
+            : "0.0";
+
+        const resolvedWithin1QuarterCount =
+          record.resolvedWithin1Month.length +
+          record.resolvedWithin1Quarter.length;
+        const resolvedWithin1QuarterPercentage =
+          total > 0
+            ? ((resolvedWithin1QuarterCount / total) * 100).toFixed(1)
+            : "0.0";
+
+        const resolvedWithin2QuartersCount =
+          record.resolvedWithin1Month.length +
+          record.resolvedWithin1Quarter.length +
+          record.resolvedWithin2Quarters.length;
+        const resolvedWithin2QuartersPercentage =
+          total > 0
+            ? ((resolvedWithin2QuartersCount / total) * 100).toFixed(1)
+            : "0.0";
+
+        const resolvedWithin1YearCount =
+          record.resolvedWithin1Month.length +
+          record.resolvedWithin1Quarter.length +
+          record.resolvedWithin2Quarters.length +
+          record.resolvedWithin1Year.length;
+        const resolvedWithin1YearPercentage =
+          total > 0
+            ? ((resolvedWithin1YearCount / total) * 100).toFixed(1)
+            : "0.0";
+
+        const resolvedGreaterThan1YearCount =
+          record.resolvedWithin1Month.length +
+          record.resolvedWithin1Quarter.length +
+          record.resolvedWithin2Quarters.length +
+          record.resolvedWithin1Year.length +
+          record.resolvedGreaterThan1Year.length;
+        const resolvedGreaterThan1YearPercentage =
+          total > 0
+            ? ((resolvedGreaterThan1YearCount / total) * 100).toFixed(1)
+            : "0.0";
+
+        return {
+          "Quarter Created": record.quarter,
+          Total: total,
+          "Unresolved (%)": unresolvedPercentage,
+          "Unresolved (Count)": unresolvedCount,
+          "Resolved within 1 month (%)": resolvedWithin1MonthPercentage,
+          "Resolved within 1 month (Count)": resolvedWithin1MonthCount,
+          "Resolved within 1 quarter (%)": resolvedWithin1QuarterPercentage,
+          "Resolved within 1 quarter (Count)": resolvedWithin1QuarterCount,
+          "Resolved within 2 quarters (%)": resolvedWithin2QuartersPercentage,
+          "Resolved within 2 quarters (Count)": resolvedWithin2QuartersCount,
+          "Resolved within 1 year (%)": resolvedWithin1YearPercentage,
+          "Resolved within 1 year (Count)": resolvedWithin1YearCount,
+          "Resolved greater than 1 year (%)":
+            resolvedGreaterThan1YearPercentage,
+          "Resolved greater than 1 year (Count)": resolvedGreaterThan1YearCount,
+        };
+      });
+
+      // Prepare data for export (excluding yellow/incomplete data)
+      const exportDataCompleteOnly = quarterlyData.map((record) => {
+        const total =
+          record.unresolved.length +
+          record.resolvedWithin1Month.length +
+          record.resolvedWithin1Quarter.length +
+          record.resolvedWithin2Quarters.length +
+          record.resolvedWithin1Year.length +
+          record.resolvedGreaterThan1Year.length;
+
+        const unresolvedCount = record.unresolved.length;
+        const unresolvedPercentage =
+          total > 0 ? ((unresolvedCount / total) * 100).toFixed(1) : "0.0";
+
+        // Check if time periods are complete
+        const is1MonthComplete = this.isTimePeriodComplete(
+          record.quarter,
+          "1month"
+        );
+        const is1QuarterComplete = this.isTimePeriodComplete(
+          record.quarter,
+          "1quarter"
+        );
+        const is2QuartersComplete = this.isTimePeriodComplete(
+          record.quarter,
+          "2quarters"
+        );
+        const is1YearComplete = this.isTimePeriodComplete(
+          record.quarter,
+          "1year"
+        );
+        // "Resolved greater than 1 year" is always yellow, so we exclude it
+
+        const resolvedWithin1MonthCount = record.resolvedWithin1Month.length;
+        const resolvedWithin1MonthCumulative = resolvedWithin1MonthCount;
+        const resolvedWithin1MonthPercentage = is1MonthComplete
+          ? total > 0
+            ? ((resolvedWithin1MonthCumulative / total) * 100).toFixed(1)
+            : "0.0"
+          : "";
+
+        const resolvedWithin1QuarterCount =
+          record.resolvedWithin1Month.length +
+          record.resolvedWithin1Quarter.length;
+        const resolvedWithin1QuarterPercentage = is1QuarterComplete
+          ? total > 0
+            ? ((resolvedWithin1QuarterCount / total) * 100).toFixed(1)
+            : "0.0"
+          : "";
+
+        const resolvedWithin2QuartersCount =
+          record.resolvedWithin1Month.length +
+          record.resolvedWithin1Quarter.length +
+          record.resolvedWithin2Quarters.length;
+        const resolvedWithin2QuartersPercentage = is2QuartersComplete
+          ? total > 0
+            ? ((resolvedWithin2QuartersCount / total) * 100).toFixed(1)
+            : "0.0"
+          : "";
+
+        const resolvedWithin1YearCount =
+          record.resolvedWithin1Month.length +
+          record.resolvedWithin1Quarter.length +
+          record.resolvedWithin2Quarters.length +
+          record.resolvedWithin1Year.length;
+        const resolvedWithin1YearPercentage = is1YearComplete
+          ? total > 0
+            ? ((resolvedWithin1YearCount / total) * 100).toFixed(1)
+            : "0.0"
+          : "";
+
+        return {
+          "Quarter Created": record.quarter,
+          Total: total,
+          "Unresolved (%)": unresolvedPercentage,
+          "Unresolved (Count)": unresolvedCount,
+          "Resolved within 1 month (%)": resolvedWithin1MonthPercentage,
+          "Resolved within 1 month (Count)": is1MonthComplete
+            ? resolvedWithin1MonthCount
+            : "",
+          "Resolved within 1 quarter (%)": resolvedWithin1QuarterPercentage,
+          "Resolved within 1 quarter (Count)": is1QuarterComplete
+            ? resolvedWithin1QuarterCount
+            : "",
+          "Resolved within 2 quarters (%)": resolvedWithin2QuartersPercentage,
+          "Resolved within 2 quarters (Count)": is2QuartersComplete
+            ? resolvedWithin2QuartersCount
+            : "",
+          "Resolved within 1 year (%)": resolvedWithin1YearPercentage,
+          "Resolved within 1 year (Count)": is1YearComplete
+            ? resolvedWithin1YearCount
+            : "",
+          "Resolved greater than 1 year (%)": "",
+          "Resolved greater than 1 year (Count)": "",
+        };
+      });
+
+      // Create workbook and worksheets
+      const workbook = XLSX.utils.book_new();
+      const worksheetAll = XLSX.utils.json_to_sheet(exportData);
+      const worksheetCompleteOnly = XLSX.utils.json_to_sheet(
+        exportDataCompleteOnly
+      );
+
+      // Add worksheets to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheetAll, "All Data");
+      XLSX.utils.book_append_sheet(
+        workbook,
+        worksheetCompleteOnly,
+        "Complete Periods Only"
+      );
+
+      // Generate filename
+      const sanitizedType = issueType.replace(/[^a-zA-Z0-9]/g, "_");
+      const dateStr = dayjs().format("YYYY-MM-DD");
+      const filename = `average_resolution_time_${sanitizedType}_${dateStr}.xlsx`;
+
+      // Write file
+      XLSX.writeFile(workbook, filename);
+
+      message.success(
+        `Exported ${quarterlyData.length} quarters to ${filename} (2 sheets)`
+      );
+    } catch (error) {
+      console.error("Error exporting to Excel:", error);
+      message.error("Failed to export data to Excel");
+    }
+  };
+
   render() {
     const {
       projectKeys,
@@ -1089,28 +1309,49 @@ export default class AverageResolutionTime extends React.Component<
               {Array.from(issuesByType.entries()).map(
                 ([issueType, quarterlyData]) => (
                   <div key={issueType} style={{ marginBottom: 32 }}>
-                    <Text
-                      strong
+                    <Space
                       style={{
-                        fontSize: "18px",
-                        display: "block",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
                         marginBottom: 16,
                       }}
                     >
-                      {issueType} (
-                      {quarterlyData.reduce((sum, q) => {
-                        return (
-                          sum +
-                          q.unresolved.length +
-                          q.resolvedWithin1Month.length +
-                          q.resolvedWithin1Quarter.length +
-                          q.resolvedWithin2Quarters.length +
-                          q.resolvedWithin1Year.length +
-                          q.resolvedGreaterThan1Year.length
-                        );
-                      }, 0)}{" "}
-                      issues)
-                    </Text>
+                      <Text
+                        strong
+                        style={{
+                          fontSize: "18px",
+                        }}
+                      >
+                        {issueType} (
+                        {quarterlyData.reduce((sum, q) => {
+                          return (
+                            sum +
+                            q.unresolved.length +
+                            q.resolvedWithin1Month.length +
+                            q.resolvedWithin1Quarter.length +
+                            q.resolvedWithin2Quarters.length +
+                            q.resolvedWithin1Year.length +
+                            q.resolvedGreaterThan1Year.length
+                          );
+                        }, 0)}{" "}
+                        issues)
+                      </Text>
+                      {quarterlyData.length > 0 && (
+                        <Button
+                          type="primary"
+                          icon={<DownloadOutlined />}
+                          onClick={() =>
+                            this.exportQuarterlyTableToExcel(
+                              quarterlyData,
+                              issueType
+                            )
+                          }
+                        >
+                          Export to Excel
+                        </Button>
+                      )}
+                    </Space>
                     {quarterlyData.length === 0 ? (
                       <Text
                         type="warning"
