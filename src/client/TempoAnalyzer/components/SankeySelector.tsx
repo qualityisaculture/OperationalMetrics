@@ -13,7 +13,7 @@ const { Text } = Typography;
 export interface SankeySelectorConfig {
   id: string;
   name?: string;
-  type: "Type" | "Label" | "Project";
+  type: "Type" | "Label" | "Project" | "Key";
   selectedValues: string[];
 }
 
@@ -21,6 +21,7 @@ interface SankeySelectorProps {
   availableIssueTypes: string[];
   availableLabels: string[];
   availableProjects: string[];
+  availableIssueKeys: string[];
   selectors: SankeySelectorConfig[];
   onSelectorsChange: (selectors: SankeySelectorConfig[]) => void;
   onRequestLabels: () => void;
@@ -31,6 +32,7 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
   availableIssueTypes,
   availableLabels,
   availableProjects,
+  availableIssueKeys,
   selectors,
   onSelectorsChange,
   onRequestLabels,
@@ -50,7 +52,10 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
     onSelectorsChange(selectors.filter((s) => s.id !== id));
   };
 
-  const updateSelector = (id: string, updates: Partial<SankeySelectorConfig>) => {
+  const updateSelector = (
+    id: string,
+    updates: Partial<SankeySelectorConfig>
+  ) => {
     onSelectorsChange(
       selectors.map((s) => (s.id === id ? { ...s, ...updates } : s))
     );
@@ -168,7 +173,7 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                     value={selector.type}
                     onChange={(value) =>
                       updateSelector(selector.id, {
-                        type: value as "Type" | "Label" | "Project",
+                        type: value as "Type" | "Label" | "Project" | "Key",
                         selectedValues: [], // Clear selected values when type changes
                       })
                     }
@@ -177,6 +182,7 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                     <Option value="Type">Type</Option>
                     <Option value="Label">Label</Option>
                     <Option value="Project">Project</Option>
+                    <Option value="Key">Key</Option>
                   </Select>
                 </div>
                 <div>
@@ -185,7 +191,9 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                       ? "Select Issue Types:"
                       : selector.type === "Label"
                         ? "Select Labels:"
-                        : "Select Projects:"}
+                        : selector.type === "Project"
+                          ? "Select Projects:"
+                          : "Select Issue Keys:"}
                   </Text>
                   <Select
                     mode="multiple"
@@ -194,7 +202,9 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                         ? "Select issue types"
                         : selector.type === "Label"
                           ? "Select labels"
-                          : "Select projects"
+                          : selector.type === "Project"
+                            ? "Select projects"
+                            : "Select issue keys"
                     }
                     value={selector.selectedValues}
                     onChange={(values) =>
@@ -203,8 +213,12 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                     style={{ width: "100%" }}
                     allowClear
                     disabled={
-                      (selector.type === "Label" && availableLabels.length === 0) ||
-                      (selector.type === "Project" && availableProjects.length === 0)
+                      (selector.type === "Label" &&
+                        availableLabels.length === 0) ||
+                      (selector.type === "Project" &&
+                        availableProjects.length === 0) ||
+                      (selector.type === "Key" &&
+                        availableIssueKeys.length === 0)
                     }
                   >
                     {selector.type === "Type"
@@ -219,11 +233,17 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                               {label}
                             </Option>
                           ))
-                        : availableProjects.map((project) => (
-                            <Option key={project} value={project}>
-                              {project}
-                            </Option>
-                          ))}
+                        : selector.type === "Project"
+                          ? availableProjects.map((project) => (
+                              <Option key={project} value={project}>
+                                {project}
+                              </Option>
+                            ))
+                          : availableIssueKeys.map((key) => (
+                              <Option key={key} value={key}>
+                                {key}
+                              </Option>
+                            ))}
                   </Select>
                   {selector.type === "Label" &&
                     availableLabels.length === 0 && (
@@ -235,7 +255,14 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                   {selector.type === "Project" &&
                     availableProjects.length === 0 && (
                       <Text type="secondary" style={{ fontSize: "12px" }}>
-                        No projects available. Projects are extracted from issue keys.
+                        No projects available. Projects are extracted from issue
+                        keys.
+                      </Text>
+                    )}
+                  {selector.type === "Key" &&
+                    availableIssueKeys.length === 0 && (
+                      <Text type="secondary" style={{ fontSize: "12px" }}>
+                        No issue keys available.
                       </Text>
                     )}
                 </div>
@@ -247,4 +274,3 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
     </Card>
   );
 };
-

@@ -151,6 +151,23 @@ const TempoAnalyzer: React.FC<Props> = () => {
     return Array.from(projects).sort();
   }, [analyzer.filteredData, analyzer.issueKeyIndex]);
 
+  // Get available issue keys for Sankey selector
+  const availableIssueKeys = React.useMemo(() => {
+    const keys = new Set<string>();
+    if (analyzer.issueKeyIndex !== -1) {
+      analyzer.filteredData.forEach((row) => {
+        const issueKey = row[analyzer.issueKeyIndex.toString()];
+        if (issueKey) {
+          const key = String(issueKey).trim();
+          if (key) {
+            keys.add(key);
+          }
+        }
+      });
+    }
+    return Array.from(keys).sort();
+  }, [analyzer.filteredData, analyzer.issueKeyIndex]);
+
   return (
     <div style={{ padding: "20px" }}>
       <Card>
@@ -209,6 +226,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
                     availableIssueTypes={availableIssueTypes}
                     availableLabels={getAllLabels()}
                     availableProjects={availableProjects}
+                    availableIssueKeys={availableIssueKeys}
                     selectors={sankeySelectors}
                     onSelectorsChange={setSankeySelectors}
                     onRequestLabels={fetchLabels}

@@ -99,6 +99,16 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
             matched = true;
             break; // Item matches first selector, stop checking
           }
+        } else if (selector.type === "Key") {
+          if (!issueKey) continue;
+          const issueKeyStr = String(issueKey).trim();
+          
+          if (selector.selectedValues.includes(issueKeyStr)) {
+            const label = `Selector ${i + 1}`;
+            hours[label] = (hours[label] || 0) + loggedHours;
+            matched = true;
+            break; // Item matches first selector, stop checking
+          }
         }
       }
 
@@ -135,6 +145,11 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         return `${baseName} (Project: none selected)`;
       }
       return `${baseName} (Project: ${selector.selectedValues.join(", ")})`;
+    } else if (selector.type === "Key") {
+      if (selector.selectedValues.length === 0) {
+        return `${baseName} (Key: none selected)`;
+      }
+      return `${baseName} (Key: ${selector.selectedValues.join(", ")})`;
     }
     return baseName;
   };
@@ -251,9 +266,17 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
           } else if (sel.type === "Project") {
             if (issueKey) {
               const issueKeyStr = String(issueKey).trim();
-              const projectMatch = issueKeyStr.match(/^([A-Z0-9]+)/);
+              const projectMatch = issueKeyStr.match(/^([A-Z0-9]+)(?:-|$)/);
               const project = projectMatch ? projectMatch[1] : null;
               if (project && sel.selectedValues.includes(project)) {
+                matchedAny = true;
+                break;
+              }
+            }
+          } else if (sel.type === "Key") {
+            if (issueKey) {
+              const issueKeyStr = String(issueKey).trim();
+              if (sel.selectedValues.includes(issueKeyStr)) {
                 matchedAny = true;
                 break;
               }
@@ -279,9 +302,14 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
           if (issueKey) {
             const issueKeyStr = String(issueKey).trim();
             // Extract project prefix (e.g., "ABC-1" -> "ABC" or "ABC123-4" -> "ABC123")
-            const projectMatch = issueKeyStr.match(/^([A-Z0-9]+)/);
+            const projectMatch = issueKeyStr.match(/^([A-Z0-9]+)(?:-|$)/);
             const project = projectMatch ? projectMatch[1] : null;
             matches = project !== null && selector.selectedValues.includes(project);
+          }
+        } else if (selector.type === "Key") {
+          if (issueKey) {
+            const issueKeyStr = String(issueKey).trim();
+            matches = selector.selectedValues.includes(issueKeyStr);
           }
         }
       }

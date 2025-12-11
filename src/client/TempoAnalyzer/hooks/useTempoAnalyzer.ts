@@ -190,7 +190,7 @@ export const useTempoAnalyzer = (
     showParentAncestorsModal: false,
     selectedAncestorsIssueKey: null,
     selectedAncestorsIssueType: null,
-    excludeHolidayAbsence: true,
+    excludeHolidayAbsence: false,
     excludeStartDate: null,
     excludeEndDate: null,
     showOtherTeams: false,
