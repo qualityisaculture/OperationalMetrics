@@ -120,6 +120,9 @@ const WeWork: React.FC<WeWorkProps> = () => {
   const [weeklyAttendanceSummary, setWeeklyAttendanceSummary] = useState<
     WeeklyAttendanceSummary[]
   >([]);
+  const [unmatchedBarrierUsers, setUnmatchedBarrierUsers] = useState<
+    PersonSummary[]
+  >([]);
 
   const processPersonSummaries = (data: WeWorkEntry[]) => {
     const personMap = new Map<string, PersonSummary>();
@@ -768,6 +771,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
         ioana: ["ioana maria"],
         agi: ["agnes"],
         natasa: ["nataša"],
+        petre: ["petre-iulian"],
       };
 
       // Check if either name is an abbreviation of the other
@@ -813,6 +817,12 @@ const WeWork: React.FC<WeWorkProps> = () => {
       const lastNameAliases: { [key: string]: string[] } = {
         sproule: ["donald"],
         donald: ["sproule"],
+        truchel: ["arkadiusz"],
+        arkadiusz: ["truchel"],
+        iulian: ["dumitru"],
+        dumitru: ["iulian"],
+        dominique: ["cahu"],
+        cahu: ["dominique"],
       };
 
       // Check if either name is an alias of the other
@@ -1052,10 +1062,47 @@ const WeWork: React.FC<WeWorkProps> = () => {
 
     setCombinedData(combined);
 
+    // Find barrier users that don't match any user in the user list
+    const unmatched: PersonSummary[] = [];
+
+    if (userList.length > 0) {
+      personSummaries.forEach((barrierPerson) => {
+        // Check if this barrier person matches any user in the user list
+        const hasMatch = usersToShow.some((user) => {
+          // Try exact match first
+          const normalizedBarrierName = normalizeName(barrierPerson.fullName);
+          const normalizedUserName = normalizeName(user.fullName);
+
+          if (normalizedBarrierName === normalizedUserName) {
+            return true;
+          }
+
+          // Try smart name matching
+          return smartNameMatch(
+            barrierPerson.firstName,
+            barrierPerson.lastName,
+            user.firstName,
+            user.lastName
+          );
+        });
+
+        // If no match found, add to unmatched list
+        if (!hasMatch) {
+          unmatched.push(barrierPerson);
+        }
+      });
+
+      // Sort unmatched by name
+      unmatched.sort((a, b) => a.fullName.localeCompare(b.fullName));
+    }
+
+    setUnmatchedBarrierUsers(unmatched);
+
     // Debug: Log the full barrier list for comparison
     console.log("Full barrier list:", personSummaries);
     console.log("Full holiday list:", holidaySummaries);
     console.log("Final combined data:", combined);
+    console.log("Unmatched barrier users:", unmatched);
 
     message.success(`Calculated combined data for ${combined.length} users`);
   };
@@ -1215,6 +1262,43 @@ const WeWork: React.FC<WeWorkProps> = () => {
         const bDiff = typeof b.difference === "number" ? b.difference : -1;
         return aDiff - bDiff;
       },
+    },
+  ];
+
+  const unmatchedBarrierColumns = [
+    {
+      title: "First Name",
+      dataIndex: "firstName",
+      key: "firstName",
+      width: 150,
+      sorter: (a: PersonSummary, b: PersonSummary) =>
+        a.firstName.localeCompare(b.firstName),
+    },
+    {
+      title: "Last Name",
+      dataIndex: "lastName",
+      key: "lastName",
+      width: 150,
+      sorter: (a: PersonSummary, b: PersonSummary) =>
+        a.lastName.localeCompare(b.lastName),
+    },
+    {
+      title: "Barrier Days",
+      dataIndex: "uniqueDays",
+      key: "uniqueDays",
+      width: 150,
+      render: (days: number) => <Tag color="orange">{days}</Tag>,
+      sorter: (a: PersonSummary, b: PersonSummary) =>
+        b.uniqueDays - a.uniqueDays,
+    },
+    {
+      title: "Total Entries",
+      dataIndex: "totalEntries",
+      key: "totalEntries",
+      width: 150,
+      render: (entries: number) => <Tag color="cyan">{entries}</Tag>,
+      sorter: (a: PersonSummary, b: PersonSummary) =>
+        b.totalEntries - a.totalEntries,
     },
   ];
 
@@ -1407,6 +1491,22 @@ const WeWork: React.FC<WeWorkProps> = () => {
           </Button>
         </div>
       </Card>
+
+      {combinedData.length > 0 && unmatchedBarrierUsers.length > 0 && (
+        <Card
+          title={`⚠️ Unmatched Barrier Users (${unmatchedBarrierUsers.length} users not in user list)`}
+          style={{ marginBottom: "20px", borderColor: "#faad14" }}
+        >
+          <Table
+            columns={unmatchedBarrierColumns}
+            dataSource={unmatchedBarrierUsers}
+            rowKey="fullName"
+            pagination={{ pageSize: 10 }}
+            scroll={{ x: 600 }}
+            size="small"
+          />
+        </Card>
+      )}
 
       {combinedData.length > 0 && (
         <Card
