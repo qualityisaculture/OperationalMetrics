@@ -871,6 +871,84 @@ export default class AverageResolutionTime extends React.Component<
         },
       },
       {
+        title: "Average Time In State for Resolved (days)",
+        key: "avgTimeInStateResolved",
+        render: (_: any, record: QuarterData) => {
+          // Gather all resolved issues for the quarter
+          const resolvedIssues: ResolutionTimeIssue[] = [
+            ...record.resolvedWithin1Month,
+            ...record.resolvedWithin1Quarter,
+            ...record.resolvedWithin2Quarters,
+            ...record.resolvedWithin1Year,
+            ...record.resolvedGreaterThan1Year,
+          ];
+
+          if (resolvedIssues.length === 0) {
+            return "-";
+          }
+
+          const selected = this.state.selectedStates;
+
+          // For each resolved issue, sum the time spent in the selected states,
+          // then average across all resolved issues in this quarter.
+          const totalDaysAcrossIssues = resolvedIssues.reduce(
+            (issueSum, issue) => {
+              const timeInSelectedStates = issue.timeInStates.reduce(
+                (stateSum, state) =>
+                  selected.includes(state.status)
+                    ? stateSum + state.days
+                    : stateSum,
+                0
+              );
+              return issueSum + timeInSelectedStates;
+            },
+            0
+          );
+
+          const averageDays =
+            totalDaysAcrossIssues / resolvedIssues.length || 0;
+
+          return averageDays.toFixed(2);
+        },
+        sorter: (a: QuarterData, b: QuarterData) => {
+          const getAverage = (record: QuarterData) => {
+            const resolvedIssues: ResolutionTimeIssue[] = [
+              ...record.resolvedWithin1Month,
+              ...record.resolvedWithin1Quarter,
+              ...record.resolvedWithin2Quarters,
+              ...record.resolvedWithin1Year,
+              ...record.resolvedGreaterThan1Year,
+            ];
+
+            if (resolvedIssues.length === 0) {
+              return 0;
+            }
+
+            const selected = this.state.selectedStates;
+
+            const totalDaysAcrossIssues = resolvedIssues.reduce(
+              (issueSum, issue) => {
+                const timeInSelectedStates = issue.timeInStates.reduce(
+                  (stateSum, state) =>
+                    selected.includes(state.status)
+                      ? stateSum + state.days
+                      : stateSum,
+                  0
+                );
+                return issueSum + timeInSelectedStates;
+              },
+              0
+            );
+
+            return totalDaysAcrossIssues / resolvedIssues.length || 0;
+          };
+
+          const avgA = getAverage(a);
+          const avgB = getAverage(b);
+          return avgA - avgB;
+        },
+      },
+      {
         title: "Unresolved",
         key: "unresolved",
         dataIndex: "unresolved",
