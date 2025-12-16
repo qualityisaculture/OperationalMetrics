@@ -594,6 +594,98 @@ export default class AverageResolutionTime extends React.Component<
     return daysSinceQuarterEnd >= timePeriods[category];
   };
 
+  exportAllIssuesToExcelForType = (
+    quarterlyData: QuarterData[],
+    issueType: string
+  ) => {
+    if (!quarterlyData || quarterlyData.length === 0) {
+      message.warning("No data to export");
+      return;
+    }
+
+    try {
+      // Flatten all issues across all quarters (resolved and unresolved)
+      const allIssuesMap = new Map<string, ResolutionTimeIssue>();
+      const allStatusesSet = new Set<string>();
+
+      quarterlyData.forEach((record) => {
+        const allQuarterIssues: ResolutionTimeIssue[] = [
+          ...record.unresolved,
+          ...record.resolvedWithin1Month,
+          ...record.resolvedWithin1Quarter,
+          ...record.resolvedWithin2Quarters,
+          ...record.resolvedWithin1Year,
+          ...record.resolvedGreaterThan1Year,
+        ];
+
+        allQuarterIssues.forEach((issue) => {
+          if (!allIssuesMap.has(issue.key)) {
+            allIssuesMap.set(issue.key, issue);
+          }
+          issue.timeInStates.forEach((state) => {
+            allStatusesSet.add(state.status);
+          });
+        });
+      });
+
+      const allIssues = Array.from(allIssuesMap.values());
+
+      if (allIssues.length === 0) {
+        message.warning("No issues to export");
+        return;
+      }
+
+      const allStatuses = Array.from(allStatusesSet).sort();
+
+      // Build export rows: base fields + one column per status
+      const exportData = allIssues.map((issue) => {
+        const row: Record<string, string | number> = {
+          Key: issue.key,
+          Summary: issue.summary,
+          Type: issue.type,
+          Status: issue.status,
+          // Use real Date objects so Excel recognises these as dates
+          "Created Date": issue.createdDate
+            ? new Date(issue.createdDate)
+            : "",
+          "Resolution Date": issue.resolutionDate
+            ? new Date(issue.resolutionDate)
+            : "",
+        };
+
+        allStatuses.forEach((statusName) => {
+          const timeForStatus = issue.timeInStates.find(
+            (s) => s.status === statusName
+          );
+          // Keep these as numbers so Excel recognises them as numeric cells
+          row[statusName] =
+            timeForStatus && typeof timeForStatus.days === "number"
+              ? Math.round(timeForStatus.days * 100) / 100
+              : "";
+        });
+
+        return row;
+      });
+
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      XLSX.utils.book_append_sheet(workbook, worksheet, "All Issues");
+
+      const sanitizedType = issueType.replace(/[^a-zA-Z0-9]/g, "_");
+      const dateStr = dayjs().format("YYYY-MM-DD");
+      const filename = `average_resolution_time_all_issues_${sanitizedType}_${dateStr}.xlsx`;
+
+      XLSX.writeFile(workbook, filename);
+
+      message.success(
+        `Exported ${allIssues.length} issues with status time columns to ${filename}`
+      );
+    } catch (error) {
+      console.error("Error exporting all issues to Excel:", error);
+      message.error("Failed to export all issue data to Excel");
+    }
+  };
+
   exportQuarterlyTableToExcel = (
     quarterlyData: QuarterData[],
     issueType: string
@@ -832,6 +924,55 @@ export default class AverageResolutionTime extends React.Component<
       selectedStates
     );
 
+    // Helper to get total time in selected states for each resolved issue in a quarter
+    const getResolvedDurationsForQuarter = (record: QuarterData): number[] => {
+      const resolvedIssues: ResolutionTimeIssue[] = [
+        ...record.resolvedWithin1Month,
+        ...record.resolvedWithin1Quarter,
+        ...record.resolvedWithin2Quarters,
+        ...record.resolvedWithin1Year,
+        ...record.resolvedGreaterThan1Year,
+      ];
+
+      if (resolvedIssues.length === 0) {
+        return [];
+      }
+
+      const selected = this.state.selectedStates;
+
+      return resolvedIssues.map((issue) =>
+        issue.timeInStates.reduce((sum, state) => {
+          return selected.includes(state.status) ? sum + state.days : sum;
+        }, 0)
+      );
+    };
+
+    const calculateMedian = (values: number[]): number => {
+      if (!values.length) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      const n = sorted.length;
+      const mid = Math.floor(n / 2);
+      if (n % 2 === 1) {
+        return sorted[mid];
+      }
+      return (sorted[mid - 1] + sorted[mid]) / 2;
+    };
+
+    const calculatePercentile = (values: number[], percentile: number): number => {
+      if (!values.length) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      const n = sorted.length;
+      if (n === 1) return sorted[0];
+      const index = (n - 1) * percentile;
+      const lower = Math.floor(index);
+      const upper = Math.ceil(index);
+      if (lower === upper) {
+        return sorted[lower];
+      }
+      const weight = index - lower;
+      return sorted[lower] + (sorted[upper] - sorted[lower]) * weight;
+    };
+
     // Build columns for quarterly summary table
     const quarterlyColumns: ColumnsType<QuarterData> = [
       {
@@ -871,81 +1012,79 @@ export default class AverageResolutionTime extends React.Component<
         },
       },
       {
-        title: "Average Time In State for Resolved (days)",
+        title: "Mean Average Time In State for Resolved (days)",
         key: "avgTimeInStateResolved",
         render: (_: any, record: QuarterData) => {
-          // Gather all resolved issues for the quarter
-          const resolvedIssues: ResolutionTimeIssue[] = [
-            ...record.resolvedWithin1Month,
-            ...record.resolvedWithin1Quarter,
-            ...record.resolvedWithin2Quarters,
-            ...record.resolvedWithin1Year,
-            ...record.resolvedGreaterThan1Year,
-          ];
+          const durations = getResolvedDurationsForQuarter(record);
 
-          if (resolvedIssues.length === 0) {
+          if (durations.length === 0) {
             return "-";
           }
 
-          const selected = this.state.selectedStates;
-
-          // For each resolved issue, sum the time spent in the selected states,
-          // then average across all resolved issues in this quarter.
-          const totalDaysAcrossIssues = resolvedIssues.reduce(
-            (issueSum, issue) => {
-              const timeInSelectedStates = issue.timeInStates.reduce(
-                (stateSum, state) =>
-                  selected.includes(state.status)
-                    ? stateSum + state.days
-                    : stateSum,
-                0
-              );
-              return issueSum + timeInSelectedStates;
-            },
+          const totalDaysAcrossIssues = durations.reduce(
+            (sum, value) => sum + value,
             0
           );
 
           const averageDays =
-            totalDaysAcrossIssues / resolvedIssues.length || 0;
+            totalDaysAcrossIssues / durations.length || 0;
 
           return averageDays.toFixed(2);
         },
         sorter: (a: QuarterData, b: QuarterData) => {
           const getAverage = (record: QuarterData) => {
-            const resolvedIssues: ResolutionTimeIssue[] = [
-              ...record.resolvedWithin1Month,
-              ...record.resolvedWithin1Quarter,
-              ...record.resolvedWithin2Quarters,
-              ...record.resolvedWithin1Year,
-              ...record.resolvedGreaterThan1Year,
-            ];
-
-            if (resolvedIssues.length === 0) {
-              return 0;
-            }
-
-            const selected = this.state.selectedStates;
-
-            const totalDaysAcrossIssues = resolvedIssues.reduce(
-              (issueSum, issue) => {
-                const timeInSelectedStates = issue.timeInStates.reduce(
-                  (stateSum, state) =>
-                    selected.includes(state.status)
-                      ? stateSum + state.days
-                      : stateSum,
-                  0
-                );
-                return issueSum + timeInSelectedStates;
-              },
+            const durations = getResolvedDurationsForQuarter(record);
+            if (!durations.length) return 0;
+            const totalDaysAcrossIssues = durations.reduce(
+              (sum, value) => sum + value,
               0
             );
-
-            return totalDaysAcrossIssues / resolvedIssues.length || 0;
+            return totalDaysAcrossIssues / durations.length || 0;
           };
 
           const avgA = getAverage(a);
           const avgB = getAverage(b);
           return avgA - avgB;
+        },
+      },
+      {
+        title: "P(50) Median Time In State for Resolved (days)",
+        key: "p50TimeInStateResolved",
+        render: (_: any, record: QuarterData) => {
+          const durations = getResolvedDurationsForQuarter(record);
+          if (!durations.length) {
+            return "-";
+          }
+          const median = calculateMedian(durations);
+          return median.toFixed(2);
+        },
+        sorter: (a: QuarterData, b: QuarterData) => {
+          const medianA = calculateMedian(getResolvedDurationsForQuarter(a));
+          const medianB = calculateMedian(getResolvedDurationsForQuarter(b));
+          return medianA - medianB;
+        },
+      },
+      {
+        title: "P(90) Time In State for Resolved (days)",
+        key: "p90TimeInStateResolved",
+        render: (_: any, record: QuarterData) => {
+          const durations = getResolvedDurationsForQuarter(record);
+          if (!durations.length) {
+            return "-";
+          }
+          const p90 = calculatePercentile(durations, 0.9);
+          return p90.toFixed(2);
+        },
+        sorter: (a: QuarterData, b: QuarterData) => {
+          const p90A = calculatePercentile(
+            getResolvedDurationsForQuarter(a),
+            0.9
+          );
+          const p90B = calculatePercentile(
+            getResolvedDurationsForQuarter(b),
+            0.9
+          );
+          return p90A - p90B;
         },
       },
       {
@@ -1162,6 +1301,7 @@ export default class AverageResolutionTime extends React.Component<
         title: "Key",
         dataIndex: "key",
         key: "key",
+        sorter: (a, b) => a.key.localeCompare(b.key),
         render: (text: string, record) => (
           <a href={record.url} target="_blank" rel="noopener noreferrer">
             {text}
@@ -1172,21 +1312,56 @@ export default class AverageResolutionTime extends React.Component<
         title: "Summary",
         dataIndex: "summary",
         key: "summary",
+        sorter: (a, b) => a.summary.localeCompare(b.summary),
       },
       {
         title: "Type",
         dataIndex: "type",
         key: "type",
+        sorter: (a, b) => a.type.localeCompare(b.type),
       },
       {
         title: "Current Status",
         dataIndex: "status",
         key: "status",
+        sorter: (a, b) => a.status.localeCompare(b.status),
+      },
+      {
+        title: "Total Time in Selected States (days)",
+        key: "totalTimeInSelectedStates",
+        sorter: (a, b) => {
+          const selected = this.state.selectedStates;
+          const totalA = a.timeInStates.reduce(
+            (sum, state) =>
+              selected.includes(state.status) ? sum + state.days : sum,
+            0
+          );
+          const totalB = b.timeInStates.reduce(
+            (sum, state) =>
+              selected.includes(state.status) ? sum + state.days : sum,
+            0
+          );
+          return totalA - totalB;
+        },
+        render: (_: any, record: ResolutionTimeIssue) => {
+          const selected = this.state.selectedStates;
+          const total = record.timeInStates.reduce(
+            (sum, state) =>
+              selected.includes(state.status) ? sum + state.days : sum,
+            0
+          );
+          return total.toFixed(2);
+        },
       },
       {
         title: "Resolution Date",
         dataIndex: "resolutionDate",
         key: "resolutionDate",
+        sorter: (a, b) => {
+          const aDate = a.resolutionDate ? dayjs(a.resolutionDate).valueOf() : 0;
+          const bDate = b.resolutionDate ? dayjs(b.resolutionDate).valueOf() : 0;
+          return aDate - bDate;
+        },
         render: (date: string) => {
           if (!date) return "-";
           return dayjs(date).format("YYYY-MM-DD");
@@ -1206,6 +1381,18 @@ export default class AverageResolutionTime extends React.Component<
         ),
       },
     ];
+
+    const modalAllIssues: ResolutionTimeIssue[] =
+      this.state.modalQuarterData != null
+        ? [
+            ...this.state.modalQuarterData.unresolved,
+            ...this.state.modalQuarterData.resolvedWithin1Month,
+            ...this.state.modalQuarterData.resolvedWithin1Quarter,
+            ...this.state.modalQuarterData.resolvedWithin2Quarters,
+            ...this.state.modalQuarterData.resolvedWithin1Year,
+            ...this.state.modalQuarterData.resolvedGreaterThan1Year,
+          ]
+        : [];
 
     return (
       <div style={{ padding: "16px" }}>
@@ -1429,6 +1616,18 @@ export default class AverageResolutionTime extends React.Component<
                           Export to Excel
                         </Button>
                       )}
+                      {quarterlyData.length > 0 && (
+                        <Button
+                          onClick={() =>
+                            this.exportAllIssuesToExcelForType(
+                              quarterlyData,
+                              issueType
+                            )
+                          }
+                        >
+                          Export All Issue Data
+                        </Button>
+                      )}
                     </Space>
                     {quarterlyData.length === 0 ? (
                       <Text
@@ -1464,137 +1663,12 @@ export default class AverageResolutionTime extends React.Component<
             width={1400}
           >
             {modalQuarterData && (
-              <Space
-                direction="vertical"
-                size="large"
-                style={{ width: "100%" }}
-              >
-                {modalQuarterData.unresolved.length > 0 && (
-                  <div>
-                    <Text
-                      strong
-                      style={{
-                        fontSize: "16px",
-                        display: "block",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Unresolved ({modalQuarterData.unresolved.length})
-                    </Text>
-                    <Table
-                      columns={modalColumns}
-                      dataSource={modalQuarterData.unresolved}
-                      pagination={{ pageSize: 10 }}
-                      size="small"
-                    />
-                  </div>
-                )}
-                {modalQuarterData.resolvedWithin1Month.length > 0 && (
-                  <div>
-                    <Text
-                      strong
-                      style={{
-                        fontSize: "16px",
-                        display: "block",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Resolved within 1 month (
-                      {modalQuarterData.resolvedWithin1Month.length})
-                    </Text>
-                    <Table
-                      columns={modalColumns}
-                      dataSource={modalQuarterData.resolvedWithin1Month}
-                      pagination={{ pageSize: 10 }}
-                      size="small"
-                    />
-                  </div>
-                )}
-                {modalQuarterData.resolvedWithin1Quarter.length > 0 && (
-                  <div>
-                    <Text
-                      strong
-                      style={{
-                        fontSize: "16px",
-                        display: "block",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Resolved within 1 quarter (
-                      {modalQuarterData.resolvedWithin1Quarter.length})
-                    </Text>
-                    <Table
-                      columns={modalColumns}
-                      dataSource={modalQuarterData.resolvedWithin1Quarter}
-                      pagination={{ pageSize: 10 }}
-                      size="small"
-                    />
-                  </div>
-                )}
-                {modalQuarterData.resolvedWithin2Quarters.length > 0 && (
-                  <div>
-                    <Text
-                      strong
-                      style={{
-                        fontSize: "16px",
-                        display: "block",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Resolved within 2 quarters (
-                      {modalQuarterData.resolvedWithin2Quarters.length})
-                    </Text>
-                    <Table
-                      columns={modalColumns}
-                      dataSource={modalQuarterData.resolvedWithin2Quarters}
-                      pagination={{ pageSize: 10 }}
-                      size="small"
-                    />
-                  </div>
-                )}
-                {modalQuarterData.resolvedWithin1Year.length > 0 && (
-                  <div>
-                    <Text
-                      strong
-                      style={{
-                        fontSize: "16px",
-                        display: "block",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Resolved within 1 year (
-                      {modalQuarterData.resolvedWithin1Year.length})
-                    </Text>
-                    <Table
-                      columns={modalColumns}
-                      dataSource={modalQuarterData.resolvedWithin1Year}
-                      pagination={{ pageSize: 10 }}
-                      size="small"
-                    />
-                  </div>
-                )}
-                {modalQuarterData.resolvedGreaterThan1Year.length > 0 && (
-                  <div>
-                    <Text
-                      strong
-                      style={{
-                        fontSize: "16px",
-                        display: "block",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Resolved greater than 1 year (
-                      {modalQuarterData.resolvedGreaterThan1Year.length})
-                    </Text>
-                    <Table
-                      columns={modalColumns}
-                      dataSource={modalQuarterData.resolvedGreaterThan1Year}
-                      pagination={{ pageSize: 10 }}
-                      size="small"
-                    />
-                  </div>
-                )}
-              </Space>
+              <Table
+                columns={modalColumns}
+                dataSource={modalAllIssues}
+                pagination={{ pageSize: 10 }}
+                size="small"
+              />
             )}
           </Modal>
 
