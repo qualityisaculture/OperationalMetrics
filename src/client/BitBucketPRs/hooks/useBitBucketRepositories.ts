@@ -53,7 +53,9 @@ export const useBitBucketRepositories = () => {
       const workspaceParam = workspaceRef.current
         ? `?workspace=${encodeURIComponent(workspaceRef.current)}`
         : "";
-      const response = await fetch(`/api/bitbucket/repositories${workspaceParam}`);
+      const response = await fetch(
+        `/api/bitbucket/repositories${workspaceParam}`
+      );
 
       if (!response.ok) {
         throw new Error("Failed to fetch repositories");
@@ -72,7 +74,10 @@ export const useBitBucketRepositories = () => {
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        error: error instanceof Error ? error.message : "Failed to load repositories",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to load repositories",
       }));
     }
   }, []);
@@ -120,8 +125,9 @@ export const useBitBucketRepositories = () => {
         setState((prev) => {
           const existingIndex = prev.pullRequests.findIndex(
             (r) =>
-              (r.repository.full_name || r.repository.uuid || r.repository.slug) ===
-              repoId
+              (r.repository.full_name ||
+                r.repository.uuid ||
+                r.repository.slug) === repoId
           );
 
           const newPullRequests = [...prev.pullRequests];
@@ -169,7 +175,7 @@ export const useBitBucketRepositories = () => {
     async (refresh: boolean = false) => {
       // Get current repositories from ref (always up-to-date)
       const repositoriesToLoad = [...repositoriesRef.current];
-      
+
       // Ensure we have repositories to load
       if (repositoriesToLoad.length === 0) {
         console.warn("No repositories to load PRs for");
@@ -198,7 +204,8 @@ export const useBitBucketRepositories = () => {
 
       // Load PRs for all repositories in parallel
       const promises = repositoriesToLoad.map(async (repository) => {
-        const repoId = repository.full_name || repository.uuid || repository.slug;
+        const repoId =
+          repository.full_name || repository.uuid || repository.slug;
 
         // Update status to loading
         setState((prev) => {
@@ -309,4 +316,3 @@ export const useBitBucketRepositories = () => {
     loadPullRequestsForAllRepositories,
   };
 };
-

@@ -28,6 +28,60 @@ import {
 const { Title, Text } = Typography;
 const { Option } = Select;
 
+interface UserPRsTableProps {
+  user: string;
+  allPRs: BitBucketPullRequest[];
+  prColumns: any[];
+}
+
+const UserPRsTable: React.FC<UserPRsTableProps> = ({
+  user,
+  allPRs,
+  prColumns,
+}) => {
+  // Filter PRs by user and sort by createdDate in reverse chronological order
+  const userPRs = useMemo(() => {
+    const filtered = allPRs.filter((pr) => {
+      const authorName =
+        pr.author?.display_name ||
+        pr.author?.user?.displayName ||
+        pr.author?.user?.name ||
+        "Unknown";
+      return authorName === user;
+    });
+
+    // Sort by createdDate in reverse chronological order (newest first)
+    return filtered.sort((a, b) => {
+      const dateA = a.createdDate || 0;
+      const dateB = b.createdDate || 0;
+      return dateB - dateA; // Reverse order: newest first
+    });
+  }, [allPRs, user]);
+
+  if (userPRs.length === 0) {
+    return (
+      <Text type="secondary">No pull requests found for {user}.</Text>
+    );
+  }
+
+  return (
+    <div>
+      <Text type="secondary" style={{ marginBottom: "16px", display: "block" }}>
+        Showing {userPRs.length} pull request
+        {userPRs.length !== 1 ? "s" : ""} by {user} (newest first)
+      </Text>
+      <Table
+        dataSource={userPRs}
+        columns={prColumns}
+        rowKey={(record, index) => `${record.id || index}`}
+        pagination={{ pageSize: 50 }}
+        scroll={{ x: true }}
+        size="small"
+      />
+    </div>
+  );
+};
+
 const BitBucketPRs: React.FC = () => {
   const {
     state,
@@ -55,6 +109,7 @@ const BitBucketPRs: React.FC = () => {
   const [isProgressModalVisible, setIsProgressModalVisible] = useState(false);
   const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
   // Get all PRs from all repositories
   const allPRs = useMemo(() => {
@@ -561,6 +616,51 @@ const BitBucketPRs: React.FC = () => {
                 />
               </div>
             )}
+
+            {/* User PRs Section */}
+            <Divider />
+            <div style={{ marginTop: "24px" }}>
+              <Title level={4}>View PRs by User</Title>
+              <Space
+                direction="vertical"
+                style={{ width: "100%", marginBottom: "16px" }}
+              >
+                <div>
+                  <Text strong style={{ marginRight: "8px" }}>
+                    Select User:
+                  </Text>
+                  <Select
+                    placeholder="Select a user to view their PRs"
+                    value={selectedUser}
+                    onChange={setSelectedUser}
+                    style={{ width: "100%", maxWidth: "400px" }}
+                    allowClear
+                    showSearch
+                    filterOption={(input, option) => {
+                      const label =
+                        typeof option?.label === "string"
+                          ? option.label
+                          : String(option?.label ?? "");
+                      return label.toLowerCase().includes(input.toLowerCase());
+                    }}
+                  >
+                    {uniqueAuthors.map((author) => (
+                      <Option key={author} value={author} label={author}>
+                        {author}
+                      </Option>
+                    ))}
+                  </Select>
+                </div>
+              </Space>
+
+              {selectedUser && (
+                <UserPRsTable
+                  user={selectedUser}
+                  allPRs={allPRs}
+                  prColumns={prColumns}
+                />
+              )}
+            </div>
           </Card>
         </>
       )}
