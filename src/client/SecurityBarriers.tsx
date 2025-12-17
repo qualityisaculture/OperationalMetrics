@@ -78,6 +78,20 @@ interface PartTimeSummary {
   daysInOffice: number;
 }
 
+interface FlexibleRemoteEntry {
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  timeInOffice: number | string;
+}
+
+interface FlexibleRemoteSummary {
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  timeInOffice: number | string;
+}
+
 interface DailyAttendance {
   dayOfWeek: string;
   date: string;
@@ -116,6 +130,10 @@ const WeWork: React.FC<WeWorkProps> = () => {
   );
   const [partTimeLoading, setPartTimeLoading] = useState(false);
   const [partTimeFileUploaded, setPartTimeFileUploaded] = useState(false);
+  const [flexibleRemoteData, setFlexibleRemoteData] = useState<FlexibleRemoteEntry[]>([]);
+  const [flexibleRemoteSummaries, setFlexibleRemoteSummaries] = useState<FlexibleRemoteSummary[]>([]);
+  const [flexibleRemoteLoading, setFlexibleRemoteLoading] = useState(false);
+  const [flexibleRemoteFileUploaded, setFlexibleRemoteFileUploaded] = useState(false);
   const [dailyAttendance, setDailyAttendance] = useState<DailyAttendance[]>([]);
   const [weeklyAttendanceSummary, setWeeklyAttendanceSummary] = useState<
     WeeklyAttendanceSummary[]
@@ -343,6 +361,34 @@ const WeWork: React.FC<WeWorkProps> = () => {
     });
 
     setPartTimeSummaries(summaries);
+  };
+
+  const processFlexibleRemoteSummaries = (data: FlexibleRemoteEntry[]) => {
+    const flexibleRemoteMap = new Map<string, FlexibleRemoteSummary>();
+
+    data.forEach((entry) => {
+      const key = `${entry.firstName} ${entry.lastName}`;
+
+      if (!flexibleRemoteMap.has(key)) {
+        flexibleRemoteMap.set(key, {
+          fullName: key,
+          firstName: entry.firstName,
+          lastName: entry.lastName,
+          timeInOffice: entry.timeInOffice,
+        });
+      } else {
+        // If duplicate, use the latest entry
+        const existing = flexibleRemoteMap.get(key)!;
+        existing.timeInOffice = entry.timeInOffice;
+      }
+    });
+
+    // Sort by name
+    const summaries = Array.from(flexibleRemoteMap.values()).sort((a, b) => {
+      return a.fullName.localeCompare(b.fullName);
+    });
+
+    setFlexibleRemoteSummaries(summaries);
   };
 
   const parseExcelFile = (file: File) => {
@@ -699,6 +745,105 @@ const WeWork: React.FC<WeWorkProps> = () => {
     }
   };
 
+  const parseFlexibleRemoteFile = (file: File) => {
+    setFlexibleRemoteLoading(true);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: "binary" });
+
+        // Get the first worksheet
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+
+        // Convert to JSON array
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        // Process data starting from row 2 (index 1), columns A (full name) and F (time in office)
+        const processedData: FlexibleRemoteEntry[] = [];
+
+        for (let i = 1; i < jsonData.length; i++) {
+          const row = jsonData[i] as any[];
+
+          // Check if row has enough columns and data
+          // Column A = index 0, Column F = index 5
+          if (row && row.length >= 6 && row[0]) {
+            const fullName = row[0]; // Column A
+            const timeInOffice = row[5]; // Column F
+
+            // Only add if we have valid full name
+            if (fullName) {
+              const fullNameStr = fullName.toString().trim();
+              
+              // Split by last space to get firstName and lastName
+              const lastSpaceIndex = fullNameStr.lastIndexOf(" ");
+              let firstName: string;
+              let lastName: string;
+
+              if (lastSpaceIndex > 0) {
+                firstName = fullNameStr.substring(0, lastSpaceIndex).trim();
+                lastName = fullNameStr.substring(lastSpaceIndex + 1).trim();
+              } else {
+                // If no space found, treat entire string as lastName
+                firstName = "";
+                lastName = fullNameStr;
+              }
+
+              // Handle timeInOffice - can be number or string
+              let timeInOfficeValue: number | string;
+              if (timeInOffice !== undefined && timeInOffice !== null && timeInOffice !== "") {
+                if (typeof timeInOffice === "number") {
+                  timeInOfficeValue = timeInOffice;
+                } else {
+                  const timeStr = timeInOffice.toString().trim();
+                  const timeNum = parseFloat(timeStr);
+                  // If it's a valid number, use it; otherwise keep as string
+                  timeInOfficeValue = !isNaN(timeNum) ? timeNum : timeStr;
+                }
+              } else {
+                timeInOfficeValue = "Data not found";
+              }
+
+              processedData.push({
+                fullName: fullNameStr,
+                firstName: firstName,
+                lastName: lastName,
+                timeInOffice: timeInOfficeValue,
+              });
+            }
+          }
+        }
+
+        setFlexibleRemoteData(processedData);
+        processFlexibleRemoteSummaries(processedData);
+        setFlexibleRemoteFileUploaded(true);
+        message.success(
+          `Successfully loaded ${processedData.length} flexible/remote entries from spreadsheet`
+        );
+      } catch (error) {
+        console.error("Error parsing flexible/remote Excel file:", error);
+        message.error(
+          "Error parsing flexible/remote Excel file. Please check the file format."
+        );
+      } finally {
+        setFlexibleRemoteLoading(false);
+      }
+    };
+
+    reader.readAsBinaryString(file);
+  };
+
+  const handleFlexibleRemoteFileUpload = (info: any) => {
+    const file = info.file.originFileObj || info.file;
+    if (file) {
+      parseFlexibleRemoteFile(file);
+    } else {
+      message.error("No file found in upload");
+    }
+  };
+
   const calculateCombinedData = () => {
     const combined: CombinedUserData[] = [];
 
@@ -915,6 +1060,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
     const barrierMap = new Map<string, PersonSummary>();
     const holidayMap = new Map<string, HolidaySummary>();
     const partTimeMap = new Map<string, PartTimeSummary>();
+    const flexibleRemoteMap = new Map<string, FlexibleRemoteSummary>();
 
     // Index barrier data by normalized name
     personSummaries.forEach((person) => {
@@ -932,6 +1078,12 @@ const WeWork: React.FC<WeWorkProps> = () => {
     partTimeSummaries.forEach((partTime) => {
       const key = createMatchKey(partTime.firstName, partTime.lastName);
       partTimeMap.set(key, partTime);
+    });
+
+    // Index flexible/remote data by normalized name
+    flexibleRemoteSummaries.forEach((flexibleRemote) => {
+      const key = createMatchKey(flexibleRemote.firstName, flexibleRemote.lastName);
+      flexibleRemoteMap.set(key, flexibleRemote);
     });
 
     // Use user list to determine which users to show
@@ -993,6 +1145,21 @@ const WeWork: React.FC<WeWorkProps> = () => {
         });
       }
 
+      // Try exact match first for flexible/remote data
+      let flexibleRemotePerson = flexibleRemoteMap.get(normalizedUserName);
+
+      // If no exact match, try smart name matching for flexible/remote data
+      if (!flexibleRemotePerson) {
+        flexibleRemotePerson = flexibleRemoteSummaries.find((flexibleRemote) => {
+          return smartNameMatch(
+            flexibleRemote.firstName,
+            flexibleRemote.lastName,
+            user.firstName,
+            user.lastName
+          );
+        });
+      }
+
       // Debug: Log what we found for this user
       console.log(`User: ${user.fullName} (normalized: ${normalizedUserName})`);
       console.log(
@@ -1013,6 +1180,12 @@ const WeWork: React.FC<WeWorkProps> = () => {
           ? `${partTimePerson.firstName} ${partTimePerson.lastName}`
           : "None"
       );
+      console.log(
+        `  Flexible/Remote match:`,
+        flexibleRemotePerson
+          ? `${flexibleRemotePerson.firstName} ${flexibleRemotePerson.lastName}`
+          : "None"
+      );
 
       const barrierDaysValue = barrierPerson ? barrierPerson.uniqueDays : 0;
       const holidayDaysValue = holidayPerson
@@ -1020,20 +1193,40 @@ const WeWork: React.FC<WeWorkProps> = () => {
         : 0;
 
       // Calculate base days in office
-      const baseDaysInOffice = partTimePerson
-        ? partTimePerson.daysInOffice * 4
-        : 8;
+      // Priority: flexible/remote data > part-time data > default (8)
+      let baseDaysInOffice: number | string;
+      if (flexibleRemotePerson) {
+        // Use flexible/remote data directly (can be number or string)
+        baseDaysInOffice = flexibleRemotePerson.timeInOffice;
+      } else if (partTimePerson) {
+        baseDaysInOffice = partTimePerson.daysInOffice * 4;
+      } else {
+        baseDaysInOffice = 8;
+      }
 
-      // Reduce required days by 8 * (holidays / 20)
-      // Example: 10 holidays = 8 * (10/20) = 4 days reduction
-      const holidayReduction = Math.ceil(8 * (holidayDaysValue / 20));
-      const daysInOfficeValue = Math.max(
-        0,
-        Math.floor(baseDaysInOffice - holidayReduction)
-      );
+      // Calculate days in office value
+      // If baseDaysInOffice is a number, apply holiday reduction
+      // If it's a string, keep it as is
+      let daysInOfficeValue: number | string;
+      if (typeof baseDaysInOffice === "number") {
+        // Reduce required days by 8 * (holidays / 20)
+        // Example: 10 holidays = 8 * (10/20) = 4 days reduction
+        const holidayReduction = Math.ceil(8 * (holidayDaysValue / 20));
+        daysInOfficeValue = Math.max(
+          0,
+          Math.floor(baseDaysInOffice - holidayReduction)
+        );
+      } else {
+        // If it's a string (like "Data not found" or some exception), keep it as is
+        daysInOfficeValue = baseDaysInOffice;
+      }
 
       // Calculate difference: Barrier Days - Agreed Days in Office per month
-      const difference = barrierDaysValue - daysInOfficeValue;
+      // Only calculate if both are numbers
+      const difference =
+        typeof daysInOfficeValue === "number"
+          ? barrierDaysValue - daysInOfficeValue
+          : "N/A";
 
       combined.push({
         fullName: user.fullName,
@@ -1237,7 +1430,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
         if (typeof days === "number") {
           return <Tag color="orange">{days}</Tag>;
         }
-        return "-";
+        return <Tag color="default">{days}</Tag>;
       },
       sorter: (a: CombinedUserData, b: CombinedUserData) => {
         const aDays = typeof a.daysInOffice === "number" ? a.daysInOffice : -1;
@@ -1467,6 +1660,18 @@ const WeWork: React.FC<WeWorkProps> = () => {
             </Button>
           </Upload>
           {partTimeFileUploaded && <Tag color="green">✓ Uploaded</Tag>}
+
+          <Upload
+            accept=".xlsx,.xls,.csv"
+            showUploadList={false}
+            beforeUpload={() => false} // Prevent auto upload
+            onChange={handleFlexibleRemoteFileUpload}
+          >
+            <Button icon={<UploadOutlined />} loading={flexibleRemoteLoading}>
+              Upload Flexible and Remote
+            </Button>
+          </Upload>
+          {flexibleRemoteFileUploaded && <Tag color="green">✓ Uploaded</Tag>}
 
           <Upload
             accept=".xlsx,.xls,.csv"
