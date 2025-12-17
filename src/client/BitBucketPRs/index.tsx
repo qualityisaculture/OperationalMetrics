@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Button,
   Input,
@@ -13,11 +13,18 @@ import {
   Progress,
   List,
   Tag,
+  Form,
+  Popconfirm,
+  message,
 } from "antd";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { useBitBucketRepositories } from "./hooks/useBitBucketRepositories";
 import {
@@ -27,6 +34,36 @@ import {
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+
+// User Group Types
+interface UserGroup {
+  id: string;
+  name: string;
+  users: string[];
+}
+
+const STORAGE_KEY = "bitbucket-prs-user-groups";
+
+// Helper functions for localStorage
+const loadGroupsFromStorage = (): UserGroup[] => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error("Error loading user groups from storage:", error);
+  }
+  return [];
+};
+
+const saveGroupsToStorage = (groups: UserGroup[]): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+  } catch (error) {
+    console.error("Error saving user groups to storage:", error);
+  }
+};
 
 interface UserPRsTableProps {
   user: string;
@@ -110,6 +147,25 @@ const BitBucketPRs: React.FC = () => {
   const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [isGroupModalVisible, setIsGroupModalVisible] = useState(false);
+  const [isGroupListModalVisible, setIsGroupListModalVisible] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<UserGroup | null>(null);
+  const [groupForm] = Form.useForm();
+
+  // Load groups from localStorage on mount
+  useEffect(() => {
+    const loadedGroups = loadGroupsFromStorage();
+    setUserGroups(loadedGroups);
+  }, []);
+
+  // Save groups to localStorage whenever they change
+  useEffect(() => {
+    if (userGroups.length > 0 || localStorage.getItem(STORAGE_KEY)) {
+      saveGroupsToStorage(userGroups);
+    }
+  }, [userGroups]);
 
   // Get all PRs from all repositories
   const allPRs = useMemo(() => {
@@ -132,9 +188,21 @@ const BitBucketPRs: React.FC = () => {
     return Array.from(authorSet).sort();
   }, [allPRs]);
 
-  // Filter PRs by selected authors (if any selected)
+  // Get users from selected group
+  const usersInSelectedGroup = useMemo(() => {
+    if (!selectedGroup) return [];
+    const group = userGroups.find((g) => g.id === selectedGroup);
+    return group ? group.users : [];
+  }, [selectedGroup, userGroups]);
+
+  // Filter PRs by selected authors or selected group
   const filteredPRs = useMemo(() => {
-    if (selectedAuthors.length === 0) {
+    // If a group is selected, use users from that group
+    const usersToFilter = selectedGroup
+      ? usersInSelectedGroup
+      : selectedAuthors;
+
+    if (usersToFilter.length === 0) {
       return allPRs;
     }
     return allPRs.filter((pr) => {
@@ -143,9 +211,9 @@ const BitBucketPRs: React.FC = () => {
         pr.author?.user?.displayName ||
         pr.author?.user?.name ||
         "Unknown";
-      return selectedAuthors.includes(authorName);
+      return usersToFilter.includes(authorName);
     });
-  }, [allPRs, selectedAuthors]);
+  }, [allPRs, selectedAuthors, selectedGroup, usersInSelectedGroup]);
 
   // Group PRs by month and count them (using merged/closed date)
   const prsByMonth = useMemo(() => {
@@ -408,6 +476,74 @@ const BitBucketPRs: React.FC = () => {
     },
   ];
 
+  // Group management functions
+  const handleCreateGroup = () => {
+    setEditingGroup(null);
+    groupForm.resetFields();
+    setIsGroupListModalVisible(false);
+    setIsGroupModalVisible(true);
+  };
+
+  const handleManageGroups = () => {
+    setIsGroupListModalVisible(true);
+  };
+
+  const handleEditGroup = (group: UserGroup) => {
+    setEditingGroup(group);
+    groupForm.setFieldsValue({
+      name: group.name,
+      users: group.users,
+    });
+    setIsGroupListModalVisible(false);
+    setIsGroupModalVisible(true);
+  };
+
+  const handleDeleteGroup = (groupId: string) => {
+    setUserGroups((prev) => prev.filter((g) => g.id !== groupId));
+    if (selectedGroup === groupId) {
+      setSelectedGroup(null);
+    }
+    message.success("Group deleted successfully");
+  };
+
+  const handleSaveGroup = () => {
+    groupForm.validateFields().then((values) => {
+      if (editingGroup) {
+        // Update existing group
+        setUserGroups((prev) =>
+          prev.map((g) =>
+            g.id === editingGroup.id
+              ? { ...g, name: values.name, users: values.users || [] }
+              : g
+          )
+        );
+        message.success("Group updated successfully");
+      } else {
+        // Create new group
+        const newGroup: UserGroup = {
+          id: `group-${Date.now()}`,
+          name: values.name,
+          users: values.users || [],
+        };
+        setUserGroups((prev) => [...prev, newGroup]);
+        message.success("Group created successfully");
+      }
+      setIsGroupModalVisible(false);
+      setEditingGroup(null);
+      groupForm.resetFields();
+    });
+  };
+
+  const handleCloseGroupModal = () => {
+    setIsGroupModalVisible(false);
+    setEditingGroup(null);
+    groupForm.resetFields();
+  };
+
+  const handleCloseGroupListModal = () => {
+    setIsGroupListModalVisible(false);
+  };
+
   const handleCloseModal = () => {
     setIsModalVisible(false);
     setSelectedRepository(null);
@@ -528,11 +664,50 @@ const BitBucketPRs: React.FC = () => {
         <>
           <Divider />
           <Card>
-            <Title level={3}>PR Analytics</Title>
+            <Space
+              style={{ width: "100%", justifyContent: "space-between", marginBottom: "16px" }}
+            >
+              <Title level={3} style={{ margin: 0 }}>PR Analytics</Title>
+              <Button
+                icon={<UserOutlined />}
+                onClick={handleManageGroups}
+              >
+                Manage User Groups
+              </Button>
+            </Space>
             <Space
               direction="vertical"
               style={{ width: "100%", marginBottom: "20px" }}
             >
+              <div>
+                <Text strong style={{ marginRight: "8px" }}>
+                  Filter by Group:
+                </Text>
+                <Select
+                  placeholder="Select a group (or use individual authors below)"
+                  value={selectedGroup}
+                  onChange={(value) => {
+                    setSelectedGroup(value);
+                    setSelectedAuthors([]); // Clear individual author selection when group is selected
+                  }}
+                  style={{ width: "100%", maxWidth: "400px", marginBottom: "12px" }}
+                  allowClear
+                  showSearch
+                  filterOption={(input, option) => {
+                    const label =
+                      typeof option?.label === "string"
+                        ? option.label
+                        : String(option?.label ?? "");
+                    return label.toLowerCase().includes(input.toLowerCase());
+                  }}
+                >
+                  {userGroups.map((group) => (
+                    <Option key={group.id} value={group.id} label={group.name}>
+                      {group.name} ({group.users.length} user{group.users.length !== 1 ? "s" : ""})
+                    </Option>
+                  ))}
+                </Select>
+              </div>
               <div>
                 <Text strong style={{ marginRight: "8px" }}>
                   Filter by Author:
@@ -541,10 +716,14 @@ const BitBucketPRs: React.FC = () => {
                   mode="multiple"
                   placeholder="Select authors (leave empty to show all)"
                   value={selectedAuthors}
-                  onChange={setSelectedAuthors}
+                  onChange={(value) => {
+                    setSelectedAuthors(value);
+                    setSelectedGroup(null); // Clear group selection when individual authors are selected
+                  }}
                   style={{ width: "100%", maxWidth: "600px" }}
                   allowClear
                   showSearch
+                  disabled={!!selectedGroup}
                   filterOption={(input, option) => {
                     const label =
                       typeof option?.label === "string"
@@ -563,9 +742,11 @@ const BitBucketPRs: React.FC = () => {
               <Text type="secondary">
                 Showing {filteredPRs.length} PR
                 {filteredPRs.length !== 1 ? "s" : ""}
-                {selectedAuthors.length > 0
-                  ? ` from ${selectedAuthors.length} selected author${selectedAuthors.length !== 1 ? "s" : ""}`
-                  : " from all authors"}
+                {selectedGroup
+                  ? ` from group "${userGroups.find((g) => g.id === selectedGroup)?.name || ""}"`
+                  : selectedAuthors.length > 0
+                    ? ` from ${selectedAuthors.length} selected author${selectedAuthors.length !== 1 ? "s" : ""}`
+                    : " from all authors"}
               </Text>
             </Space>
 
@@ -835,6 +1016,155 @@ const BitBucketPRs: React.FC = () => {
           pagination={{ pageSize: 50 }}
           scroll={{ x: true }}
         />
+      </Modal>
+
+      {/* User Groups Management Modal */}
+      <Modal
+        title={editingGroup ? "Edit User Group" : "Create User Group"}
+        open={isGroupModalVisible}
+        onOk={handleSaveGroup}
+        onCancel={handleCloseGroupModal}
+        width={600}
+        okText={editingGroup ? "Update" : "Create"}
+      >
+        <Form form={groupForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="Group Name"
+            rules={[
+              { required: true, message: "Please enter a group name" },
+              {
+                validator: (_, value) => {
+                  if (!value || value.trim() === "") {
+                    return Promise.resolve();
+                  }
+                  const trimmedValue = value.trim();
+                  const existingGroup = userGroups.find(
+                    (g) =>
+                      g.name.toLowerCase() === trimmedValue.toLowerCase() &&
+                      g.id !== editingGroup?.id
+                  );
+                  if (existingGroup) {
+                    return Promise.reject(
+                      new Error("A group with this name already exists")
+                    );
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <Input placeholder="Enter group name" />
+          </Form.Item>
+          <Form.Item
+            name="users"
+            label="Users in Group"
+            rules={[
+              {
+                validator: (_, value) => {
+                  if (!value || value.length === 0) {
+                    return Promise.reject(
+                      new Error("Please select at least one user")
+                    );
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <Select
+              mode="multiple"
+              placeholder="Select users for this group"
+              showSearch
+              filterOption={(input, option) => {
+                const label =
+                  typeof option?.label === "string"
+                    ? option.label
+                    : String(option?.label ?? "");
+                return label.toLowerCase().includes(input.toLowerCase());
+              }}
+            >
+              {uniqueAuthors.map((author) => (
+                <Option key={author} value={author} label={author}>
+                  {author}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* User Groups List Modal */}
+      <Modal
+        title="Manage User Groups"
+        open={isGroupListModalVisible}
+        onCancel={handleCloseGroupListModal}
+        footer={[
+          <Button key="create" type="primary" icon={<PlusOutlined />} onClick={handleCreateGroup}>
+            Create New Group
+          </Button>,
+          <Button key="close" onClick={handleCloseGroupListModal}>
+            Close
+          </Button>,
+        ]}
+        width={700}
+      >
+        {userGroups.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px" }}>
+            <Text type="secondary">No user groups created yet.</Text>
+            <br />
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setIsGroupListModalVisible(false);
+                handleCreateGroup();
+              }}
+              style={{ marginTop: "16px" }}
+            >
+              Create Your First Group
+            </Button>
+          </div>
+        ) : (
+          <List
+            dataSource={userGroups}
+            renderItem={(group) => (
+              <List.Item
+                actions={[
+                  <Button
+                    key="edit"
+                    type="link"
+                    icon={<EditOutlined />}
+                    onClick={() => handleEditGroup(group)}
+                  >
+                    Edit
+                  </Button>,
+                  <Popconfirm
+                    key="delete"
+                    title="Delete this group?"
+                    description="This action cannot be undone."
+                    onConfirm={() => handleDeleteGroup(group.id)}
+                    okText="Yes"
+                    cancelText="No"
+                  >
+                    <Button
+                      type="link"
+                      danger
+                      icon={<DeleteOutlined />}
+                    >
+                      Delete
+                    </Button>
+                  </Popconfirm>,
+                ]}
+              >
+                <List.Item.Meta
+                  title={group.name}
+                  description={`${group.users.length} user${group.users.length !== 1 ? "s" : ""}: ${group.users.join(", ")}`}
+                />
+              </List.Item>
+            )}
+          />
+        )}
       </Modal>
     </div>
   );
