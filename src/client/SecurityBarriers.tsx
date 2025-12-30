@@ -55,12 +55,14 @@ interface CombinedUserData {
   weeklyHours: number | string;
   daysInOffice: number | string;
   difference: number | string;
+  lineManager?: string;
 }
 
 interface UserListEntry {
   firstName: string;
   lastName: string;
   fullName: string;
+  lineManager: string;
 }
 
 interface FlexibleRemoteEntry {
@@ -109,10 +111,15 @@ const WeWork: React.FC<WeWorkProps> = () => {
   const [barrierFileUploaded, setBarrierFileUploaded] = useState(false);
   const [holidayFileUploaded, setHolidayFileUploaded] = useState(false);
   const [userListFileUploaded, setUserListFileUploaded] = useState(false);
-  const [flexibleRemoteData, setFlexibleRemoteData] = useState<FlexibleRemoteEntry[]>([]);
-  const [flexibleRemoteSummaries, setFlexibleRemoteSummaries] = useState<FlexibleRemoteSummary[]>([]);
+  const [flexibleRemoteData, setFlexibleRemoteData] = useState<
+    FlexibleRemoteEntry[]
+  >([]);
+  const [flexibleRemoteSummaries, setFlexibleRemoteSummaries] = useState<
+    FlexibleRemoteSummary[]
+  >([]);
   const [flexibleRemoteLoading, setFlexibleRemoteLoading] = useState(false);
-  const [flexibleRemoteFileUploaded, setFlexibleRemoteFileUploaded] = useState(false);
+  const [flexibleRemoteFileUploaded, setFlexibleRemoteFileUploaded] =
+    useState(false);
   const [dailyAttendance, setDailyAttendance] = useState<DailyAttendance[]>([]);
   const [weeklyAttendanceSummary, setWeeklyAttendanceSummary] = useState<
     WeeklyAttendanceSummary[]
@@ -555,17 +562,18 @@ const WeWork: React.FC<WeWorkProps> = () => {
         // Convert to JSON array
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-        // Process data starting from row 2 (index 1), columns B (last name) and C (first name)
+        // Process data starting from row 2 (index 1), columns B (last name), C (first name), and E (line manager)
         const processedData: UserListEntry[] = [];
 
         for (let i = 1; i < jsonData.length; i++) {
           const row = jsonData[i] as any[];
 
           // Check if row has enough columns and data
-          // Column B = index 1, Column C = index 2
+          // Column B = index 1, Column C = index 2, Column E = index 4
           if (row && row.length >= 3 && row[1] && row[2]) {
             const lastName = row[1]; // Column B
             const firstName = row[2]; // Column C
+            const lineManager = row[4] ? row[4].toString().trim() : ""; // Column E
 
             // Only add if we have valid data
             if (firstName && lastName) {
@@ -573,6 +581,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
                 firstName: firstName.toString().trim(),
                 lastName: lastName.toString().trim(),
                 fullName: `${firstName.toString().trim()} ${lastName.toString().trim()}`,
+                lineManager: lineManager,
               });
             }
           }
@@ -636,7 +645,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
             // Only add if we have valid full name
             if (fullName) {
               const fullNameStr = fullName.toString().trim();
-              
+
               // Split by last space to get firstName and lastName
               const lastSpaceIndex = fullNameStr.lastIndexOf(" ");
               let firstName: string;
@@ -653,7 +662,11 @@ const WeWork: React.FC<WeWorkProps> = () => {
 
               // Handle timeInOffice - can be number or string
               let timeInOfficeValue: number | string;
-              if (timeInOffice !== undefined && timeInOffice !== null && timeInOffice !== "") {
+              if (
+                timeInOffice !== undefined &&
+                timeInOffice !== null &&
+                timeInOffice !== ""
+              ) {
                 if (typeof timeInOffice === "number") {
                   timeInOfficeValue = timeInOffice;
                 } else {
@@ -935,7 +948,10 @@ const WeWork: React.FC<WeWorkProps> = () => {
 
     // Index flexible/remote data by normalized name
     flexibleRemoteSummaries.forEach((flexibleRemote) => {
-      const key = createMatchKey(flexibleRemote.firstName, flexibleRemote.lastName);
+      const key = createMatchKey(
+        flexibleRemote.firstName,
+        flexibleRemote.lastName
+      );
       flexibleRemoteMap.set(key, flexibleRemote);
     });
 
@@ -948,6 +964,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
             firstName: h.firstName,
             lastName: h.lastName,
             fullName: h.fullName,
+            lineManager: "",
           }));
 
     // Create combined data for each user
@@ -988,14 +1005,16 @@ const WeWork: React.FC<WeWorkProps> = () => {
 
       // If no exact match, try smart name matching for flexible/remote data
       if (!flexibleRemotePerson) {
-        flexibleRemotePerson = flexibleRemoteSummaries.find((flexibleRemote) => {
-          return smartNameMatch(
-            flexibleRemote.firstName,
-            flexibleRemote.lastName,
-            user.firstName,
-            user.lastName
-          );
-        });
+        flexibleRemotePerson = flexibleRemoteSummaries.find(
+          (flexibleRemote) => {
+            return smartNameMatch(
+              flexibleRemote.firstName,
+              flexibleRemote.lastName,
+              user.firstName,
+              user.lastName
+            );
+          }
+        );
       }
 
       // Debug: Log what we found for this user
@@ -1067,6 +1086,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
         weeklyHours: "Data not found",
         daysInOffice: daysInOfficeValue,
         difference: difference,
+        lineManager: user.lineManager || undefined,
       });
     });
 
@@ -1197,6 +1217,17 @@ const WeWork: React.FC<WeWorkProps> = () => {
       width: 150,
       sorter: (a: CombinedUserData, b: CombinedUserData) =>
         a.lastName.localeCompare(b.lastName),
+    },
+    {
+      title: "Line Manager",
+      dataIndex: "lineManager",
+      key: "lineManager",
+      width: 150,
+      sorter: (a: CombinedUserData, b: CombinedUserData) => {
+        const aManager = a.lineManager || "";
+        const bManager = b.lineManager || "";
+        return aManager.localeCompare(bManager);
+      },
     },
     {
       title: "Barrier Days",
