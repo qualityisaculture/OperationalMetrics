@@ -63,21 +63,6 @@ interface UserListEntry {
   fullName: string;
 }
 
-interface PartTimeEntry {
-  firstName: string;
-  lastName: string;
-  weeklyHours: number;
-  daysInOffice: number;
-}
-
-interface PartTimeSummary {
-  fullName: string;
-  firstName: string;
-  lastName: string;
-  weeklyHours: number;
-  daysInOffice: number;
-}
-
 interface FlexibleRemoteEntry {
   fullName: string;
   firstName: string;
@@ -124,12 +109,6 @@ const WeWork: React.FC<WeWorkProps> = () => {
   const [barrierFileUploaded, setBarrierFileUploaded] = useState(false);
   const [holidayFileUploaded, setHolidayFileUploaded] = useState(false);
   const [userListFileUploaded, setUserListFileUploaded] = useState(false);
-  const [partTimeData, setPartTimeData] = useState<PartTimeEntry[]>([]);
-  const [partTimeSummaries, setPartTimeSummaries] = useState<PartTimeSummary[]>(
-    []
-  );
-  const [partTimeLoading, setPartTimeLoading] = useState(false);
-  const [partTimeFileUploaded, setPartTimeFileUploaded] = useState(false);
   const [flexibleRemoteData, setFlexibleRemoteData] = useState<FlexibleRemoteEntry[]>([]);
   const [flexibleRemoteSummaries, setFlexibleRemoteSummaries] = useState<FlexibleRemoteSummary[]>([]);
   const [flexibleRemoteLoading, setFlexibleRemoteLoading] = useState(false);
@@ -331,36 +310,6 @@ const WeWork: React.FC<WeWorkProps> = () => {
     });
 
     setHolidaySummaries(summaries);
-  };
-
-  const processPartTimeSummaries = (data: PartTimeEntry[]) => {
-    const partTimeMap = new Map<string, PartTimeSummary>();
-
-    data.forEach((entry) => {
-      const key = `${entry.firstName} ${entry.lastName}`;
-
-      if (!partTimeMap.has(key)) {
-        partTimeMap.set(key, {
-          fullName: key,
-          firstName: entry.firstName,
-          lastName: entry.lastName,
-          weeklyHours: entry.weeklyHours,
-          daysInOffice: entry.daysInOffice,
-        });
-      } else {
-        // If duplicate, use the latest entry
-        const existing = partTimeMap.get(key)!;
-        existing.weeklyHours = entry.weeklyHours;
-        existing.daysInOffice = entry.daysInOffice;
-      }
-    });
-
-    // Sort by name
-    const summaries = Array.from(partTimeMap.values()).sort((a, b) => {
-      return a.fullName.localeCompare(b.fullName);
-    });
-
-    setPartTimeSummaries(summaries);
   };
 
   const processFlexibleRemoteSummaries = (data: FlexibleRemoteEntry[]) => {
@@ -651,95 +600,6 @@ const WeWork: React.FC<WeWorkProps> = () => {
     const file = info.file.originFileObj || info.file;
     if (file) {
       parseUserListFile(file);
-    } else {
-      message.error("No file found in upload");
-    }
-  };
-
-  const parsePartTimeFile = (file: File) => {
-    setPartTimeLoading(true);
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: "binary" });
-
-        // Get the first worksheet
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-
-        // Convert to JSON array
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-        // Process data starting from row 2 (index 1), columns A, B, D, E
-        const processedData: PartTimeEntry[] = [];
-
-        for (let i = 1; i < jsonData.length; i++) {
-          const row = jsonData[i] as any[];
-
-          // Check if row has enough columns and data
-          // Column A = index 0, Column B = index 1, Column D = index 3, Column E = index 4
-          if (
-            row &&
-            row.length >= 5 &&
-            row[0] &&
-            row[1] &&
-            row[3] !== undefined &&
-            row[4] !== undefined
-          ) {
-            const firstName = row[0]; // Column A
-            const lastName = row[1]; // Column B
-            const weeklyHours = row[3]; // Column D
-            const daysInOffice = row[4]; // Column E
-
-            // Only add if we have valid data
-            if (firstName && lastName) {
-              const weeklyHoursNumber =
-                typeof weeklyHours === "number"
-                  ? weeklyHours
-                  : parseFloat(weeklyHours?.toString() || "0");
-
-              const daysInOfficeNumber =
-                typeof daysInOffice === "number"
-                  ? daysInOffice
-                  : parseFloat(daysInOffice?.toString() || "0");
-
-              if (!isNaN(weeklyHoursNumber) && !isNaN(daysInOfficeNumber)) {
-                processedData.push({
-                  firstName: firstName.toString().trim(),
-                  lastName: lastName.toString().trim(),
-                  weeklyHours: weeklyHoursNumber,
-                  daysInOffice: daysInOfficeNumber,
-                });
-              }
-            }
-          }
-        }
-
-        setPartTimeData(processedData);
-        processPartTimeSummaries(processedData);
-        setPartTimeFileUploaded(true);
-        message.success(
-          `Successfully loaded ${processedData.length} part-time entries from spreadsheet`
-        );
-      } catch (error) {
-        console.error("Error parsing part-time Excel file:", error);
-        message.error(
-          "Error parsing part-time Excel file. Please check the file format."
-        );
-      } finally {
-        setPartTimeLoading(false);
-      }
-    };
-
-    reader.readAsBinaryString(file);
-  };
-
-  const handlePartTimeFileUpload = (info: any) => {
-    const file = info.file.originFileObj || info.file;
-    if (file) {
-      parsePartTimeFile(file);
     } else {
       message.error("No file found in upload");
     }
@@ -1059,7 +919,6 @@ const WeWork: React.FC<WeWorkProps> = () => {
     // Create maps for easier matching
     const barrierMap = new Map<string, PersonSummary>();
     const holidayMap = new Map<string, HolidaySummary>();
-    const partTimeMap = new Map<string, PartTimeSummary>();
     const flexibleRemoteMap = new Map<string, FlexibleRemoteSummary>();
 
     // Index barrier data by normalized name
@@ -1072,12 +931,6 @@ const WeWork: React.FC<WeWorkProps> = () => {
     holidaySummaries.forEach((holiday) => {
       const key = createMatchKey(holiday.firstName, holiday.lastName);
       holidayMap.set(key, holiday);
-    });
-
-    // Index part-time data by normalized name
-    partTimeSummaries.forEach((partTime) => {
-      const key = createMatchKey(partTime.firstName, partTime.lastName);
-      partTimeMap.set(key, partTime);
     });
 
     // Index flexible/remote data by normalized name
@@ -1130,21 +983,6 @@ const WeWork: React.FC<WeWorkProps> = () => {
         });
       }
 
-      // Try exact match first for part-time data
-      let partTimePerson = partTimeMap.get(normalizedUserName);
-
-      // If no exact match, try smart name matching for part-time data
-      if (!partTimePerson) {
-        partTimePerson = partTimeSummaries.find((partTime) => {
-          return smartNameMatch(
-            partTime.firstName,
-            partTime.lastName,
-            user.firstName,
-            user.lastName
-          );
-        });
-      }
-
       // Try exact match first for flexible/remote data
       let flexibleRemotePerson = flexibleRemoteMap.get(normalizedUserName);
 
@@ -1175,12 +1013,6 @@ const WeWork: React.FC<WeWorkProps> = () => {
           : "None"
       );
       console.log(
-        `  Part-time match:`,
-        partTimePerson
-          ? `${partTimePerson.firstName} ${partTimePerson.lastName}`
-          : "None"
-      );
-      console.log(
         `  Flexible/Remote match:`,
         flexibleRemotePerson
           ? `${flexibleRemotePerson.firstName} ${flexibleRemotePerson.lastName}`
@@ -1193,13 +1025,11 @@ const WeWork: React.FC<WeWorkProps> = () => {
         : 0;
 
       // Calculate base days in office
-      // Priority: flexible/remote data > part-time data > default (8)
+      // Priority: flexible/remote data > default (8)
       let baseDaysInOffice: number | string;
       if (flexibleRemotePerson) {
         // Use flexible/remote data directly (can be number or string)
         baseDaysInOffice = flexibleRemotePerson.timeInOffice;
-      } else if (partTimePerson) {
-        baseDaysInOffice = partTimePerson.daysInOffice * 4;
       } else {
         baseDaysInOffice = 8;
       }
@@ -1234,9 +1064,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
         lastName: user.lastName,
         barrierDays: barrierDaysValue,
         holidayDays: holidayPerson ? holidayPerson.totalHolidayDays : 0,
-        weeklyHours: partTimePerson
-          ? partTimePerson.weeklyHours
-          : "Data not found",
+        weeklyHours: "Data not found",
         daysInOffice: daysInOfficeValue,
         difference: difference,
       });
@@ -1648,18 +1476,6 @@ const WeWork: React.FC<WeWorkProps> = () => {
             </Button>
           </Upload>
           {holidayFileUploaded && <Tag color="green">✓ Uploaded</Tag>}
-
-          <Upload
-            accept=".xlsx,.xls,.csv"
-            showUploadList={false}
-            beforeUpload={() => false} // Prevent auto upload
-            onChange={handlePartTimeFileUpload}
-          >
-            <Button icon={<UploadOutlined />} loading={partTimeLoading}>
-              Upload Part Time
-            </Button>
-          </Upload>
-          {partTimeFileUploaded && <Tag color="green">✓ Uploaded</Tag>}
 
           <Upload
             accept=".xlsx,.xls,.csv"
