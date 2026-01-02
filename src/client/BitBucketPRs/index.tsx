@@ -96,9 +96,7 @@ const UserPRsTable: React.FC<UserPRsTableProps> = ({
   }, [allPRs, user]);
 
   if (userPRs.length === 0) {
-    return (
-      <Text type="secondary">No pull requests found for {user}.</Text>
-    );
+    return <Text type="secondary">No pull requests found for {user}.</Text>;
   }
 
   return (
@@ -153,6 +151,13 @@ const BitBucketPRs: React.FC = () => {
   const [isGroupListModalVisible, setIsGroupListModalVisible] = useState(false);
   const [editingGroup, setEditingGroup] = useState<UserGroup | null>(null);
   const [groupForm] = Form.useForm();
+  // Filter state for main table
+  const [selectedAuthorsForTable, setSelectedAuthorsForTable] = useState<
+    string[]
+  >([]);
+  const [selectedGroupForTable, setSelectedGroupForTable] = useState<
+    string | null
+  >(null);
 
   // Load groups from localStorage on mount
   useEffect(() => {
@@ -194,6 +199,13 @@ const BitBucketPRs: React.FC = () => {
     const group = userGroups.find((g) => g.id === selectedGroup);
     return group ? group.users : [];
   }, [selectedGroup, userGroups]);
+
+  // Get users from selected group for main table
+  const usersInSelectedGroupForTable = useMemo(() => {
+    if (!selectedGroupForTable) return [];
+    const group = userGroups.find((g) => g.id === selectedGroupForTable);
+    return group ? group.users : [];
+  }, [selectedGroupForTable, userGroups]);
 
   // Filter PRs by selected authors or selected group
   const filteredPRs = useMemo(() => {
@@ -274,6 +286,68 @@ const BitBucketPRs: React.FC = () => {
     }));
   }, [filteredPRs]);
 
+  // Helper function to count PRs for a repository based on table filters
+  const getPRCountForRepository = useMemo(() => {
+    return (record: BitBucketRepository): number => {
+      const repoId = record.full_name || record.uuid || record.slug;
+      const repoPRs = pullRequests.find(
+        (r) =>
+          (r.repository.full_name || r.repository.uuid || r.repository.slug) ===
+          repoId
+      );
+
+      if (!repoPRs) return 0;
+
+      // If no filters are applied, return all PRs
+      const usersToFilter = selectedGroupForTable
+        ? usersInSelectedGroupForTable
+        : selectedAuthorsForTable;
+
+      if (usersToFilter.length === 0) {
+        return repoPRs.pullRequests.length;
+      }
+
+      // Filter PRs by selected authors/group
+      return repoPRs.pullRequests.filter((pr) => {
+        const authorName =
+          pr.author?.display_name ||
+          pr.author?.user?.displayName ||
+          pr.author?.user?.name ||
+          "Unknown";
+        return usersToFilter.includes(authorName);
+      }).length;
+    };
+  }, [
+    pullRequests,
+    selectedGroupForTable,
+    selectedAuthorsForTable,
+    usersInSelectedGroupForTable,
+  ]);
+
+  // Filter repositories based on table filters (only show repos with matching PRs)
+  const filteredRepositories = useMemo(() => {
+    const usersToFilter = selectedGroupForTable
+      ? usersInSelectedGroupForTable
+      : selectedAuthorsForTable;
+
+    // If no filters, show all repositories
+    if (usersToFilter.length === 0) {
+      return repositories;
+    }
+
+    // Only show repositories that have at least one PR from the selected authors/group
+    return repositories.filter((repo) => {
+      const prCount = getPRCountForRepository(repo);
+      return prCount > 0;
+    });
+  }, [
+    repositories,
+    selectedGroupForTable,
+    selectedAuthorsForTable,
+    usersInSelectedGroupForTable,
+    getPRCountForRepository,
+  ]);
+
   const columns = [
     {
       title: "Name",
@@ -307,6 +381,19 @@ const BitBucketPRs: React.FC = () => {
       dataIndex: "is_private",
       key: "is_private",
       render: (isPrivate: boolean) => (isPrivate ? "Yes" : "No"),
+    },
+    {
+      title: "Number of PRs",
+      key: "prCount",
+      sorter: (a: BitBucketRepository, b: BitBucketRepository) => {
+        const countA = getPRCountForRepository(a);
+        const countB = getPRCountForRepository(b);
+        return countA - countB;
+      },
+      render: (_: any, record: BitBucketRepository) => {
+        const prCount = getPRCountForRepository(record);
+        return <Text strong>{prCount}</Text>;
+      },
     },
     {
       title: "Actions",
@@ -612,6 +699,12 @@ const BitBucketPRs: React.FC = () => {
             <Space style={{ marginBottom: "16px" }}>
               <p style={{ margin: 0 }}>
                 Found {repositories.length} repositories
+                {filteredRepositories.length !== repositories.length && (
+                  <span>
+                    {" "}
+                    (showing {filteredRepositories.length} with matching PRs)
+                  </span>
+                )}
               </p>
               {prsLastUpdated && (
                 <Text type="secondary" style={{ fontSize: "12px" }}>
@@ -635,6 +728,78 @@ const BitBucketPRs: React.FC = () => {
               </Button>
             </Space>
 
+            {/* Filter controls for main table */}
+            <Space
+              direction="vertical"
+              style={{ width: "100%", marginBottom: "16px" }}
+            >
+              <div>
+                <Text strong style={{ marginRight: "8px" }}>
+                  Filter by Group:
+                </Text>
+                <Select
+                  placeholder="Select a group (or use individual authors below)"
+                  value={selectedGroupForTable}
+                  onChange={(value) => {
+                    setSelectedGroupForTable(value);
+                    setSelectedAuthorsForTable([]); // Clear individual author selection when group is selected
+                  }}
+                  style={{
+                    width: "100%",
+                    maxWidth: "400px",
+                    marginBottom: "12px",
+                  }}
+                  allowClear
+                  showSearch
+                  filterOption={(input, option) => {
+                    const label =
+                      typeof option?.label === "string"
+                        ? option.label
+                        : String(option?.label ?? "");
+                    return label.toLowerCase().includes(input.toLowerCase());
+                  }}
+                >
+                  {userGroups.map((group) => (
+                    <Option key={group.id} value={group.id} label={group.name}>
+                      {group.name} ({group.users.length} user
+                      {group.users.length !== 1 ? "s" : ""})
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Text strong style={{ marginRight: "8px" }}>
+                  Filter by Author:
+                </Text>
+                <Select
+                  mode="multiple"
+                  placeholder="Select authors (leave empty to show all)"
+                  value={selectedAuthorsForTable}
+                  onChange={(value) => {
+                    setSelectedAuthorsForTable(value);
+                    setSelectedGroupForTable(null); // Clear group selection when individual authors are selected
+                  }}
+                  style={{ width: "100%", maxWidth: "600px" }}
+                  allowClear
+                  showSearch
+                  disabled={!!selectedGroupForTable}
+                  filterOption={(input, option) => {
+                    const label =
+                      typeof option?.label === "string"
+                        ? option.label
+                        : String(option?.label ?? "");
+                    return label.toLowerCase().includes(input.toLowerCase());
+                  }}
+                >
+                  {uniqueAuthors.map((author) => (
+                    <Option key={author} value={author} label={author}>
+                      {author}
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+            </Space>
+
             {prsError && (
               <Alert
                 message="Error Loading PRs"
@@ -647,7 +812,7 @@ const BitBucketPRs: React.FC = () => {
             )}
 
             <Table
-              dataSource={repositories}
+              dataSource={filteredRepositories}
               columns={columns}
               rowKey={(record, index) =>
                 record.uuid || record.full_name || `${record.slug}-${index}`
@@ -665,13 +830,16 @@ const BitBucketPRs: React.FC = () => {
           <Divider />
           <Card>
             <Space
-              style={{ width: "100%", justifyContent: "space-between", marginBottom: "16px" }}
+              style={{
+                width: "100%",
+                justifyContent: "space-between",
+                marginBottom: "16px",
+              }}
             >
-              <Title level={3} style={{ margin: 0 }}>PR Analytics</Title>
-              <Button
-                icon={<UserOutlined />}
-                onClick={handleManageGroups}
-              >
+              <Title level={3} style={{ margin: 0 }}>
+                PR Analytics
+              </Title>
+              <Button icon={<UserOutlined />} onClick={handleManageGroups}>
                 Manage User Groups
               </Button>
             </Space>
@@ -690,7 +858,11 @@ const BitBucketPRs: React.FC = () => {
                     setSelectedGroup(value);
                     setSelectedAuthors([]); // Clear individual author selection when group is selected
                   }}
-                  style={{ width: "100%", maxWidth: "400px", marginBottom: "12px" }}
+                  style={{
+                    width: "100%",
+                    maxWidth: "400px",
+                    marginBottom: "12px",
+                  }}
                   allowClear
                   showSearch
                   filterOption={(input, option) => {
@@ -703,7 +875,8 @@ const BitBucketPRs: React.FC = () => {
                 >
                   {userGroups.map((group) => (
                     <Option key={group.id} value={group.id} label={group.name}>
-                      {group.name} ({group.users.length} user{group.users.length !== 1 ? "s" : ""})
+                      {group.name} ({group.users.length} user
+                      {group.users.length !== 1 ? "s" : ""})
                     </Option>
                   ))}
                 </Select>
@@ -1100,7 +1273,12 @@ const BitBucketPRs: React.FC = () => {
         open={isGroupListModalVisible}
         onCancel={handleCloseGroupListModal}
         footer={[
-          <Button key="create" type="primary" icon={<PlusOutlined />} onClick={handleCreateGroup}>
+          <Button
+            key="create"
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleCreateGroup}
+          >
             Create New Group
           </Button>,
           <Button key="close" onClick={handleCloseGroupListModal}>
@@ -1147,11 +1325,7 @@ const BitBucketPRs: React.FC = () => {
                     okText="Yes"
                     cancelText="No"
                   >
-                    <Button
-                      type="link"
-                      danger
-                      icon={<DeleteOutlined />}
-                    >
+                    <Button type="link" danger icon={<DeleteOutlined />}>
                       Delete
                     </Button>
                   </Popconfirm>,
