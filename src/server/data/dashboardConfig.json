@@ -18,6 +18,24 @@
             "statusesSelected": [],
             "ticketTypesSelected": []
           }
+        },
+        {
+          "id": "metric-1767599760865",
+          "type": "bitbucketPR",
+          "name": "New Bitbucket PR Metric",
+          "config": {
+            "selectedGroup": "group-1767341959775"
+          }
+        },
+        {
+          "id": "metric-1767600998019",
+          "type": "bugsAnalysis",
+          "name": "New Bugs Analysis Metric",
+          "config": {
+            "query": "project = LEN AND type = \"Bug\" and created > -50w",
+            "viewMode": "count",
+            "savedQueryId": "1763649751379"
+          }
         }
       ]
     }

@@ -9,11 +9,22 @@ export interface LeadTimeConfig {
   ticketTypesSelected: string[];
 }
 
+export interface BitbucketPRConfig {
+  workspace?: string;
+  selectedGroup?: string;
+}
+
+export interface BugsAnalysisConfig {
+  query: string;
+  viewMode: "count" | "averageTimeSpent";
+  savedQueryId?: string; // ID of saved query if one was selected
+}
+
 export interface DashboardMetric {
   id: string;
-  type: "leadTime";
+  type: "leadTime" | "bitbucketPR" | "bugsAnalysis";
   name: string;
-  config: LeadTimeConfig;
+  config: LeadTimeConfig | BitbucketPRConfig | BugsAnalysisConfig;
 }
 
 export interface Dashboard {
