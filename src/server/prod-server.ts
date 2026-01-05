@@ -4,6 +4,7 @@ dotenv.config();
 
 import path from 'path';
 import { metricsRoute } from './routes/metricsRoute';
+import dashboardRoute from './routes/dashboardRoute';
 
 // Get the project root directory (where package.json is)
 const projectRoot = process.cwd();
@@ -18,6 +19,7 @@ app.use(express.static(distPath));
 
 // API routes
 app.use('/api', metricsRoute);
+app.use('/api/dashboard', dashboardRoute);
 
 // Serve favicon
 app.get('/favicon.svg', (req, res) => {

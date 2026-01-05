@@ -22,8 +22,12 @@ import Column from "antd/es/table/Column";
 import ColumnChart, { CategoryData, ColumnType } from "./ColumnChart";
 import { LeadTimeIssueInfo } from "../server/graphManagers/GraphManagerTypes";
 import { MinimumIssueInfo } from "../Types";
+import { LeadTimeConfig } from "./Dashboard/types";
 
-interface Props {}
+interface Props {
+  initialConfig?: LeadTimeConfig;
+  readOnly?: boolean;
+}
 interface State {
   input: string;
   queryHistory: string[];
@@ -48,21 +52,62 @@ export default class LeadTime extends React.Component<Props, State> {
     const savedQueryHistory = localStorage.getItem("leadTimeQueryHistory");
     const queryHistory = savedQueryHistory ? JSON.parse(savedQueryHistory) : [];
 
+    // Use initialConfig if provided, otherwise use defaults
+    const initialConfig = props.initialConfig;
+
     this.state = {
-      input: localStorage.getItem("throughputQuery") || "",
+      input: initialConfig?.query || localStorage.getItem("throughputQuery") || "",
       queryHistory: queryHistory,
-      currentSprintStartDate: dayjs().toString(),
-      numberOfSprints: 5,
-      splitMode: "statuses",
-      viewMode: "combined",
+      currentSprintStartDate: initialConfig?.currentSprintStartDate || dayjs().toString(),
+      numberOfSprints: initialConfig?.numberOfSprints || 5,
+      splitMode: initialConfig?.splitMode || "statuses",
+      viewMode: initialConfig?.viewMode || "combined",
       leadTimeData: null,
       rawLeadTimeData: null,
-      filterNoTimeBooked: true,
+      filterNoTimeBooked: initialConfig?.filterNoTimeBooked ?? true,
       allStatuses: [],
-      statusesSelected: [],
+      statusesSelected: initialConfig?.statusesSelected || [],
       allTicketTypes: [],
-      ticketTypesSelected: [],
+      ticketTypesSelected: initialConfig?.ticketTypesSelected || [],
     };
+  }
+
+  componentDidMount() {
+    // Auto-run query if initialConfig is provided and readOnly is true
+    if (this.props.initialConfig && this.props.readOnly && this.state.input) {
+      this.onClick();
+    }
+  }
+
+  componentDidUpdate(prevProps: Props) {
+    // If config changes, update state and re-run query
+    if (
+      this.props.initialConfig &&
+      this.props.readOnly
+    ) {
+      // Deep compare config to detect changes even if object reference is the same
+      const configChanged = 
+        !prevProps.initialConfig ||
+        JSON.stringify(this.props.initialConfig) !== JSON.stringify(prevProps.initialConfig);
+      
+      if (configChanged) {
+        const config = this.props.initialConfig;
+        this.setState({
+          input: config.query,
+          currentSprintStartDate: config.currentSprintStartDate,
+          numberOfSprints: config.numberOfSprints,
+          splitMode: config.splitMode,
+          viewMode: config.viewMode,
+          filterNoTimeBooked: config.filterNoTimeBooked,
+          statusesSelected: config.statusesSelected,
+          ticketTypesSelected: config.ticketTypesSelected,
+        }, () => {
+          if (config.query) {
+            this.onClick();
+          }
+        });
+      }
+    }
   }
 
   // Add a query to history, keeping only the latest 5 unique entries
@@ -581,93 +626,99 @@ export default class LeadTime extends React.Component<Props, State> {
       label: query,
     }));
 
+    const { readOnly } = this.props;
+
     return (
       <div>
-        <div
-          style={{
-            display: "flex",
-            gap: "1rem",
-            alignItems: "center",
-            marginBottom: "1rem",
-          }}
-        >
-          <AutoComplete
-            style={{ flex: 1 }}
-            value={this.state.input}
-            options={options}
-            onChange={this.handleQueryChange}
-            placeholder="Enter query"
-          />
-          <DatePicker
-            onChange={this.onSprintStartDateChange}
-            value={dayjs(this.state.currentSprintStartDate)}
-          />
-          <span style={{ whiteSpace: "nowrap" }}>
-            Sprints:
-            <InputNumber
-              value={this.state.numberOfSprints}
-              onChange={this.onNumberOfSprintsChange}
-              style={{ marginLeft: "0.5rem" }}
-            />
-          </span>
-          <Button type="primary" onClick={this.onClick}>
-            Run Query
-          </Button>
-        </div>
-        <Radio.Group
-          value={this.state.splitMode}
-          onChange={this.handleSplitModeChange}
-          style={{ marginBottom: "1rem" }}
-        >
-          <Radio.Button value="timebooked">TimeBooked</Radio.Button>
-          <Radio.Button value="statuses">Statuses</Radio.Button>
-        </Radio.Group>
-        <br />
-        <Radio.Group
-          value={this.state.viewMode}
-          onChange={this.handleViewModeChange}
-          style={{ marginBottom: "1rem" }}
-        >
-          <Radio.Button value="sprint">Split by Sprint</Radio.Button>
-          <Radio.Button value="combined">All Data Together</Radio.Button>
-        </Radio.Group>
-        <br />
-        {this.state.rawLeadTimeData && (
-          <Checkbox
-            checked={this.state.filterNoTimeBooked}
-            onChange={this.handleFilterNoTimeBookedChange}
-            style={{ marginBottom: "1rem" }}
-          >
-            Filter out issues with no time booked
-          </Checkbox>
+        {!readOnly && (
+          <>
+            <div
+              style={{
+                display: "flex",
+                gap: "1rem",
+                alignItems: "center",
+                marginBottom: "1rem",
+              }}
+            >
+              <AutoComplete
+                style={{ flex: 1 }}
+                value={this.state.input}
+                options={options}
+                onChange={this.handleQueryChange}
+                placeholder="Enter query"
+              />
+              <DatePicker
+                onChange={this.onSprintStartDateChange}
+                value={dayjs(this.state.currentSprintStartDate)}
+              />
+              <span style={{ whiteSpace: "nowrap" }}>
+                Sprints:
+                <InputNumber
+                  value={this.state.numberOfSprints}
+                  onChange={this.onNumberOfSprintsChange}
+                  style={{ marginLeft: "0.5rem" }}
+                />
+              </span>
+              <Button type="primary" onClick={this.onClick}>
+                Run Query
+              </Button>
+            </div>
+            <Radio.Group
+              value={this.state.splitMode}
+              onChange={this.handleSplitModeChange}
+              style={{ marginBottom: "1rem" }}
+            >
+              <Radio.Button value="timebooked">TimeBooked</Radio.Button>
+              <Radio.Button value="statuses">Statuses</Radio.Button>
+            </Radio.Group>
+            <br />
+            <Radio.Group
+              value={this.state.viewMode}
+              onChange={this.handleViewModeChange}
+              style={{ marginBottom: "1rem" }}
+            >
+              <Radio.Button value="sprint">Split by Sprint</Radio.Button>
+              <Radio.Button value="combined">All Data Together</Radio.Button>
+            </Radio.Group>
+            <br />
+            {this.state.rawLeadTimeData && (
+              <Checkbox
+                checked={this.state.filterNoTimeBooked}
+                onChange={this.handleFilterNoTimeBookedChange}
+                style={{ marginBottom: "1rem" }}
+              >
+                Filter out issues with no time booked
+              </Checkbox>
+            )}
+            <br />
+            <span
+              style={{
+                display: this.state.splitMode === "statuses" ? "" : "none",
+              }}
+            >
+              <label style={{ marginRight: "0.5rem", fontWeight: "bold" }}>
+                Statuses:
+              </label>
+              <Select
+                onChange={this.statusesSelected}
+                options={this.state.allStatuses}
+              />
+            </span>
+            <br />
+            {this.state.rawLeadTimeData && this.state.allTicketTypes.length > 0 && (
+              <span>
+                <label style={{ marginRight: "0.5rem", fontWeight: "bold" }}>
+                  Ticket Types:
+                </label>
+                <Select
+                  onChange={this.ticketTypesSelected}
+                  options={this.state.allTicketTypes}
+                />
+              </span>
+            )}
+            <br />
+          </>
         )}
-        <br />
-        <span
-          style={{
-            display: this.state.splitMode === "statuses" ? "" : "none",
-          }}
-        >
-          <label style={{ marginRight: "0.5rem", fontWeight: "bold" }}>
-            Statuses:
-          </label>
-          <Select
-            onChange={this.statusesSelected}
-            options={this.state.allStatuses}
-          />
-        </span>
-        <br />
-        {this.state.rawLeadTimeData && this.state.allTicketTypes.length > 0 && (
-          <span>
-            <label style={{ marginRight: "0.5rem", fontWeight: "bold" }}>
-              Ticket Types:
-            </label>
-            <Select
-              onChange={this.ticketTypesSelected}
-              options={this.state.allTicketTypes}
-            />
-          </span>
-        )}
-        <br />
         {this.state.rawLeadTimeData && (
           <div
             style={{

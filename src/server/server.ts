@@ -2,6 +2,7 @@
 import express from "express";
 import path from "path";
 import { metricsRoute } from "./routes/metricsRoute";
+import dashboardRoute from "./routes/dashboardRoute";
 
 let app;
 
@@ -15,6 +16,7 @@ const Server = (
   app.use(express.static(path.join(__dirname, ".")));
 
   app.use("/api", metricsRoute);
+  app.use("/api/dashboard", dashboardRoute);
 
   app.get("/favicon.svg", (req, res) => {
     console.log("Favicon Request received " + req.url);

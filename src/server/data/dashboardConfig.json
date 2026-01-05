@@ -1,0 +1,25 @@
+{
+  "dashboards": [
+    {
+      "id": "dashboard-1767348850638",
+      "name": "AF",
+      "metrics": [
+        {
+          "id": "metric-1767348855317",
+          "type": "leadTime",
+          "name": "Lead Time",
+          "config": {
+            "query": "project = AF",
+            "currentSprintStartDate": "Fri, 02 Jan 2026 10:14:15 GMT",
+            "numberOfSprints": 5,
+            "splitMode": "timebooked",
+            "viewMode": "combined",
+            "filterNoTimeBooked": true,
+            "statusesSelected": [],
+            "ticketTypesSelected": []
+          }
+        }
+      ]
+    }
+  ]
+}
