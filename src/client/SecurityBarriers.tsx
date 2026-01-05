@@ -52,7 +52,7 @@ interface CombinedUserData {
   lastName: string;
   barrierDays: number | string;
   holidayDays: number | string;
-  weeklyHours: number | string;
+  totalAgreedDaysInOffice: number | string;
   daysInOffice: number | string;
   difference: number | string;
   lineManager?: string;
@@ -1083,7 +1083,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
         lastName: user.lastName,
         barrierDays: barrierDaysValue,
         holidayDays: holidayPerson ? holidayPerson.totalHolidayDays : 0,
-        weeklyHours: "Data not found",
+        totalAgreedDaysInOffice: baseDaysInOffice,
         daysInOffice: daysInOfficeValue,
         difference: difference,
         lineManager: user.lineManager || undefined,
@@ -1168,9 +1168,11 @@ const WeWork: React.FC<WeWorkProps> = () => {
     const headers = [
       "First Name",
       "Last Name",
+      "Line Manager",
       "Barrier Days",
       "Holiday Days",
-      "Agreed Days in Office Per Month",
+      "Total Agreed Days in Office Per Month",
+      "Agreed Days in Office Per Month Minus Holidays",
       "Difference",
     ];
 
@@ -1178,8 +1180,10 @@ const WeWork: React.FC<WeWorkProps> = () => {
     const rows = combinedData.map((user) => [
       user.firstName,
       user.lastName,
+      user.lineManager || "",
       user.barrierDays,
       user.holidayDays,
+      user.totalAgreedDaysInOffice,
       user.daysInOffice,
       user.difference,
     ]);
@@ -1264,24 +1268,30 @@ const WeWork: React.FC<WeWorkProps> = () => {
       },
     },
     {
-      title: "Weekly Hours",
-      dataIndex: "weeklyHours",
-      key: "weeklyHours",
-      width: 150,
-      render: (hours: number | string) => {
-        if (typeof hours === "number") {
-          return <Tag color="purple">{hours}</Tag>;
+      title: "Total Agreed Days in Office Per Month",
+      dataIndex: "totalAgreedDaysInOffice",
+      key: "totalAgreedDaysInOffice",
+      width: 200,
+      render: (days: number | string) => {
+        if (typeof days === "number") {
+          return <Tag color="purple">{days}</Tag>;
         }
-        return "-";
+        return <Tag color="default">{days}</Tag>;
       },
       sorter: (a: CombinedUserData, b: CombinedUserData) => {
-        const aHours = typeof a.weeklyHours === "number" ? a.weeklyHours : -1;
-        const bHours = typeof b.weeklyHours === "number" ? b.weeklyHours : -1;
-        return aHours - bHours;
+        const aDays =
+          typeof a.totalAgreedDaysInOffice === "number"
+            ? a.totalAgreedDaysInOffice
+            : -1;
+        const bDays =
+          typeof b.totalAgreedDaysInOffice === "number"
+            ? b.totalAgreedDaysInOffice
+            : -1;
+        return aDays - bDays;
       },
     },
     {
-      title: "Agreed Days in Office Per Month",
+      title: "Agreed Days in Office Per Month Minus Holidays",
       dataIndex: "daysInOffice",
       key: "daysInOffice",
       width: 150,
