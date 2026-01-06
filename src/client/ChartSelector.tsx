@@ -163,7 +163,9 @@ export default class ChartSelector extends React.Component<Props, State> {
             </Radio.Button>
             <Radio.Button value="wework">WeWork</Radio.Button>
             <Radio.Button value="bugsAnalysis">Bugs Analysis</Radio.Button>
-            <Radio.Button value="releaseLeadTime">Release Lead Time</Radio.Button>
+            <Radio.Button value="releaseLeadTime">
+              Release Lead Time
+            </Radio.Button>
             <Radio.Button value="bitbucketPRs">BitBucket PRs</Radio.Button>
             <Radio.Button value="averageResolutionTime">
               Average Resolution Time

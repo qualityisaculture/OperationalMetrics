@@ -36,6 +36,30 @@
             "viewMode": "count",
             "savedQueryId": "1763649751379"
           }
+        },
+        {
+          "id": "metric-1767607359218",
+          "type": "tempoAnalyzer",
+          "name": "New Tempo Analyzer Metric",
+          "config": {
+            "summaryViewMode": "sankey",
+            "secondarySplitMode": "account",
+            "excludeHolidayAbsence": false,
+            "excludeStartDate": null,
+            "excludeEndDate": null,
+            "showOtherTeams": false,
+            "selectedUserGroups": [],
+            "sankeySelectors": [
+              {
+                "id": "selector-1767695912448-0.06353563036961563",
+                "name": "",
+                "type": "Label",
+                "selectedValues": [
+                  "corrected"
+                ]
+              }
+            ]
+          }
         }
       ]
     }

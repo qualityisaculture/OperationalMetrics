@@ -15,7 +15,7 @@ import {
 } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { DashboardMetric, LeadTimeConfig, BitbucketPRConfig, BugsAnalysisConfig } from "../types";
+import { DashboardMetric, LeadTimeConfig, BitbucketPRConfig, BugsAnalysisConfig, TempoAnalyzerConfig } from "../types";
 import { useDashboardConfig } from "../hooks/useDashboardConfig";
 import { useSavedQueries } from "../../BugsAnalysis/hooks/useSavedQueries";
 
@@ -47,7 +47,7 @@ const EditMode: React.FC = () => {
   const { selectedDashboard, addMetric, updateMetric, deleteMetric } = useDashboardConfig();
   const [editingMetric, setEditingMetric] = useState<DashboardMetric | null>(null);
   const [form] = Form.useForm();
-  const [metricType, setMetricType] = useState<"leadTime" | "bitbucketPR" | "bugsAnalysis">("leadTime");
+  const [metricType, setMetricType] = useState<"leadTime" | "bitbucketPR" | "bugsAnalysis" | "tempoAnalyzer">("leadTime");
   const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
   const { savedQueries, loadQuery } = useSavedQueries();
 
@@ -156,6 +156,19 @@ const EditMode: React.FC = () => {
           viewMode: values.viewMode || "count",
           savedQueryId: values.savedQueryId || undefined,
         };
+      } else if (type === "tempoAnalyzer") {
+        // TempoAnalyzer settings are configured in the component itself via Edit button
+        // So we just use default values here
+        config = {
+          summaryViewMode: "category",
+          secondarySplitMode: "account",
+          excludeHolidayAbsence: false,
+          excludeStartDate: null,
+          excludeEndDate: null,
+          showOtherTeams: false,
+          selectedUserGroups: [],
+          sankeySelectors: [],
+        };
       } else {
         config = {
           workspace: values.workspace || undefined,
@@ -255,12 +268,26 @@ const EditMode: React.FC = () => {
         selectedGroup: undefined,
         savedQueryId: undefined,
       });
-    } else {
+    } else if (newType === "bugsAnalysis") {
       form.setFieldsValue({
         name: "New Bugs Analysis Metric",
         type: "bugsAnalysis",
         query: "",
         viewMode: "count",
+        savedQueryId: undefined,
+        currentSprintStartDate: undefined,
+        numberOfSprints: undefined,
+        splitMode: undefined,
+        filterNoTimeBooked: undefined,
+        workspace: undefined,
+        selectedGroup: undefined,
+      });
+    } else {
+      form.setFieldsValue({
+        name: "New Tempo Analyzer Metric",
+        type: "tempoAnalyzer",
+        query: undefined,
+        viewMode: undefined,
         savedQueryId: undefined,
         currentSprintStartDate: undefined,
         numberOfSprints: undefined,
@@ -375,6 +402,32 @@ const EditMode: React.FC = () => {
                 )}
               </>
             )}
+            {metric.type === "tempoAnalyzer" && (
+              <>
+                <p>
+                  <strong>Split Type:</strong> {(metric.config as TempoAnalyzerConfig).summaryViewMode || "category"}
+                </p>
+                {(metric.config as TempoAnalyzerConfig).summaryViewMode === "category" && (
+                  <p>
+                    <strong>Secondary Split:</strong> {(metric.config as TempoAnalyzerConfig).secondarySplitMode || "account"}
+                  </p>
+                )}
+                <p>
+                  <strong>Exclude Holiday/Absence:</strong> {(metric.config as TempoAnalyzerConfig).excludeHolidayAbsence ? "Yes" : "No"}
+                </p>
+                <p>
+                  <strong>Show Other Teams:</strong> {(metric.config as TempoAnalyzerConfig).showOtherTeams ? "Yes" : "No"}
+                </p>
+                {(metric.config as TempoAnalyzerConfig).summaryViewMode === "sankey" && (
+                  <p>
+                    <strong>Sankey Selectors:</strong> {(metric.config as TempoAnalyzerConfig).sankeySelectors?.length || 0}
+                  </p>
+                )}
+                <p style={{ fontSize: "12px", color: "#666", fontStyle: "italic" }}>
+                  Note: Settings can be configured after data is loaded using the "Edit Settings" button.
+                </p>
+              </>
+            )}
           </div>
         </Card>
       ))}
@@ -412,6 +465,7 @@ const EditMode: React.FC = () => {
                 <Option value="leadTime">Lead Time</Option>
                 <Option value="bitbucketPR">Bitbucket PR</Option>
                 <Option value="bugsAnalysis">Bugs Analysis</Option>
+                <Option value="tempoAnalyzer">Tempo Analyzer</Option>
               </Select>
             </Form.Item>
           )}

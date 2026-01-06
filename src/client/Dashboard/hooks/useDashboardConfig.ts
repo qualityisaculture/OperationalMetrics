@@ -195,6 +195,8 @@ export const useDashboardConfig = () => {
         ),
       };
       await saveConfig(newConfig);
+      // Update local state immediately so UI reflects the change
+      setConfig(newConfig);
     },
     [config, saveConfig, selectedDashboardId]
   );

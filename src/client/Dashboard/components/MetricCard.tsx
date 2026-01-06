@@ -1,17 +1,28 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card } from "antd";
-import { DashboardMetric, BitbucketPRConfig, BugsAnalysisConfig } from "../types";
+import { DashboardMetric, BitbucketPRConfig, BugsAnalysisConfig, TempoAnalyzerConfig } from "../types";
 import LeadTime from "../../LeadTime";
 import BitbucketPRAnalytics from "./BitbucketPRAnalytics";
 import BugsAnalysisDashboard from "./BugsAnalysisDashboard";
+import TempoAnalyzerDashboard, { TempoAnalyzerConfig as TempoConfig } from "./TempoAnalyzerDashboard";
+import { useDashboardConfig } from "../hooks/useDashboardConfig";
 
 interface MetricCardProps {
   metric: DashboardMetric;
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({ metric }) => {
+  const { updateMetric } = useDashboardConfig();
   // Create a key that changes when the config changes to force re-render
   const configKey = JSON.stringify(metric.config);
+  
+  const handleTempoConfigChange = async (config: TempoConfig) => {
+    const updatedMetric: DashboardMetric = {
+      ...metric,
+      config: config as TempoAnalyzerConfig,
+    };
+    await updateMetric(metric.id, updatedMetric);
+  };
   
   const renderMetric = () => {
     switch (metric.type) {
@@ -39,6 +50,34 @@ const MetricCard: React.FC<MetricCardProps> = ({ metric }) => {
             query={(metric.config as BugsAnalysisConfig).query}
             viewMode={(metric.config as BugsAnalysisConfig).viewMode}
             readOnly={true}
+          />
+        );
+      case "tempoAnalyzer":
+        const tempoConfig = metric.config as TempoAnalyzerConfig;
+        // Ensure all required fields are present with defaults
+        const fullConfig: TempoAnalyzerConfig = {
+          summaryViewMode: tempoConfig.summaryViewMode || "category",
+          secondarySplitMode: tempoConfig.secondarySplitMode || "account",
+          excludeHolidayAbsence: tempoConfig.excludeHolidayAbsence ?? false,
+          excludeStartDate: tempoConfig.excludeStartDate || null,
+          excludeEndDate: tempoConfig.excludeEndDate || null,
+          showOtherTeams: tempoConfig.showOtherTeams ?? false,
+          selectedUserGroups: tempoConfig.selectedUserGroups || [],
+          sankeySelectors: tempoConfig.sankeySelectors || [],
+        };
+        return (
+          <TempoAnalyzerDashboard
+            key={`${metric.id}-${configKey}`}
+            summaryViewMode={fullConfig.summaryViewMode}
+            secondarySplitMode={fullConfig.secondarySplitMode}
+            excludeHolidayAbsence={fullConfig.excludeHolidayAbsence}
+            excludeStartDate={fullConfig.excludeStartDate}
+            excludeEndDate={fullConfig.excludeEndDate}
+            showOtherTeams={fullConfig.showOtherTeams}
+            selectedUserGroups={fullConfig.selectedUserGroups}
+            sankeySelectors={fullConfig.sankeySelectors}
+            readOnly={false}
+            onConfigChange={handleTempoConfigChange}
           />
         );
       default:

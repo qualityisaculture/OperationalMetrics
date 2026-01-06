@@ -20,11 +20,27 @@ export interface BugsAnalysisConfig {
   savedQueryId?: string; // ID of saved query if one was selected
 }
 
+export interface TempoAnalyzerConfig {
+  summaryViewMode: "category" | "name" | "issueType" | "ancestryType" | "sankey";
+  secondarySplitMode: "account" | "issueType";
+  excludeHolidayAbsence: boolean;
+  excludeStartDate: string | null;
+  excludeEndDate: string | null;
+  showOtherTeams: boolean;
+  selectedUserGroups: string[];
+  sankeySelectors: Array<{
+    id: string;
+    name?: string;
+    type: "Type" | "Label" | "Project" | "Key";
+    selectedValues: string[];
+  }>;
+}
+
 export interface DashboardMetric {
   id: string;
-  type: "leadTime" | "bitbucketPR" | "bugsAnalysis";
+  type: "leadTime" | "bitbucketPR" | "bugsAnalysis" | "tempoAnalyzer";
   name: string;
-  config: LeadTimeConfig | BitbucketPRConfig | BugsAnalysisConfig;
+  config: LeadTimeConfig | BitbucketPRConfig | BugsAnalysisConfig | TempoAnalyzerConfig;
 }
 
 export interface Dashboard {
