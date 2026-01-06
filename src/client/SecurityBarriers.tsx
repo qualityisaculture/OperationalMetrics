@@ -127,6 +127,9 @@ const WeWork: React.FC<WeWorkProps> = () => {
   const [unmatchedBarrierUsers, setUnmatchedBarrierUsers] = useState<
     PersonSummary[]
   >([]);
+  const [officeDaysModalVisible, setOfficeDaysModalVisible] = useState(false);
+  const [selectedUserForOfficeDays, setSelectedUserForOfficeDays] =
+    useState<CombinedUserData | null>(null);
 
   const processPersonSummaries = (data: WeWorkEntry[]) => {
     const personMap = new Map<string, PersonSummary>();
@@ -1158,6 +1161,130 @@ const WeWork: React.FC<WeWorkProps> = () => {
     setSelectedPerson(null);
   };
 
+  const showOfficeDaysModal = (user: CombinedUserData) => {
+    setSelectedUserForOfficeDays(user);
+    setOfficeDaysModalVisible(true);
+  };
+
+  const closeOfficeDaysModal = () => {
+    setOfficeDaysModalVisible(false);
+    setSelectedUserForOfficeDays(null);
+  };
+
+  // Helper function to parse DD/MM/YYYY format dates
+  const parseDateDDMMYYYY = (dateString: string): Date | null => {
+    try {
+      // Extract just the date part (before comma if it exists)
+      const datePart =
+        dateString.split(",")[0]?.trim() ||
+        dateString.split(" ")[0]?.trim() ||
+        dateString.trim();
+
+      // Try to parse DD/MM/YYYY format
+      const parts = datePart.split(/[\/\-]/);
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in Date
+        const year = parseInt(parts[2], 10);
+
+        if (
+          !isNaN(day) &&
+          !isNaN(month) &&
+          !isNaN(year) &&
+          day > 0 &&
+          day <= 31 &&
+          month >= 0 &&
+          month < 12 &&
+          year > 1900
+        ) {
+          const date = new Date(year, month, day);
+          // Verify the date is valid (handles cases like 31/02/2024)
+          if (
+            date.getDate() === day &&
+            date.getMonth() === month &&
+            date.getFullYear() === year
+          ) {
+            return date;
+          }
+        }
+      }
+
+      // Fallback: try standard Date parsing
+      const fallbackDate = new Date(datePart);
+      if (!isNaN(fallbackDate.getTime())) {
+        return fallbackDate;
+      }
+    } catch (e) {
+      // If parsing fails, return null
+    }
+    return null;
+  };
+
+  // Helper function to find person's office days from personSummaries
+  const getOfficeDaysForUser = (user: CombinedUserData): WeWorkEntry[] => {
+    // Try to find matching person in personSummaries
+    const normalizeName = (name: string) => {
+      return name.toLowerCase().trim().replace(/\s+/g, " ");
+    };
+
+    const normalizedUserName = normalizeName(user.fullName);
+
+    // First try exact match
+    let person = personSummaries.find(
+      (p) => normalizeName(p.fullName) === normalizedUserName
+    );
+
+    // If no exact match, try matching by first and last name
+    if (!person) {
+      person = personSummaries.find((p) => {
+        const normalizedPersonName = normalizeName(p.fullName);
+        return (
+          normalizedPersonName === normalizedUserName ||
+          (normalizeName(p.firstName) === normalizeName(user.firstName) &&
+            normalizeName(p.lastName) === normalizeName(user.lastName))
+        );
+      });
+    }
+
+    return person ? person.entries : [];
+  };
+
+  // Helper function to format office days as "01/12, 03/12" etc
+  const formatOfficeDaysList = (user: CombinedUserData): string => {
+    const officeDays = getOfficeDaysForUser(user);
+    if (officeDays.length === 0) {
+      return "";
+    }
+
+    // Get unique dates
+    const uniqueDates = Array.from(
+      new Set(
+        officeDays.map((entry) => {
+          const datePart =
+            entry.date.split(",")[0]?.trim() ||
+            entry.date.split(" ")[0]?.trim() ||
+            entry.date;
+          return datePart;
+        })
+      )
+    )
+      .map((dateStr) => {
+        // Parse the date
+        const date = parseDateDDMMYYYY(dateStr);
+        return date ? { dateStr, date } : null;
+      })
+      .filter((item): item is { dateStr: string; date: Date } => item !== null)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map((item) => {
+        // Format as DD/MM
+        const day = String(item.date.getDate()).padStart(2, "0");
+        const month = String(item.date.getMonth() + 1).padStart(2, "0");
+        return `${day}/${month}`;
+      });
+
+    return uniqueDates.join(", ");
+  };
+
   const exportToExcel = () => {
     if (combinedData.length === 0) {
       message.warning("No combined data to export");
@@ -1174,6 +1301,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
       "Total Agreed Days in Office Per Month",
       "Agreed Days in Office Per Month Minus Holidays",
       "Difference",
+      "Office Days List",
     ];
 
     // Create data rows
@@ -1186,6 +1314,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
       user.totalAgreedDaysInOffice,
       user.daysInOffice,
       user.difference,
+      formatOfficeDaysList(user),
     ]);
 
     // Create worksheet
@@ -1323,6 +1452,46 @@ const WeWork: React.FC<WeWorkProps> = () => {
         const aDiff = typeof a.difference === "number" ? a.difference : -1;
         const bDiff = typeof b.difference === "number" ? b.difference : -1;
         return aDiff - bDiff;
+      },
+    },
+    {
+      title: "Office Days",
+      key: "officeDays",
+      width: 150,
+      render: (_: any, record: CombinedUserData) => {
+        const officeDays = getOfficeDaysForUser(record);
+        // Calculate unique days count
+        const uniqueDaysCount =
+          officeDays.length > 0
+            ? new Set(
+                officeDays.map(
+                  (e) =>
+                    e.date.split(",")[0]?.trim() ||
+                    e.date.split(" ")[0]?.trim() ||
+                    e.date
+                )
+              ).size
+            : 0;
+        return (
+          <Button
+            type="primary"
+            icon={<EyeOutlined />}
+            size="small"
+            onClick={() => showOfficeDaysModal(record)}
+            disabled={officeDays.length === 0}
+          >
+            View Days ({uniqueDaysCount})
+          </Button>
+        );
+      },
+    },
+    {
+      title: "Office Days List",
+      key: "officeDaysList",
+      width: 300,
+      render: (_: any, record: CombinedUserData) => {
+        const formattedDays = formatOfficeDaysList(record);
+        return formattedDays || <span style={{ color: "#999" }}>No data</span>;
       },
     },
   ];
@@ -1654,6 +1823,113 @@ const WeWork: React.FC<WeWorkProps> = () => {
               pagination={{ pageSize: 10 }}
               size="small"
             />
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        title={
+          selectedUserForOfficeDays
+            ? `Office Days for ${selectedUserForOfficeDays.fullName}`
+            : "Office Days"
+        }
+        open={officeDaysModalVisible}
+        onCancel={closeOfficeDaysModal}
+        footer={[
+          <Button key="close" onClick={closeOfficeDaysModal}>
+            Close
+          </Button>,
+        ]}
+        width={800}
+      >
+        {selectedUserForOfficeDays && (
+          <div>
+            {(() => {
+              const officeDays = getOfficeDaysForUser(
+                selectedUserForOfficeDays
+              );
+              // Get unique dates
+              const uniqueDates = Array.from(
+                new Set(
+                  officeDays.map((entry) => {
+                    const datePart =
+                      entry.date.split(",")[0]?.trim() ||
+                      entry.date.split(" ")[0]?.trim() ||
+                      entry.date;
+                    return datePart;
+                  })
+                )
+              ).sort((a, b) => {
+                // Sort dates chronologically using DD/MM/YYYY format
+                const dateA = parseDateDDMMYYYY(a);
+                const dateB = parseDateDDMMYYYY(b);
+                if (!dateA || !dateB) return 0;
+                return dateA.getTime() - dateB.getTime();
+              });
+
+              if (uniqueDates.length === 0) {
+                return <p>No office days data available for this user.</p>;
+              }
+
+              return (
+                <div>
+                  <p style={{ marginBottom: "16px" }}>
+                    <strong>Total Unique Days in Office:</strong>{" "}
+                    {uniqueDates.length}
+                  </p>
+                  <Table
+                    columns={[
+                      {
+                        title: "Date",
+                        dataIndex: "date",
+                        key: "date",
+                        width: 200,
+                        render: (date: string) => {
+                          // Parse date in DD/MM/YYYY format and format it nicely
+                          const dateObj = parseDateDDMMYYYY(date);
+                          if (dateObj) {
+                            return dateObj.toLocaleDateString("en-US", {
+                              weekday: "long",
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            });
+                          }
+                          return date;
+                        },
+                        sorter: (a: { date: string }, b: { date: string }) => {
+                          const dateA = parseDateDDMMYYYY(a.date);
+                          const dateB = parseDateDDMMYYYY(b.date);
+                          if (!dateA || !dateB) return 0;
+                          return dateA.getTime() - dateB.getTime();
+                        },
+                      },
+                      {
+                        title: "Day of Week",
+                        key: "dayOfWeek",
+                        width: 150,
+                        render: (_: any, record: { date: string }) => {
+                          const dateObj = parseDateDDMMYYYY(record.date);
+                          if (dateObj) {
+                            return dateObj.toLocaleDateString("en-US", {
+                              weekday: "long",
+                            });
+                          }
+                          return "-";
+                        },
+                      },
+                    ]}
+                    dataSource={uniqueDates.map((date) => ({
+                      date,
+                      key: date,
+                    }))}
+                    rowKey="date"
+                    pagination={{ pageSize: 20 }}
+                    size="small"
+                  />
+                </div>
+              );
+            })()}
           </div>
         )}
       </Modal>
