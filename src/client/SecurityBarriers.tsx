@@ -131,6 +131,192 @@ const WeWork: React.FC<WeWorkProps> = () => {
   const [selectedUserForOfficeDays, setSelectedUserForOfficeDays] =
     useState<CombinedUserData | null>(null);
 
+  // Helper function to normalize names for matching (shared across functions)
+  const normalizeName = (name: string) => {
+    return name.toLowerCase().trim().replace(/\s+/g, " ");
+  };
+
+  // Helper function for fuzzy first name matching
+  const fuzzyMatchFirstName = (
+    firstName1: string,
+    firstName2: string
+  ): boolean => {
+    const n1 = normalizeName(firstName1);
+    const n2 = normalizeName(firstName2);
+
+    // Exact match
+    if (n1 === n2) return true;
+
+    // Check if one is a substring of the other (for cases like "Chris" -> "Christopher")
+    if (n1.includes(n2) || n2.includes(n1)) return true;
+
+    // Check for common abbreviations
+    const abbreviations: { [key: string]: string[] } = {
+      chris: ["christopher", "christian"],
+      mike: ["michael"],
+      joe: ["joseph"],
+      dave: ["david"],
+      steve: ["steven", "stephen"],
+      bob: ["robert"],
+      bill: ["william"],
+      jim: ["james"],
+      tom: ["thomas"],
+      dan: ["daniel"],
+      matt: ["matthew"],
+      nick: ["nicholas"],
+      alex: ["alexander", "alexandra"],
+      sam: ["samuel", "samantha"],
+      ben: ["benjamin"],
+      josh: ["joshua"],
+      jon: ["jonathan", "john"],
+      rob: ["robert"],
+      tim: ["timothy"],
+      pete: ["peter"],
+      tony: ["anthony"],
+      fara: ["farasat"],
+      ioana: ["ioana maria"],
+      agi: ["agnes"],
+      natasa: ["nataša"],
+      petre: ["petre-iulian"],
+    };
+
+    // Check if either name is an abbreviation of the other
+    for (const [abbrev, fullNames] of Object.entries(abbreviations)) {
+      if (
+        (n1 === abbrev && fullNames.includes(n2)) ||
+        (n2 === abbrev && fullNames.includes(n1))
+      ) {
+        return true;
+      }
+    }
+
+    // Check for partial matches (for cases like "Ioana Maria" -> "Ioana")
+    const words1 = n1.split(" ");
+    const words2 = n2.split(" ");
+
+    // If one name has more words, check if the shorter one matches the beginning
+    if (words1.length > words2.length) {
+      const shortName = words2.join(" ");
+      const longNameStart = words1.slice(0, words2.length).join(" ");
+      if (shortName === longNameStart) return true;
+    } else if (words2.length > words1.length) {
+      const shortName = words1.join(" ");
+      const longNameStart = words2.slice(0, words1.length).join(" ");
+      if (shortName === longNameStart) return true;
+    }
+
+    return false;
+  };
+
+  // Helper function for fuzzy last name matching
+  const fuzzyMatchLastName = (
+    lastName1: string,
+    lastName2: string
+  ): boolean => {
+    const n1 = normalizeName(lastName1);
+    const n2 = normalizeName(lastName2);
+
+    // Exact match
+    if (n1 === n2) return true;
+
+    // Check for custom last name aliases
+    const lastNameAliases: { [key: string]: string[] } = {
+      sproule: ["donald"],
+      donald: ["sproule"],
+      truchel: ["arkadiusz"],
+      arkadiusz: ["truchel"],
+      iulian: ["dumitru"],
+      dumitru: ["iulian"],
+      dominique: ["cahu"],
+      cahu: ["dominique"],
+    };
+
+    // Check if either name is an alias of the other
+    for (const [alias, fullNames] of Object.entries(lastNameAliases)) {
+      if (
+        (n1 === alias && fullNames.includes(n2)) ||
+        (n2 === alias && fullNames.includes(n1))
+      ) {
+        return true;
+      }
+    }
+
+    // Check for double surnames (if one surname matches, it's probably the same person)
+    const words1 = n1.split(/[\s-]+/);
+    const words2 = n2.split(/[\s-]+/);
+
+    // Check if any surname from one name appears in the other
+    const hasMatchingSurname =
+      words1.some((surname) => words2.includes(surname)) ||
+      words2.some((surname) => words1.includes(surname));
+
+    return hasMatchingSurname;
+  };
+
+  // Helper function to reorganize names by moving second part of first name to surname
+  const reorganizeName = (firstName: string, lastName: string) => {
+    const fn = normalizeName(firstName);
+    const ln = normalizeName(lastName);
+
+    const fnParts = fn.split(" ");
+
+    if (fnParts.length > 1) {
+      // Move everything except the first part to the beginning of the surname
+      const newFirstName = fnParts[0];
+      const movedParts = fnParts.slice(1);
+      const newLastName = `${movedParts.join(" ")} ${ln}`.trim();
+
+      return { firstName: newFirstName, lastName: newLastName };
+    }
+
+    return { firstName: fn, lastName: ln };
+  };
+
+  // Helper function for smart name matching with reorganization
+  const smartNameMatch = (
+    firstName1: string,
+    lastName1: string,
+    firstName2: string,
+    lastName2: string
+  ): boolean => {
+    // First try normal fuzzy matching
+    if (
+      fuzzyMatchFirstName(firstName1, firstName2) &&
+      fuzzyMatchLastName(lastName1, lastName2)
+    ) {
+      return true;
+    }
+
+    // Try reorganizing both names and matching
+    const reorganized1 = reorganizeName(firstName1, lastName1);
+    const reorganized2 = reorganizeName(firstName2, lastName2);
+
+    // Try original vs reorganized
+    if (
+      fuzzyMatchFirstName(firstName1, reorganized2.firstName) &&
+      fuzzyMatchLastName(lastName1, reorganized2.lastName)
+    ) {
+      return true;
+    }
+
+    if (
+      fuzzyMatchFirstName(reorganized1.firstName, firstName2) &&
+      fuzzyMatchLastName(reorganized1.lastName, lastName2)
+    ) {
+      return true;
+    }
+
+    // Try reorganized vs reorganized
+    if (
+      fuzzyMatchFirstName(reorganized1.firstName, reorganized2.firstName) &&
+      fuzzyMatchLastName(reorganized1.lastName, reorganized2.lastName)
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
   const processPersonSummaries = (data: WeWorkEntry[]) => {
     const personMap = new Map<string, PersonSummary>();
 
@@ -741,195 +927,9 @@ const WeWork: React.FC<WeWorkProps> = () => {
       }))
     );
 
-    // Helper function to normalize names for matching
-    const normalizeName = (name: string) => {
-      return name.toLowerCase().trim().replace(/\s+/g, " ");
-    };
-
     // Helper function to create a key for matching
     const createMatchKey = (firstName: string, lastName: string) => {
       return normalizeName(`${firstName} ${lastName}`);
-    };
-
-    // Helper function for fuzzy first name matching
-    const fuzzyMatchFirstName = (
-      firstName1: string,
-      firstName2: string
-    ): boolean => {
-      const n1 = normalizeName(firstName1);
-      const n2 = normalizeName(firstName2);
-
-      // Exact match
-      if (n1 === n2) return true;
-
-      // Check if one is a substring of the other (for cases like "Chris" -> "Christopher")
-      if (n1.includes(n2) || n2.includes(n1)) return true;
-
-      // Check for common abbreviations
-      const abbreviations: { [key: string]: string[] } = {
-        chris: ["christopher", "christian"],
-        mike: ["michael"],
-        joe: ["joseph"],
-        dave: ["david"],
-        steve: ["steven", "stephen"],
-        bob: ["robert"],
-        bill: ["william"],
-        jim: ["james"],
-        tom: ["thomas"],
-        dan: ["daniel"],
-        matt: ["matthew"],
-        nick: ["nicholas"],
-        alex: ["alexander", "alexandra"],
-        sam: ["samuel", "samantha"],
-        ben: ["benjamin"],
-        josh: ["joshua"],
-        jon: ["jonathan", "john"],
-        rob: ["robert"],
-        tim: ["timothy"],
-        pete: ["peter"],
-        tony: ["anthony"],
-        fara: ["farasat"],
-        ioana: ["ioana maria"],
-        agi: ["agnes"],
-        natasa: ["nataša"],
-        petre: ["petre-iulian"],
-      };
-
-      // Check if either name is an abbreviation of the other
-      for (const [abbrev, fullNames] of Object.entries(abbreviations)) {
-        if (
-          (n1 === abbrev && fullNames.includes(n2)) ||
-          (n2 === abbrev && fullNames.includes(n1))
-        ) {
-          return true;
-        }
-      }
-
-      // Check for partial matches (for cases like "Ioana Maria" -> "Ioana")
-      const words1 = n1.split(" ");
-      const words2 = n2.split(" ");
-
-      // If one name has more words, check if the shorter one matches the beginning
-      if (words1.length > words2.length) {
-        const shortName = words2.join(" ");
-        const longNameStart = words1.slice(0, words2.length).join(" ");
-        if (shortName === longNameStart) return true;
-      } else if (words2.length > words1.length) {
-        const shortName = words1.join(" ");
-        const longNameStart = words2.slice(0, words1.length).join(" ");
-        if (shortName === longNameStart) return true;
-      }
-
-      return false;
-    };
-
-    // Helper function for fuzzy last name matching
-    const fuzzyMatchLastName = (
-      lastName1: string,
-      lastName2: string
-    ): boolean => {
-      const n1 = normalizeName(lastName1);
-      const n2 = normalizeName(lastName2);
-
-      // Exact match
-      if (n1 === n2) return true;
-
-      // Check for custom last name aliases
-      const lastNameAliases: { [key: string]: string[] } = {
-        sproule: ["donald"],
-        donald: ["sproule"],
-        truchel: ["arkadiusz"],
-        arkadiusz: ["truchel"],
-        iulian: ["dumitru"],
-        dumitru: ["iulian"],
-        dominique: ["cahu"],
-        cahu: ["dominique"],
-      };
-
-      // Check if either name is an alias of the other
-      for (const [alias, fullNames] of Object.entries(lastNameAliases)) {
-        if (
-          (n1 === alias && fullNames.includes(n2)) ||
-          (n2 === alias && fullNames.includes(n1))
-        ) {
-          return true;
-        }
-      }
-
-      // Check for double surnames (if one surname matches, it's probably the same person)
-      const words1 = n1.split(/[\s-]+/);
-      const words2 = n2.split(/[\s-]+/);
-
-      // Check if any surname from one name appears in the other
-      const hasMatchingSurname =
-        words1.some((surname) => words2.includes(surname)) ||
-        words2.some((surname) => words1.includes(surname));
-
-      return hasMatchingSurname;
-    };
-
-    // Helper function to reorganize names by moving second part of first name to surname
-    const reorganizeName = (firstName: string, lastName: string) => {
-      const fn = normalizeName(firstName);
-      const ln = normalizeName(lastName);
-
-      const fnParts = fn.split(" ");
-
-      if (fnParts.length > 1) {
-        // Move everything except the first part to the beginning of the surname
-        const newFirstName = fnParts[0];
-        const movedParts = fnParts.slice(1);
-        const newLastName = `${movedParts.join(" ")} ${ln}`.trim();
-
-        return { firstName: newFirstName, lastName: newLastName };
-      }
-
-      return { firstName: fn, lastName: ln };
-    };
-
-    // Helper function for smart name matching with reorganization
-    const smartNameMatch = (
-      firstName1: string,
-      lastName1: string,
-      firstName2: string,
-      lastName2: string
-    ): boolean => {
-      // First try normal fuzzy matching
-      if (
-        fuzzyMatchFirstName(firstName1, firstName2) &&
-        fuzzyMatchLastName(lastName1, lastName2)
-      ) {
-        return true;
-      }
-
-      // Try reorganizing both names and matching
-      const reorganized1 = reorganizeName(firstName1, lastName1);
-      const reorganized2 = reorganizeName(firstName2, lastName2);
-
-      // Try original vs reorganized
-      if (
-        fuzzyMatchFirstName(firstName1, reorganized2.firstName) &&
-        fuzzyMatchLastName(lastName1, reorganized2.lastName)
-      ) {
-        return true;
-      }
-
-      if (
-        fuzzyMatchFirstName(reorganized1.firstName, firstName2) &&
-        fuzzyMatchLastName(reorganized1.lastName, lastName2)
-      ) {
-        return true;
-      }
-
-      // Try reorganized vs reorganized
-      if (
-        fuzzyMatchFirstName(reorganized1.firstName, reorganized2.firstName) &&
-        fuzzyMatchLastName(reorganized1.lastName, reorganized2.lastName)
-      ) {
-        return true;
-      }
-
-      return false;
     };
 
     // Create maps for easier matching
@@ -1221,12 +1221,8 @@ const WeWork: React.FC<WeWorkProps> = () => {
   };
 
   // Helper function to find person's office days from personSummaries
+  // Uses the same fuzzy matching logic as calculateCombinedData
   const getOfficeDaysForUser = (user: CombinedUserData): WeWorkEntry[] => {
-    // Try to find matching person in personSummaries
-    const normalizeName = (name: string) => {
-      return name.toLowerCase().trim().replace(/\s+/g, " ");
-    };
-
     const normalizedUserName = normalizeName(user.fullName);
 
     // First try exact match
@@ -1234,14 +1230,14 @@ const WeWork: React.FC<WeWorkProps> = () => {
       (p) => normalizeName(p.fullName) === normalizedUserName
     );
 
-    // If no exact match, try matching by first and last name
+    // If no exact match, try smart name matching (same logic as calculateCombinedData)
     if (!person) {
       person = personSummaries.find((p) => {
-        const normalizedPersonName = normalizeName(p.fullName);
-        return (
-          normalizedPersonName === normalizedUserName ||
-          (normalizeName(p.firstName) === normalizeName(user.firstName) &&
-            normalizeName(p.lastName) === normalizeName(user.lastName))
+        return smartNameMatch(
+          p.firstName,
+          p.lastName,
+          user.firstName,
+          user.lastName
         );
       });
     }
@@ -1297,7 +1293,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
       "Last Name",
       "Line Manager",
       "Barrier Days",
-      "Holiday Days",
+      "Holiday & Sick Days",
       "Total Agreed Days in Office Per Month",
       "Agreed Days in Office Per Month Minus Holidays",
       "Difference",
@@ -1380,7 +1376,7 @@ const WeWork: React.FC<WeWorkProps> = () => {
       },
     },
     {
-      title: "Holiday Days",
+      title: "Holiday & Sick Days",
       dataIndex: "holidayDays",
       key: "holidayDays",
       width: 150,
