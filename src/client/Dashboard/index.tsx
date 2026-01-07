@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Button,
   Spin,
@@ -18,15 +18,17 @@ import {
   CopyOutlined,
   DeleteOutlined,
   MoreOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import { useDashboardConfig } from "./hooks/useDashboardConfig";
-import MetricCard from "./components/MetricCard";
+import MetricCard, { MetricCardRef } from "./components/MetricCard";
 import EditMode from "./components/EditMode";
 
 const Dashboard: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);
   const [newDashboardName, setNewDashboardName] = useState<string>("");
+  const metricCardRefs = useRef<Map<string, MetricCardRef>>(new Map());
   const {
     config,
     selectedDashboard,
@@ -38,6 +40,16 @@ const Dashboard: React.FC = () => {
     duplicateDashboard,
     deleteDashboard,
   } = useDashboardConfig();
+
+  const handleRequestAll = () => {
+    // Request data for all metric cards except Tempo Analyzer
+    metricCardRefs.current.forEach((ref, metricId) => {
+      const metric = selectedDashboard?.metrics.find(m => m.id === metricId);
+      if (metric && metric.type !== "tempoAnalyzer") {
+        ref.requestData();
+      }
+    });
+  };
 
   const handleCreateDashboard = async () => {
     if (!newDashboardName.trim()) {
@@ -156,6 +168,14 @@ const Dashboard: React.FC = () => {
           )}
         </div>
         <Space>
+          {selectedDashboardId && !isEditMode && (
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={handleRequestAll}
+            >
+              Request All
+            </Button>
+          )}
           <Button
             icon={<PlusOutlined />}
             onClick={() => setCreateModalVisible(true)}
@@ -227,6 +247,13 @@ const Dashboard: React.FC = () => {
                return (
                  <MetricCard
                    key={`${metric.id}-${configKey}`}
+                   ref={(ref) => {
+                     if (ref) {
+                       metricCardRefs.current.set(metric.id, ref);
+                     } else {
+                       metricCardRefs.current.delete(metric.id);
+                     }
+                   }}
                    metric={metric}
                  />
                );

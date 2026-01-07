@@ -8,6 +8,7 @@ import {
   Button,
   Checkbox,
   CheckboxChangeEvent,
+  Alert,
 } from "antd";
 import Select from "./Select";
 import React from "react";
@@ -27,6 +28,8 @@ import { LeadTimeConfig } from "./Dashboard/types";
 interface Props {
   initialConfig?: LeadTimeConfig;
   readOnly?: boolean;
+  onRequestData?: () => void;
+  onConfigChange?: (config: LeadTimeConfig) => void;
 }
 interface State {
   input: string;
@@ -42,6 +45,8 @@ interface State {
   statusesSelected: string[];
   allTicketTypes: { value: string; label: string }[];
   ticketTypesSelected: string[];
+  hasRequestedData: boolean;
+  isLoading: boolean;
 }
 
 export default class LeadTime extends React.Component<Props, State> {
@@ -69,18 +74,17 @@ export default class LeadTime extends React.Component<Props, State> {
       statusesSelected: initialConfig?.statusesSelected || [],
       allTicketTypes: [],
       ticketTypesSelected: initialConfig?.ticketTypesSelected || [],
+      hasRequestedData: false,
+      isLoading: false,
     };
   }
 
   componentDidMount() {
-    // Auto-run query if initialConfig is provided and readOnly is true
-    if (this.props.initialConfig && this.props.readOnly && this.state.input) {
-      this.onClick();
-    }
+    // Don't auto-run query in readOnly mode - wait for user to click "Request Data"
   }
 
   componentDidUpdate(prevProps: Props) {
-    // If config changes, update state and re-run query
+    // If config changes, update state but don't auto-run query
     if (
       this.props.initialConfig &&
       this.props.readOnly
@@ -101,12 +105,15 @@ export default class LeadTime extends React.Component<Props, State> {
           filterNoTimeBooked: config.filterNoTimeBooked,
           statusesSelected: config.statusesSelected,
           ticketTypesSelected: config.ticketTypesSelected,
-        }, () => {
-          if (config.query) {
-            this.onClick();
-          }
         });
       }
+    }
+  }
+
+  // Public method that can be called from parent component
+  requestData = () => {
+    if (this.state.input && !this.state.isLoading) {
+      this.onClick();
     }
   }
 
@@ -204,10 +211,20 @@ export default class LeadTime extends React.Component<Props, State> {
   };
 
   onClick = () => {
+    if (!this.state.input || !this.state.input.trim()) {
+      return;
+    }
+
     localStorage.setItem("throughputQuery", this.state.input);
 
     // Add current query to history
     this.addToQueryHistory(this.state.input);
+
+    this.setState({ isLoading: true, hasRequestedData: true });
+    
+    if (this.props.onRequestData) {
+      this.props.onRequestData();
+    }
 
     console.log("Button clicked");
     fetch(
@@ -253,13 +270,24 @@ export default class LeadTime extends React.Component<Props, State> {
           (type) => type.value
         );
 
+        // Preserve previously selected statuses that still exist in the new data
+        const existingStatusValues = allStatuses.map((s) => s.value);
+        const preservedStatuses = this.state.statusesSelected.filter((status) =>
+          existingStatusValues.includes(status)
+        );
+
         this.setState({
           rawLeadTimeData: leadTimeData,
           allStatuses,
-          statusesSelected: [],
+          statusesSelected: preservedStatuses,
           allTicketTypes: filteredTicketTypes,
           ticketTypesSelected: filteredTicketTypeValues, // Default to all selected except excluded types
+          isLoading: false,
         });
+      })
+      .catch((error) => {
+        console.error("Error fetching lead time data:", error);
+        this.setState({ isLoading: false });
       });
   };
 
@@ -608,7 +636,16 @@ export default class LeadTime extends React.Component<Props, State> {
     return { data, columns };
   }
   statusesSelected = (statusesSelected) => {
-    this.setState({ statusesSelected });
+    this.setState({ statusesSelected }, () => {
+      // Persist config change if callback is provided
+      if (this.props.onConfigChange && this.props.initialConfig) {
+        const updatedConfig: LeadTimeConfig = {
+          ...this.props.initialConfig,
+          statusesSelected: statusesSelected,
+        };
+        this.props.onConfigChange(updatedConfig);
+      }
+    });
   };
 
   ticketTypesSelected = (ticketTypesSelected) => {
@@ -627,6 +664,28 @@ export default class LeadTime extends React.Component<Props, State> {
     }));
 
     const { readOnly } = this.props;
+
+    // Show request button if readOnly and no data has been requested yet
+    if (readOnly && !this.state.hasRequestedData && !this.state.rawLeadTimeData) {
+      return (
+        <div style={{ textAlign: "center", padding: "2rem" }}>
+          <Alert
+            message="Click the button below to load lead time data."
+            type="info"
+            showIcon
+            style={{ marginBottom: "1rem" }}
+          />
+          <Button
+            type="primary"
+            onClick={this.onClick}
+            loading={this.state.isLoading}
+            disabled={!this.state.input || !this.state.input.trim() || this.state.isLoading}
+          >
+            Request Data
+          </Button>
+        </div>
+      );
+    }
 
     return (
       <div>
@@ -691,20 +750,6 @@ export default class LeadTime extends React.Component<Props, State> {
               </Checkbox>
             )}
             <br />
-            <span
-              style={{
-                display: this.state.splitMode === "statuses" ? "" : "none",
-              }}
-            >
-              <label style={{ marginRight: "0.5rem", fontWeight: "bold" }}>
-                Statuses:
-              </label>
-              <Select
-                onChange={this.statusesSelected}
-                options={this.state.allStatuses}
-              />
-            </span>
-            <br />
             {this.state.rawLeadTimeData && this.state.allTicketTypes.length > 0 && (
               <span>
                 <label style={{ marginRight: "0.5rem", fontWeight: "bold" }}>
@@ -718,6 +763,23 @@ export default class LeadTime extends React.Component<Props, State> {
             )}
             <br />
           </>
+        )}
+        {this.state.rawLeadTimeData && this.state.splitMode === "statuses" && (
+          <span
+            style={{
+              display: "block",
+              marginBottom: "1rem",
+            }}
+          >
+            <label style={{ marginRight: "0.5rem", fontWeight: "bold" }}>
+              Statuses:
+            </label>
+            <Select
+              onChange={this.statusesSelected}
+              options={this.state.allStatuses}
+              selected={this.state.statusesSelected}
+            />
+          </span>
         )}
         {this.state.rawLeadTimeData && (
           <div

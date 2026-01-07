@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import { Card, Alert, Radio, Button } from "antd";
 import { useBugsAnalysisData } from "../../BugsAnalysis/hooks/useBugsAnalysisData";
 import { BugsAnalysisChart } from "../../BugsAnalysis/components/BugsAnalysisChart";
@@ -10,11 +10,15 @@ interface BugsAnalysisDashboardProps {
   readOnly?: boolean;
 }
 
-const BugsAnalysisDashboard: React.FC<BugsAnalysisDashboardProps> = ({
+export interface BugsAnalysisDashboardRef {
+  requestData: () => void;
+}
+
+const BugsAnalysisDashboard = forwardRef<BugsAnalysisDashboardRef, BugsAnalysisDashboardProps>(({
   query,
   viewMode: initialViewMode,
   readOnly = false,
-}) => {
+}, ref) => {
   const { data, loading, error, fetchData } = useBugsAnalysisData();
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
   const [hasRequestedData, setHasRequestedData] = useState(false);
@@ -31,6 +35,10 @@ const BugsAnalysisDashboard: React.FC<BugsAnalysisDashboardProps> = ({
     setHasRequestedData(true);
     await fetchData(query);
   };
+
+  useImperativeHandle(ref, () => ({
+    requestData: handleRequestData,
+  }));
 
   if (!query || !query.trim()) {
     return (
@@ -183,7 +191,9 @@ const BugsAnalysisDashboard: React.FC<BugsAnalysisDashboardProps> = ({
       </Card>
     </div>
   );
-};
+});
+
+BugsAnalysisDashboard.displayName = "BugsAnalysisDashboard";
 
 export default BugsAnalysisDashboard;
 

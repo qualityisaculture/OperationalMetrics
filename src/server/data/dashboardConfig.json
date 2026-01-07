@@ -60,6 +60,23 @@
               }
             ]
           }
+        },
+        {
+          "id": "metric-1767778760470",
+          "type": "leadTime",
+          "name": "New Lead Time Metric",
+          "config": {
+            "query": "project = AF",
+            "currentSprintStartDate": "Wed, 07 Jan 2026 09:39:20 GMT",
+            "numberOfSprints": 5,
+            "splitMode": "statuses",
+            "viewMode": "combined",
+            "filterNoTimeBooked": true,
+            "statusesSelected": [
+              "In Progress"
+            ],
+            "ticketTypesSelected": []
+          }
         }
       ]
     }

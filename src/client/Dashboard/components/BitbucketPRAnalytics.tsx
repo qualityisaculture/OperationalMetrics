@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useImperativeHandle, forwardRef } from "react";
 import {
   Button,
   Space,
@@ -116,11 +116,15 @@ interface BitbucketPRAnalyticsProps {
   readOnly?: boolean;
 }
 
-const BitbucketPRAnalytics: React.FC<BitbucketPRAnalyticsProps> = ({
+export interface BitbucketPRAnalyticsRef {
+  requestData: () => void;
+}
+
+const BitbucketPRAnalytics = forwardRef<BitbucketPRAnalyticsRef, BitbucketPRAnalyticsProps>(({
   workspace: initialWorkspace,
   selectedGroup: initialSelectedGroup,
   readOnly = false,
-}) => {
+}, ref) => {
   const {
     state,
     loadRepositories,
@@ -474,6 +478,10 @@ const BitbucketPRAnalytics: React.FC<BitbucketPRAnalyticsProps> = ({
       setPendingPRLoad(false);
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    requestData: handleRequestAllPRs,
+  }));
 
   // Show request button if no data has been requested yet
   if (!hasRequestedData && allPRs.length === 0) {
@@ -833,7 +841,9 @@ const BitbucketPRAnalytics: React.FC<BitbucketPRAnalyticsProps> = ({
       </Modal>
     </div>
   );
-};
+});
+
+BitbucketPRAnalytics.displayName = "BitbucketPRAnalytics";
 
 export default BitbucketPRAnalytics;
 
