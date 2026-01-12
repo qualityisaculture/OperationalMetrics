@@ -13,7 +13,7 @@ import {
   Modal,
   message,
 } from "antd";
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, PlusOutlined, UpOutlined, DownOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { DashboardMetric, LeadTimeConfig, BitbucketPRConfig, BugsAnalysisConfig, TempoAnalyzerConfig } from "../types";
 import { useDashboardConfig } from "../hooks/useDashboardConfig";
@@ -44,7 +44,7 @@ const loadGroupsFromStorage = (): UserGroup[] => {
 };
 
 const EditMode: React.FC = () => {
-  const { selectedDashboard, addMetric, updateMetric, deleteMetric } = useDashboardConfig();
+  const { selectedDashboard, addMetric, updateMetric, deleteMetric, reorderMetric } = useDashboardConfig();
   const [editingMetric, setEditingMetric] = useState<DashboardMetric | null>(null);
   const [form] = Form.useForm();
   const [metricType, setMetricType] = useState<"leadTime" | "bitbucketPR" | "bugsAnalysis" | "tempoAnalyzer">("leadTime");
@@ -318,24 +318,65 @@ const EditMode: React.FC = () => {
         </Button>
       </div>
 
-      {selectedDashboard?.metrics.map((metric) => (
-        <Card
-          key={metric.id}
-          style={{ marginBottom: "1rem" }}
-          title={metric.name}
-          extra={
-            <Space>
-              <Button onClick={() => handleEditMetric(metric)}>Edit</Button>
-              <Button
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => handleDeleteMetric(metric.id)}
-              >
-                Delete
-              </Button>
-            </Space>
+      {selectedDashboard?.metrics.map((metric, index) => {
+        const isFirst = index === 0;
+        const isLast = index === selectedDashboard.metrics.length - 1;
+        const handleMoveUp = async () => {
+          try {
+            await reorderMetric(metric.id, "up");
+            message.success("Metric moved up");
+          } catch (error) {
+            message.error("Failed to move metric");
           }
-        >
+        };
+        const handleMoveDown = async () => {
+          try {
+            await reorderMetric(metric.id, "down");
+            message.success("Metric moved down");
+          } catch (error) {
+            message.error("Failed to move metric");
+          }
+        };
+        return (
+          <Card
+            key={metric.id}
+            style={{ marginBottom: "1rem" }}
+            title={
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Space size="small">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<UpOutlined />}
+                    onClick={handleMoveUp}
+                    disabled={isFirst}
+                    title="Move up"
+                  />
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<DownOutlined />}
+                    onClick={handleMoveDown}
+                    disabled={isLast}
+                    title="Move down"
+                  />
+                </Space>
+                <span>{metric.name}</span>
+              </div>
+            }
+            extra={
+              <Space>
+                <Button onClick={() => handleEditMetric(metric)}>Edit</Button>
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleDeleteMetric(metric.id)}
+                >
+                  Delete
+                </Button>
+              </Space>
+            }
+          >
           <div>
             <p>
               <strong>Type:</strong> {metric.type}
@@ -430,7 +471,8 @@ const EditMode: React.FC = () => {
             )}
           </div>
         </Card>
-      ))}
+        );
+      })}
 
       {(!selectedDashboard || selectedDashboard.metrics.length === 0) && (
         <Card>

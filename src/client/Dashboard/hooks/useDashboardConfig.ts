@@ -219,6 +219,37 @@ export const useDashboardConfig = () => {
     [config, saveConfig, selectedDashboardId]
   );
 
+  // Reorder a metric (move up or down)
+  const reorderMetric = useCallback(
+    async (metricId: string, direction: "up" | "down") => {
+      if (!selectedDashboardId) {
+        throw new Error("No dashboard selected");
+      }
+      const dashboard = config.dashboards.find((d) => d.id === selectedDashboardId);
+      if (!dashboard) {
+        throw new Error("Dashboard not found");
+      }
+      const metrics = [...dashboard.metrics];
+      const currentIndex = metrics.findIndex((m) => m.id === metricId);
+      if (currentIndex === -1) {
+        throw new Error("Metric not found");
+      }
+      const newIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (newIndex < 0 || newIndex >= metrics.length) {
+        return; // Already at the top or bottom
+      }
+      // Swap the metrics
+      [metrics[currentIndex], metrics[newIndex]] = [metrics[newIndex], metrics[currentIndex]];
+      const newConfig: DashboardConfig = {
+        dashboards: config.dashboards.map((d) =>
+          d.id === selectedDashboardId ? { ...d, metrics } : d
+        ),
+      };
+      await saveConfig(newConfig);
+    },
+    [config, saveConfig, selectedDashboardId]
+  );
+
   // Load config on mount
   useEffect(() => {
     fetchConfig();
@@ -240,5 +271,6 @@ export const useDashboardConfig = () => {
     addMetric,
     updateMetric,
     deleteMetric,
+    reorderMetric,
   };
 };
