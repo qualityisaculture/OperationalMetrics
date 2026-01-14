@@ -109,6 +109,20 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
             matched = true;
             break; // Item matches first selector, stop checking
           }
+        } else if (selector.type === "Account Category") {
+          const accountCategory =
+            accountCategoryIndex !== -1
+              ? row[accountCategoryIndex.toString()]
+              : null;
+          if (!accountCategory) continue;
+          const accountCategoryStr = String(accountCategory).trim();
+          
+          if (selector.selectedValues.includes(accountCategoryStr)) {
+            const label = `Selector ${i + 1}`;
+            hours[label] = (hours[label] || 0) + loggedHours;
+            matched = true;
+            break; // Item matches first selector, stop checking
+          }
         }
       }
 
@@ -119,7 +133,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     });
 
     return hours;
-  }, [filteredData, issueTypeIndex, issueKeyIndex, loggedHoursIndex, selectors, labels]);
+  }, [filteredData, issueTypeIndex, issueKeyIndex, loggedHoursIndex, accountCategoryIndex, selectors, labels]);
 
   // Calculate total hours
   const totalHours = useMemo(() => {
@@ -150,6 +164,11 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         return `${baseName} (Key: none selected)`;
       }
       return `${baseName} (Key: ${selector.selectedValues.join(", ")})`;
+    } else if (selector.type === "Account Category") {
+      if (selector.selectedValues.length === 0) {
+        return `${baseName} (Account Category: none selected)`;
+      }
+      return `${baseName} (Account Category: ${selector.selectedValues.join(", ")})`;
     }
     return baseName;
   };
@@ -281,6 +300,18 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
                 break;
               }
             }
+          } else if (sel.type === "Account Category") {
+            const accountCategory =
+              accountCategoryIndex !== -1
+                ? row[accountCategoryIndex.toString()]
+                : null;
+            if (accountCategory) {
+              const accountCategoryStr = String(accountCategory).trim();
+              if (sel.selectedValues.includes(accountCategoryStr)) {
+                matchedAny = true;
+                break;
+              }
+            }
           }
         }
         matches = !matchedAny;
@@ -310,6 +341,15 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
           if (issueKey) {
             const issueKeyStr = String(issueKey).trim();
             matches = selector.selectedValues.includes(issueKeyStr);
+          }
+        } else if (selector.type === "Account Category") {
+          const accountCategory =
+            accountCategoryIndex !== -1
+              ? row[accountCategoryIndex.toString()]
+              : null;
+          if (accountCategory) {
+            const accountCategoryStr = String(accountCategory).trim();
+            matches = selector.selectedValues.includes(accountCategoryStr);
           }
         }
       }

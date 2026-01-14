@@ -163,6 +163,22 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     return Array.from(keys).sort();
   }, [analyzer.filteredData, analyzer.issueKeyIndex]);
 
+  const availableAccountCategories = useMemo(() => {
+    const categories = new Set<string>();
+    if (analyzer.accountCategoryIndex !== -1) {
+      analyzer.filteredData.forEach((row) => {
+        const accountCategory = row[analyzer.accountCategoryIndex.toString()];
+        if (accountCategory) {
+          const category = String(accountCategory).trim();
+          if (category) {
+            categories.add(category);
+          }
+        }
+      });
+    }
+    return Array.from(categories).sort();
+  }, [analyzer.filteredData, analyzer.accountCategoryIndex]);
+
   // Sync local state with analyzer state when entering edit mode
   useEffect(() => {
     if (isEditMode) {
@@ -412,6 +428,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                   availableLabels={getAllLabels()}
                   availableProjects={availableProjects}
                   availableIssueKeys={availableIssueKeys}
+                  availableAccountCategories={availableAccountCategories}
                   selectors={sankeySelectors}
                   onSelectorsChange={setSankeySelectors}
                   onRequestLabels={fetchLabels}

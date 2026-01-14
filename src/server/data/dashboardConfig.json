@@ -44,7 +44,7 @@
           "config": {
             "summaryViewMode": "sankey",
             "secondarySplitMode": "account",
-            "excludeHolidayAbsence": false,
+            "excludeHolidayAbsence": true,
             "excludeStartDate": null,
             "excludeEndDate": null,
             "showOtherTeams": false,
@@ -52,10 +52,18 @@
             "sankeySelectors": [
               {
                 "id": "selector-1767695912448-0.06353563036961563",
-                "name": "",
-                "type": "Label",
+                "name": "Chargeable",
+                "type": "Account Category",
                 "selectedValues": [
-                  "corrected"
+                  "Chargeable"
+                ]
+              },
+              {
+                "id": "selector-1768386462079-0.5585995480452625",
+                "name": "Non Chargeable",
+                "type": "Account Category",
+                "selectedValues": [
+                  "Non-Chargeable"
                 ]
               }
             ]

@@ -31,7 +31,10 @@ import {
   BitBucketRepository,
   BitBucketPullRequest,
 } from "../../server/BitBucketRequester";
-import { useBitBucketGroups, UserGroup } from "../Dashboard/hooks/useBitBucketGroups";
+import {
+  useBitBucketGroups,
+  UserGroup,
+} from "../Dashboard/hooks/useBitBucketGroups";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
