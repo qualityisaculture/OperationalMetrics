@@ -7,6 +7,13 @@ import { TypedResponse as TR, TypedRequestBody as TRB } from "../../Types";
 import { DashboardConfig } from "../../client/Dashboard/types";
 
 const CONFIG_FILE_PATH = path.join(__dirname, "../data/dashboardConfig.json");
+const GROUPS_FILE_PATH = path.join(__dirname, "../data/bitbucketGroups.json");
+
+interface UserGroup {
+  id: string;
+  name: string;
+  users: string[];
+}
 
 // Helper function to read config file
 const readConfig = (): DashboardConfig => {
@@ -47,6 +54,36 @@ const writeConfig = (config: DashboardConfig): void => {
     );
   } catch (error) {
     console.error("Error writing dashboard config:", error);
+    throw error;
+  }
+};
+
+// Helper function to read groups file
+const readGroups = (): UserGroup[] => {
+  try {
+    const fileContent = fs.readFileSync(GROUPS_FILE_PATH, "utf-8");
+    return JSON.parse(fileContent);
+  } catch (error) {
+    // If file doesn't exist or is invalid, return empty array
+    return [];
+  }
+};
+
+// Helper function to write groups file
+const writeGroups = (groups: UserGroup[]): void => {
+  try {
+    // Ensure directory exists
+    const dir = path.dirname(GROUPS_FILE_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(
+      GROUPS_FILE_PATH,
+      JSON.stringify(groups, null, 2),
+      "utf-8"
+    );
+  } catch (error) {
+    console.error("Error writing bitbucket groups:", error);
     throw error;
   }
 };
@@ -114,6 +151,47 @@ dashboardRoute.post(
       console.error("Error saving dashboard config:", error);
       (res as Response).status(500).json({
         message: "Error saving dashboard config",
+        data: JSON.stringify({ error: String(error) }),
+      });
+    }
+  }
+);
+
+// GET /api/dashboard/groups - Get all BitBucket user groups
+dashboardRoute.get(
+  "/groups",
+  (req: Request, res: Response | TR<{ message: string; data: string }>) => {
+    try {
+      const groups = readGroups();
+      res.json({ message: "BitBucket groups", data: JSON.stringify(groups) });
+    } catch (error) {
+      console.error("Error reading bitbucket groups:", error);
+      (res as Response).status(500).json({
+        message: "Error reading bitbucket groups",
+        data: JSON.stringify([]),
+      });
+    }
+  }
+);
+
+// POST /api/dashboard/groups - Save all BitBucket user groups
+dashboardRoute.post(
+  "/groups",
+  (
+    req: TRB<{ groups: UserGroup[] }>,
+    res: Response | TR<{ message: string; data: string }>
+  ) => {
+    try {
+      const groups = req.body.groups;
+      writeGroups(groups);
+      res.json({
+        message: "BitBucket groups saved successfully",
+        data: JSON.stringify(groups),
+      });
+    } catch (error) {
+      console.error("Error saving bitbucket groups:", error);
+      (res as Response).status(500).json({
+        message: "Error saving bitbucket groups",
         data: JSON.stringify({ error: String(error) }),
       });
     }

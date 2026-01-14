@@ -18,44 +18,19 @@ import dayjs from "dayjs";
 import { DashboardMetric, LeadTimeConfig, BitbucketPRConfig, BugsAnalysisConfig, TempoAnalyzerConfig } from "../types";
 import { useDashboardConfig } from "../hooks/useDashboardConfig";
 import { useSavedQueries } from "../../BugsAnalysis/hooks/useSavedQueries";
+import { useBitBucketGroups } from "../hooks/useBitBucketGroups";
 
 const { Option } = Select;
 
-// User Group Types (matching BitBucketPRs)
-interface UserGroup {
-  id: string;
-  name: string;
-  users: string[];
-}
-
-const STORAGE_KEY = "bitbucket-prs-user-groups";
-
-// Helper function to load groups from localStorage
-const loadGroupsFromStorage = (): UserGroup[] => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error("Error loading user groups from storage:", error);
-  }
-  return [];
-};
+// User Group Types - imported from hook
 
 const EditMode: React.FC = () => {
   const { selectedDashboard, addMetric, updateMetric, deleteMetric, reorderMetric } = useDashboardConfig();
   const [editingMetric, setEditingMetric] = useState<DashboardMetric | null>(null);
   const [form] = Form.useForm();
   const [metricType, setMetricType] = useState<"leadTime" | "bitbucketPR" | "bugsAnalysis" | "tempoAnalyzer">("leadTime");
-  const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
+  const { groups: userGroups } = useBitBucketGroups();
   const { savedQueries, loadQuery } = useSavedQueries();
-
-  // Load groups from localStorage on mount
-  useEffect(() => {
-    const loadedGroups = loadGroupsFromStorage();
-    setUserGroups(loadedGroups);
-  }, []);
 
   const handleAddMetric = () => {
     setMetricType("leadTime");

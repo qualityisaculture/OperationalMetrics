@@ -31,39 +31,12 @@ import {
   BitBucketRepository,
   BitBucketPullRequest,
 } from "../../server/BitBucketRequester";
+import { useBitBucketGroups, UserGroup } from "../Dashboard/hooks/useBitBucketGroups";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-// User Group Types
-interface UserGroup {
-  id: string;
-  name: string;
-  users: string[];
-}
-
-const STORAGE_KEY = "bitbucket-prs-user-groups";
-
-// Helper functions for localStorage
-const loadGroupsFromStorage = (): UserGroup[] => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error("Error loading user groups from storage:", error);
-  }
-  return [];
-};
-
-const saveGroupsToStorage = (groups: UserGroup[]): void => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
-  } catch (error) {
-    console.error("Error saving user groups to storage:", error);
-  }
-};
+// User Group Types - imported from hook
 
 interface UserPRsTableProps {
   user: string;
@@ -145,7 +118,7 @@ const BitBucketPRs: React.FC = () => {
   const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
-  const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
+  const { groups: userGroups, saveGroups } = useBitBucketGroups();
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [isGroupModalVisible, setIsGroupModalVisible] = useState(false);
   const [isGroupListModalVisible, setIsGroupListModalVisible] = useState(false);
@@ -158,19 +131,6 @@ const BitBucketPRs: React.FC = () => {
   const [selectedGroupForTable, setSelectedGroupForTable] = useState<
     string | null
   >(null);
-
-  // Load groups from localStorage on mount
-  useEffect(() => {
-    const loadedGroups = loadGroupsFromStorage();
-    setUserGroups(loadedGroups);
-  }, []);
-
-  // Save groups to localStorage whenever they change
-  useEffect(() => {
-    if (userGroups.length > 0 || localStorage.getItem(STORAGE_KEY)) {
-      saveGroupsToStorage(userGroups);
-    }
-  }, [userGroups]);
 
   // Get all PRs from all repositories
   const allPRs = useMemo(() => {
@@ -585,39 +545,47 @@ const BitBucketPRs: React.FC = () => {
     setIsGroupModalVisible(true);
   };
 
-  const handleDeleteGroup = (groupId: string) => {
-    setUserGroups((prev) => prev.filter((g) => g.id !== groupId));
-    if (selectedGroup === groupId) {
-      setSelectedGroup(null);
+  const handleDeleteGroup = async (groupId: string) => {
+    try {
+      const updatedGroups = userGroups.filter((g) => g.id !== groupId);
+      await saveGroups(updatedGroups);
+      if (selectedGroup === groupId) {
+        setSelectedGroup(null);
+      }
+      message.success("Group deleted successfully");
+    } catch (error) {
+      message.error("Failed to delete group");
     }
-    message.success("Group deleted successfully");
   };
 
   const handleSaveGroup = () => {
-    groupForm.validateFields().then((values) => {
-      if (editingGroup) {
-        // Update existing group
-        setUserGroups((prev) =>
-          prev.map((g) =>
+    groupForm.validateFields().then(async (values) => {
+      try {
+        if (editingGroup) {
+          // Update existing group
+          const updatedGroups = userGroups.map((g) =>
             g.id === editingGroup.id
               ? { ...g, name: values.name, users: values.users || [] }
               : g
-          )
-        );
-        message.success("Group updated successfully");
-      } else {
-        // Create new group
-        const newGroup: UserGroup = {
-          id: `group-${Date.now()}`,
-          name: values.name,
-          users: values.users || [],
-        };
-        setUserGroups((prev) => [...prev, newGroup]);
-        message.success("Group created successfully");
+          );
+          await saveGroups(updatedGroups);
+          message.success("Group updated successfully");
+        } else {
+          // Create new group
+          const newGroup: UserGroup = {
+            id: `group-${Date.now()}`,
+            name: values.name,
+            users: values.users || [],
+          };
+          await saveGroups([...userGroups, newGroup]);
+          message.success("Group created successfully");
+        }
+        setIsGroupModalVisible(false);
+        setEditingGroup(null);
+        groupForm.resetFields();
+      } catch (error) {
+        message.error("Failed to save group");
       }
-      setIsGroupModalVisible(false);
-      setEditingGroup(null);
-      groupForm.resetFields();
     });
   };
 
