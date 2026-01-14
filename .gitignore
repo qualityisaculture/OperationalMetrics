@@ -2,3 +2,4 @@
 node_modules
 tsCompile
 test-report.html
+src/server/data/dashboardConfig.json

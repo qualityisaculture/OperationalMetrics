@@ -30,6 +30,7 @@ interface Props {
   readOnly?: boolean;
   onRequestData?: () => void;
   onConfigChange?: (config: LeadTimeConfig) => void;
+  uniqueId?: string; // Optional unique identifier for Chart Details element IDs
 }
 interface State {
   input: string;
@@ -81,6 +82,11 @@ export default class LeadTime extends React.Component<Props, State> {
 
   componentDidMount() {
     // Don't auto-run query in readOnly mode - wait for user to click "Request Data"
+  }
+
+  // Get unique target element ID for Chart Details
+  getTargetElementId = (): string => {
+    return this.props.uniqueId ? `leadtime-notes-${this.props.uniqueId}` : "leadtime-notes";
   }
 
   componentDidUpdate(prevProps: Props) {
@@ -888,12 +894,12 @@ export default class LeadTime extends React.Component<Props, State> {
           data={data}
           columns={columns}
           title={`Lead Time - ${this.state.viewMode === "sprint" ? "By Sprint" : "All Data Combined"}`}
-          targetElementId="leadtime-notes"
+          targetElementId={this.getTargetElementId()}
         />
 
         {/* Notes div for displaying click data */}
         <div
-          id="leadtime-notes"
+          id={this.getTargetElementId()}
           style={{
             marginTop: "1rem",
             padding: "1rem",
@@ -904,7 +910,7 @@ export default class LeadTime extends React.Component<Props, State> {
           }}
         >
           <h4>Chart Details</h4>
-          <div id="leadtime-notes-content">
+          <div id={`${this.getTargetElementId()}-content`}>
             {/* Click data will be populated here */}
           </div>
         </div>

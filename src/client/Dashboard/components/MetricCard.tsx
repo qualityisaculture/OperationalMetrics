@@ -75,6 +75,7 @@ const MetricCard = forwardRef<MetricCardRef, MetricCardProps>(({ metric }, ref) 
             initialConfig={metric.config}
             readOnly={true}
             onConfigChange={handleLeadTimeConfigChange}
+            uniqueId={metric.id}
           />
         );
       case "bitbucketPR":

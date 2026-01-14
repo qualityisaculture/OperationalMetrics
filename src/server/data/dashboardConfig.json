@@ -44,7 +44,7 @@
           "config": {
             "summaryViewMode": "sankey",
             "secondarySplitMode": "account",
-            "excludeHolidayAbsence": true,
+            "excludeHolidayAbsence": false,
             "excludeStartDate": null,
             "excludeEndDate": null,
             "showOtherTeams": false,
@@ -52,18 +52,10 @@
             "sankeySelectors": [
               {
                 "id": "selector-1767695912448-0.06353563036961563",
-                "name": "Chargeable",
-                "type": "Account Category",
+                "name": "",
+                "type": "Label",
                 "selectedValues": [
-                  "Chargeable"
-                ]
-              },
-              {
-                "id": "selector-1768386462079-0.5585995480452625",
-                "name": "Non Chargeable",
-                "type": "Account Category",
-                "selectedValues": [
-                  "Non-Chargeable"
+                  "corrected"
                 ]
               }
             ]
@@ -76,6 +68,44 @@
           "config": {
             "query": "project = AF",
             "currentSprintStartDate": "Wed, 07 Jan 2026 09:39:20 GMT",
+            "numberOfSprints": 5,
+            "splitMode": "statuses",
+            "viewMode": "combined",
+            "filterNoTimeBooked": true,
+            "statusesSelected": [
+              "In Progress"
+            ],
+            "ticketTypesSelected": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "dashboard-1768398627291",
+      "name": "XFT X",
+      "metrics": [
+        {
+          "id": "metric-1768398632215",
+          "type": "leadTime",
+          "name": "Time Booked to Stories and Tasks",
+          "config": {
+            "query": "labels = xft-X AND (type = \"Story\" or type = \"Task\")",
+            "currentSprintStartDate": "Wed, 14 Jan 2026 13:50:32 GMT",
+            "numberOfSprints": 5,
+            "splitMode": "timebooked",
+            "viewMode": "combined",
+            "filterNoTimeBooked": true,
+            "statusesSelected": [],
+            "ticketTypesSelected": []
+          }
+        },
+        {
+          "id": "metric-1768399424099",
+          "type": "leadTime",
+          "name": "Time Stories and Tasks in Statuses",
+          "config": {
+            "query": "labels = xft-X AND (type = \"Story\" or type = \"Task\")",
+            "currentSprintStartDate": "Wed, 14 Jan 2026 14:03:44 GMT",
             "numberOfSprints": 5,
             "splitMode": "statuses",
             "viewMode": "combined",
