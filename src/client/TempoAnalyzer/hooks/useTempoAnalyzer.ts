@@ -400,15 +400,20 @@ export const useTempoAnalyzer = (
     return result;
   };
 
-  const applyFilters = (tableData: any[]) => {
+  const applyFilters = (tableData: any[], issueKeyIndexOverride?: number, dateIndexOverride?: number, fullNameIndexOverride?: number) => {
     const {
       excludeHolidayAbsence,
       excludeStartDate,
       excludeEndDate,
-      issueKeyIndex,
-      dateIndex,
-      fullNameIndex,
+      issueKeyIndex: stateIssueKeyIndex,
+      dateIndex: stateDateIndex,
+      fullNameIndex: stateFullNameIndex,
     } = analyzerState;
+    
+    // Use override values if provided (from processData), otherwise use state values
+    const issueKeyIndex = issueKeyIndexOverride !== undefined ? issueKeyIndexOverride : stateIssueKeyIndex;
+    const dateIndex = dateIndexOverride !== undefined ? dateIndexOverride : stateDateIndex;
+    const fullNameIndex = fullNameIndexOverride !== undefined ? fullNameIndexOverride : stateFullNameIndex;
 
     let filteredData = [...tableData];
 
@@ -581,7 +586,7 @@ export const useTempoAnalyzer = (
       headers: newHeaders,
     }));
 
-    const filteredData = applyFilters(newRawData);
+    const filteredData = applyFilters(newRawData, issueKeyIndex, dateIndex, fullNameIndex);
 
     const grouped: { [key: string]: number } = {};
     const groupedByName: { [key: string]: number } = {};
