@@ -13,6 +13,7 @@ interface SankeyViewProps {
   loggedHoursIndex: number;
   fullNameIndex: number;
   accountCategoryIndex: number;
+  accountNameIndex: number;
   selectors: SankeySelectorConfig[];
   labels: LabelsMap;
 }
@@ -24,14 +25,17 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   loggedHoursIndex,
   fullNameIndex,
   accountCategoryIndex,
+  accountNameIndex,
   selectors,
   labels,
 }) => {
-  const [selectedSelectorKey, setSelectedSelectorKey] = useState<string | null>(null);
+  const [selectedSelectorKey, setSelectedSelectorKey] = useState<string | null>(
+    null
+  );
   // Calculate hours for each selector and Other
   const selectorHours = useMemo(() => {
     const hours: { [key: string]: number } = {};
-    
+
     // Initialize with selectors
     selectors.forEach((selector, idx) => {
       const label = `Selector ${idx + 1}`;
@@ -59,7 +63,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       // Check each selector in order
       for (let i = 0; i < selectors.length; i++) {
         const selector = selectors[i];
-        
+
         if (selector.type === "Type") {
           if (!issueType) continue;
           const issueTypeStr = String(issueType).trim();
@@ -73,12 +77,12 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
           if (!issueKey) continue;
           const issueKeyStr = String(issueKey).trim();
           const issueLabels = labels[issueKeyStr] || [];
-          
+
           // Check if any of the selected labels match any of the issue's labels
-          const hasMatchingLabel = selector.selectedValues.some((selectedLabel) =>
-            issueLabels.includes(selectedLabel)
+          const hasMatchingLabel = selector.selectedValues.some(
+            (selectedLabel) => issueLabels.includes(selectedLabel)
           );
-          
+
           if (hasMatchingLabel) {
             const label = `Selector ${i + 1}`;
             hours[label] = (hours[label] || 0) + loggedHours;
@@ -92,7 +96,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
           // Match letters and numbers up to the first dash or end of string
           const projectMatch = issueKeyStr.match(/^([A-Z0-9]+)(?:-|$)/);
           const project = projectMatch ? projectMatch[1] : null;
-          
+
           if (project && selector.selectedValues.includes(project)) {
             const label = `Selector ${i + 1}`;
             hours[label] = (hours[label] || 0) + loggedHours;
@@ -102,7 +106,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         } else if (selector.type === "Key") {
           if (!issueKey) continue;
           const issueKeyStr = String(issueKey).trim();
-          
+
           if (selector.selectedValues.includes(issueKeyStr)) {
             const label = `Selector ${i + 1}`;
             hours[label] = (hours[label] || 0) + loggedHours;
@@ -116,8 +120,20 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
               : null;
           if (!accountCategory) continue;
           const accountCategoryStr = String(accountCategory).trim();
-          
+
           if (selector.selectedValues.includes(accountCategoryStr)) {
+            const label = `Selector ${i + 1}`;
+            hours[label] = (hours[label] || 0) + loggedHours;
+            matched = true;
+            break; // Item matches first selector, stop checking
+          }
+        } else if (selector.type === "Account") {
+          const accountName =
+            accountNameIndex !== -1 ? row[accountNameIndex.toString()] : null;
+          if (!accountName) continue;
+          const accountNameStr = String(accountName).trim();
+
+          if (selector.selectedValues.includes(accountNameStr)) {
             const label = `Selector ${i + 1}`;
             hours[label] = (hours[label] || 0) + loggedHours;
             matched = true;
@@ -133,7 +149,16 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     });
 
     return hours;
-  }, [filteredData, issueTypeIndex, issueKeyIndex, loggedHoursIndex, accountCategoryIndex, selectors, labels]);
+  }, [
+    filteredData,
+    issueTypeIndex,
+    issueKeyIndex,
+    loggedHoursIndex,
+    accountCategoryIndex,
+    accountNameIndex,
+    selectors,
+    labels,
+  ]);
 
   // Calculate total hours
   const totalHours = useMemo(() => {
@@ -141,9 +166,12 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   }, [selectorHours]);
 
   // Generate selector description
-  const getSelectorDescription = (selector: SankeySelectorConfig, index: number): string => {
+  const getSelectorDescription = (
+    selector: SankeySelectorConfig,
+    index: number
+  ): string => {
     const baseName = selector.name || `Selector ${index + 1}`;
-    
+
     if (selector.type === "Type") {
       if (selector.selectedValues.length === 0) {
         return `${baseName} (Type: none selected)`;
@@ -169,6 +197,11 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         return `${baseName} (Account Category: none selected)`;
       }
       return `${baseName} (Account Category: ${selector.selectedValues.join(", ")})`;
+    } else if (selector.type === "Account") {
+      if (selector.selectedValues.length === 0) {
+        return `${baseName} (Account: none selected)`;
+      }
+      return `${baseName} (Account: ${selector.selectedValues.join(", ")})`;
     }
     return baseName;
   };
@@ -192,7 +225,8 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         selector: getSelectorDescription(selector, idx),
         hours,
         chargeableDays: hours / 7.5,
-        percentage: totalHours > 0 ? ((hours / totalHours) * 100).toFixed(1) : "0.0",
+        percentage:
+          totalHours > 0 ? ((hours / totalHours) * 100).toFixed(1) : "0.0",
       });
     });
 
@@ -203,7 +237,8 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       selector: "Other",
       hours: otherHours,
       chargeableDays: otherHours / 7.5,
-      percentage: totalHours > 0 ? ((otherHours / totalHours) * 100).toFixed(1) : "0.0",
+      percentage:
+        totalHours > 0 ? ((otherHours / totalHours) * 100).toFixed(1) : "0.0",
     });
 
     return rows.sort((a, b) => b.hours - a.hours);
@@ -274,8 +309,8 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
             if (issueKey) {
               const issueKeyStr = String(issueKey).trim();
               const issueLabels = labels[issueKeyStr] || [];
-              const hasMatchingLabel = sel.selectedValues.some((selectedLabel) =>
-                issueLabels.includes(selectedLabel)
+              const hasMatchingLabel = sel.selectedValues.some(
+                (selectedLabel) => issueLabels.includes(selectedLabel)
               );
               if (hasMatchingLabel) {
                 matchedAny = true;
@@ -312,6 +347,16 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
                 break;
               }
             }
+          } else if (sel.type === "Account") {
+            const accountName =
+              accountNameIndex !== -1 ? row[accountNameIndex.toString()] : null;
+            if (accountName) {
+              const accountNameStr = String(accountName).trim();
+              if (sel.selectedValues.includes(accountNameStr)) {
+                matchedAny = true;
+                break;
+              }
+            }
           }
         }
         matches = !matchedAny;
@@ -335,7 +380,8 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
             // Extract project prefix (e.g., "ABC-1" -> "ABC" or "ABC123-4" -> "ABC123")
             const projectMatch = issueKeyStr.match(/^([A-Z0-9]+)(?:-|$)/);
             const project = projectMatch ? projectMatch[1] : null;
-            matches = project !== null && selector.selectedValues.includes(project);
+            matches =
+              project !== null && selector.selectedValues.includes(project);
           }
         } else if (selector.type === "Key") {
           if (issueKey) {
@@ -350,6 +396,13 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
           if (accountCategory) {
             const accountCategoryStr = String(accountCategory).trim();
             matches = selector.selectedValues.includes(accountCategoryStr);
+          }
+        } else if (selector.type === "Account") {
+          const accountName =
+            accountNameIndex !== -1 ? row[accountNameIndex.toString()] : null;
+          if (accountName) {
+            const accountNameStr = String(accountName).trim();
+            matches = selector.selectedValues.includes(accountNameStr);
           }
         }
       }
@@ -386,6 +439,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     issueKeyIndex,
     fullNameIndex,
     accountCategoryIndex,
+    accountNameIndex,
     loggedHoursIndex,
   ]);
 
@@ -499,7 +553,8 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     return (
       <Card>
         <Text type="secondary">
-          No selectors configured. Please configure selectors to view Sankey data.
+          No selectors configured. Please configure selectors to view Sankey
+          data.
         </Text>
       </Card>
     );
@@ -507,7 +562,9 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
 
   // Show issue breakdown if a selector is selected
   if (selectedSelectorKey) {
-    const selectedRow = tableData.find((row) => row.key === selectedSelectorKey);
+    const selectedRow = tableData.find(
+      (row) => row.key === selectedSelectorKey
+    );
     const title = selectedRow ? selectedRow.selector : "Issue Breakdown";
 
     return (
@@ -568,4 +625,3 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     </Card>
   );
 };
-

@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Card, Button, Space, message } from "antd";
-import { EditOutlined, SaveOutlined, CloseOutlined, UpOutlined, DownOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  SaveOutlined,
+  CloseOutlined,
+  UpOutlined,
+  DownOutlined,
+} from "@ant-design/icons";
 import { FilterControls } from "../../TempoAnalyzer/components/FilterControls";
-import { SankeySelector, SankeySelectorConfig } from "../../TempoAnalyzer/components/SankeySelector";
+import {
+  SankeySelector,
+  SankeySelectorConfig,
+} from "../../TempoAnalyzer/components/SankeySelector";
 import { SankeyView } from "../../TempoAnalyzer/components/SankeyView";
 import { SummaryView } from "../../TempoAnalyzer/components/SummaryView";
 import { DrilldownView } from "../../TempoAnalyzer/components/DrilldownView";
@@ -15,7 +24,12 @@ import { useExcelProcessor } from "../../TempoAnalyzer/hooks/useExcelProcessor";
 import dayjs from "dayjs";
 
 interface TempoAnalyzerDashboardProps {
-  summaryViewMode?: "category" | "name" | "issueType" | "ancestryType" | "sankey";
+  summaryViewMode?:
+    | "category"
+    | "name"
+    | "issueType"
+    | "ancestryType"
+    | "sankey";
   secondarySplitMode?: "account" | "issueType";
   excludeHolidayAbsence?: boolean;
   excludeStartDate?: string | null; // ISO string
@@ -28,7 +42,12 @@ interface TempoAnalyzerDashboardProps {
 }
 
 export interface TempoAnalyzerConfig {
-  summaryViewMode: "category" | "name" | "issueType" | "ancestryType" | "sankey";
+  summaryViewMode:
+    | "category"
+    | "name"
+    | "issueType"
+    | "ancestryType"
+    | "sankey";
   secondarySplitMode: "account" | "issueType";
   excludeHolidayAbsence: boolean;
   excludeStartDate: string | null;
@@ -52,11 +71,17 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
 }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [showFilterControls, setShowFilterControls] = useState(false);
-  
+
   // Local state for settings (editable)
-  const [summaryViewMode, setSummaryViewMode] = useState(initialSummaryViewMode);
-  const [secondarySplitMode, setSecondarySplitMode] = useState(initialSecondarySplitMode);
-  const [excludeHolidayAbsence, setExcludeHolidayAbsence] = useState(initialExcludeHolidayAbsence);
+  const [summaryViewMode, setSummaryViewMode] = useState(
+    initialSummaryViewMode
+  );
+  const [secondarySplitMode, setSecondarySplitMode] = useState(
+    initialSecondarySplitMode
+  );
+  const [excludeHolidayAbsence, setExcludeHolidayAbsence] = useState(
+    initialExcludeHolidayAbsence
+  );
   const [excludeStartDate, setExcludeStartDate] = useState<dayjs.Dayjs | null>(
     initialExcludeStartDate ? dayjs(initialExcludeStartDate) : null
   );
@@ -64,20 +89,37 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     initialExcludeEndDate ? dayjs(initialExcludeEndDate) : null
   );
   const [showOtherTeams, setShowOtherTeams] = useState(initialShowOtherTeams);
-  const [selectedUserGroups, setSelectedUserGroups] = useState<string[]>(initialSelectedUserGroups);
-  const [sankeySelectors, setSankeySelectors] = useState<SankeySelectorConfig[]>(initialSankeySelectors);
+  const [selectedUserGroups, setSelectedUserGroups] = useState<string[]>(
+    initialSelectedUserGroups
+  );
+  const [sankeySelectors, setSankeySelectors] = useState<
+    SankeySelectorConfig[]
+  >(initialSankeySelectors);
 
   // Sync local state when props change (e.g., after config is saved)
   useEffect(() => {
     setSummaryViewMode(initialSummaryViewMode);
     setSecondarySplitMode(initialSecondarySplitMode);
     setExcludeHolidayAbsence(initialExcludeHolidayAbsence);
-    setExcludeStartDate(initialExcludeStartDate ? dayjs(initialExcludeStartDate) : null);
-    setExcludeEndDate(initialExcludeEndDate ? dayjs(initialExcludeEndDate) : null);
+    setExcludeStartDate(
+      initialExcludeStartDate ? dayjs(initialExcludeStartDate) : null
+    );
+    setExcludeEndDate(
+      initialExcludeEndDate ? dayjs(initialExcludeEndDate) : null
+    );
     setShowOtherTeams(initialShowOtherTeams);
     setSelectedUserGroups(initialSelectedUserGroups);
     setSankeySelectors(initialSankeySelectors);
-  }, [initialSummaryViewMode, initialSecondarySplitMode, initialExcludeHolidayAbsence, initialExcludeStartDate, initialExcludeEndDate, initialShowOtherTeams, initialSelectedUserGroups, initialSankeySelectors]);
+  }, [
+    initialSummaryViewMode,
+    initialSecondarySplitMode,
+    initialExcludeHolidayAbsence,
+    initialExcludeStartDate,
+    initialExcludeEndDate,
+    initialShowOtherTeams,
+    initialSelectedUserGroups,
+    initialSankeySelectors,
+  ]);
 
   // Excel processor for file upload
   const {
@@ -179,17 +221,45 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     return Array.from(categories).sort();
   }, [analyzer.filteredData, analyzer.accountCategoryIndex]);
 
+  const availableAccounts = useMemo(() => {
+    const accounts = new Set<string>();
+    if (analyzer.accountNameIndex !== -1) {
+      analyzer.filteredData.forEach((row) => {
+        const accountName = row[analyzer.accountNameIndex.toString()];
+        if (accountName) {
+          const account = String(accountName).trim();
+          if (account) {
+            accounts.add(account);
+          }
+        }
+      });
+    }
+    return Array.from(accounts).sort();
+  }, [analyzer.filteredData, analyzer.accountNameIndex]);
+
   // Sync local state with analyzer state when entering edit mode
   useEffect(() => {
     if (isEditMode) {
       setSummaryViewMode(analyzer.summaryViewMode);
       setSecondarySplitMode(analyzer.secondarySplitMode);
       setExcludeHolidayAbsence(analyzer.excludeHolidayAbsence);
-      setExcludeStartDate(analyzer.excludeStartDate ? dayjs(analyzer.excludeStartDate) : null);
-      setExcludeEndDate(analyzer.excludeEndDate ? dayjs(analyzer.excludeEndDate) : null);
+      setExcludeStartDate(
+        analyzer.excludeStartDate ? dayjs(analyzer.excludeStartDate) : null
+      );
+      setExcludeEndDate(
+        analyzer.excludeEndDate ? dayjs(analyzer.excludeEndDate) : null
+      );
       setShowOtherTeams(analyzer.showOtherTeams);
     }
-  }, [isEditMode, analyzer.summaryViewMode, analyzer.secondarySplitMode, analyzer.excludeHolidayAbsence, analyzer.excludeStartDate, analyzer.excludeEndDate, analyzer.showOtherTeams]);
+  }, [
+    isEditMode,
+    analyzer.summaryViewMode,
+    analyzer.secondarySplitMode,
+    analyzer.excludeHolidayAbsence,
+    analyzer.excludeStartDate,
+    analyzer.excludeEndDate,
+    analyzer.showOtherTeams,
+  ]);
 
   // Initialize analyzer with config values on mount and when config changes
   useEffect(() => {
@@ -203,46 +273,79 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     if (analyzer.excludeHolidayAbsence !== initialExcludeHolidayAbsence) {
       analyzer.handleExcludeHolidayAbsenceChange(initialExcludeHolidayAbsence);
     }
-    const initialStartDate = initialExcludeStartDate ? dayjs(initialExcludeStartDate).toDate() : null;
-    if ((analyzer.excludeStartDate?.getTime() || 0) !== (initialStartDate?.getTime() || 0)) {
+    const initialStartDate = initialExcludeStartDate
+      ? dayjs(initialExcludeStartDate).toDate()
+      : null;
+    if (
+      (analyzer.excludeStartDate?.getTime() || 0) !==
+      (initialStartDate?.getTime() || 0)
+    ) {
       analyzer.handleExcludeStartDateChange(initialStartDate);
     }
-    const initialEndDate = initialExcludeEndDate ? dayjs(initialExcludeEndDate).toDate() : null;
-    if ((analyzer.excludeEndDate?.getTime() || 0) !== (initialEndDate?.getTime() || 0)) {
+    const initialEndDate = initialExcludeEndDate
+      ? dayjs(initialExcludeEndDate).toDate()
+      : null;
+    if (
+      (analyzer.excludeEndDate?.getTime() || 0) !==
+      (initialEndDate?.getTime() || 0)
+    ) {
       analyzer.handleExcludeEndDateChange(initialEndDate);
     }
     if (analyzer.showOtherTeams !== initialShowOtherTeams) {
       analyzer.handleShowOtherTeamsChange(initialShowOtherTeams);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialSummaryViewMode, initialSecondarySplitMode, initialExcludeHolidayAbsence, initialExcludeStartDate, initialExcludeEndDate, initialShowOtherTeams]); // Run when config changes
+  }, [
+    initialSummaryViewMode,
+    initialSecondarySplitMode,
+    initialExcludeHolidayAbsence,
+    initialExcludeStartDate,
+    initialExcludeEndDate,
+    initialShowOtherTeams,
+  ]); // Run when config changes
 
   const handleSaveConfig = async () => {
     try {
       // Use current values - if in edit mode, use local state (which may have been modified),
       // otherwise use analyzer state (which reflects current view)
-      const currentSummaryViewMode = isEditMode ? summaryViewMode : analyzer.summaryViewMode;
-      const currentSecondarySplitMode = isEditMode ? secondarySplitMode : analyzer.secondarySplitMode;
-      const currentExcludeHolidayAbsence = isEditMode ? excludeHolidayAbsence : analyzer.excludeHolidayAbsence;
-      const currentExcludeStartDate = isEditMode 
-        ? (excludeStartDate ? excludeStartDate.toDate() : null)
+      const currentSummaryViewMode = isEditMode
+        ? summaryViewMode
+        : analyzer.summaryViewMode;
+      const currentSecondarySplitMode = isEditMode
+        ? secondarySplitMode
+        : analyzer.secondarySplitMode;
+      const currentExcludeHolidayAbsence = isEditMode
+        ? excludeHolidayAbsence
+        : analyzer.excludeHolidayAbsence;
+      const currentExcludeStartDate = isEditMode
+        ? excludeStartDate
+          ? excludeStartDate.toDate()
+          : null
         : analyzer.excludeStartDate;
-      const currentExcludeEndDate = isEditMode 
-        ? (excludeEndDate ? excludeEndDate.toDate() : null)
+      const currentExcludeEndDate = isEditMode
+        ? excludeEndDate
+          ? excludeEndDate.toDate()
+          : null
         : analyzer.excludeEndDate;
-      const currentShowOtherTeams = isEditMode ? showOtherTeams : analyzer.showOtherTeams;
-      
+      const currentShowOtherTeams = isEditMode
+        ? showOtherTeams
+        : analyzer.showOtherTeams;
+
       const config: TempoAnalyzerConfig = {
         summaryViewMode: currentSummaryViewMode,
         secondarySplitMode: currentSecondarySplitMode,
         excludeHolidayAbsence: currentExcludeHolidayAbsence,
-        excludeStartDate: currentExcludeStartDate ? currentExcludeStartDate.toISOString() : null,
-        excludeEndDate: currentExcludeEndDate ? currentExcludeEndDate.toISOString() : null,
+        excludeStartDate: currentExcludeStartDate
+          ? currentExcludeStartDate.toISOString()
+          : null,
+        excludeEndDate: currentExcludeEndDate
+          ? currentExcludeEndDate.toISOString()
+          : null,
         showOtherTeams: currentShowOtherTeams,
         selectedUserGroups,
         sankeySelectors,
       };
-      
+
       // Also update analyzer state to match what we're saving
       analyzer.handleSummaryViewModeChange(currentSummaryViewMode);
       analyzer.handleSecondarySplitModeChange(currentSecondarySplitMode);
@@ -250,11 +353,11 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
       analyzer.handleExcludeStartDateChange(currentExcludeStartDate);
       analyzer.handleExcludeEndDateChange(currentExcludeEndDate);
       analyzer.handleShowOtherTeamsChange(currentShowOtherTeams);
-      
+
       if (onConfigChange) {
         await onConfigChange(config);
       }
-      
+
       setIsEditMode(false);
       setShowFilterControls(false);
       message.success("Configuration saved");
@@ -277,8 +380,12 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     setSummaryViewMode(initialSummaryViewMode);
     setSecondarySplitMode(initialSecondarySplitMode);
     setExcludeHolidayAbsence(initialExcludeHolidayAbsence);
-    setExcludeStartDate(initialExcludeStartDate ? dayjs(initialExcludeStartDate) : null);
-    setExcludeEndDate(initialExcludeEndDate ? dayjs(initialExcludeEndDate) : null);
+    setExcludeStartDate(
+      initialExcludeStartDate ? dayjs(initialExcludeStartDate) : null
+    );
+    setExcludeEndDate(
+      initialExcludeEndDate ? dayjs(initialExcludeEndDate) : null
+    );
     setShowOtherTeams(initialShowOtherTeams);
     setSelectedUserGroups(initialSelectedUserGroups);
     setSankeySelectors(initialSankeySelectors);
@@ -286,25 +393,37 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     setShowFilterControls(false);
   };
 
-  const hasData = Object.keys(analyzer.groupedData).length > 0 ||
+  const hasData =
+    Object.keys(analyzer.groupedData).length > 0 ||
     Object.keys(analyzer.groupedByName).length > 0 ||
     Object.keys(analyzer.groupedByIssueType).length > 0 ||
     Object.keys(analyzer.groupedByAncestryType).length > 0;
 
   // Automatically request labels when Sankey is selected
   useEffect(() => {
-    const currentViewMode = isEditMode ? summaryViewMode : analyzer.summaryViewMode;
-    if (currentViewMode === "sankey" && hasData && !isLoadingLabels && Object.keys(labels).length === 0) {
+    const currentViewMode = isEditMode
+      ? summaryViewMode
+      : analyzer.summaryViewMode;
+    if (
+      currentViewMode === "sankey" &&
+      hasData &&
+      !isLoadingLabels &&
+      Object.keys(labels).length === 0
+    ) {
       fetchLabels();
     }
-  }, [analyzer.summaryViewMode, summaryViewMode, isEditMode, hasData, isLoadingLabels, labels, fetchLabels]);
+  }, [
+    analyzer.summaryViewMode,
+    summaryViewMode,
+    isEditMode,
+    hasData,
+    isLoadingLabels,
+    labels,
+    fetchLabels,
+  ]);
 
-  const {
-    groupedData,
-    selectedCategory,
-    selectedUser,
-    selectedAncestryType,
-  } = analyzer;
+  const { groupedData, selectedCategory, selectedUser, selectedAncestryType } =
+    analyzer;
 
   // Calculate total hours
   const totalHours = useMemo(() => {
@@ -336,9 +455,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               {isEditMode ? (
                 <Space>
-                  <Button onClick={handleCancelEdit}>
-                    Cancel
-                  </Button>
+                  <Button onClick={handleCancelEdit}>Cancel</Button>
                   <Button
                     type="primary"
                     icon={<SaveOutlined />}
@@ -367,46 +484,58 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
 
           {/* View Options card - shown/hidden based on showFilterControls */}
           {hasData && showFilterControls && (
-            <Card
-              title="View Options"
-            >
+            <Card title="View Options">
               <FilterControls
-                summaryViewMode={isEditMode ? summaryViewMode : analyzer.summaryViewMode}
+                summaryViewMode={
+                  isEditMode ? summaryViewMode : analyzer.summaryViewMode
+                }
                 handleSummaryViewModeChange={(mode) => {
                   analyzer.handleSummaryViewModeChange(mode);
                   if (isEditMode) {
                     setSummaryViewMode(mode);
                   }
                 }}
-                secondarySplitMode={isEditMode ? secondarySplitMode : analyzer.secondarySplitMode}
+                secondarySplitMode={
+                  isEditMode ? secondarySplitMode : analyzer.secondarySplitMode
+                }
                 handleSecondarySplitModeChange={(mode) => {
                   analyzer.handleSecondarySplitModeChange(mode);
                   if (isEditMode) {
                     setSecondarySplitMode(mode);
                   }
                 }}
-                excludeHolidayAbsence={isEditMode ? excludeHolidayAbsence : analyzer.excludeHolidayAbsence}
+                excludeHolidayAbsence={
+                  isEditMode
+                    ? excludeHolidayAbsence
+                    : analyzer.excludeHolidayAbsence
+                }
                 handleExcludeHolidayAbsenceChange={(checked) => {
                   analyzer.handleExcludeHolidayAbsenceChange(checked);
                   if (isEditMode) {
                     setExcludeHolidayAbsence(checked);
                   }
                 }}
-                excludeStartDate={isEditMode ? excludeStartDate : analyzer.excludeStartDate}
+                excludeStartDate={
+                  isEditMode ? excludeStartDate : analyzer.excludeStartDate
+                }
                 handleExcludeStartDateChange={(date) => {
                   analyzer.handleExcludeStartDateChange(date);
                   if (isEditMode) {
                     handleExcludeStartDateChange(date);
                   }
                 }}
-                excludeEndDate={isEditMode ? excludeEndDate : analyzer.excludeEndDate}
+                excludeEndDate={
+                  isEditMode ? excludeEndDate : analyzer.excludeEndDate
+                }
                 handleExcludeEndDateChange={(date) => {
                   analyzer.handleExcludeEndDateChange(date);
                   if (isEditMode) {
                     handleExcludeEndDateChange(date);
                   }
                 }}
-                showOtherTeams={isEditMode ? showOtherTeams : analyzer.showOtherTeams}
+                showOtherTeams={
+                  isEditMode ? showOtherTeams : analyzer.showOtherTeams
+                }
                 handleShowOtherTeamsChange={(checked) => {
                   analyzer.handleShowOtherTeamsChange(checked);
                   if (isEditMode) {
@@ -414,21 +543,29 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                   }
                 }}
                 hasGroupedData={Object.keys(analyzer.groupedData).length > 0}
-                hasGroupedByName={Object.keys(analyzer.groupedByName).length > 0}
-                hasGroupedByIssueType={Object.keys(analyzer.groupedByIssueType).length > 0}
-                hasGroupedByAncestryType={Object.keys(analyzer.groupedByAncestryType).length > 0}
+                hasGroupedByName={
+                  Object.keys(analyzer.groupedByName).length > 0
+                }
+                hasGroupedByIssueType={
+                  Object.keys(analyzer.groupedByIssueType).length > 0
+                }
+                hasGroupedByAncestryType={
+                  Object.keys(analyzer.groupedByAncestryType).length > 0
+                }
                 userGroups={userGroups.groups}
                 selectedUserGroups={selectedUserGroups}
                 onUserGroupsChange={setSelectedUserGroups}
               />
 
-                  {(isEditMode ? summaryViewMode : analyzer.summaryViewMode) === "sankey" && (
+              {(isEditMode ? summaryViewMode : analyzer.summaryViewMode) ===
+                "sankey" && (
                 <SankeySelector
                   availableIssueTypes={availableIssueTypes}
                   availableLabels={getAllLabels()}
                   availableProjects={availableProjects}
                   availableIssueKeys={availableIssueKeys}
                   availableAccountCategories={availableAccountCategories}
+                  availableAccounts={availableAccounts}
                   selectors={sankeySelectors}
                   onSelectorsChange={setSankeySelectors}
                   onRequestLabels={fetchLabels}
@@ -450,6 +587,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                       loggedHoursIndex={analyzer.loggedHoursIndex}
                       fullNameIndex={analyzer.fullNameIndex}
                       accountCategoryIndex={analyzer.accountCategoryIndex}
+                      accountNameIndex={analyzer.accountNameIndex}
                       selectors={sankeySelectors}
                       labels={labels}
                     />

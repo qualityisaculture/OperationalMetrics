@@ -31,7 +31,7 @@ export interface TempoAnalyzerConfig {
   sankeySelectors: Array<{
     id: string;
     name?: string;
-    type: "Type" | "Label" | "Project" | "Key" | "Account Category";
+    type: "Type" | "Label" | "Project" | "Key" | "Account Category" | "Account";
     selectedValues: string[];
   }>;
 }

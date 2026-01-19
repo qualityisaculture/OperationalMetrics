@@ -185,6 +185,23 @@ const TempoAnalyzer: React.FC<Props> = () => {
     return Array.from(categories).sort();
   }, [analyzer.filteredData, analyzer.accountCategoryIndex]);
 
+  // Get available accounts for Sankey selector
+  const availableAccounts = React.useMemo(() => {
+    const accounts = new Set<string>();
+    if (analyzer.accountNameIndex !== -1) {
+      analyzer.filteredData.forEach((row) => {
+        const accountName = row[analyzer.accountNameIndex.toString()];
+        if (accountName) {
+          const account = String(accountName).trim();
+          if (account) {
+            accounts.add(account);
+          }
+        }
+      });
+    }
+    return Array.from(accounts).sort();
+  }, [analyzer.filteredData, analyzer.accountNameIndex]);
+
   return (
     <div style={{ padding: "20px" }}>
       <Card>
@@ -245,6 +262,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
                     availableProjects={availableProjects}
                     availableIssueKeys={availableIssueKeys}
                     availableAccountCategories={availableAccountCategories}
+                    availableAccounts={availableAccounts}
                     selectors={sankeySelectors}
                     onSelectorsChange={setSankeySelectors}
                     onRequestLabels={fetchLabels}
@@ -258,6 +276,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
                       loggedHoursIndex={analyzer.loggedHoursIndex}
                       fullNameIndex={analyzer.fullNameIndex}
                       accountCategoryIndex={analyzer.accountCategoryIndex}
+                      accountNameIndex={analyzer.accountNameIndex}
                       selectors={sankeySelectors}
                       labels={labels}
                     />
