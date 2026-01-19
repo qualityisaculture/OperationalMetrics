@@ -1281,6 +1281,212 @@ const WeWork: React.FC<WeWorkProps> = () => {
     return uniqueDates.join(", ");
   };
 
+  // Helper function to extract time from date string and convert to 24-hour format for comparison
+  const extractTime = (dateString: string): { time: string; minutes: number } => {
+    // Try to extract time part after comma
+    const commaIndex = dateString.indexOf(",");
+    let timePart = "";
+    
+    if (commaIndex !== -1) {
+      timePart = dateString.substring(commaIndex + 1).trim();
+    } else {
+      // Try to extract time from space-separated format
+      const parts = dateString.split(" ");
+      if (parts.length >= 2) {
+        timePart = parts[1];
+      }
+    }
+
+    if (!timePart) {
+      return { time: "", minutes: 0 };
+    }
+
+    // Match time pattern: HH:MM:SS or HH:MM with optional AM/PM
+    const timeMatch = timePart.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+    
+    if (timeMatch) {
+      let hours = parseInt(timeMatch[1], 10);
+      const minutes = parseInt(timeMatch[2], 10);
+      const ampm = timeMatch[4]?.toUpperCase();
+
+      // Convert to 24-hour format if AM/PM is present
+      if (ampm === "PM" && hours !== 12) {
+        hours += 12;
+      } else if (ampm === "AM" && hours === 12) {
+        hours = 0;
+      }
+
+      const totalMinutes = hours * 60 + minutes;
+      const formattedTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+      
+      return { time: formattedTime, minutes: totalMinutes };
+    }
+
+    // Fallback: try to parse as HH:MM without AM/PM
+    const simpleMatch = timePart.match(/(\d{1,2}):(\d{2})/);
+    if (simpleMatch) {
+      const hours = parseInt(simpleMatch[1], 10);
+      const minutes = parseInt(simpleMatch[2], 10);
+      const totalMinutes = hours * 60 + minutes;
+      const formattedTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+      return { time: formattedTime, minutes: totalMinutes };
+    }
+
+    return { time: timePart, minutes: 0 };
+  };
+
+  // Helper function to parse full date-time string
+  const parseDateTime = (dateString: string): { date: Date | null; time: string; minutes: number } => {
+    const datePart =
+      dateString.split(",")[0]?.trim() ||
+      dateString.split(" ")[0]?.trim() ||
+      dateString;
+    const date = parseDateDDMMYYYY(datePart);
+    const timeData = extractTime(dateString);
+    return { date, time: timeData.time, minutes: timeData.minutes };
+  };
+
+  // Helper function to format office days with first and last times
+  const formatOfficeDaysWithTimes = (user: CombinedUserData): string => {
+    const officeDays = getOfficeDaysForUser(user);
+    if (officeDays.length === 0) {
+      return "";
+    }
+
+    // Group entries by date
+    const entriesByDate = new Map<string, WeWorkEntry[]>();
+    
+    officeDays.forEach((entry) => {
+      const datePart =
+        entry.date.split(",")[0]?.trim() ||
+        entry.date.split(" ")[0]?.trim() ||
+        entry.date;
+      const date = parseDateDDMMYYYY(datePart);
+      
+      if (date) {
+        const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        
+        if (!entriesByDate.has(dateKey)) {
+          entriesByDate.set(dateKey, []);
+        }
+        entriesByDate.get(dateKey)!.push(entry);
+      }
+    });
+
+    // For each date, find first and last time
+    const dayEntries = Array.from(entriesByDate.entries())
+      .map(([dateKey, entries]) => {
+        const firstEntry = entries[0];
+        const firstDate = parseDateDDMMYYYY(
+          firstEntry.date.split(",")[0]?.trim() ||
+          firstEntry.date.split(" ")[0]?.trim() ||
+          firstEntry.date
+        );
+        
+        if (!firstDate) return null;
+
+        // Parse all times and find min/max
+        const times = entries
+          .map((entry) => parseDateTime(entry.date))
+          .filter((dt) => dt.time !== "" && dt.minutes > 0);
+
+        if (times.length === 0) {
+          // No time data, just show date
+          const day = String(firstDate.getDate()).padStart(2, "0");
+          const month = String(firstDate.getMonth() + 1).padStart(2, "0");
+          return { date: firstDate, formatted: `${day}/${month}` };
+        }
+
+        // Find first and last times
+        times.sort((a, b) => a.minutes - b.minutes);
+        const firstTime = times[0].time;
+        const lastTime = times[times.length - 1].time;
+
+        // Format as DD/MM (firstTime, lastTime)
+        const day = String(firstDate.getDate()).padStart(2, "0");
+        const month = String(firstDate.getMonth() + 1).padStart(2, "0");
+        return {
+          date: firstDate,
+          formatted: `${day}/${month} (${firstTime}, ${lastTime})`,
+        };
+      })
+      .filter((item): item is { date: Date; formatted: string } => item !== null)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map((item) => item.formatted);
+
+    return dayEntries.join(", ");
+  };
+
+  // Helper function to calculate average in and average out times
+  const calculateAverageTimes = (user: CombinedUserData): { averageIn: string; averageOut: string } => {
+    const officeDays = getOfficeDaysForUser(user);
+    if (officeDays.length === 0) {
+      return { averageIn: "", averageOut: "" };
+    }
+
+    // Group entries by date
+    const entriesByDate = new Map<string, WeWorkEntry[]>();
+    
+    officeDays.forEach((entry) => {
+      const datePart =
+        entry.date.split(",")[0]?.trim() ||
+        entry.date.split(" ")[0]?.trim() ||
+        entry.date;
+      const date = parseDateDDMMYYYY(datePart);
+      
+      if (date) {
+        const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        
+        if (!entriesByDate.has(dateKey)) {
+          entriesByDate.set(dateKey, []);
+        }
+        entriesByDate.get(dateKey)!.push(entry);
+      }
+    });
+
+    // Collect first and last times for each day
+    const firstTimes: number[] = [];
+    const lastTimes: number[] = [];
+
+    Array.from(entriesByDate.entries()).forEach(([dateKey, entries]) => {
+      // Parse all times and find min/max
+      const times = entries
+        .map((entry) => parseDateTime(entry.date))
+        .filter((dt) => dt.time !== "" && dt.minutes > 0);
+
+      if (times.length > 0) {
+        // Find first and last times
+        times.sort((a, b) => a.minutes - b.minutes);
+        firstTimes.push(times[0].minutes);
+        lastTimes.push(times[times.length - 1].minutes);
+      }
+    });
+
+    // Calculate averages
+    if (firstTimes.length === 0 || lastTimes.length === 0) {
+      return { averageIn: "", averageOut: "" };
+    }
+
+    const avgInMinutes = Math.round(
+      firstTimes.reduce((sum, minutes) => sum + minutes, 0) / firstTimes.length
+    );
+    const avgOutMinutes = Math.round(
+      lastTimes.reduce((sum, minutes) => sum + minutes, 0) / lastTimes.length
+    );
+
+    // Convert minutes back to HH:MM format
+    const formatMinutesToTime = (minutes: number): string => {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+    };
+
+    return {
+      averageIn: formatMinutesToTime(avgInMinutes),
+      averageOut: formatMinutesToTime(avgOutMinutes),
+    };
+  };
+
   const exportToExcel = () => {
     if (combinedData.length === 0) {
       message.warning("No combined data to export");
@@ -1298,20 +1504,29 @@ const WeWork: React.FC<WeWorkProps> = () => {
       "Agreed Days in Office Per Month Minus Holidays",
       "Difference",
       "Office Days List",
+      "Office Days with Times",
+      "Average In",
+      "Average Out",
     ];
 
     // Create data rows
-    const rows = combinedData.map((user) => [
-      user.firstName,
-      user.lastName,
-      user.lineManager || "",
-      user.barrierDays,
-      user.holidayDays,
-      user.totalAgreedDaysInOffice,
-      user.daysInOffice,
-      user.difference,
-      formatOfficeDaysList(user),
-    ]);
+    const rows = combinedData.map((user) => {
+      const { averageIn, averageOut } = calculateAverageTimes(user);
+      return [
+        user.firstName,
+        user.lastName,
+        user.lineManager || "",
+        user.barrierDays,
+        user.holidayDays,
+        user.totalAgreedDaysInOffice,
+        user.daysInOffice,
+        user.difference,
+        formatOfficeDaysList(user),
+        formatOfficeDaysWithTimes(user),
+        averageIn || "",
+        averageOut || "",
+      ];
+    });
 
     // Create worksheet
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -1488,6 +1703,63 @@ const WeWork: React.FC<WeWorkProps> = () => {
       render: (_: any, record: CombinedUserData) => {
         const formattedDays = formatOfficeDaysList(record);
         return formattedDays || <span style={{ color: "#999" }}>No data</span>;
+      },
+    },
+    {
+      title: "Office Days with Times",
+      key: "officeDaysWithTimes",
+      width: 400,
+      render: (_: any, record: CombinedUserData) => {
+        const formattedDaysWithTimes = formatOfficeDaysWithTimes(record);
+        return formattedDaysWithTimes || <span style={{ color: "#999" }}>No data</span>;
+      },
+    },
+    {
+      title: "Average In",
+      key: "averageIn",
+      width: 120,
+      render: (_: any, record: CombinedUserData) => {
+        const { averageIn } = calculateAverageTimes(record);
+        return averageIn ? (
+          <Tag color="cyan">{averageIn}</Tag>
+        ) : (
+          <span style={{ color: "#999" }}>No data</span>
+        );
+      },
+      sorter: (a: CombinedUserData, b: CombinedUserData) => {
+        const aTimes = calculateAverageTimes(a);
+        const bTimes = calculateAverageTimes(b);
+        if (!aTimes.averageIn || !bTimes.averageIn) return 0;
+        // Convert time to minutes for comparison
+        const [aHours, aMins] = aTimes.averageIn.split(":").map(Number);
+        const [bHours, bMins] = bTimes.averageIn.split(":").map(Number);
+        const aTotal = aHours * 60 + aMins;
+        const bTotal = bHours * 60 + bMins;
+        return aTotal - bTotal;
+      },
+    },
+    {
+      title: "Average Out",
+      key: "averageOut",
+      width: 120,
+      render: (_: any, record: CombinedUserData) => {
+        const { averageOut } = calculateAverageTimes(record);
+        return averageOut ? (
+          <Tag color="orange">{averageOut}</Tag>
+        ) : (
+          <span style={{ color: "#999" }}>No data</span>
+        );
+      },
+      sorter: (a: CombinedUserData, b: CombinedUserData) => {
+        const aTimes = calculateAverageTimes(a);
+        const bTimes = calculateAverageTimes(b);
+        if (!aTimes.averageOut || !bTimes.averageOut) return 0;
+        // Convert time to minutes for comparison
+        const [aHours, aMins] = aTimes.averageOut.split(":").map(Number);
+        const [bHours, bMins] = bTimes.averageOut.split(":").map(Number);
+        const aTotal = aHours * 60 + aMins;
+        const bTotal = bHours * 60 + bMins;
+        return aTotal - bTotal;
       },
     },
   ];
