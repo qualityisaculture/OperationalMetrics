@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useImperativeHandle,
   forwardRef,
+  useCallback,
 } from "react";
 import {
   Button,
@@ -27,7 +28,10 @@ import {
   PlusOutlined,
 } from "@ant-design/icons";
 import { useBitBucketRepositories } from "../../BitBucketPRs/hooks/useBitBucketRepositories";
-import { BitBucketPullRequest } from "../../../server/BitBucketRequester";
+import {
+  BitBucketPullRequest,
+  BitBucketRepository,
+} from "../../../server/BitBucketRequester";
 import { useBitBucketGroups, UserGroup } from "../hooks/useBitBucketGroups";
 
 const { Title, Text } = Typography;
@@ -188,6 +192,39 @@ const BitbucketPRAnalytics = forwardRef<
 
     // Don't auto-load repositories - wait for user to click "Request All PRs"
 
+    // Helper function to extract project from repository
+    const getProjectFromRepository = useCallback(
+      (repository: BitBucketRepository): string => {
+        // Try project.key (BitBucket Server)
+        if ((repository as any).project?.key) {
+          return (repository as any).project.key;
+        }
+        // Try extracting from full_name (format: "project/repo" or "workspace/repo")
+        if (repository.full_name) {
+          const parts = repository.full_name.split("/");
+          if (parts.length >= 2) {
+            return parts[0];
+          }
+        }
+        // Try extracting from self link URL
+        const selfLink = repository.links?.self?.href;
+        if (selfLink) {
+          // Extract from URL like: /rest/api/2.0/repositories/{project}/{repo}
+          const match = selfLink.match(/repositories\/([^\/]+)\/([^\/]+)/);
+          if (match) {
+            return match[1];
+          }
+          // Try API 1.0 format: /rest/api/1.0/projects/{project}/repos/{repo}
+          const match1 = selfLink.match(/projects\/([^\/]+)\/repos\/([^\/]+)/);
+          if (match1) {
+            return match1[1];
+          }
+        }
+        return "Unknown";
+      },
+      []
+    );
+
     // Get all PRs from all repositories
     const allPRs = useMemo(() => {
       return pullRequests.flatMap((repoData) => repoData.pullRequests);
@@ -215,6 +252,25 @@ const BitbucketPRAnalytics = forwardRef<
       const group = userGroups.find((g) => g.id === selectedGroup);
       return group ? group.users : [];
     }, [selectedGroup, userGroups]);
+
+    // Calculate team member count for PRs per team member calculation
+    const teamMemberCount = useMemo(() => {
+      if (selectedGroup) {
+        // If a group is selected, use the number of users in that group
+        return usersInSelectedGroup.length;
+      } else if (selectedAuthors.length > 0) {
+        // If individual authors are selected, use the count of selected authors
+        return selectedAuthors.length;
+      } else {
+        // Default: use all unique authors
+        return uniqueAuthors.length;
+      }
+    }, [
+      selectedGroup,
+      selectedAuthors.length,
+      usersInSelectedGroup.length,
+      uniqueAuthors.length,
+    ]);
 
     // Filter PRs by selected authors or selected group
     const filteredPRs = useMemo(() => {
@@ -711,6 +767,17 @@ const BitbucketPRAnalytics = forwardRef<
                         dataIndex: "count",
                         key: "count",
                         render: (count: number) => <Text strong>{count}</Text>,
+                      },
+                      {
+                        title: "PRs per Team Member",
+                        key: "prsPerMember",
+                        render: (_: any, record: { count: number }) => {
+                          const prsPerMember =
+                            teamMemberCount > 0
+                              ? record.count / teamMemberCount
+                              : 0;
+                          return <Text strong>{prsPerMember.toFixed(2)}</Text>;
+                        },
                       },
                       {
                         title: "Actions",

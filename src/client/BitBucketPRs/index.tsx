@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Button,
   Input,
@@ -134,6 +134,42 @@ const BitBucketPRs: React.FC = () => {
   const [selectedGroupForTable, setSelectedGroupForTable] = useState<
     string | null
   >(null);
+  const [selectedProjectsForTable, setSelectedProjectsForTable] = useState<
+    string[]
+  >([]);
+
+  // Helper function to extract project from repository
+  const getProjectFromRepository = useCallback(
+    (repository: BitBucketRepository): string => {
+      // Try project.key (BitBucket Server)
+      if ((repository as any).project?.key) {
+        return (repository as any).project.key;
+      }
+      // Try extracting from full_name (format: "project/repo" or "workspace/repo")
+      if (repository.full_name) {
+        const parts = repository.full_name.split("/");
+        if (parts.length >= 2) {
+          return parts[0];
+        }
+      }
+      // Try extracting from self link URL
+      const selfLink = repository.links?.self?.href;
+      if (selfLink) {
+        // Extract from URL like: /rest/api/2.0/repositories/{project}/{repo}
+        const match = selfLink.match(/repositories\/([^\/]+)\/([^\/]+)/);
+        if (match) {
+          return match[1];
+        }
+        // Try API 1.0 format: /rest/api/1.0/projects/{project}/repos/{repo}
+        const match1 = selfLink.match(/projects\/([^\/]+)\/repos\/([^\/]+)/);
+        if (match1) {
+          return match1[1];
+        }
+      }
+      return "Unknown";
+    },
+    []
+  );
 
   // Get all PRs from all repositories
   const allPRs = useMemo(() => {
@@ -156,12 +192,43 @@ const BitBucketPRs: React.FC = () => {
     return Array.from(authorSet).sort();
   }, [allPRs]);
 
+  // Extract unique projects from repositories
+  const uniqueProjects = useMemo(() => {
+    const projectSet = new Set<string>();
+    repositories.forEach((repo) => {
+      const project = getProjectFromRepository(repo);
+      if (project && project !== "Unknown") {
+        projectSet.add(project);
+      }
+    });
+    return Array.from(projectSet).sort();
+  }, [repositories, getProjectFromRepository]);
+
   // Get users from selected group
   const usersInSelectedGroup = useMemo(() => {
     if (!selectedGroup) return [];
     const group = userGroups.find((g) => g.id === selectedGroup);
     return group ? group.users : [];
   }, [selectedGroup, userGroups]);
+
+  // Calculate team member count for PRs per team member calculation
+  const teamMemberCount = useMemo(() => {
+    if (selectedGroup) {
+      // If a group is selected, use the number of users in that group
+      return usersInSelectedGroup.length;
+    } else if (selectedAuthors.length > 0) {
+      // If individual authors are selected, use the count of selected authors
+      return selectedAuthors.length;
+    } else {
+      // Default: use all unique authors
+      return uniqueAuthors.length;
+    }
+  }, [
+    selectedGroup,
+    selectedAuthors.length,
+    usersInSelectedGroup.length,
+    uniqueAuthors.length,
+  ]);
 
   // Get users from selected group for main table
   const usersInSelectedGroupForTable = useMemo(() => {
@@ -287,19 +354,28 @@ const BitBucketPRs: React.FC = () => {
     usersInSelectedGroupForTable,
   ]);
 
-  // Filter repositories based on table filters (only show repos with matching PRs)
+  // Filter repositories based on table filters (only show repos with matching PRs and projects)
   const filteredRepositories = useMemo(() => {
     const usersToFilter = selectedGroupForTable
       ? usersInSelectedGroupForTable
       : selectedAuthorsForTable;
 
-    // If no filters, show all repositories
+    // First filter by project if any projects are selected
+    let reposFilteredByProject = repositories;
+    if (selectedProjectsForTable.length > 0) {
+      reposFilteredByProject = repositories.filter((repo) => {
+        const project = getProjectFromRepository(repo);
+        return selectedProjectsForTable.includes(project);
+      });
+    }
+
+    // Then filter by author/group if any are selected
     if (usersToFilter.length === 0) {
-      return repositories;
+      return reposFilteredByProject;
     }
 
     // Only show repositories that have at least one PR from the selected authors/group
-    return repositories.filter((repo) => {
+    return reposFilteredByProject.filter((repo) => {
       const prCount = getPRCountForRepository(repo);
       return prCount > 0;
     });
@@ -307,8 +383,10 @@ const BitBucketPRs: React.FC = () => {
     repositories,
     selectedGroupForTable,
     selectedAuthorsForTable,
+    selectedProjectsForTable,
     usersInSelectedGroupForTable,
     getPRCountForRepository,
+    getProjectFromRepository,
   ]);
 
   const columns = [
@@ -326,6 +404,13 @@ const BitBucketPRs: React.FC = () => {
           );
         }
         return <span>{text}</span>;
+      },
+    },
+    {
+      title: "Project",
+      key: "project",
+      render: (_: any, record: BitBucketRepository) => {
+        return getProjectFromRepository(record);
       },
     },
     {
@@ -706,6 +791,37 @@ const BitBucketPRs: React.FC = () => {
             >
               <div>
                 <Text strong style={{ marginRight: "8px" }}>
+                  Filter by Project:
+                </Text>
+                <Select
+                  mode="multiple"
+                  placeholder="Select projects (leave empty to show all)"
+                  value={selectedProjectsForTable}
+                  onChange={setSelectedProjectsForTable}
+                  style={{
+                    width: "100%",
+                    maxWidth: "600px",
+                    marginBottom: "12px",
+                  }}
+                  allowClear
+                  showSearch
+                  filterOption={(input, option) => {
+                    const label =
+                      typeof option?.label === "string"
+                        ? option.label
+                        : String(option?.label ?? "");
+                    return label.toLowerCase().includes(input.toLowerCase());
+                  }}
+                >
+                  {uniqueProjects.map((project) => (
+                    <Option key={project} value={project} label={project}>
+                      {project}
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Text strong style={{ marginRight: "8px" }}>
                   Filter by Group:
                 </Text>
                 <Select
@@ -910,6 +1026,17 @@ const BitBucketPRs: React.FC = () => {
                       dataIndex: "count",
                       key: "count",
                       render: (count: number) => <Text strong>{count}</Text>,
+                    },
+                    {
+                      title: "PRs per Team Member",
+                      key: "prsPerMember",
+                      render: (_: any, record: { count: number }) => {
+                        const prsPerMember =
+                          teamMemberCount > 0
+                            ? record.count / teamMemberCount
+                            : 0;
+                        return <Text strong>{prsPerMember.toFixed(2)}</Text>;
+                      },
                     },
                     {
                       title: "Actions",
