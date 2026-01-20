@@ -182,7 +182,7 @@ export default class JiraRequester {
     while (true) {
       let changelog = await this.requestChangelogFromServer(key, values.length);
       values = values.concat(changelog.values);
-      if (changelog.values.length !== 100) {
+      if (changelog.isLast) {
         break;
       }
     }
@@ -211,8 +211,8 @@ export default class JiraRequester {
     })) as JiraIssuesResponse;
     for (let jira of jiraJSON.issues) {
       let histories = jira.changelog?.histories;
-      if (histories) {
-        if (histories.length === 100) {
+      if (histories && jira.changelog) {
+        if (histories.length < jira.changelog.total) {
           let historyValues = await this.getAdditionalHistory(jira.key);
           jira.changelog.histories = historyValues;
         }
@@ -1309,7 +1309,9 @@ export default class JiraRequester {
   }
 
   // Method to get labels for a list of issues
-  async getLabelsForIssues(issueKeys: string[]): Promise<Map<string, string[]>> {
+  async getLabelsForIssues(
+    issueKeys: string[]
+  ): Promise<Map<string, string[]>> {
     try {
       if (issueKeys.length === 0) {
         return new Map();
@@ -1342,9 +1344,7 @@ export default class JiraRequester {
         }
       }
 
-      console.log(
-        `Successfully fetched labels for ${labelsMap.size} issues`
-      );
+      console.log(`Successfully fetched labels for ${labelsMap.size} issues`);
 
       return labelsMap;
     } catch (error) {
