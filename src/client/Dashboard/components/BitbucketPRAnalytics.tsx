@@ -134,6 +134,7 @@ const BitbucketPRAnalytics = forwardRef<
     const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
     const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
+    const [selectedProject, setSelectedProject] = useState<string | null>(null);
     const { groups: userGroups, saveGroups } = useBitBucketGroups();
     const [selectedGroup, setSelectedGroup] = useState<string | null>(
       initialSelectedGroup || null
@@ -225,6 +226,17 @@ const BitbucketPRAnalytics = forwardRef<
       []
     );
 
+    // Create a mapping from PR to repository for project filtering
+    const prToRepositoryMap = useMemo(() => {
+      const map = new Map<BitBucketPullRequest, BitBucketRepository>();
+      pullRequests.forEach((repoData) => {
+        repoData.pullRequests.forEach((pr) => {
+          map.set(pr, repoData.repository);
+        });
+      });
+      return map;
+    }, [pullRequests]);
+
     // Get all PRs from all repositories
     const allPRs = useMemo(() => {
       return pullRequests.flatMap((repoData) => repoData.pullRequests);
@@ -245,6 +257,29 @@ const BitbucketPRAnalytics = forwardRef<
       });
       return Array.from(authorSet).sort();
     }, [allPRs]);
+
+    // Extract unique projects from repositories (both from repositories state and pullRequests)
+    const uniqueProjects = useMemo(() => {
+      const projectSet = new Set<string>();
+
+      // Get projects from repositories state
+      repositories.forEach((repo) => {
+        const project = getProjectFromRepository(repo);
+        if (project && project !== "Unknown") {
+          projectSet.add(project);
+        }
+      });
+
+      // Also get projects from repositories in pullRequests (in case repositories state is empty)
+      pullRequests.forEach((repoData) => {
+        const project = getProjectFromRepository(repoData.repository);
+        if (project && project !== "Unknown") {
+          projectSet.add(project);
+        }
+      });
+
+      return Array.from(projectSet).sort();
+    }, [repositories, pullRequests, getProjectFromRepository]);
 
     // Get users from selected group
     const usersInSelectedGroup = useMemo(() => {
@@ -272,25 +307,46 @@ const BitbucketPRAnalytics = forwardRef<
       uniqueAuthors.length,
     ]);
 
-    // Filter PRs by selected authors or selected group
+    // Filter PRs by selected authors, selected group, and selected project
     const filteredPRs = useMemo(() => {
-      // If a group is selected, use users from that group
+      let filtered = allPRs;
+
+      // Filter by project first
+      if (selectedProject) {
+        filtered = filtered.filter((pr) => {
+          const repository = prToRepositoryMap.get(pr);
+          if (!repository) return false;
+          const project = getProjectFromRepository(repository);
+          return project === selectedProject;
+        });
+      }
+
+      // Then filter by authors or group
       const usersToFilter = selectedGroup
         ? usersInSelectedGroup
         : selectedAuthors;
 
-      if (usersToFilter.length === 0) {
-        return allPRs;
+      if (usersToFilter.length > 0) {
+        filtered = filtered.filter((pr) => {
+          const authorName =
+            pr.author?.display_name ||
+            pr.author?.user?.displayName ||
+            pr.author?.user?.name ||
+            "Unknown";
+          return usersToFilter.includes(authorName);
+        });
       }
-      return allPRs.filter((pr) => {
-        const authorName =
-          pr.author?.display_name ||
-          pr.author?.user?.displayName ||
-          pr.author?.user?.name ||
-          "Unknown";
-        return usersToFilter.includes(authorName);
-      });
-    }, [allPRs, selectedAuthors, selectedGroup, usersInSelectedGroup]);
+
+      return filtered;
+    }, [
+      allPRs,
+      selectedAuthors,
+      selectedGroup,
+      usersInSelectedGroup,
+      selectedProject,
+      prToRepositoryMap,
+      getProjectFromRepository,
+    ]);
 
     // Group PRs by month and count them (using merged/closed date)
     const prsByMonth = useMemo(() => {
@@ -673,6 +729,38 @@ const BitbucketPRAnalytics = forwardRef<
               >
                 <div>
                   <Text strong style={{ marginRight: "8px" }}>
+                    Filter by Project:
+                  </Text>
+                  <Select
+                    placeholder="Select a project (leave empty to show all)"
+                    value={selectedProject}
+                    onChange={(value) => {
+                      setSelectedProject(value);
+                    }}
+                    style={{
+                      width: "100%",
+                      maxWidth: "400px",
+                      marginBottom: "12px",
+                    }}
+                    allowClear
+                    showSearch
+                    filterOption={(input, option) => {
+                      const label =
+                        typeof option?.label === "string"
+                          ? option.label
+                          : String(option?.label ?? "");
+                      return label.toLowerCase().includes(input.toLowerCase());
+                    }}
+                  >
+                    {uniqueProjects.map((project) => (
+                      <Option key={project} value={project} label={project}>
+                        {project}
+                      </Option>
+                    ))}
+                  </Select>
+                </div>
+                <div>
+                  <Text strong style={{ marginRight: "8px" }}>
                     Filter by Group:
                   </Text>
                   <Select
@@ -743,11 +831,12 @@ const BitbucketPRAnalytics = forwardRef<
                 <Text type="secondary">
                   Showing {filteredPRs.length} PR
                   {filteredPRs.length !== 1 ? "s" : ""}
+                  {selectedProject && ` from project "${selectedProject}"`}
                   {selectedGroup
                     ? ` from group "${userGroups.find((g) => g.id === selectedGroup)?.name || ""}"`
                     : selectedAuthors.length > 0
                       ? ` from ${selectedAuthors.length} selected author${selectedAuthors.length !== 1 ? "s" : ""}`
-                      : " from all authors"}
+                      : !selectedProject && " from all authors"}
                 </Text>
               </Space>
 

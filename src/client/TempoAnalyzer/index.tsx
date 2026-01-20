@@ -6,6 +6,7 @@ import { useTempoAnalyzer } from "./hooks/useTempoAnalyzer";
 import { useUserGroups } from "./hooks/useUserGroups";
 import { useParentAncestors } from "./hooks/useParentAncestors";
 import { useLabels } from "./hooks/useLabels";
+import { useAncestryTypes } from "./hooks/useAncestryTypes";
 import { Props } from "./types";
 import { FileUpload } from "./components/FileUpload";
 import { SheetManager } from "./components/SheetManager";
@@ -101,6 +102,14 @@ const TempoAnalyzer: React.FC<Props> = () => {
     selectedSheets,
     selectedUserGroups,
     userGroups.assignments,
+    parentAncestors
+  );
+
+  // Ancestry types for Sankey
+  const { ancestryTypes, getAllAncestryTypes } = useAncestryTypes(
+    analyzer.filteredData,
+    analyzer.issueKeyIndex,
+    analyzer.issueTypeIndex,
     parentAncestors
   );
 
@@ -202,6 +211,44 @@ const TempoAnalyzer: React.FC<Props> = () => {
     return Array.from(accounts).sort();
   }, [analyzer.filteredData, analyzer.accountNameIndex]);
 
+  // Automatically request labels and ancestors when Sankey is selected
+  React.useEffect(() => {
+    const hasData =
+      Object.keys(groupedData).length > 0 ||
+      Object.keys(analyzer.groupedByName).length > 0 ||
+      Object.keys(analyzer.groupedByIssueType).length > 0 ||
+      Object.keys(analyzer.groupedByAncestryType).length > 0;
+
+    if (
+      analyzer.summaryViewMode === "sankey" &&
+      hasData &&
+      !isLoadingLabels &&
+      Object.keys(labels).length === 0
+    ) {
+      fetchLabels();
+    }
+    if (
+      analyzer.summaryViewMode === "sankey" &&
+      hasData &&
+      !isLoadingAncestors &&
+      Object.keys(parentAncestors).length === 0
+    ) {
+      fetchParentAncestors();
+    }
+  }, [
+    analyzer.summaryViewMode,
+    groupedData,
+    analyzer.groupedByName,
+    analyzer.groupedByIssueType,
+    analyzer.groupedByAncestryType,
+    isLoadingLabels,
+    labels,
+    fetchLabels,
+    isLoadingAncestors,
+    parentAncestors,
+    fetchParentAncestors,
+  ]);
+
   return (
     <div style={{ padding: "20px" }}>
       <Card>
@@ -263,10 +310,13 @@ const TempoAnalyzer: React.FC<Props> = () => {
                     availableIssueKeys={availableIssueKeys}
                     availableAccountCategories={availableAccountCategories}
                     availableAccounts={availableAccounts}
+                    availableAncestryTypes={getAllAncestryTypes()}
                     selectors={sankeySelectors}
                     onSelectorsChange={setSankeySelectors}
                     onRequestLabels={fetchLabels}
                     isLoadingLabels={isLoadingLabels}
+                    onRequestAncestors={fetchParentAncestors}
+                    isLoadingAncestors={isLoadingAncestors}
                   />
                   {sankeySelectors.length > 0 && (
                     <SankeyView
@@ -279,6 +329,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
                       accountNameIndex={analyzer.accountNameIndex}
                       selectors={sankeySelectors}
                       labels={labels}
+                      ancestryTypes={ancestryTypes}
                     />
                   )}
                 </>

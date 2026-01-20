@@ -3,6 +3,7 @@ import { Card, Table, Typography, Button, Space } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { SankeySelectorConfig } from "./SankeySelector";
 import { LabelsMap } from "../hooks/useLabels";
+import { AncestryTypesMap } from "../hooks/useAncestryTypes";
 
 const { Text, Title } = Typography;
 
@@ -16,6 +17,7 @@ interface SankeyViewProps {
   accountNameIndex: number;
   selectors: SankeySelectorConfig[];
   labels: LabelsMap;
+  ancestryTypes: AncestryTypesMap;
 }
 
 export const SankeyView: React.FC<SankeyViewProps> = ({
@@ -28,6 +30,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   accountNameIndex,
   selectors,
   labels,
+  ancestryTypes,
 }) => {
   const [selectedSelectorKey, setSelectedSelectorKey] = useState<string | null>(
     null
@@ -139,6 +142,17 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
             matched = true;
             break; // Item matches first selector, stop checking
           }
+        } else if (selector.type === "AncestryType") {
+          if (!issueKey) continue;
+          const issueKeyStr = String(issueKey).trim();
+          const ancestryType = ancestryTypes[issueKeyStr];
+
+          if (ancestryType && selector.selectedValues.includes(ancestryType)) {
+            const label = `Selector ${i + 1}`;
+            hours[label] = (hours[label] || 0) + loggedHours;
+            matched = true;
+            break; // Item matches first selector, stop checking
+          }
         }
       }
 
@@ -158,6 +172,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     accountNameIndex,
     selectors,
     labels,
+    ancestryTypes,
   ]);
 
   // Calculate total hours
@@ -202,6 +217,11 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         return `${baseName} (Account: none selected)`;
       }
       return `${baseName} (Account: ${selector.selectedValues.join(", ")})`;
+    } else if (selector.type === "AncestryType") {
+      if (selector.selectedValues.length === 0) {
+        return `${baseName} (AncestryType: none selected)`;
+      }
+      return `${baseName} (AncestryType: ${selector.selectedValues.join(", ")})`;
     }
     return baseName;
   };
@@ -357,6 +377,15 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
                 break;
               }
             }
+          } else if (sel.type === "AncestryType") {
+            if (issueKey) {
+              const issueKeyStr = String(issueKey).trim();
+              const ancestryType = ancestryTypes[issueKeyStr];
+              if (ancestryType && sel.selectedValues.includes(ancestryType)) {
+                matchedAny = true;
+                break;
+              }
+            }
           }
         }
         matches = !matchedAny;
@@ -404,6 +433,14 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
             const accountNameStr = String(accountName).trim();
             matches = selector.selectedValues.includes(accountNameStr);
           }
+        } else if (selector.type === "AncestryType") {
+          if (issueKey) {
+            const issueKeyStr = String(issueKey).trim();
+            const ancestryType = ancestryTypes[issueKeyStr];
+            matches =
+              ancestryType !== undefined &&
+              selector.selectedValues.includes(ancestryType);
+          }
         }
       }
 
@@ -441,6 +478,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     accountCategoryIndex,
     accountNameIndex,
     loggedHoursIndex,
+    ancestryTypes,
   ]);
 
   const totalIssueHours = useMemo(() => {

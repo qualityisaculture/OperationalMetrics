@@ -13,7 +13,7 @@ const { Text } = Typography;
 export interface SankeySelectorConfig {
   id: string;
   name?: string;
-  type: "Type" | "Label" | "Project" | "Key" | "Account Category" | "Account";
+  type: "Type" | "Label" | "Project" | "Key" | "Account Category" | "Account" | "AncestryType";
   selectedValues: string[];
 }
 
@@ -24,10 +24,13 @@ interface SankeySelectorProps {
   availableIssueKeys: string[];
   availableAccountCategories: string[];
   availableAccounts: string[];
+  availableAncestryTypes: string[];
   selectors: SankeySelectorConfig[];
   onSelectorsChange: (selectors: SankeySelectorConfig[]) => void;
   onRequestLabels: () => void;
   isLoadingLabels: boolean;
+  onRequestAncestors: () => void;
+  isLoadingAncestors: boolean;
 }
 
 export const SankeySelector: React.FC<SankeySelectorProps> = ({
@@ -37,10 +40,13 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
   availableIssueKeys,
   availableAccountCategories,
   availableAccounts,
+  availableAncestryTypes,
   selectors,
   onSelectorsChange,
   onRequestLabels,
   isLoadingLabels,
+  onRequestAncestors,
+  isLoadingAncestors,
 }) => {
   const addSelector = () => {
     const newSelector: SankeySelectorConfig = {
@@ -98,6 +104,13 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
             size="small"
           >
             Request Labels
+          </Button>
+          <Button
+            onClick={onRequestAncestors}
+            loading={isLoadingAncestors}
+            size="small"
+          >
+            Request Ancestors
           </Button>
           <Button
             type="primary"
@@ -177,7 +190,7 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                     value={selector.type}
                     onChange={(value) =>
                       updateSelector(selector.id, {
-                        type: value as "Type" | "Label" | "Project" | "Key" | "Account Category" | "Account",
+                        type: value as "Type" | "Label" | "Project" | "Key" | "Account Category" | "Account" | "AncestryType",
                         selectedValues: [], // Clear selected values when type changes
                       })
                     }
@@ -189,6 +202,7 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                     <Option value="Key">Key</Option>
                     <Option value="Account Category">Account Category</Option>
                     <Option value="Account">Account</Option>
+                    <Option value="AncestryType">AncestryType</Option>
                   </Select>
                 </div>
                 <div>
@@ -203,7 +217,9 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                             ? "Select Issue Keys:"
                             : selector.type === "Account Category"
                               ? "Select Account Categories:"
-                              : "Select Accounts:"}
+                              : selector.type === "Account"
+                                ? "Select Accounts:"
+                                : "Select Ancestry Types:"}
                   </Text>
                   <Select
                     mode="multiple"
@@ -218,7 +234,9 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                               ? "Select issue keys"
                               : selector.type === "Account Category"
                                 ? "Select account categories"
-                                : "Select accounts"
+                                : selector.type === "Account"
+                                  ? "Select accounts"
+                                  : "Select ancestry types"
                     }
                     value={selector.selectedValues}
                     onChange={(values) =>
@@ -236,7 +254,9 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                       (selector.type === "Account Category" &&
                         availableAccountCategories.length === 0) ||
                       (selector.type === "Account" &&
-                        availableAccounts.length === 0)
+                        availableAccounts.length === 0) ||
+                      (selector.type === "AncestryType" &&
+                        availableAncestryTypes.length === 0)
                     }
                   >
                     {selector.type === "Type"
@@ -269,11 +289,17 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                                     {category}
                                   </Option>
                                 ))
-                              : availableAccounts.map((account) => (
-                                  <Option key={account} value={account}>
-                                    {account}
-                                  </Option>
-                                ))}
+                              : selector.type === "Account"
+                                ? availableAccounts.map((account) => (
+                                    <Option key={account} value={account}>
+                                      {account}
+                                    </Option>
+                                  ))
+                                : availableAncestryTypes.map((ancestryType) => (
+                                    <Option key={ancestryType} value={ancestryType}>
+                                      {ancestryType}
+                                    </Option>
+                                  ))}
                   </Select>
                   {selector.type === "Label" &&
                     availableLabels.length === 0 && (
@@ -305,6 +331,13 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                     availableAccounts.length === 0 && (
                       <Text type="secondary" style={{ fontSize: "12px" }}>
                         No accounts available.
+                      </Text>
+                    )}
+                  {selector.type === "AncestryType" &&
+                    availableAncestryTypes.length === 0 && (
+                      <Text type="secondary" style={{ fontSize: "12px" }}>
+                        No ancestry types available. Click "Request Ancestors" to
+                        fetch ancestry information for issues.
                       </Text>
                     )}
                 </div>

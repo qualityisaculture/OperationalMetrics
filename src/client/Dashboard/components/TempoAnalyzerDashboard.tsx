@@ -20,6 +20,8 @@ import { SheetManager } from "../../TempoAnalyzer/components/SheetManager";
 import { useTempoAnalyzer } from "../../TempoAnalyzer/hooks/useTempoAnalyzer";
 import { useUserGroups } from "../../TempoAnalyzer/hooks/useUserGroups";
 import { useLabels } from "../../TempoAnalyzer/hooks/useLabels";
+import { useParentAncestors } from "../../TempoAnalyzer/hooks/useParentAncestors";
+import { useAncestryTypes } from "../../TempoAnalyzer/hooks/useAncestryTypes";
 import { useExcelProcessor } from "../../TempoAnalyzer/hooks/useExcelProcessor";
 import dayjs from "dayjs";
 
@@ -166,6 +168,21 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     fetchLabels,
     getAllLabels,
   } = useLabels(analyzer.filteredData, analyzer.issueKeyIndex);
+
+  // Parent ancestors for Sankey
+  const {
+    parentAncestors,
+    isLoading: isLoadingAncestors,
+    fetchParentAncestors,
+  } = useParentAncestors(analyzer.filteredData, analyzer.issueKeyIndex);
+
+  // Ancestry types for Sankey
+  const { ancestryTypes, getAllAncestryTypes } = useAncestryTypes(
+    analyzer.filteredData,
+    analyzer.issueKeyIndex,
+    analyzer.issueTypeIndex,
+    parentAncestors
+  );
 
   // Get available options for Sankey
   const availableIssueTypes = useMemo(() => {
@@ -399,7 +416,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     Object.keys(analyzer.groupedByIssueType).length > 0 ||
     Object.keys(analyzer.groupedByAncestryType).length > 0;
 
-  // Automatically request labels when Sankey is selected
+  // Automatically request labels and ancestors when Sankey is selected
   useEffect(() => {
     const currentViewMode = isEditMode
       ? summaryViewMode
@@ -412,6 +429,14 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     ) {
       fetchLabels();
     }
+    if (
+      currentViewMode === "sankey" &&
+      hasData &&
+      !isLoadingAncestors &&
+      Object.keys(parentAncestors).length === 0
+    ) {
+      fetchParentAncestors();
+    }
   }, [
     analyzer.summaryViewMode,
     summaryViewMode,
@@ -420,6 +445,9 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     isLoadingLabels,
     labels,
     fetchLabels,
+    isLoadingAncestors,
+    parentAncestors,
+    fetchParentAncestors,
   ]);
 
   const { groupedData, selectedCategory, selectedUser, selectedAncestryType } =
@@ -566,10 +594,13 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                   availableIssueKeys={availableIssueKeys}
                   availableAccountCategories={availableAccountCategories}
                   availableAccounts={availableAccounts}
+                  availableAncestryTypes={getAllAncestryTypes()}
                   selectors={sankeySelectors}
                   onSelectorsChange={setSankeySelectors}
                   onRequestLabels={fetchLabels}
                   isLoadingLabels={isLoadingLabels}
+                  onRequestAncestors={fetchParentAncestors}
+                  isLoadingAncestors={isLoadingAncestors}
                 />
               )}
             </Card>
@@ -590,6 +621,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                       accountNameIndex={analyzer.accountNameIndex}
                       selectors={sankeySelectors}
                       labels={labels}
+                      ancestryTypes={ancestryTypes}
                     />
                   )}
                 </>

@@ -21,7 +21,12 @@ export interface BugsAnalysisConfig {
 }
 
 export interface TempoAnalyzerConfig {
-  summaryViewMode: "category" | "name" | "issueType" | "ancestryType" | "sankey";
+  summaryViewMode:
+    | "category"
+    | "name"
+    | "issueType"
+    | "ancestryType"
+    | "sankey";
   secondarySplitMode: "account" | "issueType";
   excludeHolidayAbsence: boolean;
   excludeStartDate: string | null;
@@ -31,7 +36,14 @@ export interface TempoAnalyzerConfig {
   sankeySelectors: Array<{
     id: string;
     name?: string;
-    type: "Type" | "Label" | "Project" | "Key" | "Account Category" | "Account";
+    type:
+      | "Type"
+      | "Label"
+      | "Project"
+      | "Key"
+      | "Account Category"
+      | "Account"
+      | "AncestryType";
     selectedValues: string[];
   }>;
 }
@@ -40,7 +52,11 @@ export interface DashboardMetric {
   id: string;
   type: "leadTime" | "bitbucketPR" | "bugsAnalysis" | "tempoAnalyzer";
   name: string;
-  config: LeadTimeConfig | BitbucketPRConfig | BugsAnalysisConfig | TempoAnalyzerConfig;
+  config:
+    | LeadTimeConfig
+    | BitbucketPRConfig
+    | BugsAnalysisConfig
+    | TempoAnalyzerConfig;
 }
 
 export interface Dashboard {
@@ -52,4 +68,3 @@ export interface Dashboard {
 export interface DashboardConfig {
   dashboards: Dashboard[];
 }
-
