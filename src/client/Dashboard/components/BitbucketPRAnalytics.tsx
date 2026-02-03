@@ -134,7 +134,8 @@ const BitbucketPRAnalytics = forwardRef<
     const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
     const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
-    const [selectedProject, setSelectedProject] = useState<string | null>(null);
+    const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+    const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
     const { groups: userGroups, saveGroups } = useBitBucketGroups();
     const [selectedGroup, setSelectedGroup] = useState<string | null>(
       initialSelectedGroup || null
@@ -258,6 +259,19 @@ const BitbucketPRAnalytics = forwardRef<
       return Array.from(authorSet).sort();
     }, [allPRs]);
 
+    // Helper function to get repository identifier
+    const getRepoIdentifier = useCallback(
+      (repository: BitBucketRepository): string => {
+        return (
+          repository.full_name ||
+          repository.uuid ||
+          repository.slug ||
+          "Unknown"
+        );
+      },
+      []
+    );
+
     // Extract unique projects from repositories (both from repositories state and pullRequests)
     const uniqueProjects = useMemo(() => {
       const projectSet = new Set<string>();
@@ -280,6 +294,40 @@ const BitbucketPRAnalytics = forwardRef<
 
       return Array.from(projectSet).sort();
     }, [repositories, pullRequests, getProjectFromRepository]);
+
+    // Extract unique repositories from pullRequests
+    const uniqueRepos = useMemo(() => {
+      const repoMap = new Map<string, { identifier: string; name: string }>();
+
+      // Get repos from pullRequests
+      pullRequests.forEach((repoData) => {
+        const identifier = getRepoIdentifier(repoData.repository);
+        const name =
+          repoData.repository.full_name ||
+          repoData.repository.name ||
+          identifier;
+        if (identifier && identifier !== "Unknown") {
+          repoMap.set(identifier, { identifier, name });
+        }
+      });
+
+      // Also get repos from repositories state
+      repositories.forEach((repo) => {
+        const identifier = getRepoIdentifier(repo);
+        const name = repo.full_name || repo.name || identifier;
+        if (
+          identifier &&
+          identifier !== "Unknown" &&
+          !repoMap.has(identifier)
+        ) {
+          repoMap.set(identifier, { identifier, name });
+        }
+      });
+
+      return Array.from(repoMap.values()).sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+    }, [pullRequests, repositories, getRepoIdentifier]);
 
     // Get users from selected group
     const usersInSelectedGroup = useMemo(() => {
@@ -307,17 +355,27 @@ const BitbucketPRAnalytics = forwardRef<
       uniqueAuthors.length,
     ]);
 
-    // Filter PRs by selected authors, selected group, and selected project
+    // Filter PRs by selected authors, selected group, selected projects, and selected repos
     const filteredPRs = useMemo(() => {
       let filtered = allPRs;
 
-      // Filter by project first
-      if (selectedProject) {
+      // Filter by repos first
+      if (selectedRepos.length > 0) {
+        filtered = filtered.filter((pr) => {
+          const repository = prToRepositoryMap.get(pr);
+          if (!repository) return false;
+          const repoIdentifier = getRepoIdentifier(repository);
+          return selectedRepos.includes(repoIdentifier);
+        });
+      }
+
+      // Filter by projects
+      if (selectedProjects.length > 0) {
         filtered = filtered.filter((pr) => {
           const repository = prToRepositoryMap.get(pr);
           if (!repository) return false;
           const project = getProjectFromRepository(repository);
-          return project === selectedProject;
+          return selectedProjects.includes(project);
         });
       }
 
@@ -343,9 +401,11 @@ const BitbucketPRAnalytics = forwardRef<
       selectedAuthors,
       selectedGroup,
       usersInSelectedGroup,
-      selectedProject,
+      selectedProjects,
+      selectedRepos,
       prToRepositoryMap,
       getProjectFromRepository,
+      getRepoIdentifier,
     ]);
 
     // Group PRs by month and count them (using merged/closed date)
@@ -732,10 +792,11 @@ const BitbucketPRAnalytics = forwardRef<
                     Filter by Project:
                   </Text>
                   <Select
-                    placeholder="Select a project (leave empty to show all)"
-                    value={selectedProject}
+                    mode="multiple"
+                    placeholder="Select projects (leave empty to show all)"
+                    value={selectedProjects}
                     onChange={(value) => {
-                      setSelectedProject(value);
+                      setSelectedProjects(value);
                     }}
                     style={{
                       width: "100%",
@@ -755,6 +816,43 @@ const BitbucketPRAnalytics = forwardRef<
                     {uniqueProjects.map((project) => (
                       <Option key={project} value={project} label={project}>
                         {project}
+                      </Option>
+                    ))}
+                  </Select>
+                </div>
+                <div>
+                  <Text strong style={{ marginRight: "8px" }}>
+                    Filter by Repo:
+                  </Text>
+                  <Select
+                    mode="multiple"
+                    placeholder="Select repos (leave empty to show all)"
+                    value={selectedRepos}
+                    onChange={(value) => {
+                      setSelectedRepos(value);
+                    }}
+                    style={{
+                      width: "100%",
+                      maxWidth: "400px",
+                      marginBottom: "12px",
+                    }}
+                    allowClear
+                    showSearch
+                    filterOption={(input, option) => {
+                      const label =
+                        typeof option?.label === "string"
+                          ? option.label
+                          : String(option?.label ?? "");
+                      return label.toLowerCase().includes(input.toLowerCase());
+                    }}
+                  >
+                    {uniqueRepos.map((repo) => (
+                      <Option
+                        key={repo.identifier}
+                        value={repo.identifier}
+                        label={repo.name}
+                      >
+                        {repo.name}
                       </Option>
                     ))}
                   </Select>
@@ -831,12 +929,19 @@ const BitbucketPRAnalytics = forwardRef<
                 <Text type="secondary">
                   Showing {filteredPRs.length} PR
                   {filteredPRs.length !== 1 ? "s" : ""}
-                  {selectedProject && ` from project "${selectedProject}"`}
+                  {selectedRepos.length > 0
+                    ? ` from ${selectedRepos.length} selected repo${selectedRepos.length !== 1 ? "s" : ""}`
+                    : ""}
+                  {selectedProjects.length > 0
+                    ? ` from ${selectedProjects.length} selected project${selectedProjects.length !== 1 ? "s" : ""}`
+                    : ""}
                   {selectedGroup
                     ? ` from group "${userGroups.find((g) => g.id === selectedGroup)?.name || ""}"`
                     : selectedAuthors.length > 0
                       ? ` from ${selectedAuthors.length} selected author${selectedAuthors.length !== 1 ? "s" : ""}`
-                      : !selectedProject && " from all authors"}
+                      : selectedRepos.length === 0 &&
+                        selectedProjects.length === 0 &&
+                        " from all authors"}
                 </Text>
               </Space>
 
