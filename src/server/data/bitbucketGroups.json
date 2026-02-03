@@ -9,5 +9,30 @@
       "Maximilian Gal",
       "Renato Besen"
     ]
+  },
+  {
+    "id": "group-1769156187100",
+    "name": "QAs",
+    "users": [
+      "John Reynolds",
+      "Dimitrina Petkova",
+      "Turia Achaiban",
+      "Kimberley Nguyen",
+      "Sarfraz Rasool",
+      "Prenolia Naicker"
+    ]
+  },
+  {
+    "id": "group-1769421955573",
+    "name": "Aura",
+    "users": [
+      "Phanisree Gannamaneni",
+      "Sarfraz Rasool",
+      "Charles Fletcher",
+      "Hasanabbas Rehemtulla",
+      "Jack Sherwood",
+      "Ruksana Rafi",
+      "Subin Shahukhal"
+    ]
   }
 ]

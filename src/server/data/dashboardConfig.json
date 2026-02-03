@@ -115,6 +115,147 @@
             ],
             "ticketTypesSelected": []
           }
+        },
+        {
+          "id": "metric-1768399753994",
+          "type": "tempoAnalyzer",
+          "name": "New Tempo Analyzer Metric",
+          "config": {
+            "summaryViewMode": "sankey",
+            "secondarySplitMode": "account",
+            "excludeHolidayAbsence": true,
+            "excludeStartDate": null,
+            "excludeEndDate": null,
+            "showOtherTeams": false,
+            "selectedUserGroups": [],
+            "sankeySelectors": [
+              {
+                "id": "selector-1768400629757-0.3268659848595492",
+                "name": "Chargeable",
+                "type": "Account Category",
+                "selectedValues": [
+                  "Chargeable"
+                ]
+              },
+              {
+                "id": "selector-1768845186823-0.18016256839251688",
+                "name": "Bugs",
+                "type": "AncestryType",
+                "selectedValues": [
+                  "Fault",
+                  "Bug"
+                ]
+              },
+              {
+                "id": "selector-1768840260583-0.2551165763766837",
+                "name": "R & D",
+                "type": "Account",
+                "selectedValues": [
+                  "0000 HPD-Internal"
+                ]
+              },
+              {
+                "id": "selector-1768400649365-0.12013048666360393",
+                "name": "Non-Chargeable",
+                "type": "Account Category",
+                "selectedValues": [
+                  "Non-Chargeable"
+                ]
+              },
+              {
+                "id": "selector-1768840340340-0.7989020407175225",
+                "name": "Product",
+                "type": "Account",
+                "selectedValues": [
+                  "Aura2 Misc Screens",
+                  "Product RF"
+                ]
+              },
+              {
+                "id": "selector-1768400726582-0.643849274693111",
+                "name": "BNP On-Call",
+                "type": "Key",
+                "selectedValues": [
+                  "LD-56"
+                ]
+              },
+              {
+                "id": "selector-1768400763332-0.42837179868256603",
+                "name": "Training",
+                "type": "Key",
+                "selectedValues": [
+                  "LD-50",
+                  "HR-47"
+                ]
+              },
+              {
+                "id": "selector-1768400787643-0.5358379134283963",
+                "name": "Team Meetings",
+                "type": "Key",
+                "selectedValues": [
+                  "DEL-15",
+                  "DEL-12",
+                  "DEL-22",
+                  "LD-47"
+                ]
+              },
+              {
+                "id": "selector-1768400819932-0.03805576880971184",
+                "name": "Guild Work",
+                "type": "Key",
+                "selectedValues": [
+                  "LD-51"
+                ]
+              },
+              {
+                "id": "selector-1768400843907-0.6855722884997962",
+                "name": "Admin, Company Meetings, Appraisals, etc",
+                "type": "Key",
+                "selectedValues": [
+                  "DEL-11",
+                  "HR-57",
+                  "HR-48",
+                  "LD-53",
+                  "LD-44",
+                  "HR-62",
+                  "HR-45",
+                  "LD-54"
+                ]
+              },
+              {
+                "id": "selector-1768400903031-0.43837330770980365",
+                "name": "Internal Engineering",
+                "type": "Account Category",
+                "selectedValues": [
+                  "R&D and Internal Projects"
+                ]
+              },
+              {
+                "id": "selector-1768840317012-0.753492892255473",
+                "name": "Internal Engineering",
+                "type": "Key",
+                "selectedValues": [
+                  "LD-49",
+                  "LD-58",
+                  "LT-20",
+                  "LD-48",
+                  "STR-43",
+                  "LD-52",
+                  "STR-45",
+                  "STR-46",
+                  "HR-72"
+                ]
+              },
+              {
+                "id": "selector-1768840501725-0.06322419953447411",
+                "name": "Product",
+                "type": "Key",
+                "selectedValues": [
+                  "PRDDEL-282"
+                ]
+              }
+            ]
+          }
         }
       ]
     }

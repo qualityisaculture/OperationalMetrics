@@ -6,7 +6,9 @@ import {
   calculateAggregatedValues,
   processWorkstreamData,
   calculateProjectAggregatedData,
+  computeChargeableNonChargeableTotals,
 } from "../utils";
+import { ProjectSummaryRow } from "../types";
 
 export const useJiraReport = () => {
   const [state, setState] = useState<JiraReportState>({
@@ -38,6 +40,11 @@ export const useJiraReport = () => {
     orphanData: null,
     orphanLoading: false,
     orphanError: null,
+    // Projects Summary (favourite projects chargeable/non-chargeable totals)
+    projectsSummaryData: null,
+    projectsSummaryLoading: false,
+    projectsSummaryError: null,
+    projectsSummaryProgress: undefined,
   });
 
   const getWorkstreamDataCellSpan = useCallback(
@@ -200,6 +207,10 @@ export const useJiraReport = () => {
       orphanData: null,
       orphanLoading: false,
       orphanError: null,
+      projectsSummaryData: null,
+      projectsSummaryLoading: false,
+      projectsSummaryError: null,
+      projectsSummaryProgress: undefined,
     }));
 
     try {
@@ -1110,6 +1121,157 @@ export const useJiraReport = () => {
     }
   };
 
+  /**
+   * Load Projects Summary: for each selected project (by key), fetch workstreams and full data,
+   * then compute chargeable/non-chargeable totals. Reuses same APIs and aggregation logic
+   * as the project page (workstreams API + workstream detail API + computeChargeableNonChargeableTotals).
+   * @param projectKeys - keys of projects to load (e.g. selected from favourites checklist). If empty, shows error.
+   */
+  const loadProjectsSummary = async (projectKeys: string[]) => {
+    const projectsToLoad = projectKeys
+      .map((key) => state.projects.find((p) => p.key === key))
+      .filter((p): p is JiraProject => p != null);
+    if (projectsToLoad.length === 0) {
+      setState((prev) => ({
+        ...prev,
+        projectsSummaryData: [],
+        projectsSummaryError:
+          projectKeys.length === 0
+            ? "Select at least one project to load."
+            : "No favourite projects. Star some projects first.",
+      }));
+      return;
+    }
+
+    setState((prev) => ({
+      ...prev,
+      projectsSummaryLoading: true,
+      projectsSummaryError: null,
+      projectsSummaryData: null,
+      projectsSummaryProgress: {
+        current: 0,
+        total: projectsToLoad.length,
+        projectKey: "",
+      },
+    }));
+
+    const results: ProjectSummaryRow[] = [];
+
+    try {
+      for (let pIndex = 0; pIndex < projectsToLoad.length; pIndex++) {
+        const project = projectsToLoad[pIndex];
+        setState((prev) => ({
+          ...prev,
+          projectsSummaryProgress: {
+            current: pIndex + 1,
+            total: projectsToLoad.length,
+            projectKey: project.key,
+          },
+        }));
+
+        const workstreamsRes = await fetch(
+          `/api/jiraReport/project/${project.key}/workstreams`
+        );
+        const workstreamsData = await workstreamsRes.json();
+        if (!workstreamsRes.ok) {
+          results.push({
+            projectKey: project.key,
+            projectName: project.name,
+            chargeable: {
+              originalEstimate: 0,
+              timeSpent: 0,
+              usagePercent: 0,
+              timeRemaining: 0,
+            },
+            nonChargeable: {
+              originalEstimate: 0,
+              timeSpent: 0,
+              usagePercent: 0,
+            },
+          });
+          continue;
+        }
+
+        const workstreams: LiteJiraIssue[] = JSON.parse(workstreamsData.data);
+        const projectIssuesWithAggregated: JiraIssueWithAggregated[] = [];
+
+        for (let i = 0; i < workstreams.length; i++) {
+          const ws = workstreams[i];
+          try {
+            const eventSource = new EventSource(
+              `/api/jiraReport/workstream/${ws.key}/workstream`
+            );
+            await new Promise<void>((resolve, reject) => {
+              eventSource.onmessage = (event) => {
+                const response = JSON.parse(event.data);
+                if (response.status === "complete" && response.data) {
+                  const workstreamWithIssues: LiteJiraIssue = JSON.parse(
+                    response.data
+                  );
+                  const aggregatedValues =
+                    calculateAggregatedValues(workstreamWithIssues);
+                  projectIssuesWithAggregated.push({
+                    ...workstreamWithIssues,
+                    aggregatedOriginalEstimate:
+                      aggregatedValues.aggregatedOriginalEstimate,
+                    aggregatedTimeSpent: aggregatedValues.aggregatedTimeSpent,
+                    aggregatedTimeRemaining:
+                      aggregatedValues.aggregatedTimeRemaining,
+                  } as JiraIssueWithAggregated);
+                  eventSource.close();
+                  resolve();
+                } else if (response.status === "error") {
+                  eventSource.close();
+                  reject(
+                    new Error(response.message || "Failed to load workstream")
+                  );
+                }
+              };
+              eventSource.onerror = () => {
+                eventSource.close();
+                reject(new Error("EventSource error"));
+              };
+              setTimeout(() => {
+                eventSource.close();
+                reject(new Error("Request timeout"));
+              }, 300000);
+            });
+          } catch (err) {
+            console.error(`Failed to load workstream ${ws.key}:`, err);
+          }
+        }
+
+        const totals = computeChargeableNonChargeableTotals(
+          projectIssuesWithAggregated
+        );
+        results.push({
+          projectKey: project.key,
+          projectName: project.name,
+          chargeable: totals.chargeable,
+          nonChargeable: totals.nonChargeable,
+        });
+      }
+
+      setState((prev) => ({
+        ...prev,
+        projectsSummaryData: results,
+        projectsSummaryLoading: false,
+        projectsSummaryError: null,
+        projectsSummaryProgress: undefined,
+      }));
+    } catch (error) {
+      console.error("Error in loadProjectsSummary:", error);
+      setState((prev) => ({
+        ...prev,
+        projectsSummaryLoading: false,
+        projectsSummaryError:
+          error instanceof Error ? error.message : "Failed to load projects summary",
+        projectsSummaryProgress: undefined,
+        projectsSummaryData: results.length > 0 ? results : null,
+      }));
+    }
+  };
+
   useEffect(() => {
     loadProjects();
   }, []);
@@ -1585,5 +1747,6 @@ export const useJiraReport = () => {
     requestOrphanDetection,
     getOrphans,
     requestWorkstreamWithTimeSpentDetail,
+    loadProjectsSummary,
   };
 };

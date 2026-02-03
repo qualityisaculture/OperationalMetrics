@@ -21,6 +21,22 @@ export interface ProjectAggregatedData {
   totalWorkstreamCount: number;
 }
 
+// Totals for chargeable or non-chargeable workstreams (used in Projects Summary)
+export interface ChargeableNonChargeableTotals {
+  originalEstimate: number;
+  timeSpent: number;
+  usagePercent: number; // timeSpent / originalEstimate * 100 when originalEstimate > 0
+  timeRemaining?: number; // ETC - only for chargeable
+}
+
+// One row in the Projects Summary table (favourite project with chargeable/non-chargeable split)
+export interface ProjectSummaryRow {
+  projectKey: string;
+  projectName: string;
+  chargeable: ChargeableNonChargeableTotals;
+  nonChargeable: ChargeableNonChargeableTotals;
+}
+
 export interface JiraReportState {
   projects: JiraProject[];
   isLoading: boolean;
@@ -87,4 +103,9 @@ export interface JiraReportState {
   } | null;
   orphanLoading: boolean;
   orphanError: string | null;
+  // Projects Summary (favourite projects chargeable/non-chargeable totals)
+  projectsSummaryData: ProjectSummaryRow[] | null;
+  projectsSummaryLoading: boolean;
+  projectsSummaryError: string | null;
+  projectsSummaryProgress?: { current: number; total: number; projectKey: string };
 }

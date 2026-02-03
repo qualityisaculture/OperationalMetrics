@@ -330,6 +330,11 @@ export default class JiraReportGraphManager {
         console.log(
           `Cache miss for project ${projectKey}, fetching workstreams from Jira...`
         );
+        //We consider workstreams as issues that have no parent
+        //Because all tickets should be children of a workstream
+        //And otherwise some tickets would be orphaned and not counted in the report
+        //So the solution is to ensure all issues without parent are workstreams
+        //And otherwise move them to be a descendant of a workstream
         const jql = `project = "${projectKey}" AND parent = empty ORDER BY created DESC`;
         workstreams = await this.jiraRequester.getLiteQuery(jql);
 
