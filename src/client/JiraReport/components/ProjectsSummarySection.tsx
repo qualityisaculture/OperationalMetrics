@@ -8,6 +8,7 @@ import {
   Alert,
   Progress,
   Checkbox,
+  Tag,
 } from "antd";
 import { BarChartOutlined, StarFilled } from "@ant-design/icons";
 import { ProjectSummaryRow } from "../types";
@@ -21,6 +22,26 @@ function formatDays(days: number): string {
   const frac = rounded % 1;
   if (Math.abs(frac) < 0.01) return `${whole}d`;
   return `${whole}.${frac.toFixed(1).split(".")[1]}d`;
+}
+
+/** Green: <80% of approved. Amber: 80–100%. Red: >100%. Used for CHG Usage % and "Time Spent + CHG ETC Days". */
+function getApprovalStatusColor(row: ProjectSummaryRow): "green" | "orange" | "red" | "default" {
+  const approved = row.chargeable.originalEstimate;
+  if (approved <= 0) return "default";
+  const timeSpentPlusETC =
+    row.chargeable.timeSpent + (row.chargeable.timeRemaining ?? 0);
+  const ratio = timeSpentPlusETC / approved;
+  if (ratio > 1) return "red";
+  if (ratio > 0.8) return "orange";
+  return "green";
+}
+
+/** Green: <80%. Orange: 80–100%. Red: >100%. Used for NON-CHG Usage %. */
+function getUsagePercentStatusColor(usagePercent: number): "green" | "orange" | "red" | "default" {
+  if (usagePercent > 100) return "red";
+  if (usagePercent > 80) return "orange";
+  if (usagePercent >= 0) return "green";
+  return "default";
 }
 
 export interface FavoriteProjectItem {
@@ -86,73 +107,147 @@ export const ProjectsSummarySection: React.FC<Props> = ({
       dataIndex: "projectKey",
       key: "projectKey",
       width: 120,
-      render: (key: string) => <Text strong>{key}</Text>,
+      align: "center" as const,
+      render: (key: string) => <Tag color="blue">{key}</Tag>,
     },
     {
       title: "Project Name",
       dataIndex: "projectName",
       key: "projectName",
       ellipsis: true,
+      align: "center" as const,
+      render: (name: string) => <span style={{ textAlign: "center" }}>{name || "-"}</span>,
     },
     {
-      title: "Ch. Original Est.",
+      title: "CHG Approved Days",
       key: "chargeableOriginalEstimate",
-      align: "right" as const,
-      width: 110,
-      render: (_: unknown, row: ProjectSummaryRow) =>
-        formatDays(row.chargeable.originalEstimate),
+      align: "center" as const,
+      width: 130,
+      render: (_: unknown, row: ProjectSummaryRow) => {
+        const days = row.chargeable.originalEstimate;
+        return days > 0 ? (
+          <Tag color="blue">{formatDays(days)}</Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        );
+      },
     },
     {
-      title: "Ch. Time Spent",
+      title: "CHG Time Spent",
       key: "chargeableTimeSpent",
-      align: "right" as const,
-      width: 110,
-      render: (_: unknown, row: ProjectSummaryRow) =>
-        formatDays(row.chargeable.timeSpent),
+      align: "center" as const,
+      width: 120,
+      render: (_: unknown, row: ProjectSummaryRow) => {
+        const days = row.chargeable.timeSpent;
+        return days > 0 ? (
+          <Tag color="blue">{formatDays(days)}</Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        );
+      },
     },
     {
-      title: "Ch. Usage %",
+      title: "CHG Usage %",
       key: "chargeableUsage",
-      align: "right" as const,
-      width: 90,
+      align: "center" as const,
+      width: 100,
       render: (_: unknown, row: ProjectSummaryRow) =>
-        row.chargeable.originalEstimate > 0
-          ? `${Math.round(row.chargeable.usagePercent)}%`
-          : "-",
+        row.chargeable.originalEstimate > 0 ? (
+          <Tag color={getApprovalStatusColor(row)}>
+            {Math.round(row.chargeable.usagePercent)}%
+          </Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
     },
     {
-      title: "Ch. ETC",
+      title: "Approved Days Remaining",
+      key: "approvedDaysRemaining",
+      align: "center" as const,
+      width: 150,
+      render: (_: unknown, row: ProjectSummaryRow) => {
+        const days = Math.max(
+          0,
+          row.chargeable.originalEstimate - row.chargeable.timeSpent
+        );
+        return days > 0 ? (
+          <Tag color="blue">{formatDays(days)}</Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        );
+      },
+    },
+    {
+      title: "CHG ETC",
       key: "chargeableETC",
-      align: "right" as const,
-      width: 80,
-      render: (_: unknown, row: ProjectSummaryRow) =>
-        formatDays(row.chargeable.timeRemaining ?? 0),
+      align: "center" as const,
+      width: 90,
+      render: (_: unknown, row: ProjectSummaryRow) => {
+        const days = row.chargeable.timeRemaining ?? 0;
+        return days > 0 ? (
+          <Tag color="blue">{formatDays(days)}</Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        );
+      },
     },
     {
-      title: "Non-Ch. Original Est.",
+      title: "Time Spent + CHG ETC Days",
+      key: "timeSpentPlusETC",
+      align: "center" as const,
+      width: 170,
+      render: (_: unknown, row: ProjectSummaryRow) => {
+        const days =
+          row.chargeable.timeSpent + (row.chargeable.timeRemaining ?? 0);
+        const statusColor = getApprovalStatusColor(row);
+        return days > 0 ? (
+          <Tag color={statusColor}>{formatDays(days)}</Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        );
+      },
+    },
+    {
+      title: "NON-CHG Approved Days",
       key: "nonChargeableOriginalEstimate",
-      align: "right" as const,
-      width: 130,
-      render: (_: unknown, row: ProjectSummaryRow) =>
-        formatDays(row.nonChargeable.originalEstimate),
+      align: "center" as const,
+      width: 150,
+      render: (_: unknown, row: ProjectSummaryRow) => {
+        const days = row.nonChargeable.originalEstimate;
+        return days > 0 ? (
+          <Tag color="blue">{formatDays(days)}</Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        );
+      },
     },
     {
-      title: "Non-Ch. Time Spent",
+      title: "NON-CHG Time Spent",
       key: "nonChargeableTimeSpent",
-      align: "right" as const,
-      width: 130,
-      render: (_: unknown, row: ProjectSummaryRow) =>
-        formatDays(row.nonChargeable.timeSpent),
+      align: "center" as const,
+      width: 150,
+      render: (_: unknown, row: ProjectSummaryRow) => {
+        const days = row.nonChargeable.timeSpent;
+        return days > 0 ? (
+          <Tag color="blue">{formatDays(days)}</Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        );
+      },
     },
     {
-      title: "Non-Ch. Usage %",
+      title: "NON-CHG Usage %",
       key: "nonChargeableUsage",
-      align: "right" as const,
-      width: 110,
+      align: "center" as const,
+      width: 120,
       render: (_: unknown, row: ProjectSummaryRow) =>
-        row.nonChargeable.originalEstimate > 0
-          ? `${Math.round(row.nonChargeable.usagePercent)}%`
-          : "-",
+        row.nonChargeable.originalEstimate > 0 ? (
+          <Tag color={getUsagePercentStatusColor(row.nonChargeable.usagePercent)}>
+            {Math.round(row.nonChargeable.usagePercent)}%
+          </Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
     },
   ];
 
