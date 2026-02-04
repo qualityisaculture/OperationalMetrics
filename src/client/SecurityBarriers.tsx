@@ -229,6 +229,8 @@ const WeWork: React.FC<WeWorkProps> = () => {
       dumitru: ["iulian"],
       dominique: ["cahu"],
       cahu: ["dominique"],
+      maurice: ["stafford"],
+      stafford: ["maurice"],
     };
 
     // Check if either name is an alias of the other
