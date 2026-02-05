@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { JiraProject } from "../../../server/graphManagers/JiraReportGraphManager";
 import { LiteJiraIssue } from "../../../server/JiraRequester";
 import { JiraIssueWithAggregated, JiraReportState } from "../types";
@@ -179,7 +179,10 @@ export const useJiraReport = () => {
     }
   };
 
+  const autoSummaryLoadedRef = useRef(false);
+
   const clearCacheAndReload = async () => {
+    autoSummaryLoadedRef.current = false;
     // Reset all local state to return to clean projects table view
     setState((prevState) => ({
       ...prevState,
@@ -1275,6 +1278,23 @@ export const useJiraReport = () => {
   useEffect(() => {
     loadProjects();
   }, []);
+
+  useEffect(() => {
+    if (state.selectedProject != null || state.projects.length === 0) return;
+    if (autoSummaryLoadedRef.current) return;
+    autoSummaryLoadedRef.current = true;
+    const sorted = [...state.projects].sort((a, b) => {
+      const aFav = state.favoriteItems.has(a.key);
+      const bFav = state.favoriteItems.has(b.key);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      return a.key.localeCompare(b.key);
+    });
+    const first10Keys = sorted.slice(0, 10).map((p) => p.key);
+    if (first10Keys.length > 0) {
+      loadProjectsSummary(first10Keys);
+    }
+  }, [state.projects, state.selectedProject, state.favoriteItems]);
 
   const requestDefectHistory = async (projectKey: string) => {
     setState((prevState) => ({

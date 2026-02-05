@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Table,
   Button,
@@ -10,8 +10,9 @@ import {
   Checkbox,
   Tag,
 } from "antd";
-import { BarChartOutlined, StarFilled } from "@ant-design/icons";
+import { BarChartOutlined, StarFilled, StarOutlined } from "@ant-design/icons";
 import { ProjectSummaryRow } from "../types";
+import { JiraProject } from "../../../server/graphManagers/JiraReportGraphManager";
 
 const { Text } = Typography;
 
@@ -49,8 +50,17 @@ export interface FavoriteProjectItem {
   name: string;
 }
 
+/** One row in the all-projects table: project + optional loaded summary data. */
+export interface SummaryTableRow {
+  project: JiraProject;
+  projectKey: string;
+  projectName: string;
+  summaryData: ProjectSummaryRow | null;
+}
+
 interface Props {
-  favoriteProjects: FavoriteProjectItem[];
+  /** All projects to show in the table (key/name always; data when loaded). */
+  allProjects: JiraProject[];
   projectsSummaryData: ProjectSummaryRow[] | null;
   projectsSummaryLoading: boolean;
   projectsSummaryError: string | null;
@@ -60,23 +70,32 @@ interface Props {
     projectKey: string;
   };
   onLoadProjectsSummary: (projectKeys: string[]) => void;
+  /** When a row is clicked, open project detail. */
+  onProjectClick: (project: JiraProject) => void;
+  /** Used to sort table (favourites first) and for Favourites column. */
+  favoriteItems: Set<string>;
+  /** Toggle favourite (star) for a project. */
+  toggleFavorite: (itemKey: string, event: React.MouseEvent) => void;
 }
 
 export const ProjectsSummarySection: React.FC<Props> = ({
-  favoriteProjects,
+  allProjects,
   projectsSummaryData,
   projectsSummaryLoading,
   projectsSummaryError,
   projectsSummaryProgress,
   onLoadProjectsSummary,
+  onProjectClick,
+  favoriteItems,
+  toggleFavorite,
 }) => {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
-  const favoriteKeysStable = favoriteProjects
-    .map((p) => p.key)
-    .sort()
-    .join(",");
+  const favoriteKeysStable = useMemo(
+    () => [...favoriteItems].sort().join(","),
+    [favoriteItems]
+  );
   useEffect(() => {
-    setSelectedKeys(new Set(favoriteProjects.map((p) => p.key)));
+    setSelectedKeys(new Set(favoriteItems));
   }, [favoriteKeysStable]);
 
   const toggleKey = (key: string) => {
@@ -90,18 +109,78 @@ export const ProjectsSummarySection: React.FC<Props> = ({
 
   const toggleAll = (checked: boolean) => {
     setSelectedKeys(
-      checked ? new Set(favoriteProjects.map((p) => p.key)) : new Set()
+      checked ? new Set(allProjects.map((p) => p.key)) : new Set()
     );
   };
 
   const handleLoad = () => onLoadProjectsSummary(Array.from(selectedKeys));
 
-  const favoriteCount = favoriteProjects.length;
+  const favoriteCount = favoriteItems.size;
   const selectedCount = selectedKeys.size;
   const allSelected =
-    favoriteCount > 0 && selectedCount === favoriteCount;
+    allProjects.length > 0 && selectedKeys.size === allProjects.length;
   const someSelected = selectedCount > 0;
+
+  const tableData: SummaryTableRow[] = useMemo(() => {
+    const sorted = [...allProjects].sort((a, b) => {
+      const aFav = favoriteItems.has(a.key);
+      const bFav = favoriteItems.has(b.key);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      return a.key.localeCompare(b.key);
+    });
+    return sorted.map((project) => ({
+      project,
+      projectKey: project.key,
+      projectName: project.name,
+      summaryData: projectsSummaryData?.find((s) => s.projectKey === project.key) ?? null,
+    }));
+  }, [allProjects, favoriteItems, projectsSummaryData]);
+
   const columns = [
+    {
+      title: (
+        <Checkbox
+          checked={allSelected}
+          indeterminate={someSelected && !allSelected}
+          onChange={(e) => toggleAll(e.target.checked)}
+        />
+      ),
+      key: "load",
+      width: 48,
+      align: "center" as const,
+      render: (_: unknown, row: SummaryTableRow) => (
+        <span onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={selectedKeys.has(row.projectKey)}
+            onChange={() => toggleKey(row.projectKey)}
+          />
+        </span>
+      ),
+    },
+    {
+      title: "Favourites",
+      key: "favorite",
+      width: 80,
+      align: "center" as const,
+      render: (_: unknown, row: SummaryTableRow) => (
+        <Button
+          type="text"
+          icon={
+            favoriteItems.has(row.projectKey) ? (
+              <StarFilled style={{ color: "#faad14" }} />
+            ) : (
+              <StarOutlined />
+            )
+          }
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavorite(row.projectKey, e);
+          }}
+          style={{ padding: 0, border: "none" }}
+        />
+      ),
+    },
     {
       title: "Project Key",
       dataIndex: "projectKey",
@@ -123,10 +202,15 @@ export const ProjectsSummarySection: React.FC<Props> = ({
       key: "chargeableOriginalEstimate",
       align: "center" as const,
       width: 130,
-      render: (_: unknown, row: ProjectSummaryRow) => {
-        const days = row.chargeable.originalEstimate;
-        return days > 0 ? (
-          <Tag color="blue">{formatDays(days)}</Tag>
+      render: (_: unknown, row: SummaryTableRow) => {
+        const d = row.summaryData?.chargeable;
+        const days = d?.originalEstimate ?? 0;
+        return d ? (
+          days > 0 ? (
+            <Tag color="blue">{formatDays(days)}</Tag>
+          ) : (
+            <Text type="secondary">-</Text>
+          )
         ) : (
           <Text type="secondary">-</Text>
         );
@@ -137,10 +221,15 @@ export const ProjectsSummarySection: React.FC<Props> = ({
       key: "chargeableTimeSpent",
       align: "center" as const,
       width: 120,
-      render: (_: unknown, row: ProjectSummaryRow) => {
-        const days = row.chargeable.timeSpent;
-        return days > 0 ? (
-          <Tag color="blue">{formatDays(days)}</Tag>
+      render: (_: unknown, row: SummaryTableRow) => {
+        const d = row.summaryData?.chargeable;
+        const days = d?.timeSpent ?? 0;
+        return d ? (
+          days > 0 ? (
+            <Tag color="blue">{formatDays(days)}</Tag>
+          ) : (
+            <Text type="secondary">-</Text>
+          )
         ) : (
           <Text type="secondary">-</Text>
         );
@@ -151,25 +240,26 @@ export const ProjectsSummarySection: React.FC<Props> = ({
       key: "chargeableUsage",
       align: "center" as const,
       width: 100,
-      render: (_: unknown, row: ProjectSummaryRow) =>
-        row.chargeable.originalEstimate > 0 ? (
-          <Tag color={getApprovalStatusColor(row)}>
-            {Math.round(row.chargeable.usagePercent)}%
+      render: (_: unknown, row: SummaryTableRow) => {
+        const s = row.summaryData;
+        if (!s || s.chargeable.originalEstimate <= 0)
+          return <Text type="secondary">-</Text>;
+        return (
+          <Tag color={getApprovalStatusColor(s)}>
+            {Math.round(s.chargeable.usagePercent)}%
           </Tag>
-        ) : (
-          <Text type="secondary">-</Text>
-        ),
+        );
+      },
     },
     {
       title: "Approved Days Remaining",
       key: "approvedDaysRemaining",
       align: "center" as const,
       width: 150,
-      render: (_: unknown, row: ProjectSummaryRow) => {
-        const days = Math.max(
-          0,
-          row.chargeable.originalEstimate - row.chargeable.timeSpent
-        );
+      render: (_: unknown, row: SummaryTableRow) => {
+        const d = row.summaryData?.chargeable;
+        if (!d) return <Text type="secondary">-</Text>;
+        const days = Math.max(0, d.originalEstimate - d.timeSpent);
         return days > 0 ? (
           <Tag color="blue">{formatDays(days)}</Tag>
         ) : (
@@ -182,10 +272,15 @@ export const ProjectsSummarySection: React.FC<Props> = ({
       key: "chargeableETC",
       align: "center" as const,
       width: 90,
-      render: (_: unknown, row: ProjectSummaryRow) => {
-        const days = row.chargeable.timeRemaining ?? 0;
-        return days > 0 ? (
-          <Tag color="blue">{formatDays(days)}</Tag>
+      render: (_: unknown, row: SummaryTableRow) => {
+        const d = row.summaryData?.chargeable;
+        const days = d?.timeRemaining ?? 0;
+        return d ? (
+          days > 0 ? (
+            <Tag color="blue">{formatDays(days)}</Tag>
+          ) : (
+            <Text type="secondary">-</Text>
+          )
         ) : (
           <Text type="secondary">-</Text>
         );
@@ -196,12 +291,13 @@ export const ProjectsSummarySection: React.FC<Props> = ({
       key: "timeSpentPlusETC",
       align: "center" as const,
       width: 170,
-      render: (_: unknown, row: ProjectSummaryRow) => {
+      render: (_: unknown, row: SummaryTableRow) => {
+        const s = row.summaryData;
+        if (!s) return <Text type="secondary">-</Text>;
         const days =
-          row.chargeable.timeSpent + (row.chargeable.timeRemaining ?? 0);
-        const statusColor = getApprovalStatusColor(row);
+          s.chargeable.timeSpent + (s.chargeable.timeRemaining ?? 0);
         return days > 0 ? (
-          <Tag color={statusColor}>{formatDays(days)}</Tag>
+          <Tag color={getApprovalStatusColor(s)}>{formatDays(days)}</Tag>
         ) : (
           <Text type="secondary">-</Text>
         );
@@ -212,10 +308,15 @@ export const ProjectsSummarySection: React.FC<Props> = ({
       key: "nonChargeableOriginalEstimate",
       align: "center" as const,
       width: 150,
-      render: (_: unknown, row: ProjectSummaryRow) => {
-        const days = row.nonChargeable.originalEstimate;
-        return days > 0 ? (
-          <Tag color="blue">{formatDays(days)}</Tag>
+      render: (_: unknown, row: SummaryTableRow) => {
+        const d = row.summaryData?.nonChargeable;
+        const days = d?.originalEstimate ?? 0;
+        return d ? (
+          days > 0 ? (
+            <Tag color="blue">{formatDays(days)}</Tag>
+          ) : (
+            <Text type="secondary">-</Text>
+          )
         ) : (
           <Text type="secondary">-</Text>
         );
@@ -226,10 +327,15 @@ export const ProjectsSummarySection: React.FC<Props> = ({
       key: "nonChargeableTimeSpent",
       align: "center" as const,
       width: 150,
-      render: (_: unknown, row: ProjectSummaryRow) => {
-        const days = row.nonChargeable.timeSpent;
-        return days > 0 ? (
-          <Tag color="blue">{formatDays(days)}</Tag>
+      render: (_: unknown, row: SummaryTableRow) => {
+        const d = row.summaryData?.nonChargeable;
+        const days = d?.timeSpent ?? 0;
+        return d ? (
+          days > 0 ? (
+            <Tag color="blue">{formatDays(days)}</Tag>
+          ) : (
+            <Text type="secondary">-</Text>
+          )
         ) : (
           <Text type="secondary">-</Text>
         );
@@ -240,20 +346,22 @@ export const ProjectsSummarySection: React.FC<Props> = ({
       key: "nonChargeableUsage",
       align: "center" as const,
       width: 120,
-      render: (_: unknown, row: ProjectSummaryRow) =>
-        row.nonChargeable.originalEstimate > 0 ? (
-          <Tag color={getUsagePercentStatusColor(row.nonChargeable.usagePercent)}>
-            {Math.round(row.nonChargeable.usagePercent)}%
+      render: (_: unknown, row: SummaryTableRow) => {
+        const s = row.summaryData;
+        if (!s || s.nonChargeable.originalEstimate <= 0)
+          return <Text type="secondary">-</Text>;
+        return (
+          <Tag color={getUsagePercentStatusColor(s.nonChargeable.usagePercent)}>
+            {Math.round(s.nonChargeable.usagePercent)}%
           </Tag>
-        ) : (
-          <Text type="secondary">-</Text>
-        ),
+        );
+      },
     },
   ];
 
   return (
     <Card
-      style={{ marginTop: "24px" }}
+      style={{ marginBottom: "24px" }}
       title={
         <Space>
           <BarChartOutlined />
@@ -267,127 +375,77 @@ export const ProjectsSummarySection: React.FC<Props> = ({
         </Space>
       }
     >
-      {favoriteCount === 0 ? (
+      {favoriteCount === 0 && (
         <Alert
-          message="No favourite projects"
-          description="Star one or more projects above, then click 'Load Projects Summary' to see chargeable and non-chargeable totals in one table."
+          message="No favourite projects yet"
+          description="Use the star in the Favourites column to mark projects. By default, favourites are selected for loading; use the first column to choose which projects to load, then click 'Load Projects Summary'."
           type="info"
           showIcon
+          style={{ marginBottom: "16px" }}
         />
-      ) : (
-        <>
-          <div style={{ marginBottom: "12px" }}>
-            <div style={{ marginBottom: "8px" }}>
-              <Checkbox
-                checked={allSelected}
-                indeterminate={someSelected && !allSelected}
-                onChange={(e) => toggleAll(e.target.checked)}
-              >
-                <Text strong>Select all</Text>
-              </Checkbox>
-            </div>
-            <ul
-              style={{
-                listStyle: "none",
-                padding: 0,
-                margin: "0 0 12px 0",
-                maxHeight: "200px",
-                overflowY: "auto",
-                border: "1px solid #d9d9d9",
-                borderRadius: "6px",
-                padding: "8px",
-              }}
-            >
-              {favoriteProjects.map((p) => (
-                <li
-                  key={p.key}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "4px 0",
-                  }}
-                >
-                  <Checkbox
-                    checked={selectedKeys.has(p.key)}
-                    onChange={() => toggleKey(p.key)}
-                  />
-                  <Text code>{p.key}</Text>
-                  <Text type="secondary" ellipsis>
-                    {p.name}
-                  </Text>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div style={{ marginBottom: "16px" }}>
-            <Space>
-              <Button
-                type="primary"
-                icon={<BarChartOutlined />}
-                onClick={handleLoad}
-                loading={projectsSummaryLoading}
-                disabled={projectsSummaryLoading || !someSelected}
-              >
-                Load Projects Summary
-                {someSelected && ` (${selectedCount} selected)`}
-              </Button>
-              {projectsSummaryLoading && projectsSummaryProgress && (
-                <Text type="secondary">
-                  Loading project {projectsSummaryProgress.current} of{" "}
-                  {projectsSummaryProgress.total}:{" "}
-                  {projectsSummaryProgress.projectKey}
-                </Text>
-              )}
-            </Space>
-          </div>
+      )}
 
+      <div style={{ marginBottom: "16px" }}>
+        <Space>
+          <Button
+            type="primary"
+            icon={<BarChartOutlined />}
+            onClick={handleLoad}
+            loading={projectsSummaryLoading}
+            disabled={projectsSummaryLoading || !someSelected}
+          >
+            Load Projects Summary
+            {someSelected && ` (${selectedCount} selected)`}
+          </Button>
           {projectsSummaryLoading && projectsSummaryProgress && (
-            <Progress
-              percent={
-                projectsSummaryProgress.total > 0
-                  ? Math.round(
-                      (projectsSummaryProgress.current /
-                        projectsSummaryProgress.total) *
-                        100
-                    )
-                  : 0
-              }
-              status="active"
-              style={{ marginBottom: "16px" }}
-            />
+            <Text type="secondary">
+              Loading project {projectsSummaryProgress.current} of{" "}
+              {projectsSummaryProgress.total}:{" "}
+              {projectsSummaryProgress.projectKey}
+            </Text>
           )}
+        </Space>
+      </div>
 
-          {projectsSummaryError && (
-            <Alert
-              message="Error"
-              description={projectsSummaryError}
-              type="error"
-              showIcon
-              style={{ marginBottom: "16px" }}
-            />
-          )}
+      {projectsSummaryLoading && projectsSummaryProgress && (
+        <Progress
+          percent={
+            projectsSummaryProgress.total > 0
+              ? Math.round(
+                  (projectsSummaryProgress.current /
+                    projectsSummaryProgress.total) *
+                    100
+                )
+              : 0
+          }
+          status="active"
+          style={{ marginBottom: "16px" }}
+        />
+      )}
 
-          {projectsSummaryData && projectsSummaryData.length > 0 && (
-            <Table
-              dataSource={projectsSummaryData}
-              columns={columns}
-              rowKey="projectKey"
-              pagination={false}
-              size="small"
-              scroll={{ x: "max-content" }}
-            />
-          )}
+      {projectsSummaryError && (
+        <Alert
+          message="Error"
+          description={projectsSummaryError}
+          type="error"
+          showIcon
+          style={{ marginBottom: "16px" }}
+        />
+      )}
 
-          {projectsSummaryData && projectsSummaryData.length === 0 && (
-            <Alert
-              message="No data"
-              description="Summary completed but no project data was returned. Try loading again."
-              type="warning"
-              showIcon
-            />
-          )}
-        </>
+      {tableData.length > 0 && (
+        <Table<SummaryTableRow>
+          dataSource={tableData}
+          columns={columns}
+          rowKey="projectKey"
+          pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `${total} projects` }}
+          size="small"
+          scroll={{ x: "max-content" }}
+          onRow={(record) => ({
+            onClick: () => onProjectClick(record.project),
+            style: { cursor: "pointer" },
+          })}
+        />
       )}
     </Card>
   );

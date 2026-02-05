@@ -9,7 +9,6 @@ import {
   StarOutlined,
   StarFilled,
 } from "@ant-design/icons";
-import { ProjectsTable } from "./components/ProjectsTable";
 import { ProjectsSummarySection } from "./components/ProjectsSummarySection";
 import { WorkstreamTable } from "./components/WorkstreamTable";
 import { Breadcrumbs } from "./components/Breadcrumbs";
@@ -176,25 +175,17 @@ const JiraReport: React.FC = () => {
       </div>
 
       {!selectedProject ? (
-        <>
-          <ProjectsTable
-            projects={projects}
-            favoriteItems={favoriteItems}
-            toggleFavorite={toggleFavorite}
-            handleProjectClick={handleProjectClick}
-            getOptimalPageSize={getOptimalPageSize}
-          />
-          <ProjectsSummarySection
-            favoriteProjects={projects.filter((p) =>
-              favoriteItems.has(p.key)
-            ).map((p) => ({ key: p.key, name: p.name }))}
-            projectsSummaryData={state.projectsSummaryData}
-            projectsSummaryLoading={state.projectsSummaryLoading}
-            projectsSummaryError={state.projectsSummaryError}
-            projectsSummaryProgress={state.projectsSummaryProgress}
-            onLoadProjectsSummary={loadProjectsSummary}
-          />
-        </>
+        <ProjectsSummarySection
+          allProjects={projects}
+          favoriteItems={favoriteItems}
+          toggleFavorite={toggleFavorite}
+          projectsSummaryData={state.projectsSummaryData}
+          projectsSummaryLoading={state.projectsSummaryLoading}
+          projectsSummaryError={state.projectsSummaryError}
+          projectsSummaryProgress={state.projectsSummaryProgress}
+          onLoadProjectsSummary={loadProjectsSummary}
+          onProjectClick={handleProjectClick}
+        />
       ) : (
         <div>
           <div style={{ marginBottom: "16px" }}>
