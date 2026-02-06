@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Alert, Button, Space, Typography, Radio } from "antd";
 import { LoadingIndicator } from "../components";
 import { useJiraReport } from "./hooks/useJiraReport";
@@ -82,6 +82,29 @@ const JiraReport: React.FC = () => {
     defectHistoryLoading,
     defectHistoryError,
   } = state;
+
+  const hasAutoLoadedFavouritesRef = useRef(false);
+
+  // Auto-load projects summary for favourites when the page first loads
+  useEffect(() => {
+    if (
+      isLoading ||
+      projects.length === 0 ||
+      favoriteItems.size === 0 ||
+      selectedProject ||
+      hasAutoLoadedFavouritesRef.current
+    ) {
+      return;
+    }
+    hasAutoLoadedFavouritesRef.current = true;
+    loadProjectsSummary(Array.from(favoriteItems));
+  }, [
+    isLoading,
+    projects.length,
+    favoriteItems.size,
+    selectedProject,
+    loadProjectsSummary,
+  ]);
 
   // Reset filter to "Chargeable" when project changes
   useEffect(() => {

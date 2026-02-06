@@ -9,8 +9,14 @@ import {
   Progress,
   Checkbox,
   Tag,
+  Input,
 } from "antd";
-import { BarChartOutlined, StarFilled, StarOutlined } from "@ant-design/icons";
+import {
+  BarChartOutlined,
+  SearchOutlined,
+  StarFilled,
+  StarOutlined,
+} from "@ant-design/icons";
 import { ProjectSummaryRow } from "../types";
 import { JiraProject } from "../../../server/graphManagers/JiraReportGraphManager";
 
@@ -90,6 +96,7 @@ export const ProjectsSummarySection: React.FC<Props> = ({
   toggleFavorite,
 }) => {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
+  const [projectNameFilter, setProjectNameFilter] = useState("");
   const favoriteKeysStable = useMemo(
     () => [...favoriteItems].sort().join(","),
     [favoriteItems]
@@ -195,7 +202,59 @@ export const ProjectsSummarySection: React.FC<Props> = ({
       key: "projectName",
       ellipsis: true,
       align: "center" as const,
-      render: (name: string) => <span style={{ textAlign: "center" }}>{name || "-"}</span>,
+      render: (name: string) => (
+        <span style={{ textAlign: "center" }}>{name || "-"}</span>
+      ),
+      filteredValue: projectNameFilter ? [projectNameFilter] : null,
+      filterDropdown: ({
+        setSelectedKeys,
+        selectedKeys,
+        confirm,
+        clearFilters,
+      }) => (
+        <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
+          <Input
+            placeholder="Filter by project name"
+            value={selectedKeys[0]}
+            onChange={(e) =>
+              setSelectedKeys(e.target.value ? [e.target.value] : [])
+            }
+            onPressEnter={() => {
+              setProjectNameFilter(selectedKeys[0] ?? "");
+              confirm();
+            }}
+            style={{ width: 188, marginBottom: 8, display: "block" }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => {
+                setProjectNameFilter(selectedKeys[0] ?? "");
+                confirm();
+              }}
+            >
+              OK
+            </Button>
+            <Button
+              size="small"
+              onClick={() => {
+                clearFilters?.();
+                setProjectNameFilter("");
+              }}
+            >
+              Reset
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: (filtered: boolean) => (
+        <SearchOutlined style={{ color: filtered ? "#1890ff" : undefined }} />
+      ),
+      onFilter: (value, record) =>
+        (record.projectName ?? "")
+          .toLowerCase()
+          .includes((value as string).toLowerCase()),
     },
     {
       title: "CHG Approved Days",
@@ -386,7 +445,7 @@ export const ProjectsSummarySection: React.FC<Props> = ({
       )}
 
       <div style={{ marginBottom: "16px" }}>
-        <Space>
+        <Space wrap align="center">
           <Button
             type="primary"
             icon={<BarChartOutlined />}
@@ -438,7 +497,14 @@ export const ProjectsSummarySection: React.FC<Props> = ({
           dataSource={tableData}
           columns={columns}
           rowKey="projectKey"
-          pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `${total} projects` }}
+          pagination={{
+            pageSize: 20,
+            showSizeChanger: true,
+            showTotal: (total) =>
+              projectNameFilter
+                ? `${total} of ${tableData.length} projects`
+                : `${total} projects`,
+          }}
           size="small"
           scroll={{ x: "max-content" }}
           onRow={(record) => ({

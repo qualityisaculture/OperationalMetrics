@@ -1,5 +1,6 @@
-import React from "react";
-import { Card, List, Typography, Spin, Alert, Button, Tag } from "antd";
+import React, { useState } from "react";
+import { Card, List, Typography, Alert, Button, Tag } from "antd";
+import { DownOutlined, UpOutlined } from "@ant-design/icons";
 
 interface OrphanItem {
   key: string;
@@ -20,6 +21,7 @@ const OrphanList: React.FC<OrphanListProps> = ({
   error,
   onRefresh,
 }) => {
+  const [collapsed, setCollapsed] = useState(false);
   console.log(
     "OrphanList render - orphans:",
     orphans,
@@ -77,12 +79,27 @@ const OrphanList: React.FC<OrphanListProps> = ({
   return (
     <Card
       title={
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <span style={{ marginRight: "8px" }}>⚠️</span>
-          <span style={{ color: "#fa8c16" }}>
-            Orphan Detection - {orphans.length} Orphan
-            {orphans.length !== 1 ? "s" : ""} Found
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            width: "100%",
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center" }}>
+            <span style={{ marginRight: "8px" }}>⚠️</span>
+            <span style={{ color: "#fa8c16" }}>
+              Orphan Detection - {orphans.length} Orphan
+              {orphans.length !== 1 ? "s" : ""} Found
+            </span>
           </span>
+          <Button
+            type="text"
+            icon={collapsed ? <DownOutlined /> : <UpOutlined />}
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? "Expand" : "Collapse"}
+          />
         </div>
       }
       style={{
@@ -95,34 +112,36 @@ const OrphanList: React.FC<OrphanListProps> = ({
         borderBottomColor: "#fa8c16",
       }}
     >
-      <List
-        dataSource={orphans}
-        renderItem={(orphan) => (
-          <List.Item>
-            <div style={{ width: "100%" }}>
-              <div style={{ marginBottom: "4px" }}>
-                <Typography.Text strong>
-                  <a
-                    href={orphan.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      textDecoration: "none",
-                      color: "#1890ff",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    <Tag color="orange">{orphan.key}</Tag>
-                  </a>
-                </Typography.Text>
-                <Typography.Text style={{ marginLeft: "8px" }}>
-                  {orphan.summary}
-                </Typography.Text>
+      {!collapsed && (
+        <List
+          dataSource={orphans}
+          renderItem={(orphan) => (
+            <List.Item>
+              <div style={{ width: "100%" }}>
+                <div style={{ marginBottom: "4px" }}>
+                  <Typography.Text strong>
+                    <a
+                      href={orphan.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        textDecoration: "none",
+                        color: "#1890ff",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      <Tag color="orange">{orphan.key}</Tag>
+                    </a>
+                  </Typography.Text>
+                  <Typography.Text style={{ marginLeft: "8px" }}>
+                    {orphan.summary}
+                  </Typography.Text>
+                </div>
               </div>
-            </div>
-          </List.Item>
-        )}
-      />
+            </List.Item>
+          )}
+        />
+      )}
     </Card>
   );
 };
