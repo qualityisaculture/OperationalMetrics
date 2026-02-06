@@ -20,6 +20,13 @@ export interface BugsAnalysisConfig {
   savedQueryId?: string; // ID of saved query if one was selected
 }
 
+export interface TimeInDevConfig {
+  query: string;
+  filterActiveSprints: boolean;
+  sortBy: "timespent" | "status";
+  statusesSelected: string[];
+}
+
 export interface TempoAnalyzerConfig {
   summaryViewMode:
     | "category"
@@ -50,13 +57,14 @@ export interface TempoAnalyzerConfig {
 
 export interface DashboardMetric {
   id: string;
-  type: "leadTime" | "bitbucketPR" | "bugsAnalysis" | "tempoAnalyzer";
+  type: "leadTime" | "bitbucketPR" | "bugsAnalysis" | "tempoAnalyzer" | "timeInDev";
   name: string;
   config:
     | LeadTimeConfig
     | BitbucketPRConfig
     | BugsAnalysisConfig
-    | TempoAnalyzerConfig;
+    | TempoAnalyzerConfig
+    | TimeInDevConfig;
 }
 
 export interface Dashboard {

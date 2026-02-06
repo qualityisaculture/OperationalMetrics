@@ -256,6 +256,19 @@
               }
             ]
           }
+        },
+        {
+          "id": "metric-1770394403082",
+          "type": "timeInDev",
+          "name": "New Time In Dev Metric",
+          "config": {
+            "query": "project = LEN AND project = LEN AND labels = xft-X and issuetype != Epic ORDER BY Rank ASC",
+            "filterActiveSprints": true,
+            "sortBy": "status",
+            "statusesSelected": [
+              "In Progress"
+            ]
+          }
         }
       ]
     }

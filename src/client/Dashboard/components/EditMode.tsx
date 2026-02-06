@@ -15,7 +15,7 @@ import {
 } from "antd";
 import { DeleteOutlined, PlusOutlined, UpOutlined, DownOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { DashboardMetric, LeadTimeConfig, BitbucketPRConfig, BugsAnalysisConfig, TempoAnalyzerConfig } from "../types";
+import { DashboardMetric, LeadTimeConfig, BitbucketPRConfig, BugsAnalysisConfig, TempoAnalyzerConfig, TimeInDevConfig } from "../types";
 import { useDashboardConfig } from "../hooks/useDashboardConfig";
 import { useSavedQueries } from "../../BugsAnalysis/hooks/useSavedQueries";
 import { useBitBucketGroups } from "../hooks/useBitBucketGroups";
@@ -28,7 +28,7 @@ const EditMode: React.FC = () => {
   const { selectedDashboard, addMetric, updateMetric, deleteMetric, reorderMetric } = useDashboardConfig();
   const [editingMetric, setEditingMetric] = useState<DashboardMetric | null>(null);
   const [form] = Form.useForm();
-  const [metricType, setMetricType] = useState<"leadTime" | "bitbucketPR" | "bugsAnalysis" | "tempoAnalyzer">("leadTime");
+  const [metricType, setMetricType] = useState<"leadTime" | "bitbucketPR" | "bugsAnalysis" | "tempoAnalyzer" | "timeInDev">("leadTime");
   const { groups: userGroups } = useBitBucketGroups();
   const { savedQueries, loadQuery } = useSavedQueries();
 
@@ -97,6 +97,16 @@ const EditMode: React.FC = () => {
         viewMode: config.viewMode || "count",
         savedQueryId: config.savedQueryId || undefined,
       });
+    } else if (metric.type === "timeInDev") {
+      const config = metric.config as TimeInDevConfig;
+      form.setFieldsValue({
+        name: metric.name,
+        type: "timeInDev",
+        query: config.query || "",
+        filterActiveSprints: config.filterActiveSprints ?? true,
+        sortBy: config.sortBy || "timespent",
+        statusesSelected: config.statusesSelected || [],
+      });
     }
   };
 
@@ -112,7 +122,7 @@ const EditMode: React.FC = () => {
       const values = await form.validateFields();
       const type = values.type || metricType;
       
-      let config: LeadTimeConfig | BitbucketPRConfig;
+      let config: LeadTimeConfig | BitbucketPRConfig | BugsAnalysisConfig | TempoAnalyzerConfig | TimeInDevConfig;
       
       if (type === "leadTime") {
         config = {
@@ -143,6 +153,13 @@ const EditMode: React.FC = () => {
           showOtherTeams: false,
           selectedUserGroups: [],
           sankeySelectors: [],
+        };
+      } else if (type === "timeInDev") {
+        config = {
+          query: values.query || "",
+          filterActiveSprints: values.filterActiveSprints ?? true,
+          sortBy: values.sortBy || "timespent",
+          statusesSelected: Array.isArray(values.statusesSelected) ? values.statusesSelected : [],
         };
       } else {
         config = {
@@ -199,14 +216,16 @@ const EditMode: React.FC = () => {
     setMetricType("leadTime");
   };
 
-  const handleTypeChange = (newType: "leadTime" | "bitbucketPR" | "bugsAnalysis") => {
+  const handleTypeChange = (newType: "leadTime" | "bitbucketPR" | "bugsAnalysis" | "tempoAnalyzer" | "timeInDev") => {
     setMetricType(newType);
     // Update the editing metric type
     if (editingMetric) {
-      const nameMap = {
+      const nameMap: Record<typeof newType, string> = {
         leadTime: "New Lead Time Metric",
         bitbucketPR: "New Bitbucket PR Metric",
         bugsAnalysis: "New Bugs Analysis Metric",
+        tempoAnalyzer: "New Tempo Analyzer Metric",
+        timeInDev: "New Time In Dev Metric",
       };
       setEditingMetric({
         ...editingMetric,
@@ -256,6 +275,23 @@ const EditMode: React.FC = () => {
         filterNoTimeBooked: undefined,
         workspace: undefined,
         selectedGroup: undefined,
+      });
+    } else if (newType === "timeInDev") {
+      form.setFieldsValue({
+        name: "New Time In Dev Metric",
+        type: "timeInDev",
+        query: "",
+        filterActiveSprints: true,
+        sortBy: "timespent",
+        statusesSelected: [],
+        currentSprintStartDate: undefined,
+        numberOfSprints: undefined,
+        splitMode: undefined,
+        viewMode: undefined,
+        filterNoTimeBooked: undefined,
+        workspace: undefined,
+        selectedGroup: undefined,
+        savedQueryId: undefined,
       });
     } else {
       form.setFieldsValue({
@@ -444,6 +480,24 @@ const EditMode: React.FC = () => {
                 </p>
               </>
             )}
+            {metric.type === "timeInDev" && (
+              <>
+                <p>
+                  <strong>Query:</strong> {(metric.config as TimeInDevConfig).query || "Not set"}
+                </p>
+                <p>
+                  <strong>Filter Active Sprints:</strong> {(metric.config as TimeInDevConfig).filterActiveSprints !== false ? "Yes" : "No"}
+                </p>
+                <p>
+                  <strong>Sort By:</strong> {(metric.config as TimeInDevConfig).sortBy === "status" ? "Status" : "Time Spent"}
+                </p>
+                {(metric.config as TimeInDevConfig).statusesSelected?.length > 0 && (
+                  <p>
+                    <strong>Statuses:</strong> {(metric.config as TimeInDevConfig).statusesSelected.join(", ")}
+                  </p>
+                )}
+              </>
+            )}
           </div>
         </Card>
         );
@@ -483,6 +537,7 @@ const EditMode: React.FC = () => {
                 <Option value="bitbucketPR">Bitbucket PR</Option>
                 <Option value="bugsAnalysis">Bugs Analysis</Option>
                 <Option value="tempoAnalyzer">Tempo Analyzer</Option>
+                <Option value="timeInDev">Time In Dev</Option>
               </Select>
             </Form.Item>
           )}
@@ -628,6 +683,47 @@ const EditMode: React.FC = () => {
                   <Radio value="count">Count (Resolved vs Unresolved)</Radio>
                   <Radio value="averageTimeSpent">Average Time Spent</Radio>
                 </Radio.Group>
+              </Form.Item>
+            </>
+          )}
+
+          {metricType === "timeInDev" && (
+            <>
+              <Form.Item
+                name="query"
+                label="JQL Query"
+                rules={[{ required: true, message: "Please enter a JQL query" }]}
+                help="JQL query for Time In Dev (e.g., project = PROJ). Optionally combined with 'Filter Active Sprints' below."
+              >
+                <Input.TextArea
+                  rows={2}
+                  placeholder="Enter JQL query"
+                />
+              </Form.Item>
+              <Form.Item name="filterActiveSprints" valuePropName="checked">
+                <Checkbox>Filter Active Sprints (prepend sprint in openSprints())</Checkbox>
+              </Form.Item>
+              <Form.Item
+                name="sortBy"
+                label="Sort By"
+                rules={[{ required: true }]}
+              >
+                <Radio.Group>
+                  <Radio value="timespent">Time Spent</Radio>
+                  <Radio value="status">Status</Radio>
+                </Radio.Group>
+              </Form.Item>
+              <Form.Item
+                name="statusesSelected"
+                label="Statuses to Include (when sorting by Status)"
+                help="Leave empty to include all statuses. When sorting by Status, only time in these statuses is counted."
+              >
+                <Select
+                  mode="tags"
+                  placeholder="Add status names (e.g. In Progress, Done)"
+                  style={{ width: "100%" }}
+                  tokenSeparators={[","]}
+                />
               </Form.Item>
             </>
           )}

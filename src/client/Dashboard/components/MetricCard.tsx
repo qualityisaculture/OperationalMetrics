@@ -1,10 +1,11 @@
 import React, { useState, useRef, useImperativeHandle, forwardRef } from "react";
 import { Card } from "antd";
-import { DashboardMetric, BitbucketPRConfig, BugsAnalysisConfig, TempoAnalyzerConfig, LeadTimeConfig } from "../types";
+import { DashboardMetric, BitbucketPRConfig, BugsAnalysisConfig, TempoAnalyzerConfig, LeadTimeConfig, TimeInDevConfig } from "../types";
 import LeadTime from "../../LeadTime";
 import BitbucketPRAnalytics, { BitbucketPRAnalyticsRef } from "./BitbucketPRAnalytics";
 import BugsAnalysisDashboard, { BugsAnalysisDashboardRef } from "./BugsAnalysisDashboard";
 import TempoAnalyzerDashboard, { TempoAnalyzerConfig as TempoConfig } from "./TempoAnalyzerDashboard";
+import TimeInDevDashboard, { TimeInDevDashboardRef } from "./TimeInDevDashboard";
 import { useDashboardConfig } from "../hooks/useDashboardConfig";
 
 interface MetricCardProps {
@@ -23,7 +24,8 @@ const MetricCard = forwardRef<MetricCardRef, MetricCardProps>(({ metric }, ref) 
   const leadTimeRef = useRef<LeadTime>(null);
   const bugsAnalysisRef = useRef<BugsAnalysisDashboardRef>(null);
   const bitbucketPRRef = useRef<BitbucketPRAnalyticsRef>(null);
-  
+  const timeInDevRef = useRef<TimeInDevDashboardRef>(null);
+
   useImperativeHandle(ref, () => ({
     requestData: () => {
       switch (metric.type) {
@@ -40,6 +42,11 @@ const MetricCard = forwardRef<MetricCardRef, MetricCardProps>(({ metric }, ref) 
         case "bitbucketPR":
           if (bitbucketPRRef.current) {
             bitbucketPRRef.current.requestData();
+          }
+          break;
+        case "timeInDev":
+          if (timeInDevRef.current) {
+            timeInDevRef.current.requestData();
           }
           break;
         case "tempoAnalyzer":
@@ -98,6 +105,20 @@ const MetricCard = forwardRef<MetricCardRef, MetricCardProps>(({ metric }, ref) 
             readOnly={true}
           />
         );
+      case "timeInDev": {
+        const timeInDevConfig = metric.config as TimeInDevConfig;
+        return (
+          <TimeInDevDashboard
+            ref={timeInDevRef}
+            key={`${metric.id}-${configKey}`}
+            query={timeInDevConfig.query}
+            filterActiveSprints={timeInDevConfig.filterActiveSprints ?? true}
+            sortBy={timeInDevConfig.sortBy ?? "timespent"}
+            statusesSelected={timeInDevConfig.statusesSelected ?? []}
+            readOnly={true}
+          />
+        );
+      }
       case "tempoAnalyzer":
         const tempoConfig = metric.config as TempoAnalyzerConfig;
         // Ensure all required fields are present with defaults
