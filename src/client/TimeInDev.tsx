@@ -1,6 +1,6 @@
 import React from "react";
 import { ElapsedTime } from "../server/graphManagers/TimeInDevManager";
-import { List, Radio, RadioChangeEvent } from "antd";
+import { Checkbox, List, Radio, RadioChangeEvent } from "antd";
 import Select from "./Select";
 const timeInDevQueryString = "timeInDevQuery";
 type Props = {};
@@ -10,6 +10,7 @@ type State = {
   statesSelected: string[];
   issues: ElapsedTime[];
   sortBy: "timespent" | "status";
+  filterActiveSprints: boolean;
 };
 
 export default class TimeInDev extends React.Component<Props, State> {
@@ -21,13 +22,20 @@ export default class TimeInDev extends React.Component<Props, State> {
       statesSelected: [],
       issues: [],
       sortBy: "timespent",
+      filterActiveSprints: true,
     };
   }
 
   onClick = () => {
     console.log("Button clicked");
     localStorage.setItem(timeInDevQueryString, this.state.input);
-    fetch("/api/timeInDev?query=" + this.state.input)
+    const query =
+      this.state.filterActiveSprints && this.state.input.trim()
+        ? "sprint in openSprints() AND " + this.state.input
+        : this.state.filterActiveSprints && !this.state.input.trim()
+          ? "sprint in openSprints()"
+          : this.state.input;
+    fetch("/api/timeInDev?query=" + encodeURIComponent(query))
       .then((response) => response.json())
       .then((data) => {
         let issues: ElapsedTime[] = JSON.parse(data.data);
@@ -81,6 +89,7 @@ export default class TimeInDev extends React.Component<Props, State> {
       return {
         key: issue.key,
         summary: issue.summary,
+        url: issue.url,
         daysBooked,
         daysInStatuses,
       };
@@ -96,6 +105,16 @@ export default class TimeInDev extends React.Component<Props, State> {
           }}
         />
         <button onClick={this.onClick}>Click me</button>
+        <div style={{ marginTop: 8 }}>
+          <Checkbox
+            checked={this.state.filterActiveSprints}
+            onChange={(e) =>
+              this.setState({ filterActiveSprints: e.target.checked })
+            }
+          >
+            Filter Active Sprints
+          </Checkbox>
+        </div>
         <Radio.Group
           onChange={this.handleSortByChange}
           value={this.state.sortBy}
@@ -138,9 +157,12 @@ export const TimeInDevIssueDetail: React.FC<{
     <List.Item>
       <List.Item.Meta
         title={
-          <a href={issue.url} target="_blank">
-            {issue.key + " - " + issue.summary}
-          </a>
+          <>
+            <a href={issue.url} target="_blank" rel="noopener noreferrer">
+              {issue.key}
+            </a>{" "}
+            - {issue.summary}
+          </>
         }
         description={
           "Time booked " +
@@ -171,6 +193,7 @@ type TimeInDevSummaryProps = {
   issues: {
     key: string;
     summary: string;
+    url: string;
     daysBooked: number;
     daysInStatuses: number;
   }[];
@@ -183,7 +206,10 @@ export const TimeInDevSummary: React.FC<TimeInDevSummaryProps> = ({
     <div>
       {issues.map((issue) => (
         <li key={issue.key}>
-          {issue.key} - {issue.summary} -{" "}
+          <a href={issue.url} target="_blank" rel="noopener noreferrer">
+            {issue.key}
+          </a>{" "}
+          - {issue.summary} -{" "}
           {Math.floor(issue.daysInStatuses * 100) / 100} days in progress -{" "}
           {Math.floor(issue.daysBooked * 100) / 100} days booked
         </li>
