@@ -17,6 +17,7 @@ import { RawDataTable } from "./components/RawDataTable";
 import { WorkDescriptionModal } from "./components/WorkDescriptionModal";
 import { UserGroupManager } from "./components/UserGroupManager";
 import { TeamSummary } from "./components/TeamSummary";
+import { PeopleSummary } from "./components/PeopleSummary";
 import { ParentAncestorsView } from "./components/ParentAncestorsView";
 import { ParentAncestorsModal } from "./components/ParentAncestorsModal";
 import {
@@ -387,6 +388,17 @@ const TempoAnalyzer: React.FC<Props> = () => {
           accountCategoryIndex={analyzer.accountCategoryIndex}
           loggedHoursIndex={analyzer.loggedHoursIndex}
           issueTypeIndex={analyzer.issueTypeIndex}
+          excludeHolidayAbsence={analyzer.excludeHolidayAbsence}
+        />
+      )}
+
+      {/* People Summary - Show when data is available */}
+      {Object.keys(analyzer.groupedData).length > 0 && (
+        <PeopleSummary
+          filteredData={analyzer.filteredData}
+          accountCategoryIndex={analyzer.accountCategoryIndex}
+          loggedHoursIndex={analyzer.loggedHoursIndex}
+          fullNameIndex={analyzer.fullNameIndex}
           excludeHolidayAbsence={analyzer.excludeHolidayAbsence}
         />
       )}
