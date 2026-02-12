@@ -124,6 +124,7 @@ export const useTempoAnalyzer = (
   selectedSheets: string[],
   selectedUserGroups: string[] = [],
   userGroupAssignments: UserGroupAssignment[] = [],
+  selectedUsers: string[] = [],
   parentAncestors: Record<
     string,
     Array<{ key: string; summary: string; type: string }>
@@ -236,6 +237,7 @@ export const useTempoAnalyzer = (
       excludeStartDate: analyzerState.excludeStartDate,
       excludeEndDate: analyzerState.excludeEndDate,
       selectedUserGroups: selectedUserGroups,
+      selectedUsers: selectedUsers,
       userGroupAssignmentsLength: userGroupAssignments.length,
       parentAncestorsKeys: Object.keys(parentAncestors).sort(),
     });
@@ -258,6 +260,7 @@ export const useTempoAnalyzer = (
     analyzerState.excludeStartDate,
     analyzerState.excludeEndDate,
     selectedUserGroups,
+    selectedUsers,
     userGroupAssignments,
     parentAncestors,
   ]);
@@ -468,28 +471,36 @@ export const useTempoAnalyzer = (
     // Apply user group filtering
     if (selectedUserGroups.length > 0 && fullNameIndex !== -1) {
       // Get all users in selected groups
-      const selectedUsers = new Set<string>();
+      const usersInSelectedGroups = new Set<string>();
       userGroupAssignments.forEach((assignment) => {
         if (
           assignment.groupId &&
           selectedUserGroups.includes(assignment.groupId)
         ) {
-          selectedUsers.add(assignment.fullName);
+          usersInSelectedGroups.add(assignment.fullName);
         }
       });
 
       // If no users are in selected groups, return empty data
-      if (selectedUsers.size === 0) {
+      if (usersInSelectedGroups.size === 0) {
         return [];
       }
 
-      // Filter by selected users
+      // Filter by selected groups' users
       filteredData = filteredData.filter((row) => {
         const fullName = row[fullNameIndex.toString()];
-        return fullName && selectedUsers.has(fullName);
+        return fullName && usersInSelectedGroups.has(fullName);
       });
     }
-    // If no groups selected, show all data (no filtering applied)
+
+    // Apply filter by selected users (individual user filter)
+    if (selectedUsers.length > 0 && fullNameIndex !== -1) {
+      const selectedUsersSet = new Set(selectedUsers);
+      filteredData = filteredData.filter((row) => {
+        const fullName = row[fullNameIndex.toString()];
+        return fullName && selectedUsersSet.has(fullName);
+      });
+    }
 
     return filteredData;
   };

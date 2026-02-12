@@ -59,6 +59,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
   const [selectedUserGroups, setSelectedUserGroups] = React.useState<string[]>(
     []
   );
+  const [selectedUsers, setSelectedUsers] = React.useState<string[]>([]);
 
   // Sankey selector configuration
   const [sankeySelectors, setSankeySelectors] = React.useState<
@@ -103,6 +104,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
     selectedSheets,
     selectedUserGroups,
     userGroups.assignments,
+    selectedUsers,
     parentAncestors
   );
 
@@ -295,6 +297,9 @@ const TempoAnalyzer: React.FC<Props> = () => {
             userGroups={userGroups.groups}
             selectedUserGroups={selectedUserGroups}
             onUserGroupsChange={setSelectedUserGroups}
+            availableUsers={availableUsers}
+            selectedUsers={selectedUsers}
+            onUsersChange={setSelectedUsers}
           />
 
           {(Object.keys(groupedData).length > 0 ||

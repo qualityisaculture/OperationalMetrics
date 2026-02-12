@@ -34,6 +34,9 @@ interface FilterControlsProps {
   userGroups: UserGroup[];
   selectedUserGroups: string[];
   onUserGroupsChange: (groupIds: string[]) => void;
+  availableUsers: string[];
+  selectedUsers: string[];
+  onUsersChange: (users: string[]) => void;
 }
 
 export const FilterControls: React.FC<FilterControlsProps> = ({
@@ -56,6 +59,9 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   userGroups,
   selectedUserGroups,
   onUserGroupsChange,
+  availableUsers,
+  selectedUsers,
+  onUsersChange,
 }) => {
   if (!hasGroupedData) {
     return null;
@@ -145,6 +151,38 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
               Select no groups to show all data.
             </Text>
           </div>
+
+          {/* Filter by Users */}
+          {availableUsers.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <Text strong>
+                <UserOutlined style={{ marginRight: "4px" }} />
+                Filter by Users:
+              </Text>
+              <br />
+              <Select
+                mode="multiple"
+                placeholder="Select users to include"
+                value={selectedUsers}
+                onChange={onUsersChange}
+                style={{ width: "100%", marginTop: "4px" }}
+                allowClear
+                maxTagCount="responsive"
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.label ?? "")
+                    .toString()
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+                options={availableUsers.map((u) => ({ value: u, label: u }))}
+              />
+              <Text type="secondary" style={{ fontSize: "12px" }}>
+                Only data from the selected users will be included. Select no
+                users to show all data.
+              </Text>
+            </div>
+          )}
 
           <Checkbox
             checked={excludeHolidayAbsence}
