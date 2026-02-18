@@ -124,8 +124,8 @@
             "summaryViewMode": "sankey",
             "secondarySplitMode": "account",
             "excludeHolidayAbsence": true,
-            "excludeStartDate": null,
-            "excludeEndDate": null,
+            "excludeStartDate": "2026-01-01T00:00:00.000Z",
+            "excludeEndDate": "2026-01-30T00:00:00.000Z",
             "showOtherTeams": false,
             "selectedUserGroups": [],
             "sankeySelectors": [

@@ -580,9 +580,12 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                 hasGroupedByAncestryType={
                   Object.keys(analyzer.groupedByAncestryType).length > 0
                 }
-                userGroups={userGroups.groups}
+                userGroups={userGroups.groups ?? []}
                 selectedUserGroups={selectedUserGroups}
                 onUserGroupsChange={setSelectedUserGroups}
+                availableUsers={availableUsers}
+                selectedUsers={[]}
+                onUsersChange={() => {}}
               />
 
               {(isEditMode ? summaryViewMode : analyzer.summaryViewMode) ===

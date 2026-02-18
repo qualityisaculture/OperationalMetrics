@@ -34,9 +34,9 @@ interface FilterControlsProps {
   userGroups: UserGroup[];
   selectedUserGroups: string[];
   onUserGroupsChange: (groupIds: string[]) => void;
-  availableUsers: string[];
-  selectedUsers: string[];
-  onUsersChange: (users: string[]) => void;
+  availableUsers?: string[];
+  selectedUsers?: string[];
+  onUsersChange?: (users: string[]) => void;
 }
 
 export const FilterControls: React.FC<FilterControlsProps> = ({
@@ -56,11 +56,11 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   hasGroupedByName,
   hasGroupedByIssueType,
   hasGroupedByAncestryType,
-  userGroups,
-  selectedUserGroups,
+  userGroups = [],
+  selectedUserGroups = [],
   onUserGroupsChange,
-  availableUsers,
-  selectedUsers,
+  availableUsers = [],
+  selectedUsers = [],
   onUsersChange,
 }) => {
   if (!hasGroupedData) {
@@ -134,13 +134,13 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
             <Select
               mode="multiple"
               placeholder="Select user groups to include"
-              value={selectedUserGroups}
+              value={selectedUserGroups ?? []}
               onChange={onUserGroupsChange}
               style={{ width: "100%", marginTop: "4px" }}
               allowClear
               maxTagCount="responsive"
             >
-              {userGroups.map((group) => (
+              {(userGroups ?? []).map((group) => (
                 <Option key={group.id} value={group.id}>
                   {group.name}
                 </Option>
@@ -153,7 +153,7 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
           </div>
 
           {/* Filter by Users */}
-          {availableUsers.length > 0 && (
+          {(availableUsers?.length ?? 0) > 0 && (
             <div style={{ marginBottom: "12px" }}>
               <Text strong>
                 <UserOutlined style={{ marginRight: "4px" }} />
@@ -163,8 +163,8 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
               <Select
                 mode="multiple"
                 placeholder="Select users to include"
-                value={selectedUsers}
-                onChange={onUsersChange}
+                value={selectedUsers ?? []}
+                onChange={onUsersChange ?? (() => {})}
                 style={{ width: "100%", marginTop: "4px" }}
                 allowClear
                 maxTagCount="responsive"
