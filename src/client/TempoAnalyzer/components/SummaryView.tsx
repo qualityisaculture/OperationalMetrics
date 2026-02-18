@@ -57,6 +57,17 @@ interface SummaryViewProps {
     ancestryType: string,
     category: string
   ) => void;
+  splitByMonth?: boolean;
+  monthsInData?: string[];
+  groupedByMonth?: Record<
+    string,
+    {
+      grouped: { [key: string]: number };
+      groupedByName: { [key: string]: number };
+      groupedByIssueType: { [key: string]: number };
+      groupedByAncestryType: { [key: string]: number };
+    }
+  >;
 }
 
 export const SummaryView: React.FC<SummaryViewProps> = ({
@@ -74,8 +85,88 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   handleUserClick,
   handleAncestryTypeClick,
   handleAncestryTypeCategoryClick,
+  splitByMonth = false,
+  monthsInData = [],
+  groupedByMonth = {},
 }) => {
-  // Define columns for resizable functionality
+  const mapName =
+    summaryViewMode === "category"
+      ? "grouped"
+      : summaryViewMode === "name"
+        ? "groupedByName"
+        : summaryViewMode === "issueType"
+          ? "groupedByIssueType"
+          : "groupedByAncestryType";
+
+  const getMonthFieldsForRow = (item: string) => {
+    const fields: Record<string, number | string> = {};
+    if (!splitByMonth || monthsInData.length === 0) return fields;
+    monthsInData.forEach((monthLabel, i) => {
+      const hours =
+        groupedByMonth[monthLabel]?.[mapName]?.[item] ?? 0;
+      fields[`month_${i}_days`] = hours / 7.5;
+      fields[`month_${i}_pct`] =
+        totalHours > 0
+          ? ((hours / totalHours) * 100).toFixed(1)
+          : "0.0";
+    });
+    return fields;
+  };
+
+  // Define columns for resizable functionality: when splitByMonth is true, show month columns (or placeholders if no months detected)
+  const monthColumns =
+    splitByMonth
+      ? monthsInData.length > 0
+        ? monthsInData.flatMap((monthLabel, i) => [
+            {
+              title: `${monthLabel} Days`,
+              dataIndex: `month_${i}_days`,
+              key: `month_${i}_days`,
+              render: (val: number | undefined) => (
+                <Text type="secondary">
+                  {val != null && typeof val === "number"
+                    ? val.toFixed(2)
+                    : "-"}
+                </Text>
+              ),
+            },
+            {
+              title: `${monthLabel} Percentage`,
+              dataIndex: `month_${i}_pct`,
+              key: `month_${i}_pct`,
+              render: (val: number | string | undefined) => (
+                <Text type="secondary">
+                  {val != null && val !== "" ? `${val}%` : "-"}
+                </Text>
+              ),
+            },
+          ])
+        : [
+            {
+              title: "Month Days",
+              dataIndex: "month_0_days",
+              key: "month_0_days",
+              render: (val: number | undefined) => (
+                <Text type="secondary">
+                  {val != null && typeof val === "number"
+                    ? val.toFixed(2)
+                    : "-"}
+                </Text>
+              ),
+            },
+            {
+              title: "Month %",
+              dataIndex: "month_0_pct",
+              key: "month_0_pct",
+              render: (val: number | string | undefined) => (
+                <Text type="secondary">
+                  {val != null && val !== "" ? `${val}%` : "-"}
+                </Text>
+              ),
+            },
+          ]
+      : [];
+
   const columns = [
     {
       title:
@@ -161,6 +252,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           },
         ]
       : []),
+    ...monthColumns,
   ];
 
   const { getResizableColumns } = useResizableColumns(columns);
@@ -252,6 +344,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                     percentage: ((data.totalHours / totalHours) * 100).toFixed(
                       1
                     ),
+                    ...getMonthFieldsForRow(category),
                     // Calculate other team metrics at category level
                     otherTeamDays: showOtherTeams
                       ? (() => {
@@ -319,6 +412,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                         100
                       ).toFixed(1),
                       isAccount: true,
+                      ...getMonthFieldsForRow(itemName),
                       children:
                         Object.keys(itemData.files).length > 1
                           ? Object.entries(itemData.files)
@@ -337,6 +431,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                                   100
                                 ).toFixed(1),
                                 isFile: true,
+                                ...getMonthFieldsForRow(fileName),
                               }))
                           : undefined,
                       // Calculate other team metrics
@@ -386,6 +481,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                     chargeableDays: hours / 7.5,
                     percentage: ((hours / totalHours) * 100).toFixed(1),
                     children: undefined,
+                    ...getMonthFieldsForRow(item),
                   }))
                 : summaryViewMode === "issueType"
                   ? Object.entries(groupedByIssueType).map(
@@ -396,6 +492,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                         chargeableDays: hours / 7.5,
                         percentage: ((hours / totalHours) * 100).toFixed(1),
                         children: undefined,
+                        ...getMonthFieldsForRow(item),
                       })
                     )
                   : (() => {
@@ -421,6 +518,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                                     (data.totalHours / totalHours) *
                                     100
                                   ).toFixed(1),
+                                  ...getMonthFieldsForRow(category),
                                   children: (secondarySplitMode === "account"
                                     ? Object.entries(data.accounts)
                                     : Object.entries(data.issueTypes)
@@ -438,6 +536,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                                       100
                                     ).toFixed(1),
                                     isAccount: true,
+                                    ...getMonthFieldsForRow(itemName),
                                     children:
                                       Object.keys(itemData.files).length > 1
                                         ? Object.entries(itemData.files)
@@ -461,6 +560,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                                                   100
                                                 ).toFixed(1),
                                                 isFile: true,
+                                                ...getMonthFieldsForRow(fileName),
                                               })
                                             )
                                         : undefined,
@@ -523,6 +623,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                                 1
                               ),
                               children: undefined,
+                              ...getMonthFieldsForRow(ancestryType),
                             });
                           }
                         }

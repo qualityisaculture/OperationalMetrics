@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Card, Button, Space, message, DatePicker, Typography } from "antd";
+import {
+  Card,
+  Button,
+  Space,
+  message,
+  DatePicker,
+  Typography,
+  Checkbox,
+} from "antd";
 import {
   EditOutlined,
   SaveOutlined,
@@ -73,6 +81,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
 }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [showFilterControls, setShowFilterControls] = useState(false);
+  const [splitByMonth, setSplitByMonth] = useState(false);
 
   // Local state for settings (editable)
   const [summaryViewMode, setSummaryViewMode] = useState(
@@ -152,13 +161,14 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     assignUserToGroup,
   } = useUserGroups(availableUsers);
 
-  // Create analyzer with user group filtering
+  // Create analyzer with user group filtering (same signature as Tempo Analyzer: selectedUsers=[], parentAncestors={})
   const analyzer = useTempoAnalyzer(
     sheets,
     selectedSheets,
     selectedUserGroups,
     userGroups.assignments,
-    {} // parentAncestors - not needed for dashboard
+    [], // selectedUsers - not used on dashboard
+    {}  // parentAncestors - not needed for dashboard
   );
 
   // Labels for Sankey
@@ -253,6 +263,38 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     }
     return Array.from(accounts).sort();
   }, [analyzer.filteredData, analyzer.accountNameIndex]);
+
+  const MONTH_NAMES = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  const monthsInData = useMemo(() => {
+    const { filteredData, dateIndex } = analyzer;
+    if (dateIndex === -1 || !filteredData?.length) return [];
+    const monthKeys = new Set<string>();
+    filteredData.forEach((row) => {
+      const workDate = row[dateIndex.toString()];
+      if (!workDate) return;
+      try {
+        const dateStr = String(workDate).trim();
+        const dateOnly = dateStr.split(" ")[0];
+        const d = new Date(dateOnly);
+        if (!isNaN(d.getTime())) {
+          const y = d.getFullYear();
+          const m = d.getMonth();
+          monthKeys.add(`${y}-${String(m).padStart(2, "0")}`);
+        }
+      } catch {
+        // skip invalid dates
+      }
+    });
+    return Array.from(monthKeys)
+      .sort()
+      .map((key) => {
+        const [y, m] = key.split("-").map(Number);
+        return `${MONTH_NAMES[m]} '${String(y).slice(-2)}`;
+      });
+  }, [analyzer.filteredData, analyzer.dateIndex]);
 
   // Sync local state with analyzer state when entering edit mode
   useEffect(() => {
@@ -489,10 +531,11 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                 gap: "12px",
               }}
             >
-              <Space align="center">
-                <Typography.Text strong>Date Range Filter:</Typography.Text>
-                <Space>
-                  <DatePicker
+              <Space align="center" wrap>
+                <Space align="center">
+                  <Typography.Text strong>Date Range Filter:</Typography.Text>
+                  <Space>
+                    <DatePicker
                     value={
                       analyzer.excludeStartDate
                         ? dayjs(analyzer.excludeStartDate)
@@ -521,7 +564,14 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                     placeholder="End date (optional)"
                     allowClear
                   />
+                  </Space>
                 </Space>
+                <Checkbox
+                  checked={splitByMonth}
+                  onChange={(e) => setSplitByMonth(e.target.checked)}
+                >
+                  Split by month
+                </Checkbox>
               </Space>
               {isEditMode ? (
                 <Space>
@@ -628,6 +678,8 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                 availableUsers={availableUsers}
                 selectedUsers={[]}
                 onUsersChange={() => {}}
+                splitByMonth={splitByMonth}
+                onSplitByMonthChange={setSplitByMonth}
               />
 
               {(isEditMode ? summaryViewMode : analyzer.summaryViewMode) ===
@@ -667,6 +719,9 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                       selectors={sankeySelectors}
                       labels={labels}
                       ancestryTypes={ancestryTypes}
+                      splitByMonth={splitByMonth}
+                      monthsInData={monthsInData}
+                      dateIndex={analyzer.dateIndex}
                     />
                   )}
                 </>
@@ -690,6 +745,9 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                   handleAncestryTypeCategoryClick={
                     analyzer.handleAncestryTypeCategoryClick
                   }
+                  splitByMonth={splitByMonth}
+                  monthsInData={monthsInData}
+                  groupedByMonth={analyzer.groupedByMonth}
                 />
               ) : (
                 <DrilldownView

@@ -142,6 +142,16 @@ export interface State {
   secondarySplitMode: "account" | "issueType";
   // New state for tracking which rows to show in the expandable table
   displayedRows: any[];
+  // Per-month grouped data for "Split by month" (key = e.g. "Jan '26")
+  groupedByMonth?: Record<
+    string,
+    {
+      grouped: { [key: string]: number };
+      groupedByName: { [key: string]: number };
+      groupedByIssueType: { [key: string]: number };
+      groupedByAncestryType: { [key: string]: number };
+    }
+  >;
 }
 
 export interface UserGroup {

@@ -18,6 +18,9 @@ interface SankeyViewProps {
   selectors: SankeySelectorConfig[];
   labels: LabelsMap;
   ancestryTypes: AncestryTypesMap;
+  splitByMonth?: boolean;
+  monthsInData?: string[];
+  dateIndex?: number;
 }
 
 export const SankeyView: React.FC<SankeyViewProps> = ({
@@ -31,23 +34,21 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   selectors,
   labels,
   ancestryTypes,
+  splitByMonth = false,
+  monthsInData = [],
+  dateIndex = -1,
 }) => {
   const [selectedSelectorKey, setSelectedSelectorKey] = useState<string | null>(
     null
   );
-  // Calculate hours for each selector and Other
-  const selectorHours = useMemo(() => {
-    const hours: { [key: string]: number } = {};
 
-    // Initialize with selectors
-    selectors.forEach((selector, idx) => {
-      const label = `Selector ${idx + 1}`;
-      hours[label] = 0;
+  const computeSelectorHoursForRows = (rows: any[]) => {
+    const hours: { [key: string]: number } = {};
+    selectors.forEach((_, idx) => {
+      hours[`Selector ${idx + 1}`] = 0;
     });
     hours["Other"] = 0;
-
-    // Process each row
-    filteredData.forEach((row) => {
+    rows.forEach((row) => {
       const issueType =
         issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
       const issueKey =
@@ -56,124 +57,102 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         loggedHoursIndex !== -1
           ? parseFloat(row[loggedHoursIndex.toString()] || "0")
           : 0;
-
-      if (loggedHours <= 0) {
-        return;
-      }
-
+      if (loggedHours <= 0) return;
       let matched = false;
-
-      // Check each selector in order
       for (let i = 0; i < selectors.length; i++) {
         const selector = selectors[i];
-
         if (selector.type === "Type") {
-          if (!issueType) continue;
-          const issueTypeStr = String(issueType).trim();
-          if (selector.selectedValues.includes(issueTypeStr)) {
-            const label = `Selector ${i + 1}`;
-            hours[label] = (hours[label] || 0) + loggedHours;
+          if (issueType && selector.selectedValues.includes(String(issueType).trim())) {
+            hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
             matched = true;
-            break; // Item matches first selector, stop checking
+            break;
           }
-        } else if (selector.type === "Label") {
-          if (!issueKey) continue;
-          const issueKeyStr = String(issueKey).trim();
-          const issueLabels = labels[issueKeyStr] || [];
-
-          // Check if any of the selected labels match any of the issue's labels
-          const hasMatchingLabel = selector.selectedValues.some(
-            (selectedLabel) => issueLabels.includes(selectedLabel)
-          );
-
-          if (hasMatchingLabel) {
-            const label = `Selector ${i + 1}`;
-            hours[label] = (hours[label] || 0) + loggedHours;
+        } else if (selector.type === "Label" && issueKey) {
+          const issueLabels = labels[String(issueKey).trim()] || [];
+          if (selector.selectedValues.some((l) => issueLabels.includes(l))) {
+            hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
             matched = true;
-            break; // Item matches first selector, stop checking
+            break;
           }
-        } else if (selector.type === "Project") {
-          if (!issueKey) continue;
-          const issueKeyStr = String(issueKey).trim();
-          // Extract project prefix (e.g., "ABC-1" -> "ABC" or "ABC123-4" -> "ABC123")
-          // Match letters and numbers up to the first dash or end of string
-          const projectMatch = issueKeyStr.match(/^([A-Z0-9]+)(?:-|$)/);
+        } else if (selector.type === "Project" && issueKey) {
+          const projectMatch = String(issueKey).trim().match(/^([A-Z0-9]+)(?:-|$)/);
           const project = projectMatch ? projectMatch[1] : null;
-
           if (project && selector.selectedValues.includes(project)) {
-            const label = `Selector ${i + 1}`;
-            hours[label] = (hours[label] || 0) + loggedHours;
+            hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
             matched = true;
-            break; // Item matches first selector, stop checking
+            break;
           }
-        } else if (selector.type === "Key") {
-          if (!issueKey) continue;
-          const issueKeyStr = String(issueKey).trim();
-
-          if (selector.selectedValues.includes(issueKeyStr)) {
-            const label = `Selector ${i + 1}`;
-            hours[label] = (hours[label] || 0) + loggedHours;
-            matched = true;
-            break; // Item matches first selector, stop checking
-          }
+        } else if (selector.type === "Key" && issueKey && selector.selectedValues.includes(String(issueKey).trim())) {
+          hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
+          matched = true;
+          break;
         } else if (selector.type === "Account Category") {
-          const accountCategory =
-            accountCategoryIndex !== -1
-              ? row[accountCategoryIndex.toString()]
-              : null;
-          if (!accountCategory) continue;
-          const accountCategoryStr = String(accountCategory).trim();
-
-          if (selector.selectedValues.includes(accountCategoryStr)) {
-            const label = `Selector ${i + 1}`;
-            hours[label] = (hours[label] || 0) + loggedHours;
+          const accountCategory = accountCategoryIndex !== -1 ? row[accountCategoryIndex.toString()] : null;
+          if (accountCategory && selector.selectedValues.includes(String(accountCategory).trim())) {
+            hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
             matched = true;
-            break; // Item matches first selector, stop checking
+            break;
           }
         } else if (selector.type === "Account") {
-          const accountName =
-            accountNameIndex !== -1 ? row[accountNameIndex.toString()] : null;
-          if (!accountName) continue;
-          const accountNameStr = String(accountName).trim();
-
-          if (selector.selectedValues.includes(accountNameStr)) {
-            const label = `Selector ${i + 1}`;
-            hours[label] = (hours[label] || 0) + loggedHours;
+          const accountName = accountNameIndex !== -1 ? row[accountNameIndex.toString()] : null;
+          if (accountName && selector.selectedValues.includes(String(accountName).trim())) {
+            hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
             matched = true;
-            break; // Item matches first selector, stop checking
+            break;
           }
-        } else if (selector.type === "AncestryType") {
-          if (!issueKey) continue;
-          const issueKeyStr = String(issueKey).trim();
-          const ancestryType = ancestryTypes[issueKeyStr];
-
+        } else if (selector.type === "AncestryType" && issueKey) {
+          const ancestryType = ancestryTypes[String(issueKey).trim()];
           if (ancestryType && selector.selectedValues.includes(ancestryType)) {
-            const label = `Selector ${i + 1}`;
-            hours[label] = (hours[label] || 0) + loggedHours;
+            hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
             matched = true;
-            break; // Item matches first selector, stop checking
+            break;
           }
         }
       }
-
-      // If no selector matched, add to Other
-      if (!matched) {
-        hours["Other"] = (hours["Other"] || 0) + loggedHours;
-      }
+      if (!matched) hours["Other"] = (hours["Other"] || 0) + loggedHours;
     });
-
     return hours;
-  }, [
-    filteredData,
-    issueTypeIndex,
-    issueKeyIndex,
-    loggedHoursIndex,
-    accountCategoryIndex,
-    accountNameIndex,
-    selectors,
-    labels,
-    ancestryTypes,
-  ]);
+  };
+
+  // Calculate hours for each selector and Other
+  const selectorHours = useMemo(
+    () => computeSelectorHoursForRows(filteredData),
+    [
+      filteredData,
+      issueTypeIndex,
+      issueKeyIndex,
+      loggedHoursIndex,
+      accountCategoryIndex,
+      accountNameIndex,
+      selectors,
+      labels,
+      ancestryTypes,
+    ]
+  );
+
+  const selectorHoursByMonth = useMemo(() => {
+    if (!splitByMonth || monthsInData.length === 0 || dateIndex === -1)
+      return {};
+    const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const byMonth: Record<string, { [key: string]: number }> = {};
+    monthsInData.forEach((monthLabel) => {
+      const [monthPart, yearPart] = monthLabel.split(" '");
+      const m = MONTH_NAMES.indexOf(monthPart);
+      const y = parseInt(`20${yearPart}`, 10);
+      const monthRows = filteredData.filter((row) => {
+        const workDate = row[dateIndex.toString()];
+        if (!workDate) return false;
+        try {
+          const d = new Date(String(workDate).trim().split(" ")[0]);
+          return !isNaN(d.getTime()) && d.getFullYear() === y && d.getMonth() === m;
+        } catch {
+          return false;
+        }
+      });
+      byMonth[monthLabel] = computeSelectorHoursForRows(monthRows);
+    });
+    return byMonth;
+  }, [splitByMonth, monthsInData, dateIndex, filteredData, selectors, labels, ancestryTypes, issueTypeIndex, issueKeyIndex, loggedHoursIndex, accountCategoryIndex, accountNameIndex]);
 
   // Calculate total hours
   const totalHours = useMemo(() => {
@@ -236,6 +215,18 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       percentage: string;
     }> = [];
 
+    const getMonthFieldsForRow = (rowKey: string) => {
+      const fields: Record<string, number | string> = {};
+      if (!splitByMonth || monthsInData.length === 0 || !selectorHoursByMonth) return fields;
+      monthsInData.forEach((monthLabel, i) => {
+        const hours = selectorHoursByMonth[monthLabel]?.[rowKey] ?? 0;
+        fields[`month_${i}_days`] = hours / 7.5;
+        fields[`month_${i}_pct`] =
+          totalHours > 0 ? ((hours / totalHours) * 100).toFixed(1) : "0.0";
+      });
+      return fields;
+    };
+
     // Add rows for each selector
     selectors.forEach((selector, idx) => {
       const label = `Selector ${idx + 1}`;
@@ -247,6 +238,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         chargeableDays: hours / 7.5,
         percentage:
           totalHours > 0 ? ((hours / totalHours) * 100).toFixed(1) : "0.0",
+        ...getMonthFieldsForRow(label),
       });
     });
 
@@ -259,10 +251,11 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       chargeableDays: otherHours / 7.5,
       percentage:
         totalHours > 0 ? ((otherHours / totalHours) * 100).toFixed(1) : "0.0",
+      ...getMonthFieldsForRow("Other"),
     });
 
     return rows.sort((a, b) => b.hours - a.hours);
-  }, [selectors, selectorHours, totalHours]);
+  }, [selectors, selectorHours, totalHours, splitByMonth, monthsInData, selectorHoursByMonth]);
 
   // Get matching issues for the selected selector
   const matchingIssues = useMemo(() => {
@@ -493,6 +486,59 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     setSelectedSelectorKey(null);
   };
 
+  const monthColumns =
+    splitByMonth
+      ? monthsInData.length > 0
+        ? monthsInData.flatMap((monthLabel, i) => [
+            {
+              title: `${monthLabel} Days`,
+              dataIndex: `month_${i}_days`,
+              key: `month_${i}_days`,
+              render: (val: number | undefined) => (
+                <Text type="secondary">
+                  {val != null && typeof val === "number"
+                    ? val.toFixed(2)
+                    : "-"}
+                </Text>
+              ),
+            },
+            {
+              title: `${monthLabel} Percentage`,
+              dataIndex: `month_${i}_pct`,
+              key: `month_${i}_pct`,
+              render: (val: number | string | undefined) => (
+                <Text type="secondary">
+                  {val != null && val !== "" ? `${val}%` : "-"}
+                </Text>
+              ),
+            },
+          ])
+        : [
+            {
+              title: "Month Days",
+              dataIndex: "month_0_days",
+              key: "month_0_days",
+              render: (val: number | undefined) => (
+                <Text type="secondary">
+                  {val != null && typeof val === "number"
+                    ? val.toFixed(2)
+                    : "-"}
+                </Text>
+              ),
+            },
+            {
+              title: "Month %",
+              dataIndex: "month_0_pct",
+              key: "month_0_pct",
+              render: (val: number | string | undefined) => (
+                <Text type="secondary">
+                  {val != null && val !== "" ? `${val}%` : "-"}
+                </Text>
+              ),
+            },
+          ]
+      : [];
+
   const summaryColumns = [
     {
       title: "Selector",
@@ -527,6 +573,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       key: "percentage",
       render: (text: string) => <Text type="secondary">{text}%</Text>,
     },
+    ...monthColumns,
   ];
 
   const issueColumns = [

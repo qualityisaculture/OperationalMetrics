@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Radio, Checkbox, DatePicker, Space, Typography, Select } from "antd";
 import {
   BarChartOutlined,
@@ -37,6 +37,8 @@ interface FilterControlsProps {
   availableUsers?: string[];
   selectedUsers?: string[];
   onUsersChange?: (users: string[]) => void;
+  splitByMonth?: boolean;
+  onSplitByMonthChange?: (checked: boolean) => void;
 }
 
 export const FilterControls: React.FC<FilterControlsProps> = ({
@@ -62,7 +64,17 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   availableUsers = [],
   selectedUsers = [],
   onUsersChange,
+  splitByMonth: splitByMonthProp,
+  onSplitByMonthChange,
 }) => {
+  const [localSplitByMonth, setLocalSplitByMonth] = useState(false);
+  const isControlled =
+    splitByMonthProp !== undefined && onSplitByMonthChange !== undefined;
+  const splitByMonth = isControlled ? splitByMonthProp! : localSplitByMonth;
+  const setSplitByMonth = isControlled
+    ? onSplitByMonthChange!
+    : setLocalSplitByMonth;
+
   if (!hasGroupedData) {
     return null;
   }
@@ -198,6 +210,13 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
             onChange={(e) => handleShowOtherTeamsChange(e.target.checked)}
           >
             Show percentage done by other teams
+          </Checkbox>
+          <br />
+          <Checkbox
+            checked={splitByMonth}
+            onChange={(e) => setSplitByMonth(e.target.checked)}
+          >
+            Split by month
           </Checkbox>
           <br />
           <div>

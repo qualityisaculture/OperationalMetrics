@@ -66,6 +66,8 @@ const TempoAnalyzer: React.FC<Props> = () => {
     SankeySelectorConfig[]
   >([]);
 
+  const [splitByMonth, setSplitByMonth] = React.useState(false);
+
   // Update selected groups when user groups change (default to no filtering)
   React.useEffect(() => {
     // Don't auto-select all groups - let user choose
@@ -214,6 +216,39 @@ const TempoAnalyzer: React.FC<Props> = () => {
     return Array.from(accounts).sort();
   }, [analyzer.filteredData, analyzer.accountNameIndex]);
 
+  // Unique months in data for "Split by month" columns (e.g. ["Jan '26", "Feb '26"])
+  const MONTH_NAMES = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  const monthsInData = React.useMemo(() => {
+    const { filteredData, dateIndex } = analyzer;
+    if (dateIndex === -1 || !filteredData?.length) return [];
+    const monthKeys = new Set<string>();
+    filteredData.forEach((row) => {
+      const workDate = row[dateIndex.toString()];
+      if (!workDate) return;
+      try {
+        const dateStr = String(workDate).trim();
+        const dateOnly = dateStr.split(" ")[0];
+        const d = new Date(dateOnly);
+        if (!isNaN(d.getTime())) {
+          const y = d.getFullYear();
+          const m = d.getMonth();
+          monthKeys.add(`${y}-${String(m).padStart(2, "0")}`);
+        }
+      } catch {
+        // skip invalid dates
+      }
+    });
+    return Array.from(monthKeys)
+      .sort()
+      .map((key) => {
+        const [y, m] = key.split("-").map(Number);
+        return `${MONTH_NAMES[m]} '${String(y).slice(-2)}`;
+      });
+  }, [analyzer.filteredData, analyzer.dateIndex]);
+
   // Automatically request labels and ancestors when Sankey is selected
   React.useEffect(() => {
     const hasData =
@@ -300,6 +335,8 @@ const TempoAnalyzer: React.FC<Props> = () => {
             availableUsers={availableUsers}
             selectedUsers={selectedUsers}
             onUsersChange={setSelectedUsers}
+            splitByMonth={splitByMonth}
+            onSplitByMonthChange={setSplitByMonth}
           />
 
           {(Object.keys(groupedData).length > 0 ||
@@ -336,6 +373,9 @@ const TempoAnalyzer: React.FC<Props> = () => {
                       selectors={sankeySelectors}
                       labels={labels}
                       ancestryTypes={ancestryTypes}
+                      splitByMonth={splitByMonth}
+                      monthsInData={monthsInData}
+                      dateIndex={analyzer.dateIndex}
                     />
                   )}
                 </>
@@ -359,6 +399,9 @@ const TempoAnalyzer: React.FC<Props> = () => {
                   handleAncestryTypeCategoryClick={
                     analyzer.handleAncestryTypeCategoryClick
                   }
+                  splitByMonth={splitByMonth}
+                  monthsInData={monthsInData}
+                  groupedByMonth={analyzer.groupedByMonth}
                 />
               ) : (
                 <DrilldownView

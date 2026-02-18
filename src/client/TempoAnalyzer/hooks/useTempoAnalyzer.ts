@@ -198,6 +198,7 @@ export const useTempoAnalyzer = (
     groupedDataByCategory: {},
     secondarySplitMode: "account",
     displayedRows: [],
+    groupedByMonth: {},
   });
 
   // Use refs to track previous values and prevent infinite loops
@@ -503,6 +504,116 @@ export const useTempoAnalyzer = (
     }
 
     return filteredData;
+  };
+
+  const MONTH_NAMES = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+
+  const buildGroupedMapsFromRows = (
+    rows: any[],
+    indices: {
+      accountCategoryIndex: number;
+      accountNameIndex: number;
+      loggedHoursIndex: number;
+      issueKeyIndex: number;
+      fullNameIndex: number;
+      issueTypeIndex: number;
+      typeOfWorkIndex: number;
+    },
+    ancestors: Record<string, Array<{ key: string; summary: string; type: string }>>
+  ): {
+    grouped: { [key: string]: number };
+    groupedByName: { [key: string]: number };
+    groupedByIssueType: { [key: string]: number };
+    groupedByAncestryType: { [key: string]: number };
+  } => {
+    const {
+      accountCategoryIndex,
+      accountNameIndex,
+      loggedHoursIndex,
+      issueKeyIndex,
+      fullNameIndex,
+      issueTypeIndex,
+      typeOfWorkIndex,
+    } = indices;
+    const grouped: { [key: string]: number } = {};
+    const groupedByName: { [key: string]: number } = {};
+    const groupedByIssueType: { [key: string]: number } = {};
+    const groupedByAncestryType: { [key: string]: number } = {};
+
+    rows.forEach((row) => {
+      const accountCategory = row[accountCategoryIndex.toString()];
+      const accountName = row[accountNameIndex.toString()];
+      const loggedHours = parseFloat(row[loggedHoursIndex.toString()]) || 0;
+      const rowIssueKey =
+        issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
+      const fullName =
+        fullNameIndex !== -1 ? row[fullNameIndex.toString()] : null;
+
+      if (accountCategory) {
+        const category = String(accountCategory).trim();
+        if (category) {
+          const typeOfWork =
+            typeOfWorkIndex !== -1 ? row[typeOfWorkIndex.toString()] : null;
+          const account = accountName ? String(accountName).trim() : null;
+          const exception = ISSUE_KEY_EXCEPTIONS.find((exp) => {
+            if (exp.issueKeys && rowIssueKey) {
+              return exp.issueKeys.includes(rowIssueKey);
+            }
+            if (exp.typeOfWork && typeOfWork) {
+              return exp.typeOfWork === typeOfWork;
+            }
+            if (exp.account && account) {
+              return exp.account === account;
+            }
+            return false;
+          });
+          const finalCategory = exception
+            ? `${category} ${exception.categorySuffix}`
+            : category;
+          grouped[finalCategory] = (grouped[finalCategory] || 0) + loggedHours;
+        }
+      }
+
+      if (fullName) {
+        const name = String(fullName).trim();
+        if (name) groupedByName[name] = (groupedByName[name] || 0) + loggedHours;
+      }
+
+      const absenceIssueKeys = ["ABS-56", "ABS-58"];
+      let finalIssueType: string | null = null;
+      if (
+        rowIssueKey &&
+        absenceIssueKeys.includes(String(rowIssueKey).trim())
+      ) {
+        finalIssueType = "Absence";
+      } else {
+        const issueType =
+          issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
+        if (issueType) finalIssueType = String(issueType).trim();
+      }
+      if (finalIssueType) {
+        groupedByIssueType[finalIssueType] =
+          (groupedByIssueType[finalIssueType] || 0) + loggedHours;
+      }
+
+      if (rowIssueKey) {
+        const key = String(rowIssueKey).trim();
+        if (key) {
+          const ancestryType = getAncestryType(
+            ancestors[key],
+            issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null,
+            key
+          );
+          groupedByAncestryType[ancestryType] =
+            (groupedByAncestryType[ancestryType] || 0) + loggedHours;
+        }
+      }
+    });
+
+    return { grouped, groupedByName, groupedByIssueType, groupedByAncestryType };
   };
 
   const processData = (tableData: any[], headers: string[]) => {
@@ -814,6 +925,71 @@ export const useTempoAnalyzer = (
       );
     }
 
+    // Build per-month grouped data for "Split by month" columns
+    const groupedByMonth: Record<
+      string,
+      {
+        grouped: { [key: string]: number };
+        groupedByName: { [key: string]: number };
+        groupedByIssueType: { [key: string]: number };
+        groupedByAncestryType: { [key: string]: number };
+      }
+    > = {};
+    if (dateIndex !== -1 && filteredData.length > 0) {
+      const monthKeys = new Set<string>();
+      filteredData.forEach((row) => {
+        const workDate = row[dateIndex.toString()];
+        if (!workDate) return;
+        try {
+          const dateStr = String(workDate).trim();
+          const dateOnly = dateStr.split(" ")[0];
+          const d = new Date(dateOnly);
+          if (!isNaN(d.getTime())) {
+            const y = d.getFullYear();
+            const m = d.getMonth();
+            monthKeys.add(`${y}-${String(m).padStart(2, "0")}`);
+          }
+        } catch {
+          /* skip */
+        }
+      });
+      const indices = {
+        accountCategoryIndex,
+        accountNameIndex,
+        loggedHoursIndex,
+        issueKeyIndex,
+        fullNameIndex,
+        issueTypeIndex,
+        typeOfWorkIndex,
+      };
+      Array.from(monthKeys)
+        .sort()
+        .forEach((monthKey) => {
+          const [y, m] = monthKey.split("-").map(Number);
+          const monthLabel = `${MONTH_NAMES[m]} '${String(y).slice(-2)}`;
+          const monthRows = filteredData.filter((row) => {
+            const workDate = row[dateIndex.toString()];
+            if (!workDate) return false;
+            try {
+              const dateStr = String(workDate).trim();
+              const dateOnly = dateStr.split(" ")[0];
+              const d = new Date(dateOnly);
+              if (isNaN(d.getTime())) return false;
+              return (
+                d.getFullYear() === y && d.getMonth() === m
+              );
+            } catch {
+              return false;
+            }
+          });
+          groupedByMonth[monthLabel] = buildGroupedMapsFromRows(
+            monthRows,
+            indices,
+            parentAncestors
+          );
+        });
+    }
+
     setAnalyzerState((prevState) => {
       return {
         ...prevState,
@@ -825,6 +1001,7 @@ export const useTempoAnalyzer = (
         groupedDataByAncestryType: groupedDataByAncestryType,
         totalHours: totalHours,
         groupedDataByCategory: groupedDataByCategory,
+        groupedByMonth,
       };
     });
 
@@ -998,6 +1175,7 @@ export const useTempoAnalyzer = (
       groupedDataByCategory: {},
       secondarySplitMode: "account",
       displayedRows: [],
+      groupedByMonth: {},
     });
   };
 
