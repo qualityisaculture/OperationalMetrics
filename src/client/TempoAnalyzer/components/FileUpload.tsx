@@ -34,9 +34,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           return false;
         }
 
-        const isLt10M = f.size / 1024 / 1024 < 10;
-        if (!isLt10M) {
-          message.error("File must be smaller than 10MB!");
+        const isLt15M = f.size / 1024 / 1024 < 15;
+        if (!isLt15M) {
+          message.error("File must be smaller than 15MB!");
           return false;
         }
       }
@@ -56,9 +56,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         return false;
       }
 
-      const isLt10M = file.size / 1024 / 1024 < 10;
-      if (!isLt10M) {
-        message.error("File must be smaller than 10MB!");
+      const isLt15M = file.size / 1024 / 1024 < 15;
+      if (!isLt15M) {
+        message.error("File must be smaller than 15MB!");
         return false;
       }
 
