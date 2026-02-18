@@ -1,4 +1,4 @@
-"import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { message } from "antd";
 import {
   SheetData,
@@ -662,7 +662,7 @@ export const useTempoAnalyzer = (
           const account = accountName ? String(accountName).trim() : null;
           const exception = ISSUE_KEY_EXCEPTIONS.find((exp) => {
             if (exp.issueKeys && issueKey) {
-              return exp.issueKeys.includes(issueKey);"
+              return exp.issueKeys.includes(issueKey);
             }
             if (exp.typeOfWork && typeOfWork) {
               return exp.typeOfWork === typeOfWork;

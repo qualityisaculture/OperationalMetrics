@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Card, Button, Space, message } from "antd";
+import { Card, Button, Space, message, DatePicker, Typography } from "antd";
 import {
   EditOutlined,
   SaveOutlined,
@@ -478,9 +478,51 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
             removeSheet={removeSheet}
           />
 
-          {/* Edit Settings button outside the View Options card */}
+          {/* Date Range Filter (left) and Edit Settings button (right) */}
           {hasData && !readOnly && (
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "12px",
+              }}
+            >
+              <Space align="center">
+                <Typography.Text strong>Date Range Filter:</Typography.Text>
+                <Space>
+                  <DatePicker
+                    value={
+                      analyzer.excludeStartDate
+                        ? dayjs(analyzer.excludeStartDate)
+                        : null
+                    }
+                    onChange={(date) => {
+                      const dateObj = date ? date.toDate() : null;
+                      analyzer.handleExcludeStartDateChange(dateObj);
+                      setExcludeStartDate(date || null);
+                    }}
+                    placeholder="Start date (optional)"
+                    allowClear
+                  />
+                  <Typography.Text type="secondary">to</Typography.Text>
+                  <DatePicker
+                    value={
+                      analyzer.excludeEndDate
+                        ? dayjs(analyzer.excludeEndDate)
+                        : null
+                    }
+                    onChange={(date) => {
+                      const dateObj = date ? date.toDate() : null;
+                      analyzer.handleExcludeEndDateChange(dateObj);
+                      setExcludeEndDate(date || null);
+                    }}
+                    placeholder="End date (optional)"
+                    allowClear
+                  />
+                </Space>
+              </Space>
               {isEditMode ? (
                 <Space>
                   <Button onClick={handleCancelEdit}>Cancel</Button>
