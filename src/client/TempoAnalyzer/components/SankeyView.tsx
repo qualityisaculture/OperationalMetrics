@@ -499,6 +499,12 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       dataIndex: "selector",
       key: "selector",
       render: (text: string) => <Text strong>{text}</Text>,
+      sorter: (a: any, b: any) => {
+        // Sort "Other" last when sorting ascending
+        if (a.selector === "Other") return 1;
+        if (b.selector === "Other") return -1;
+        return (a.selector ?? "").localeCompare(b.selector ?? "");
+      },
     },
     {
       title: "Logged Hours",
