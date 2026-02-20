@@ -220,9 +220,15 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       if (!splitByMonth || monthsInData.length === 0 || !selectorHoursByMonth) return fields;
       monthsInData.forEach((monthLabel, i) => {
         const hours = selectorHoursByMonth[monthLabel]?.[rowKey] ?? 0;
+        // Total hours in this month only (so % is share of that month, not whole dataset)
+        const monthTotal =
+          Object.values(selectorHoursByMonth[monthLabel] ?? {}).reduce(
+            (a, b) => a + b,
+            0
+          ) || 0;
         fields[`month_${i}_days`] = hours / 7.5;
         fields[`month_${i}_pct`] =
-          totalHours > 0 ? ((hours / totalHours) * 100).toFixed(1) : "0.0";
+          monthTotal > 0 ? ((hours / monthTotal) * 100).toFixed(1) : "0.0";
       });
       return fields;
     };
