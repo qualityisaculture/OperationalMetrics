@@ -19,6 +19,7 @@ import { FilterControls } from "../../TempoAnalyzer/components/FilterControls";
 import {
   SankeySelector,
   SankeySelectorConfig,
+  normalizeSankeySelectors,
 } from "../../TempoAnalyzer/components/SankeySelector";
 import { SankeyView } from "../../TempoAnalyzer/components/SankeyView";
 import { SummaryView } from "../../TempoAnalyzer/components/SummaryView";
@@ -105,7 +106,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
   );
   const [sankeySelectors, setSankeySelectors] = useState<
     SankeySelectorConfig[]
-  >(initialSankeySelectors);
+  >(() => normalizeSankeySelectors(initialSankeySelectors || []));
 
   // Sync local state when props change (e.g., after config is saved)
   useEffect(() => {
@@ -120,7 +121,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     );
     setShowOtherTeams(initialShowOtherTeams);
     setSelectedUserGroups(initialSelectedUserGroups);
-    setSankeySelectors(initialSankeySelectors);
+    setSankeySelectors(normalizeSankeySelectors(initialSankeySelectors || []));
   }, [
     initialSummaryViewMode,
     initialSecondarySplitMode,
@@ -447,7 +448,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     );
     setShowOtherTeams(initialShowOtherTeams);
     setSelectedUserGroups(initialSelectedUserGroups);
-    setSankeySelectors(initialSankeySelectors);
+    setSankeySelectors(normalizeSankeySelectors(initialSankeySelectors || []));
     setIsEditMode(false);
     setShowFilterControls(false);
   };

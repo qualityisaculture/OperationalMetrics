@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Card, Table, Typography, Button, Space } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
-import { SankeySelectorConfig } from "./SankeySelector";
+import { SankeySelectorConfig, getMatchers, SankeyMatcher } from "./SankeySelector";
 import { LabelsMap } from "../hooks/useLabels";
 import { AncestryTypesMap } from "../hooks/useAncestryTypes";
 
@@ -42,6 +42,50 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     null
   );
 
+  const rowMatchesMatcher = (
+    row: any,
+    matcher: SankeyMatcher,
+    issueType: string | null,
+    issueKey: string | null
+  ): boolean => {
+    if (matcher.type === "Type") {
+      return !!(issueType && matcher.selectedValues.includes(String(issueType).trim()));
+    }
+    if (matcher.type === "Label" && issueKey) {
+      const issueLabels = labels[String(issueKey).trim()] || [];
+      return matcher.selectedValues.some((l) => issueLabels.includes(l));
+    }
+    if (matcher.type === "Project" && issueKey) {
+      const projectMatch = String(issueKey).trim().match(/^([A-Z0-9]+)(?:-|$)/);
+      const project = projectMatch ? projectMatch[1] : null;
+      return !!(project && matcher.selectedValues.includes(project));
+    }
+    if (matcher.type === "Key" && issueKey) {
+      return matcher.selectedValues.includes(String(issueKey).trim());
+    }
+    if (matcher.type === "Account Category") {
+      const accountCategory = accountCategoryIndex !== -1 ? row[accountCategoryIndex.toString()] : null;
+      return !!(accountCategory && matcher.selectedValues.includes(String(accountCategory).trim()));
+    }
+    if (matcher.type === "Account") {
+      const accountName = accountNameIndex !== -1 ? row[accountNameIndex.toString()] : null;
+      return !!(accountName && matcher.selectedValues.includes(String(accountName).trim()));
+    }
+    if (matcher.type === "AncestryType" && issueKey) {
+      const ancestryType = ancestryTypes[String(issueKey).trim()];
+      return !!(ancestryType && matcher.selectedValues.includes(ancestryType));
+    }
+    return false;
+  };
+
+  const rowMatchesSelector = (row: any, selector: SankeySelectorConfig): boolean => {
+    const issueType = issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
+    const issueKey = issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
+    const matchers = getMatchers(selector);
+    if (matchers.length === 0) return false;
+    return matchers.some((m) => rowMatchesMatcher(row, m, issueType, issueKey));
+  };
+
   const computeSelectorHoursForRows = (rows: any[]) => {
     const hours: { [key: string]: number } = {};
     selectors.forEach((_, idx) => {
@@ -49,10 +93,6 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     });
     hours["Other"] = 0;
     rows.forEach((row) => {
-      const issueType =
-        issueTypeIndex !== -1 ? row[issueTypeIndex.toString()] : null;
-      const issueKey =
-        issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
       const loggedHours =
         loggedHoursIndex !== -1
           ? parseFloat(row[loggedHoursIndex.toString()] || "0")
@@ -60,53 +100,10 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       if (loggedHours <= 0) return;
       let matched = false;
       for (let i = 0; i < selectors.length; i++) {
-        const selector = selectors[i];
-        if (selector.type === "Type") {
-          if (issueType && selector.selectedValues.includes(String(issueType).trim())) {
-            hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
-            matched = true;
-            break;
-          }
-        } else if (selector.type === "Label" && issueKey) {
-          const issueLabels = labels[String(issueKey).trim()] || [];
-          if (selector.selectedValues.some((l) => issueLabels.includes(l))) {
-            hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
-            matched = true;
-            break;
-          }
-        } else if (selector.type === "Project" && issueKey) {
-          const projectMatch = String(issueKey).trim().match(/^([A-Z0-9]+)(?:-|$)/);
-          const project = projectMatch ? projectMatch[1] : null;
-          if (project && selector.selectedValues.includes(project)) {
-            hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
-            matched = true;
-            break;
-          }
-        } else if (selector.type === "Key" && issueKey && selector.selectedValues.includes(String(issueKey).trim())) {
+        if (rowMatchesSelector(row, selectors[i])) {
           hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
           matched = true;
           break;
-        } else if (selector.type === "Account Category") {
-          const accountCategory = accountCategoryIndex !== -1 ? row[accountCategoryIndex.toString()] : null;
-          if (accountCategory && selector.selectedValues.includes(String(accountCategory).trim())) {
-            hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
-            matched = true;
-            break;
-          }
-        } else if (selector.type === "Account") {
-          const accountName = accountNameIndex !== -1 ? row[accountNameIndex.toString()] : null;
-          if (accountName && selector.selectedValues.includes(String(accountName).trim())) {
-            hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
-            matched = true;
-            break;
-          }
-        } else if (selector.type === "AncestryType" && issueKey) {
-          const ancestryType = ancestryTypes[String(issueKey).trim()];
-          if (ancestryType && selector.selectedValues.includes(ancestryType)) {
-            hours[`Selector ${i + 1}`] = (hours[`Selector ${i + 1}`] || 0) + loggedHours;
-            matched = true;
-            break;
-          }
         }
       }
       if (!matched) hours["Other"] = (hours["Other"] || 0) + loggedHours;
@@ -165,44 +162,13 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     index: number
   ): string => {
     const baseName = selector.name || `Selector ${index + 1}`;
-
-    if (selector.type === "Type") {
-      if (selector.selectedValues.length === 0) {
-        return `${baseName} (Type: none selected)`;
-      }
-      return `${baseName} (Type: ${selector.selectedValues.join(", ")})`;
-    } else if (selector.type === "Label") {
-      if (selector.selectedValues.length === 0) {
-        return `${baseName} (Label: none selected)`;
-      }
-      return `${baseName} (Label: ${selector.selectedValues.join(", ")})`;
-    } else if (selector.type === "Project") {
-      if (selector.selectedValues.length === 0) {
-        return `${baseName} (Project: none selected)`;
-      }
-      return `${baseName} (Project: ${selector.selectedValues.join(", ")})`;
-    } else if (selector.type === "Key") {
-      if (selector.selectedValues.length === 0) {
-        return `${baseName} (Key: none selected)`;
-      }
-      return `${baseName} (Key: ${selector.selectedValues.join(", ")})`;
-    } else if (selector.type === "Account Category") {
-      if (selector.selectedValues.length === 0) {
-        return `${baseName} (Account Category: none selected)`;
-      }
-      return `${baseName} (Account Category: ${selector.selectedValues.join(", ")})`;
-    } else if (selector.type === "Account") {
-      if (selector.selectedValues.length === 0) {
-        return `${baseName} (Account: none selected)`;
-      }
-      return `${baseName} (Account: ${selector.selectedValues.join(", ")})`;
-    } else if (selector.type === "AncestryType") {
-      if (selector.selectedValues.length === 0) {
-        return `${baseName} (AncestryType: none selected)`;
-      }
-      return `${baseName} (AncestryType: ${selector.selectedValues.join(", ")})`;
-    }
-    return baseName;
+    const matchers = getMatchers(selector);
+    if (matchers.length === 0) return baseName;
+    const parts = matchers.map((m) => {
+      if (m.selectedValues.length === 0) return `${m.type}: none selected`;
+      return `${m.type}: ${m.selectedValues.join(", ")}`;
+    });
+    return `${baseName} (${parts.join(" OR ")})`;
   };
 
   // Prepare table data
@@ -309,139 +275,11 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         return;
       }
 
-      let matches = false;
-
-      if (isOther) {
-        // Check if it doesn't match any selector
-        let matchedAny = false;
-        for (let i = 0; i < selectors.length; i++) {
-          const sel = selectors[i];
-          if (sel.type === "Type") {
-            if (issueType) {
-              const issueTypeStr = String(issueType).trim();
-              if (sel.selectedValues.includes(issueTypeStr)) {
-                matchedAny = true;
-                break;
-              }
-            }
-          } else if (sel.type === "Label") {
-            if (issueKey) {
-              const issueKeyStr = String(issueKey).trim();
-              const issueLabels = labels[issueKeyStr] || [];
-              const hasMatchingLabel = sel.selectedValues.some(
-                (selectedLabel) => issueLabels.includes(selectedLabel)
-              );
-              if (hasMatchingLabel) {
-                matchedAny = true;
-                break;
-              }
-            }
-          } else if (sel.type === "Project") {
-            if (issueKey) {
-              const issueKeyStr = String(issueKey).trim();
-              const projectMatch = issueKeyStr.match(/^([A-Z0-9]+)(?:-|$)/);
-              const project = projectMatch ? projectMatch[1] : null;
-              if (project && sel.selectedValues.includes(project)) {
-                matchedAny = true;
-                break;
-              }
-            }
-          } else if (sel.type === "Key") {
-            if (issueKey) {
-              const issueKeyStr = String(issueKey).trim();
-              if (sel.selectedValues.includes(issueKeyStr)) {
-                matchedAny = true;
-                break;
-              }
-            }
-          } else if (sel.type === "Account Category") {
-            const accountCategory =
-              accountCategoryIndex !== -1
-                ? row[accountCategoryIndex.toString()]
-                : null;
-            if (accountCategory) {
-              const accountCategoryStr = String(accountCategory).trim();
-              if (sel.selectedValues.includes(accountCategoryStr)) {
-                matchedAny = true;
-                break;
-              }
-            }
-          } else if (sel.type === "Account") {
-            const accountName =
-              accountNameIndex !== -1 ? row[accountNameIndex.toString()] : null;
-            if (accountName) {
-              const accountNameStr = String(accountName).trim();
-              if (sel.selectedValues.includes(accountNameStr)) {
-                matchedAny = true;
-                break;
-              }
-            }
-          } else if (sel.type === "AncestryType") {
-            if (issueKey) {
-              const issueKeyStr = String(issueKey).trim();
-              const ancestryType = ancestryTypes[issueKeyStr];
-              if (ancestryType && sel.selectedValues.includes(ancestryType)) {
-                matchedAny = true;
-                break;
-              }
-            }
-          }
-        }
-        matches = !matchedAny;
-      } else if (selector) {
-        if (selector.type === "Type") {
-          if (issueType) {
-            const issueTypeStr = String(issueType).trim();
-            matches = selector.selectedValues.includes(issueTypeStr);
-          }
-        } else if (selector.type === "Label") {
-          if (issueKey) {
-            const issueKeyStr = String(issueKey).trim();
-            const issueLabels = labels[issueKeyStr] || [];
-            matches = selector.selectedValues.some((selectedLabel) =>
-              issueLabels.includes(selectedLabel)
-            );
-          }
-        } else if (selector.type === "Project") {
-          if (issueKey) {
-            const issueKeyStr = String(issueKey).trim();
-            // Extract project prefix (e.g., "ABC-1" -> "ABC" or "ABC123-4" -> "ABC123")
-            const projectMatch = issueKeyStr.match(/^([A-Z0-9]+)(?:-|$)/);
-            const project = projectMatch ? projectMatch[1] : null;
-            matches =
-              project !== null && selector.selectedValues.includes(project);
-          }
-        } else if (selector.type === "Key") {
-          if (issueKey) {
-            const issueKeyStr = String(issueKey).trim();
-            matches = selector.selectedValues.includes(issueKeyStr);
-          }
-        } else if (selector.type === "Account Category") {
-          const accountCategory =
-            accountCategoryIndex !== -1
-              ? row[accountCategoryIndex.toString()]
-              : null;
-          if (accountCategory) {
-            const accountCategoryStr = String(accountCategory).trim();
-            matches = selector.selectedValues.includes(accountCategoryStr);
-          }
-        } else if (selector.type === "Account") {
-          const accountName =
-            accountNameIndex !== -1 ? row[accountNameIndex.toString()] : null;
-          if (accountName) {
-            const accountNameStr = String(accountName).trim();
-            matches = selector.selectedValues.includes(accountNameStr);
-          }
-        } else if (selector.type === "AncestryType") {
-          if (issueKey) {
-            const issueKeyStr = String(issueKey).trim();
-            const ancestryType = ancestryTypes[issueKeyStr];
-            matches =
-              ancestryType !== undefined &&
-              selector.selectedValues.includes(ancestryType);
-          }
-        }
-      }
+      const matches = isOther
+        ? !selectors.some((sel) => rowMatchesSelector(row, sel))
+        : selector
+          ? rowMatchesSelector(row, selector)
+          : false;
 
       if (matches && issueKey) {
         const key = String(issueKey).trim();

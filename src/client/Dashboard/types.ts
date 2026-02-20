@@ -40,10 +40,11 @@ export interface TempoAnalyzerConfig {
   excludeEndDate: string | null;
   showOtherTeams: boolean;
   selectedUserGroups: string[];
+  /** Backwards compatible: supports legacy (type + selectedValues) or new (matchers array). */
   sankeySelectors: Array<{
     id: string;
     name?: string;
-    type:
+    type?:
       | "Type"
       | "Label"
       | "Project"
@@ -51,7 +52,11 @@ export interface TempoAnalyzerConfig {
       | "Account Category"
       | "Account"
       | "AncestryType";
-    selectedValues: string[];
+    selectedValues?: string[];
+    matchers?: Array<{
+      type: "Type" | "Label" | "Project" | "Key" | "Account Category" | "Account" | "AncestryType";
+      selectedValues: string[];
+    }>;
   }>;
 }
 
