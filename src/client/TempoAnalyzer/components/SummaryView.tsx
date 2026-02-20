@@ -104,10 +104,16 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     monthsInData.forEach((monthLabel, i) => {
       const hours =
         groupedByMonth[monthLabel]?.[mapName]?.[item] ?? 0;
+      // Total hours in this month only (so % is share of that month, not whole dataset)
+      const monthTotal =
+        Object.values(groupedByMonth[monthLabel]?.[mapName] ?? {}).reduce(
+          (a, b) => a + b,
+          0
+        ) || 0;
       fields[`month_${i}_days`] = hours / 7.5;
       fields[`month_${i}_pct`] =
-        totalHours > 0
-          ? ((hours / totalHours) * 100).toFixed(1)
+        monthTotal > 0
+          ? ((hours / monthTotal) * 100).toFixed(1)
           : "0.0";
     });
     return fields;
