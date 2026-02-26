@@ -25,6 +25,7 @@ import BottleneckDetectorGraphManager from "../graphManagers/BottleneckDetectorG
 import WorkstreamOrphanDetectorGraphManager from "../graphManagers/WorkstreamOrphanDetectorGraphManager";
 import BugsAnalysisGraphManager from "../graphManagers/BugsAnalysisGraphManager";
 import BitBucketRequester from "../BitBucketRequester";
+import GitLabRequester from "../GitLabRequester";
 import AverageResolutionTimeGraphManager from "../graphManagers/AverageResolutionTimeGraphManager";
 
 async function getJiraData(issueKey: string) {}
@@ -51,6 +52,7 @@ const workstreamOrphanDetectorGraphManager =
   new WorkstreamOrphanDetectorGraphManager(jiraRequester);
 const bugsAnalysisGraphManager = new BugsAnalysisGraphManager(jiraRequester);
 const bitBucketRequester = new BitBucketRequester();
+const gitLabRequester = new GitLabRequester();
 const averageResolutionTimeGraphManager = new AverageResolutionTimeGraphManager(
   jiraRequester
 );
@@ -1461,6 +1463,99 @@ metricsRoute.post(
         res.json({
           message:
             "Error fetching pull requests from BitBucket: " + error.message,
+          data: JSON.stringify([]),
+          cached: false,
+        });
+      });
+  }
+);
+
+// GitLab API route for projects
+metricsRoute.get(
+  "/gitlab/projects",
+  (
+    req: TRQ<{ group?: string }>,
+    res: TR<{ message: string; data: string }>
+  ) => {
+    const group = req.query.group;
+    console.log("GitLab projects endpoint called, group:", group);
+
+    if (!group) {
+      res.json({
+        message: "group query parameter is required",
+        data: JSON.stringify([]),
+      });
+      return;
+    }
+
+    gitLabRequester
+      .getProjectsForGroup(group)
+      .then((projects) => {
+        console.log(`Found ${projects.length} projects from GitLab`);
+        res.json({
+          message: "GitLab projects fetched successfully",
+          data: JSON.stringify(projects),
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching projects from GitLab:", error);
+        res.json({
+          message: "Error fetching projects from GitLab: " + error.message,
+          data: JSON.stringify([]),
+        });
+      });
+  }
+);
+
+// GitLab API route for merge requests
+metricsRoute.post(
+  "/gitlab/merge-requests",
+  (
+    req: TRB<{ projects: any[]; refresh?: boolean }>,
+    res: TR<{
+      message: string;
+      data: string;
+      cached?: boolean;
+      lastUpdated?: number;
+    }>
+  ) => {
+    const { projects, refresh = false } = req.body;
+    console.log(
+      `GitLab merge requests endpoint called for ${projects.length} projects (refresh: ${refresh})`
+    );
+
+    if (refresh) {
+      gitLabRequester.clearMRCache(projects);
+    }
+
+    const cacheTimestamp = gitLabRequester.getCachedMRDataTimestamp(projects);
+    const useCache = !refresh && cacheTimestamp !== null;
+
+    gitLabRequester
+      .getMergeRequestsForProjects(projects, useCache)
+      .then((results) => {
+        const totalMRs = results.reduce(
+          (sum, r) => sum + r.mergeRequests.length,
+          0
+        );
+        const currentCacheTimestamp =
+          gitLabRequester.getCachedMRDataTimestamp(projects);
+
+        console.log(
+          `Found ${totalMRs} total MRs across ${projects.length} projects (cached: ${useCache})`
+        );
+        res.json({
+          message: "GitLab merge requests fetched successfully",
+          data: JSON.stringify(results),
+          cached: useCache,
+          lastUpdated: currentCacheTimestamp || undefined,
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching merge requests from GitLab:", error);
+        res.json({
+          message:
+            "Error fetching merge requests from GitLab: " + error.message,
           data: JSON.stringify([]),
           cached: false,
         });
