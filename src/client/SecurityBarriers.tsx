@@ -136,13 +136,20 @@ const WeWork: React.FC<WeWorkProps> = () => {
     return name.toLowerCase().trim().replace(/\s+/g, " ");
   };
 
+  // Strip accents so e.g. "Nataša" matches "Natasha"
+  const normalizeAccents = (name: string) => {
+    return name
+      .normalize("NFD")
+      .replace(/\p{Mark}/gu, "");
+  };
+
   // Helper function for fuzzy first name matching
   const fuzzyMatchFirstName = (
     firstName1: string,
     firstName2: string
   ): boolean => {
-    const n1 = normalizeName(firstName1);
-    const n2 = normalizeName(firstName2);
+    const n1 = normalizeAccents(normalizeName(firstName1));
+    const n2 = normalizeAccents(normalizeName(firstName2));
 
     // Exact match
     if (n1 === n2) return true;
@@ -176,7 +183,8 @@ const WeWork: React.FC<WeWorkProps> = () => {
       fara: ["farasat"],
       ioana: ["ioana maria"],
       agi: ["agnes"],
-      natasa: ["nataša"],
+      natasa: ["nataša", "natasha"],
+      natasha: ["natasa", "nataša"],
       petre: ["petre-iulian"],
     };
 
@@ -213,8 +221,11 @@ const WeWork: React.FC<WeWorkProps> = () => {
     lastName1: string,
     lastName2: string
   ): boolean => {
-    const n1 = normalizeName(lastName1);
-    const n2 = normalizeName(lastName2);
+    // Remove hyphens/dashes before comparing so "Keyworth-Wright" matches "KeyworthWright"
+    const stripHyphens = (s: string) =>
+      normalizeName(s).replace(/[\-\u2013\u2014\u2212]/g, "");
+    const n1 = normalizeAccents(stripHyphens(lastName1));
+    const n2 = normalizeAccents(stripHyphens(lastName2));
 
     // Exact match
     if (n1 === n2) return true;
