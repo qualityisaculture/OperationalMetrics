@@ -17,8 +17,7 @@ export type SankeyMatcherType =
   | "Key"
   | "Account Category"
   | "Account"
-  | "AncestryType"
-  | "Parent";
+  | "AncestryType";
 
 export interface SankeyMatcher {
   type: SankeyMatcherType;
@@ -75,7 +74,6 @@ interface SankeySelectorProps {
   availableAccountCategories: string[];
   availableAccounts: string[];
   availableAncestryTypes: string[];
-  availableParents: string[];
   selectors: SankeySelectorConfig[];
   onSelectorsChange: (selectors: SankeySelectorConfig[]) => void;
   onRequestLabels: () => void;
@@ -92,7 +90,6 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
   availableAccountCategories,
   availableAccounts,
   availableAncestryTypes,
-  availableParents,
   selectors,
   onSelectorsChange,
   onRequestLabels,
@@ -308,7 +305,6 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                         <Option value="Account Category">Account Category</Option>
                         <Option value="Account">Account</Option>
                         <Option value="AncestryType">AncestryType</Option>
-                        <Option value="Parent">Parent</Option>
                       </Select>
                     </div>
                     <div>
@@ -325,9 +321,7 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                                   ? "Select Account Categories:"
                                   : matcher.type === "Account"
                                     ? "Select Accounts:"
-                                    : matcher.type === "AncestryType"
-                                      ? "Select Ancestry Types:"
-                                      : "Select Parent Keys:"}
+                                    : "Select Ancestry Types:"}
                       </Text>
                       <Select
                         mode="multiple"
@@ -344,9 +338,7 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                                     ? "Select account categories"
                                     : matcher.type === "Account"
                                       ? "Select accounts"
-                                      : matcher.type === "AncestryType"
-                                        ? "Select ancestry types"
-                                        : "Select parent keys"
+                                      : "Select ancestry types"
                         }
                         value={matcher.selectedValues}
                         onChange={(values) =>
@@ -368,9 +360,7 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                           (matcher.type === "Account" &&
                             availableAccounts.length === 0) ||
                           (matcher.type === "AncestryType" &&
-                            availableAncestryTypes.length === 0) ||
-                          (matcher.type === "Parent" &&
-                            availableParents.length === 0)
+                            availableAncestryTypes.length === 0)
                         }
                       >
                         {matcher.type === "Type"
@@ -409,17 +399,11 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                                           {account}
                                         </Option>
                                       ))
-                                    : matcher.type === "AncestryType"
-                                      ? availableAncestryTypes.map((ancestryType) => (
-                                          <Option key={ancestryType} value={ancestryType}>
-                                            {ancestryType}
-                                          </Option>
-                                        ))
-                                      : availableParents.map((parent) => (
-                                          <Option key={parent} value={parent}>
-                                            {parent}
-                                          </Option>
-                                        ))}
+                                    : availableAncestryTypes.map((ancestryType) => (
+                                        <Option key={ancestryType} value={ancestryType}>
+                                          {ancestryType}
+                                        </Option>
+                                      ))}
                       </Select>
                       {matcher.type === "Label" && availableLabels.length === 0 && (
                         <Text type="secondary" style={{ fontSize: "12px" }}>
@@ -454,11 +438,6 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                             information for issues.
                           </Text>
                         )}
-                      {matcher.type === "Parent" && availableParents.length === 0 && (
-                        <Text type="secondary" style={{ fontSize: "12px" }}>
-                          No parent keys available. Ensure the data has a "Parent" column.
-                        </Text>
-                      )}
                     </div>
                   </div>
                 ))}

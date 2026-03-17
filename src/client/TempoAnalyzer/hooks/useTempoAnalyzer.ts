@@ -157,7 +157,6 @@ export const useTempoAnalyzer = (
     workDescriptionIndex: -1,
     typeOfWorkIndex: -1,
     dateIndex: -1,
-    parentIndex: -1,
     rawData: [],
     headers: [],
     filteredData: [],
@@ -682,12 +681,6 @@ export const useTempoAnalyzer = (
         header.toLowerCase().includes("date") ||
         header.toLowerCase().includes("date")
     );
-    const parentIndex = headers.findIndex(
-      (header) =>
-        header.toLowerCase() === "parent" ||
-        header.toLowerCase().includes("parent key") ||
-        header.toLowerCase().includes("parent issue")
-    );
 
     if (accountCategoryIndex === -1 || loggedHoursIndex === -1) {
       message.warning(
@@ -711,7 +704,6 @@ export const useTempoAnalyzer = (
       workDescriptionIndex,
       typeOfWorkIndex,
       dateIndex,
-      parentIndex,
       rawData: newRawData,
       headers: newHeaders,
     }));
@@ -1142,7 +1134,6 @@ export const useTempoAnalyzer = (
       workDescriptionIndex: -1,
       typeOfWorkIndex: -1,
       dateIndex: -1,
-      parentIndex: -1,
       rawData: [],
       headers: [],
       filteredData: [],

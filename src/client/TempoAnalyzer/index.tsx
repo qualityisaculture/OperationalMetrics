@@ -216,23 +216,6 @@ const TempoAnalyzer: React.FC<Props> = () => {
     return Array.from(accounts).sort();
   }, [analyzer.filteredData, analyzer.accountNameIndex]);
 
-  // Get available parent keys for Sankey selector
-  const availableParents = React.useMemo(() => {
-    const parents = new Set<string>();
-    if (analyzer.parentIndex !== -1) {
-      analyzer.filteredData.forEach((row) => {
-        const parentKey = row[analyzer.parentIndex.toString()];
-        if (parentKey) {
-          const key = String(parentKey).trim();
-          if (key) {
-            parents.add(key);
-          }
-        }
-      });
-    }
-    return Array.from(parents).sort();
-  }, [analyzer.filteredData, analyzer.parentIndex]);
-
   // Unique months in data for "Split by month" columns (e.g. ["Jan '26", "Feb '26"])
   const MONTH_NAMES = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -371,7 +354,6 @@ const TempoAnalyzer: React.FC<Props> = () => {
                     availableAccountCategories={availableAccountCategories}
                     availableAccounts={availableAccounts}
                     availableAncestryTypes={getAllAncestryTypes()}
-                    availableParents={availableParents}
                     selectors={sankeySelectors}
                     onSelectorsChange={setSankeySelectors}
                     onRequestLabels={fetchLabels}
@@ -388,7 +370,6 @@ const TempoAnalyzer: React.FC<Props> = () => {
                       fullNameIndex={analyzer.fullNameIndex}
                       accountCategoryIndex={analyzer.accountCategoryIndex}
                       accountNameIndex={analyzer.accountNameIndex}
-                      parentIndex={analyzer.parentIndex}
                       selectors={sankeySelectors}
                       labels={labels}
                       ancestryTypes={ancestryTypes}
