@@ -43,6 +43,7 @@ export interface State {
   workDescriptionIndex: number;
   typeOfWorkIndex: number;
   dateIndex: number;
+  parentIndex: number;
   rawData: any[];
   headers: string[];
   // New state for filtered data that respects all filters

@@ -15,6 +15,7 @@ interface SankeyViewProps {
   fullNameIndex: number;
   accountCategoryIndex: number;
   accountNameIndex: number;
+  parentIndex: number;
   selectors: SankeySelectorConfig[];
   labels: LabelsMap;
   ancestryTypes: AncestryTypesMap;
@@ -31,6 +32,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   fullNameIndex,
   accountCategoryIndex,
   accountNameIndex,
+  parentIndex,
   selectors,
   labels,
   ancestryTypes,
@@ -74,6 +76,10 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     if (matcher.type === "AncestryType" && issueKey) {
       const ancestryType = ancestryTypes[String(issueKey).trim()];
       return !!(ancestryType && matcher.selectedValues.includes(ancestryType));
+    }
+    if (matcher.type === "Parent") {
+      const parentKey = parentIndex !== -1 ? row[parentIndex.toString()] : null;
+      return !!(parentKey && matcher.selectedValues.includes(String(parentKey).trim()));
     }
     return false;
   };

@@ -265,6 +265,22 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     return Array.from(accounts).sort();
   }, [analyzer.filteredData, analyzer.accountNameIndex]);
 
+  const availableParents = useMemo(() => {
+    const parents = new Set<string>();
+    if (analyzer.parentIndex !== -1) {
+      analyzer.filteredData.forEach((row) => {
+        const parentKey = row[analyzer.parentIndex.toString()];
+        if (parentKey) {
+          const key = String(parentKey).trim();
+          if (key) {
+            parents.add(key);
+          }
+        }
+      });
+    }
+    return Array.from(parents).sort();
+  }, [analyzer.filteredData, analyzer.parentIndex]);
+
   const MONTH_NAMES = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -693,6 +709,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                   availableAccountCategories={availableAccountCategories}
                   availableAccounts={availableAccounts}
                   availableAncestryTypes={getAllAncestryTypes()}
+                  availableParents={availableParents}
                   selectors={sankeySelectors}
                   onSelectorsChange={setSankeySelectors}
                   onRequestLabels={fetchLabels}
@@ -717,6 +734,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                       fullNameIndex={analyzer.fullNameIndex}
                       accountCategoryIndex={analyzer.accountCategoryIndex}
                       accountNameIndex={analyzer.accountNameIndex}
+                      parentIndex={analyzer.parentIndex}
                       selectors={sankeySelectors}
                       labels={labels}
                       ancestryTypes={ancestryTypes}
