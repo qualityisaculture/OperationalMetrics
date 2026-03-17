@@ -199,6 +199,17 @@ const TempoAnalyzer: React.FC<Props> = () => {
     return Array.from(categories).sort();
   }, [analyzer.filteredData, analyzer.accountCategoryIndex]);
 
+  // Get available parents for Sankey selector (direct parent keys from parentAncestors)
+  const availableParents = React.useMemo(() => {
+    const parents = new Set<string>();
+    Object.values(parentAncestors).forEach((ancestors) => {
+      if (ancestors && ancestors.length > 0) {
+        parents.add(ancestors[0].key);
+      }
+    });
+    return Array.from(parents).sort();
+  }, [parentAncestors]);
+
   // Get available accounts for Sankey selector
   const availableAccounts = React.useMemo(() => {
     const accounts = new Set<string>();
@@ -354,6 +365,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
                     availableAccountCategories={availableAccountCategories}
                     availableAccounts={availableAccounts}
                     availableAncestryTypes={getAllAncestryTypes()}
+                    availableParents={availableParents}
                     selectors={sankeySelectors}
                     onSelectorsChange={setSankeySelectors}
                     onRequestLabels={fetchLabels}
@@ -373,6 +385,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
                       selectors={sankeySelectors}
                       labels={labels}
                       ancestryTypes={ancestryTypes}
+                      parentAncestors={parentAncestors}
                       splitByMonth={splitByMonth}
                       monthsInData={monthsInData}
                       dateIndex={analyzer.dateIndex}

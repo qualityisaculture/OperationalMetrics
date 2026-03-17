@@ -4,6 +4,7 @@ import { ArrowLeftOutlined } from "@ant-design/icons";
 import { SankeySelectorConfig, getMatchers, SankeyMatcher } from "./SankeySelector";
 import { LabelsMap } from "../hooks/useLabels";
 import { AncestryTypesMap } from "../hooks/useAncestryTypes";
+import { ParentAncestorsMap } from "../hooks/useParentAncestors";
 
 const { Text, Title } = Typography;
 
@@ -18,6 +19,7 @@ interface SankeyViewProps {
   selectors: SankeySelectorConfig[];
   labels: LabelsMap;
   ancestryTypes: AncestryTypesMap;
+  parentAncestors: ParentAncestorsMap;
   splitByMonth?: boolean;
   monthsInData?: string[];
   dateIndex?: number;
@@ -34,6 +36,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   selectors,
   labels,
   ancestryTypes,
+  parentAncestors,
   splitByMonth = false,
   monthsInData = [],
   dateIndex = -1,
@@ -74,6 +77,11 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     if (matcher.type === "AncestryType" && issueKey) {
       const ancestryType = ancestryTypes[String(issueKey).trim()];
       return !!(ancestryType && matcher.selectedValues.includes(ancestryType));
+    }
+    if (matcher.type === "Parent" && issueKey) {
+      const ancestors = parentAncestors[String(issueKey).trim()];
+      const parentKey = ancestors && ancestors.length > 0 ? ancestors[0].key : null;
+      return !!(parentKey && matcher.selectedValues.includes(parentKey));
     }
     return false;
   };
