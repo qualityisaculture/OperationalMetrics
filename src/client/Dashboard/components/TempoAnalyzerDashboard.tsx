@@ -29,6 +29,7 @@ import { SheetManager } from "../../TempoAnalyzer/components/SheetManager";
 import { useTempoAnalyzer } from "../../TempoAnalyzer/hooks/useTempoAnalyzer";
 import { useUserGroups } from "../../TempoAnalyzer/hooks/useUserGroups";
 import { useLabels } from "../../TempoAnalyzer/hooks/useLabels";
+import { useEstimates } from "../../TempoAnalyzer/hooks/useEstimates";
 import { useParentAncestors } from "../../TempoAnalyzer/hooks/useParentAncestors";
 import { useAncestryTypes } from "../../TempoAnalyzer/hooks/useAncestryTypes";
 import { useExcelProcessor } from "../../TempoAnalyzer/hooks/useExcelProcessor";
@@ -179,6 +180,13 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     fetchLabels,
     getAllLabels,
   } = useLabels(analyzer.filteredData, analyzer.issueKeyIndex);
+
+  // Estimates for Sankey
+  const {
+    estimates,
+    isLoading: isLoadingEstimates,
+    fetchEstimates,
+  } = useEstimates(analyzer.filteredData, analyzer.issueKeyIndex);
 
   // Parent ancestors for Sankey
   const {
@@ -490,6 +498,14 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     ) {
       fetchParentAncestors();
     }
+    if (
+      currentViewMode === "sankey" &&
+      hasData &&
+      !isLoadingEstimates &&
+      Object.keys(estimates).length === 0
+    ) {
+      fetchEstimates();
+    }
   }, [
     analyzer.summaryViewMode,
     summaryViewMode,
@@ -501,6 +517,9 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
     isLoadingAncestors,
     parentAncestors,
     fetchParentAncestors,
+    isLoadingEstimates,
+    estimates,
+    fetchEstimates,
   ]);
 
   const { groupedData, selectedCategory, selectedUser, selectedAncestryType } =
@@ -732,6 +751,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                       labels={labels}
                       ancestryTypes={ancestryTypes}
                       parentAncestors={parentAncestors}
+                      estimates={estimates}
                       splitByMonth={splitByMonth}
                       monthsInData={monthsInData}
                       dateIndex={analyzer.dateIndex}

@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { Card, Table, Typography, Button, Space } from "antd";
+import type { TableProps } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { SankeySelectorConfig, getMatchers, SankeyMatcher } from "./SankeySelector";
 import { LabelsMap } from "../hooks/useLabels";
 import { AncestryTypesMap } from "../hooks/useAncestryTypes";
 import { ParentAncestorsMap } from "../hooks/useParentAncestors";
+import { EstimatesMap } from "../hooks/useEstimates";
 
 const { Text, Title } = Typography;
 
@@ -20,6 +22,7 @@ interface SankeyViewProps {
   labels: LabelsMap;
   ancestryTypes: AncestryTypesMap;
   parentAncestors: ParentAncestorsMap;
+  estimates: EstimatesMap;
   splitByMonth?: boolean;
   monthsInData?: string[];
   dateIndex?: number;
@@ -37,6 +40,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   labels,
   ancestryTypes,
   parentAncestors,
+  estimates,
   splitByMonth = false,
   monthsInData = [],
   dateIndex = -1,
@@ -119,6 +123,52 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     return hours;
   };
 
+  // Calculate estimated days per selector, summing unique issues' estimates
+  const computeSelectorEstimatedDaysForRows = (rows: any[]) => {
+    const days: { [key: string]: number } = {};
+    selectors.forEach((_, idx) => {
+      days[`Selector ${idx + 1}`] = 0;
+    });
+    days["Other"] = 0;
+
+    // Collect unique issues per selector to avoid double-counting
+    const selectorIssues: { [key: string]: Set<string> } = {};
+    selectors.forEach((_, idx) => {
+      selectorIssues[`Selector ${idx + 1}`] = new Set();
+    });
+    selectorIssues["Other"] = new Set();
+
+    rows.forEach((row) => {
+      const issueKey = issueKeyIndex !== -1 ? row[issueKeyIndex.toString()] : null;
+      if (!issueKey) return;
+      const key = String(issueKey).trim();
+      if (!key) return;
+
+      let matched = false;
+      for (let i = 0; i < selectors.length; i++) {
+        if (rowMatchesSelector(row, selectors[i])) {
+          selectorIssues[`Selector ${i + 1}`].add(key);
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) selectorIssues["Other"].add(key);
+    });
+
+    Object.keys(selectorIssues).forEach((selectorKey) => {
+      let total = 0;
+      selectorIssues[selectorKey].forEach((issueKey) => {
+        const estimate = estimates[issueKey];
+        if (estimate != null && estimate > 0) {
+          total += estimate;
+        }
+      });
+      days[selectorKey] = total;
+    });
+
+    return days;
+  };
+
   // Calculate hours for each selector and Other
   const selectorHours = useMemo(
     () => computeSelectorHoursForRows(filteredData),
@@ -133,6 +183,11 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       labels,
       ancestryTypes,
     ]
+  );
+
+  const selectorEstimatedDays = useMemo(
+    () => computeSelectorEstimatedDaysForRows(filteredData),
+    [filteredData, issueTypeIndex, issueKeyIndex, accountCategoryIndex, accountNameIndex, selectors, labels, ancestryTypes, estimates]
   );
 
   const selectorHoursByMonth = useMemo(() => {
@@ -186,6 +241,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       selector: string;
       hours: number;
       chargeableDays: number;
+      estimatedDays: number;
       percentage: string;
     }> = [];
 
@@ -216,6 +272,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         selector: getSelectorDescription(selector, idx),
         hours,
         chargeableDays: hours / 7.5,
+        estimatedDays: selectorEstimatedDays[label] || 0,
         percentage:
           totalHours > 0 ? ((hours / totalHours) * 100).toFixed(1) : "0.0",
         ...getMonthFieldsForRow(label),
@@ -229,13 +286,14 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       selector: "Other",
       hours: otherHours,
       chargeableDays: otherHours / 7.5,
+      estimatedDays: selectorEstimatedDays["Other"] || 0,
       percentage:
         totalHours > 0 ? ((otherHours / totalHours) * 100).toFixed(1) : "0.0",
       ...getMonthFieldsForRow("Other"),
     });
 
     return rows.sort((a, b) => b.hours - a.hours);
-  }, [selectors, selectorHours, totalHours, splitByMonth, monthsInData, selectorHoursByMonth]);
+  }, [selectors, selectorHours, selectorEstimatedDays, totalHours, splitByMonth, monthsInData, selectorHoursByMonth]);
 
   // Get matching issues for the selected selector
   const matchingIssues = useMemo(() => {
@@ -260,6 +318,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         fullName: string;
         accountCategory: string;
         hours: number;
+        estimatedDays: number | null;
       }
     >();
 
@@ -283,11 +342,12 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         return;
       }
 
+      // Use the same first-match-wins logic as the statistics:
+      // a row belongs to the first selector it matches, not just any selector.
+      const firstMatchIndex = selectors.findIndex((sel) => rowMatchesSelector(row, sel));
       const matches = isOther
-        ? !selectors.some((sel) => rowMatchesSelector(row, sel))
-        : selector
-          ? rowMatchesSelector(row, selector)
-          : false;
+        ? firstMatchIndex === -1
+        : firstMatchIndex === selectorIndex;
 
       if (matches && issueKey) {
         const key = String(issueKey).trim();
@@ -296,6 +356,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
           if (existing) {
             existing.hours += loggedHours;
           } else {
+            const rawEstimate = estimates[key];
             issueMap.set(key, {
               issueKey: key,
               issueType: issueType ? String(issueType).trim() : "",
@@ -305,6 +366,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
                 ? String(accountCategory).trim()
                 : "",
               hours: loggedHours,
+              estimatedDays: rawEstimate != null ? rawEstimate : null,
             });
           }
         }
@@ -324,11 +386,24 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     accountNameIndex,
     loggedHoursIndex,
     ancestryTypes,
+    estimates,
   ]);
 
   const totalIssueHours = useMemo(() => {
     return matchingIssues.reduce((sum, issue) => sum + issue.hours, 0);
   }, [matchingIssues]);
+
+  const totalIssueEstimatedDays = useMemo(() => {
+    return matchingIssues.reduce(
+      (sum, issue) => sum + (issue.estimatedDays ?? 0),
+      0
+    );
+  }, [matchingIssues]);
+
+  const totalEstimatedDays = useMemo(
+    () => Object.values(selectorEstimatedDays).reduce((sum, v) => sum + v, 0),
+    [selectorEstimatedDays]
+  );
 
   const handleRowClick = (record: any) => {
     setSelectedSelectorKey(record.key);
@@ -420,6 +495,18 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       sorter: (a: any, b: any) => a.chargeableDays - b.chargeableDays,
     },
     {
+      title: "Estimated Days",
+      dataIndex: "estimatedDays",
+      key: "estimatedDays",
+      render: (text: number) =>
+        text > 0 ? (
+          <Text type="secondary">{text.toFixed(2)} days</Text>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
+      sorter: (a: any, b: any) => a.estimatedDays - b.estimatedDays,
+    },
+    {
       title: "Percentage",
       dataIndex: "percentage",
       key: "percentage",
@@ -476,6 +563,18 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         <Text>{(record.hours / 7.5).toFixed(2)} days</Text>
       ),
       sorter: (a: any, b: any) => a.hours - b.hours,
+    },
+    {
+      title: "Estimated Days",
+      dataIndex: "estimatedDays",
+      key: "estimatedDays",
+      render: (val: number | null) =>
+        val != null && val > 0 ? (
+          <Text type="secondary">{val.toFixed(2)} days</Text>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
+      sorter: (a: any, b: any) => (a.estimatedDays ?? 0) - (b.estimatedDays ?? 0),
     },
     {
       title: "Percentage",
@@ -535,6 +634,14 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
               Total Days:{" "}
             </Text>
             <Text>{(totalIssueHours / 7.5).toFixed(2)} days</Text>
+            {totalIssueEstimatedDays > 0 && (
+              <>
+                <Text strong style={{ marginLeft: "16px" }}>
+                  Estimated Days:{" "}
+                </Text>
+                <Text>{totalIssueEstimatedDays.toFixed(2)} days</Text>
+              </>
+            )}
             <Text strong style={{ marginLeft: "16px" }}>
               Issues:{" "}
             </Text>
@@ -554,12 +661,33 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     );
   }
 
+  const summarySummary: TableProps<(typeof tableData)[0]>["summary"] = () => (
+    <Table.Summary.Row style={{ fontWeight: "bold" }}>
+      <Table.Summary.Cell index={0}>Sum</Table.Summary.Cell>
+      <Table.Summary.Cell index={1}>
+        {totalHours.toFixed(2)} hrs
+      </Table.Summary.Cell>
+      <Table.Summary.Cell index={2}>
+        {(totalHours / 7.5).toFixed(2)} days
+      </Table.Summary.Cell>
+      <Table.Summary.Cell index={3}>
+        {totalEstimatedDays > 0 ? `${totalEstimatedDays.toFixed(2)} days` : "-"}
+      </Table.Summary.Cell>
+      <Table.Summary.Cell index={4}>100%</Table.Summary.Cell>
+      {monthsInData.flatMap((_, i) => [
+        <Table.Summary.Cell key={`m${i}d`} index={5 + i * 2} />,
+        <Table.Summary.Cell key={`m${i}p`} index={6 + i * 2} />,
+      ])}
+    </Table.Summary.Row>
+  );
+
   return (
     <Card title="Sankey Analysis (Click a row to drill down)">
       <Table
         dataSource={tableData}
         columns={summaryColumns}
         pagination={false}
+        summary={summarySummary}
         onRow={(record) => ({
           onClick: () => handleRowClick(record),
           style: { cursor: "pointer" },

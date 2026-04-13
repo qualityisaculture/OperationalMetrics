@@ -675,35 +675,46 @@ const WeWork: React.FC<WeWorkProps> = () => {
         // Convert to JSON array
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-        // Process data - columns A (first name), B (last name), H (days off)
+        // Process data - columns A (first name), B (last name), H (duration in range), J (duration unit: "hours" or "days")
         const processedData: HolidayEntry[] = [];
+        const DURATION_IN_RANGE_COL = 7;   // Column H
+        const DURATION_UNIT_COL = 9;       // Column J (if present)
 
         for (let i = 0; i < jsonData.length; i++) {
           const row = jsonData[i] as any[];
 
           // Check if row has enough columns and data
-          if (row && row.length >= 8 && row[0] && row[1] && row[7]) {
+          if (row && row.length >= 8 && row[0] && row[1] && row[DURATION_IN_RANGE_COL]) {
             const firstName = row[0]; // Column A
             const lastName = row[1]; // Column B
-            const daysOff = row[7]; // Column H
+            const durationInRange = row[DURATION_IN_RANGE_COL];
+            const durationUnit = row.length > DURATION_UNIT_COL
+              ? String(row[DURATION_UNIT_COL] ?? "").trim().toLowerCase()
+              : "days";
 
             // Only add if we have valid data
             if (
               firstName &&
               lastName &&
-              daysOff !== undefined &&
-              daysOff !== null
+              durationInRange !== undefined &&
+              durationInRange !== null
             ) {
-              const daysOffNumber =
-                typeof daysOff === "number"
-                  ? daysOff
-                  : parseFloat(daysOff.toString());
+              const durationNumber =
+                typeof durationInRange === "number"
+                  ? durationInRange
+                  : parseFloat(durationInRange.toString());
 
-              if (!isNaN(daysOffNumber) && daysOffNumber > 0) {
+              if (!isNaN(durationNumber) && durationNumber > 0) {
+                // Convert to days: hours → divide by 8; days → use as-is
+                const daysOff =
+                  durationUnit === "hours"
+                    ? durationNumber / 8
+                    : durationNumber;
+
                 processedData.push({
                   firstName: firstName.toString().trim(),
                   lastName: lastName.toString().trim(),
-                  daysOff: daysOffNumber,
+                  daysOff,
                 });
               }
             }

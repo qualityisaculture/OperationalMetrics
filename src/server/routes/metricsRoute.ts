@@ -1381,6 +1381,45 @@ metricsRoute.post(
   }
 );
 
+// API route to get original estimates for a list of Jira issues
+metricsRoute.post(
+  "/tempo-analyzer/estimates",
+  (req: TRB<{ issueKeys: string[] }>, res: TR<{ message: string; data: string }>) => {
+    const { issueKeys } = req.body;
+
+    if (!issueKeys || !Array.isArray(issueKeys) || issueKeys.length === 0) {
+      res.json({
+        message: "issueKeys array is required and must not be empty",
+        data: JSON.stringify({}),
+      });
+      return;
+    }
+
+    console.log(`Fetching estimates for ${issueKeys.length} issues`);
+
+    jiraRequester
+      .getEstimatesForIssues(issueKeys)
+      .then((estimatesMap) => {
+        const result: Record<string, number | null> = {};
+        estimatesMap.forEach((estimate, key) => {
+          result[key] = estimate;
+        });
+
+        res.json({
+          message: "Estimates fetched successfully",
+          data: JSON.stringify(result),
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching estimates:", error);
+        res.json({
+          message: "Error fetching estimates",
+          data: JSON.stringify({}),
+        });
+      });
+  }
+);
+
 // BitBucket API route for repositories
 metricsRoute.get(
   "/bitbucket/repositories",

@@ -554,7 +554,10 @@ export default class JiraRequester {
   async getProjects() {
     const domain = process.env.JIRA_DOMAIN;
     const url = `${domain}/rest/api/3/project/search`;
-    console.log(`Fetching projects from ${url}`);
+    const token = process.env.JIRA_API_TOKEN ?? "";
+    const masked = token.length > 8 ? `${token.slice(0, 4)}...${token.slice(-4)}` : "(too short)";
+    console.log(`Fetching projects from ${url} | token: ${masked}`);
+    console.log(`JIRA_EMAIL: ${process.env.JIRA_EMAIL}`);
 
     let response = await this.fetchRequest(url);
 
@@ -1304,6 +1307,54 @@ export default class JiraRequester {
       return finalAncestorMap;
     } catch (error) {
       console.error("Error fetching parent ancestors:", error);
+      throw error;
+    }
+  }
+
+  // Method to get original estimates (timeoriginalestimate) for a list of issues
+  async getEstimatesForIssues(
+    issueKeys: string[]
+  ): Promise<Map<string, number | null>> {
+    try {
+      if (issueKeys.length === 0) {
+        return new Map();
+      }
+
+      const estimatesMap = new Map<string, number | null>();
+      const batchSize = 50;
+
+      for (let i = 0; i < issueKeys.length; i += batchSize) {
+        const batchKeys = issueKeys.slice(i, i + batchSize);
+
+        const keyConditions = batchKeys
+          .map((key) => `key = "${key}"`)
+          .join(" OR ");
+
+        const jql = `(${keyConditions})`;
+        const fields = "key,timeoriginalestimate";
+        const queryWithFields = `${jql}&fields=${fields}`;
+
+        console.log(
+          `Fetching estimates for ${batchKeys.length} issues (batch ${Math.floor(i / batchSize) + 1})`
+        );
+
+        const response = await this.requestDataFromServer(queryWithFields);
+
+        for (const issue of response.issues) {
+          const issueKey = issue.key;
+          const rawEstimate = issue.fields?.timeoriginalestimate;
+          // Convert from seconds to days (7.5 hours per day)
+          const estimateInDays =
+            rawEstimate != null ? rawEstimate / 3600 / 7.5 : null;
+          estimatesMap.set(issueKey, estimateInDays);
+        }
+      }
+
+      console.log(`Successfully fetched estimates for ${estimatesMap.size} issues`);
+
+      return estimatesMap;
+    } catch (error) {
+      console.error(`Error fetching estimates for issues:`, error);
       throw error;
     }
   }

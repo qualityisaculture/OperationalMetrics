@@ -6,6 +6,7 @@ import { useTempoAnalyzer } from "./hooks/useTempoAnalyzer";
 import { useUserGroups } from "./hooks/useUserGroups";
 import { useParentAncestors } from "./hooks/useParentAncestors";
 import { useLabels } from "./hooks/useLabels";
+import { useEstimates } from "./hooks/useEstimates";
 import { useAncestryTypes } from "./hooks/useAncestryTypes";
 import { Props } from "./types";
 import { FileUpload } from "./components/FileUpload";
@@ -94,6 +95,12 @@ const TempoAnalyzer: React.FC<Props> = () => {
     fetchLabels,
     getAllLabels,
   } = useLabels(initialAnalyzer.filteredData, initialAnalyzer.issueKeyIndex);
+
+  const {
+    estimates,
+    isLoading: isLoadingEstimates,
+    fetchEstimates,
+  } = useEstimates(initialAnalyzer.filteredData, initialAnalyzer.issueKeyIndex);
 
   // Get issue count for display
   const issueCount = React.useMemo(() => {
@@ -284,6 +291,14 @@ const TempoAnalyzer: React.FC<Props> = () => {
     ) {
       fetchParentAncestors();
     }
+    if (
+      analyzer.summaryViewMode === "sankey" &&
+      hasData &&
+      !isLoadingEstimates &&
+      Object.keys(estimates).length === 0
+    ) {
+      fetchEstimates();
+    }
   }, [
     analyzer.summaryViewMode,
     groupedData,
@@ -296,6 +311,9 @@ const TempoAnalyzer: React.FC<Props> = () => {
     isLoadingAncestors,
     parentAncestors,
     fetchParentAncestors,
+    isLoadingEstimates,
+    estimates,
+    fetchEstimates,
   ]);
 
   return (
@@ -386,6 +404,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
                       labels={labels}
                       ancestryTypes={ancestryTypes}
                       parentAncestors={parentAncestors}
+                      estimates={estimates}
                       splitByMonth={splitByMonth}
                       monthsInData={monthsInData}
                       dateIndex={analyzer.dateIndex}
