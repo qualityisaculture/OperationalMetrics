@@ -3,7 +3,7 @@ import { IssueKeyException } from "./types";
 // Configuration for issue keys that should be split into their own categories
 export const ISSUE_KEY_EXCEPTIONS: IssueKeyException[] = [
   {
-    issueKeys: ["ABS-56", "ABS-58", "ABS-57"],
+    issueKeys: ["ABS-56", "ABS-58", "ABS-57", "ABS-60"],
     categorySuffix: "Holiday & Absence",
   },
   {
