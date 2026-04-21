@@ -13,9 +13,14 @@ const { Text } = Typography;
 const { Option } = Select;
 
 interface FilterControlsProps {
-  summaryViewMode: "category" | "name" | "issueType" | "ancestryType" | "sankey";
+  summaryViewMode:
+    | "category"
+    | "name"
+    | "issueType"
+    | "ancestryType"
+    | "sankey";
   handleSummaryViewModeChange: (
-    mode: "category" | "name" | "issueType" | "ancestryType" | "sankey"
+    mode: "category" | "name" | "issueType" | "ancestryType" | "sankey",
   ) => void;
   secondarySplitMode: "account" | "issueType";
   handleSecondarySplitModeChange: (mode: "account" | "issueType") => void;
@@ -202,7 +207,7 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
               handleExcludeHolidayAbsenceChange(e.target.checked)
             }
           >
-            Exclude Holiday & Absence data (ABS-56, ABS-58, ABS-57)
+            Exclude Holiday & Absence data (ABS-56, ABS-58, ABS-57, ABS-60)
           </Checkbox>
           <br />
           <Checkbox
