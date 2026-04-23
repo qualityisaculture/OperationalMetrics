@@ -1,13 +1,20 @@
 import React, { useState, useMemo } from "react";
-import { Card, Space, Table, Button, Typography, Tag } from "antd";
-import { InfoCircleOutlined, DownloadOutlined } from "@ant-design/icons";
+import { Card, Space, Table, Typography, Tag } from "antd";
+import { InfoCircleOutlined } from "@ant-design/icons";
 import { getUnifiedColumns } from "./columns";
-import { JiraIssueWithAggregated } from "../../JiraReport/types";
-import {
-  exportIssuesToExcel,
-  exportCompleteWorkstreamToExcel,
-} from "../../JiraReport/utils/excelExport";
-import { processIssuesForAnt } from "../../JiraReport/utils/dataProcessing";
+import { JiraIssueWithAggregated } from "./types";
+
+function processIssuesForAnt(issues: JiraIssueWithAggregated[]): JiraIssueWithAggregated[] {
+  return issues.map((issue) => {
+    if (Array.isArray(issue.children) && issue.children.length === 0) {
+      const { children, ...issueWithoutChildren } = issue;
+      return issueWithoutChildren as JiraIssueWithAggregated;
+    } else if (Array.isArray(issue.children) && issue.children.length > 0) {
+      return { ...issue, children: processIssuesForAnt(issue.children) };
+    }
+    return issue;
+  });
+}
 import { useResizableColumns, ResizableTitle } from "./index";
 import { ColumnConfig } from "../ColumnConfig";
 import type { ColumnsType } from "antd/es/table";
@@ -37,11 +44,6 @@ export interface UnifiedIssuesTableProps {
     isFirstColumn?: boolean
   ) => { colSpan?: number };
 
-  // Excel Export
-  showExportButton?: boolean;
-  workstreamName?: string;
-  parentWorkstreamKey?: string;
-  // New prop for complete hierarchical data
   completeHierarchicalData?: any[];
 }
 
@@ -59,12 +61,8 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
   currentIssues,
   projectIssues,
   getWorkstreamDataCellSpan,
-  showExportButton = false,
-  workstreamName,
-  parentWorkstreamKey,
   completeHierarchicalData,
 }) => {
-  const [exportLoading, setExportLoading] = useState(false);
   const [configuredColumns, setConfiguredColumns] = useState<
     ColumnsType<JiraIssueWithAggregated>
   >([]);
@@ -312,22 +310,6 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
     showFavoriteColumn,
   ]);
 
-  const handleExport = async () => {
-    if (!parentWorkstreamKey || !workstreamName) return;
-
-    setExportLoading(true);
-    try {
-      await exportCompleteWorkstreamToExcel(
-        parentWorkstreamKey,
-        workstreamName
-      );
-    } catch (error) {
-      console.error("Export failed:", error);
-    } finally {
-      setExportLoading(false);
-    }
-  };
-
   // Process data for Ant Design: replace empty children arrays with null
   // This is done at the last possible point, just before rendering
   const processedDataSource = useMemo(() => {
@@ -354,17 +336,6 @@ export const UnifiedIssuesTable: React.FC<UnifiedIssuesTableProps> = ({
             <Text type="secondary">
               Last updated: {new Date().toLocaleString()}
             </Text>
-            {showExportButton && workstreamName && (
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                size="small"
-                loading={exportLoading}
-                onClick={handleExport}
-              >
-                Export to Excel
-              </Button>
-            )}
           </Space>
         }
         bodyStyle={{ padding: 0, overflow: "hidden" }}

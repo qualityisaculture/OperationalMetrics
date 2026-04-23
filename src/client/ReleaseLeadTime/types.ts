@@ -1,4 +1,9 @@
-import { JiraProject } from "../../server/graphManagers/JiraReportGraphManager";
+export interface JiraProject {
+  id: string;
+  key: string;
+  name: string;
+  url: string;
+}
 
 export interface Release {
   id: string;

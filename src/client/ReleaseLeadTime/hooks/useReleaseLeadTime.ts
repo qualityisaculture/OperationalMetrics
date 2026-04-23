@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { JiraProject } from "../../../server/graphManagers/JiraReportGraphManager";
+import { JiraProject } from "../types";
 import { Release, ReleaseLeadTimeState, JiraWithStatusChanges } from "../types";
 import { STORAGE_KEY_FAVORITES } from "../constants";
 

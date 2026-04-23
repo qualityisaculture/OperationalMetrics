@@ -13,7 +13,6 @@ import CustomerSLA from "./CustomerSLA";
 import CreatedResolved from "./CreatedResolved";
 import TempoAnalyzer from "./TempoAnalyzer";
 import TempoReport from "./TempoReport";
-import JiraReport from "./JiraReport";
 import BottleneckDetector from "./BottleneckDetector";
 import FormsAnalyzer from "./FormsAnalyzer";
 import TypeBreakdownAnalyser from "./TypeBreakdownAnalyser";
@@ -41,7 +40,6 @@ interface State {
     | "createdResolved"
     | "tempoAnalyzer"
     | "tempoReport"
-    | "jiraReport"
     | "bottleneckDetector"
     | "formsAnalyzer"
     | "typeBreakdownAnalyser"
@@ -58,7 +56,7 @@ export default class ChartSelector extends React.Component<Props, State> {
   constructor(props) {
     super(props);
     this.state = {
-      chart: "jiraReport",
+      chart: "dashboard",
     };
   }
   handleChartChange = (e: RadioChangeEvent) => {
@@ -102,9 +100,6 @@ export default class ChartSelector extends React.Component<Props, State> {
     };
     let tempoReportStyle = {
       display: this.state.chart === "tempoReport" ? "block" : "none",
-    };
-    let jiraReportStyle = {
-      display: this.state.chart === "jiraReport" ? "block" : "none",
     };
     let bottleneckDetectorStyle = {
       display: this.state.chart === "bottleneckDetector" ? "block" : "none",
@@ -158,7 +153,6 @@ export default class ChartSelector extends React.Component<Props, State> {
             </Radio.Button>
             <Radio.Button value="tempoAnalyzer">Tempo Analyzer</Radio.Button>
             <Radio.Button value="tempoReport">Tempo Report</Radio.Button>
-            <Radio.Button value="jiraReport">Jira Report</Radio.Button>
             <Radio.Button value="bottleneckDetector">
               Bottleneck Detector
             </Radio.Button>
@@ -215,9 +209,6 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={tempoReportStyle}>
             <TempoReport />
-          </div>
-          <div style={jiraReportStyle}>
-            <JiraReport />
           </div>
           <div style={bottleneckDetectorStyle}>
             <BottleneckDetector projectName="PROJECT" />

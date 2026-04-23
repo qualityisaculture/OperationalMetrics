@@ -1,7 +1,7 @@
 import React from "react";
 import { Table, Space, Typography } from "antd";
 import { StarOutlined, StarFilled } from "@ant-design/icons";
-import { JiraProject } from "../../../server/graphManagers/JiraReportGraphManager";
+import { JiraProject } from "../types";
 import type { ColumnsType } from "antd/es/table";
 
 const { Text } = Typography;
