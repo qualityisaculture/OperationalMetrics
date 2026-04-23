@@ -396,6 +396,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
                       filteredData={analyzer.filteredData}
                       issueTypeIndex={analyzer.issueTypeIndex}
                       issueKeyIndex={analyzer.issueKeyIndex}
+                      issueSummaryIndex={analyzer.issueSummaryIndex}
                       loggedHoursIndex={analyzer.loggedHoursIndex}
                       fullNameIndex={analyzer.fullNameIndex}
                       accountCategoryIndex={analyzer.accountCategoryIndex}

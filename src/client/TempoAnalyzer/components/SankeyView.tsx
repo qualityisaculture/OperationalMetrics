@@ -14,6 +14,7 @@ interface SankeyViewProps {
   filteredData: any[];
   issueTypeIndex: number;
   issueKeyIndex: number;
+  issueSummaryIndex: number;
   loggedHoursIndex: number;
   fullNameIndex: number;
   accountCategoryIndex: number;
@@ -32,6 +33,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   filteredData,
   issueTypeIndex,
   issueKeyIndex,
+  issueSummaryIndex,
   loggedHoursIndex,
   fullNameIndex,
   accountCategoryIndex,
@@ -360,7 +362,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
             issueMap.set(key, {
               issueKey: key,
               issueType: issueType ? String(issueType).trim() : "",
-              summary: "", // Summary not available in filtered data
+              summary: issueSummaryIndex != null && issueSummaryIndex !== -1 ? String(row[issueSummaryIndex.toString()] || "").trim() : "",
               fullName: fullName ? String(fullName).trim() : "",
               accountCategory: accountCategory
                 ? String(accountCategory).trim()
@@ -381,6 +383,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     labels,
     issueTypeIndex,
     issueKeyIndex,
+    issueSummaryIndex,
     fullNameIndex,
     accountCategoryIndex,
     accountNameIndex,
@@ -531,6 +534,11 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
           {text}
         </a>
       ),
+    },
+    {
+      title: "Summary",
+      dataIndex: "summary",
+      key: "summary",
     },
     {
       title: "Issue Type",
