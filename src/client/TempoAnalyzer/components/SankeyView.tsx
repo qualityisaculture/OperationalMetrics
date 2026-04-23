@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Card, Table, Typography, Button, Space } from "antd";
+import { Card, Table, Typography, Button, Space, Modal } from "antd";
 import type { TableProps } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { SankeySelectorConfig, getMatchers, SankeyMatcher } from "./SankeySelector";
@@ -17,6 +17,7 @@ interface SankeyViewProps {
   issueSummaryIndex: number;
   loggedHoursIndex: number;
   fullNameIndex: number;
+  workDescriptionIndex: number;
   accountCategoryIndex: number;
   accountNameIndex: number;
   selectors: SankeySelectorConfig[];
@@ -36,6 +37,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   issueSummaryIndex,
   loggedHoursIndex,
   fullNameIndex,
+  workDescriptionIndex,
   accountCategoryIndex,
   accountNameIndex,
   selectors,
@@ -47,6 +49,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   monthsInData = [],
   dateIndex = -1,
 }) => {
+  const [workDescModalIssue, setWorkDescModalIssue] = useState<string | null>(null);
   const [selectedSelectorKey, setSelectedSelectorKey] = useState<string | null>(
     null
   );
@@ -317,10 +320,10 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         issueKey: string;
         issueType: string;
         summary: string;
-        fullName: string;
         accountCategory: string;
         hours: number;
         estimatedDays: number | null;
+        bookings: Array<{ fullName: string; date: string; hours: number; workDescription: string }>;
       }
     >();
 
@@ -339,6 +342,12 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         loggedHoursIndex !== -1
           ? parseFloat(row[loggedHoursIndex.toString()] || "0")
           : 0;
+      const date =
+        dateIndex !== -1 ? String(row[dateIndex.toString()] || "").trim() : "";
+      const workDescription =
+        workDescriptionIndex != null && workDescriptionIndex !== -1
+          ? String(row[workDescriptionIndex.toString()] || "").trim()
+          : "";
 
       if (loggedHours <= 0) {
         return;
@@ -355,20 +364,27 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         const key = String(issueKey).trim();
         if (key) {
           const existing = issueMap.get(key);
+          const booking = {
+            fullName: fullName ? String(fullName).trim() : "",
+            date,
+            hours: loggedHours,
+            workDescription,
+          };
           if (existing) {
             existing.hours += loggedHours;
+            existing.bookings.push(booking);
           } else {
             const rawEstimate = estimates[key];
             issueMap.set(key, {
               issueKey: key,
               issueType: issueType ? String(issueType).trim() : "",
               summary: issueSummaryIndex != null && issueSummaryIndex !== -1 ? String(row[issueSummaryIndex.toString()] || "").trim() : "",
-              fullName: fullName ? String(fullName).trim() : "",
               accountCategory: accountCategory
                 ? String(accountCategory).trim()
                 : "",
               hours: loggedHours,
               estimatedDays: rawEstimate != null ? rawEstimate : null,
+              bookings: [booking],
             });
           }
         }
@@ -385,9 +401,11 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     issueKeyIndex,
     issueSummaryIndex,
     fullNameIndex,
+    workDescriptionIndex,
     accountCategoryIndex,
     accountNameIndex,
     loggedHoursIndex,
+    dateIndex,
     ancestryTypes,
     estimates,
   ]);
@@ -546,9 +564,17 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       key: "issueType",
     },
     {
-      title: "Full Name",
-      dataIndex: "fullName",
-      key: "fullName",
+      title: "Work Description",
+      dataIndex: "bookings",
+      key: "workDescription",
+      render: (_: any, record: any) => (
+        <a
+          onClick={(e) => { e.stopPropagation(); setWorkDescModalIssue(record.issueKey); }}
+          style={{ cursor: "pointer" }}
+        >
+          {record.bookings?.length ?? 0} booking{(record.bookings?.length ?? 0) !== 1 ? "s" : ""}
+        </a>
+      ),
     },
     {
       title: "Account Category",
@@ -599,6 +625,67 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     },
   ];
 
+  const workDescModalIssueData = useMemo(() => {
+    if (!workDescModalIssue) return null;
+    const issue = matchingIssues.find((i) => i.issueKey === workDescModalIssue);
+    if (!issue) return null;
+    // Group by person: sum hours, collect dates
+    const byPerson = new Map<string, { fullName: string; hours: number; dates: string[]; descriptions: string[] }>();
+    issue.bookings.forEach(({ fullName, date, hours, workDescription }) => {
+      const existing = byPerson.get(fullName);
+      if (existing) {
+        existing.hours += hours;
+        if (date && !existing.dates.includes(date)) existing.dates.push(date);
+        if (workDescription && !existing.descriptions.includes(workDescription)) existing.descriptions.push(workDescription);
+      } else {
+        byPerson.set(fullName, {
+          fullName,
+          hours,
+          dates: date ? [date] : [],
+          descriptions: workDescription ? [workDescription] : [],
+        });
+      }
+    });
+    return {
+      issueKey: issue.issueKey,
+      summary: issue.summary,
+      rows: Array.from(byPerson.values()).sort((a, b) => b.hours - a.hours),
+    };
+  }, [workDescModalIssue, matchingIssues]);
+
+  const workDescModalColumns = [
+    { title: "Name", dataIndex: "fullName", key: "fullName" },
+    {
+      title: "Hours",
+      dataIndex: "hours",
+      key: "hours",
+      render: (h: number) => <Text>{h.toFixed(2)} hrs</Text>,
+      sorter: (a: any, b: any) => a.hours - b.hours,
+      defaultSortOrder: "descend" as const,
+    },
+    {
+      title: "Days",
+      key: "days",
+      render: (_: any, r: any) => <Text>{(r.hours / 7.5).toFixed(2)} days</Text>,
+    },
+    {
+      title: "Dates",
+      dataIndex: "dates",
+      key: "dates",
+      render: (dates: string[]) => <Text>{dates.sort().join(", ") || "-"}</Text>,
+    },
+    {
+      title: "Work Descriptions",
+      dataIndex: "descriptions",
+      key: "descriptions",
+      render: (descs: string[]) => (
+        <Space direction="vertical" size={2}>
+          {descs.length > 0 ? descs.map((d, i) => <Text key={i}>{d}</Text>) : <Text type="secondary">-</Text>}
+        </Space>
+      ),
+    },
+  ];
+
   if (selectors.length === 0) {
     return (
       <Card>
@@ -610,6 +697,29 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     );
   }
 
+  const workDescModal = (
+    <Modal
+      open={workDescModalIssue !== null}
+      onCancel={() => setWorkDescModalIssue(null)}
+      footer={null}
+      width={800}
+      title={
+        workDescModalIssueData
+          ? `${workDescModalIssueData.issueKey}${workDescModalIssueData.summary ? ` — ${workDescModalIssueData.summary}` : ""}`
+          : "Work Description"
+      }
+    >
+      {workDescModalIssueData && (
+        <Table
+          dataSource={workDescModalIssueData.rows.map((r) => ({ ...r, key: r.fullName }))}
+          columns={workDescModalColumns}
+          pagination={false}
+          size="small"
+        />
+      )}
+    </Modal>
+  );
+
   // Show issue breakdown if a selector is selected
   if (selectedSelectorKey) {
     const selectedRow = tableData.find(
@@ -618,54 +728,57 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     const title = selectedRow ? selectedRow.selector : "Issue Breakdown";
 
     return (
-      <Card
-        title={
-          <Space>
-            <Button
-              icon={<ArrowLeftOutlined />}
-              onClick={handleBackClick}
-              size="small"
-            >
-              Back
-            </Button>
-            <Title level={4} style={{ margin: 0 }}>
-              {title}
-            </Title>
+      <>
+        {workDescModal}
+        <Card
+          title={
+            <Space>
+              <Button
+                icon={<ArrowLeftOutlined />}
+                onClick={handleBackClick}
+                size="small"
+              >
+                Back
+              </Button>
+              <Title level={4} style={{ margin: 0 }}>
+                {title}
+              </Title>
+            </Space>
+          }
+        >
+          <Space direction="vertical" style={{ width: "100%" }} size="middle">
+            <div>
+              <Text strong>Total Hours: </Text>
+              <Text>{totalIssueHours.toFixed(2)} hrs</Text>
+              <Text strong style={{ marginLeft: "16px" }}>
+                Total Days:{" "}
+              </Text>
+              <Text>{(totalIssueHours / 7.5).toFixed(2)} days</Text>
+              {totalIssueEstimatedDays > 0 && (
+                <>
+                  <Text strong style={{ marginLeft: "16px" }}>
+                    Estimated Days:{" "}
+                  </Text>
+                  <Text>{totalIssueEstimatedDays.toFixed(2)} days</Text>
+                </>
+              )}
+              <Text strong style={{ marginLeft: "16px" }}>
+                Issues:{" "}
+              </Text>
+              <Text>{matchingIssues.length}</Text>
+            </div>
+            <Table
+              dataSource={matchingIssues.map((issue) => ({
+                ...issue,
+                key: issue.issueKey,
+                chargeableDays: issue.hours / 7.5,
+              }))}
+              columns={issueColumns}
+              pagination={false}
+            />
           </Space>
-        }
-      >
-        <Space direction="vertical" style={{ width: "100%" }} size="middle">
-          <div>
-            <Text strong>Total Hours: </Text>
-            <Text>{totalIssueHours.toFixed(2)} hrs</Text>
-            <Text strong style={{ marginLeft: "16px" }}>
-              Total Days:{" "}
-            </Text>
-            <Text>{(totalIssueHours / 7.5).toFixed(2)} days</Text>
-            {totalIssueEstimatedDays > 0 && (
-              <>
-                <Text strong style={{ marginLeft: "16px" }}>
-                  Estimated Days:{" "}
-                </Text>
-                <Text>{totalIssueEstimatedDays.toFixed(2)} days</Text>
-              </>
-            )}
-            <Text strong style={{ marginLeft: "16px" }}>
-              Issues:{" "}
-            </Text>
-            <Text>{matchingIssues.length}</Text>
-          </div>
-          <Table
-            dataSource={matchingIssues.map((issue) => ({
-              ...issue,
-              key: issue.issueKey,
-              chargeableDays: issue.hours / 7.5,
-            }))}
-            columns={issueColumns}
-            pagination={false}
-          />
-        </Space>
-      </Card>
+        </Card>
+      </>
     );
   }
 

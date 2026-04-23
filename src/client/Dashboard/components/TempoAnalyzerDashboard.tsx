@@ -746,6 +746,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                       issueSummaryIndex={analyzer.issueSummaryIndex}
                       loggedHoursIndex={analyzer.loggedHoursIndex}
                       fullNameIndex={analyzer.fullNameIndex}
+                      workDescriptionIndex={analyzer.workDescriptionIndex}
                       accountCategoryIndex={analyzer.accountCategoryIndex}
                       accountNameIndex={analyzer.accountNameIndex}
                       selectors={sankeySelectors}
