@@ -356,7 +356,7 @@ const BitBucketPRs: React.FC = () => {
   const prsByMonth = useMemo(() => {
     const monthMap = new Map<
       string,
-      { label: string; count: number; sortKey: string }
+      { label: string; count: number; commentCount: number; sortKey: string }
     >();
 
     filteredPRs.forEach((pr) => {
@@ -388,13 +388,16 @@ const BitBucketPRs: React.FC = () => {
         month: "long",
       });
 
+      const prComments = pr.properties?.commentCount ?? 0;
       const existing = monthMap.get(monthKey);
       if (existing) {
         existing.count += 1;
+        existing.commentCount += prComments;
       } else {
         monthMap.set(monthKey, {
           label: monthLabel,
           count: 1,
+          commentCount: prComments,
           sortKey: monthKey,
         });
       }
@@ -404,11 +407,25 @@ const BitBucketPRs: React.FC = () => {
     const entries = Array.from(monthMap.entries());
     entries.sort((a, b) => a[1].sortKey.localeCompare(b[1].sortKey));
 
-    return entries.map(([monthKey, { label, count }]) => ({
+    const rows = entries.map(([monthKey, { label, count, commentCount }]) => ({
       month: label,
       count,
+      commentCount,
       monthKey,
     }));
+
+    // Append open PRs row
+    const openPRs = filteredPRs.filter((pr) => pr.state === "OPEN" || pr.open === true);
+    if (openPRs.length > 0) {
+      rows.push({
+        month: "Open",
+        count: openPRs.length,
+        commentCount: openPRs.reduce((sum, pr) => sum + (pr.properties?.commentCount ?? 0), 0),
+        monthKey: "__open__",
+      });
+    }
+
+    return rows;
   }, [filteredPRs]);
 
   // Helper function to count PRs for a repository based on table filters
@@ -601,6 +618,9 @@ const BitBucketPRs: React.FC = () => {
         )?.pullRequests || []
       );
     }
+    if (selectedMonth === "__open__") {
+      return filteredPRs.filter((pr) => pr.state === "OPEN" || pr.open === true);
+    }
     if (selectedMonth) {
       // Filter PRs by the selected month
       return filteredPRs.filter((pr) => {
@@ -703,6 +723,12 @@ const BitBucketPRs: React.FC = () => {
       key: "createdDate",
       render: (date: number | undefined) =>
         date ? new Date(date).toLocaleDateString() : "-",
+    },
+    {
+      title: "Comments",
+      dataIndex: ["properties", "commentCount"],
+      key: "comment_count",
+      render: (count: number | undefined) => <Text strong>{count ?? 0}</Text>,
     },
   ];
 
@@ -1201,15 +1227,10 @@ const BitBucketPRs: React.FC = () => {
                       render: (count: number) => <Text strong>{count}</Text>,
                     },
                     {
-                      title: "PRs per Team Member",
-                      key: "prsPerMember",
-                      render: (_: any, record: { count: number }) => {
-                        const prsPerMember =
-                          teamMemberCount > 0
-                            ? record.count / teamMemberCount
-                            : 0;
-                        return <Text strong>{prsPerMember.toFixed(2)}</Text>;
-                      },
+                      title: "Comments",
+                      dataIndex: "commentCount",
+                      key: "commentCount",
+                      render: (count: number) => <Text strong>{count}</Text>,
                     },
                     {
                       title: "Actions",
@@ -1219,6 +1240,7 @@ const BitBucketPRs: React.FC = () => {
                         record: {
                           month: string;
                           count: number;
+                          commentCount: number;
                           monthKey: string;
                         }
                       ) => (

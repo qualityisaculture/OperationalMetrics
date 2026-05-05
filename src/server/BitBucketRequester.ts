@@ -59,6 +59,12 @@ export type BitBucketPullRequest = {
       href: string;
     }>;
   };
+  properties?: {
+    commentCount?: number;
+    resolvedTaskCount?: number;
+    openTaskCount?: number;
+    qgStatus?: string;
+  };
   // Additional fields that might come from API 1.0
   [key: string]: any;
 };
@@ -135,7 +141,7 @@ export default class BitBucketRequester {
       // Safety check: prevent infinite loops by tracking seen URLs
       if (seenUrls.has(url)) {
         console.warn(
-          `Detected loop: URL ${url} was already fetched. Stopping pagination.`
+          `Detected loop: URL ${url} was already fetched. Stopping pagination.`,
         );
         break;
       }
@@ -153,7 +159,7 @@ export default class BitBucketRequester {
         if (repos.length > 0) {
           console.log(
             "Sample repository structure:",
-            JSON.stringify(repos[0], null, 2)
+            JSON.stringify(repos[0], null, 2),
           );
         }
 
@@ -187,7 +193,7 @@ export default class BitBucketRequester {
           const currentUrl = new URL(url || baseUrl);
           currentUrl.searchParams.set(
             "start",
-            response.nextPageStart.toString()
+            response.nextPageStart.toString(),
           );
           nextUrl = currentUrl.toString();
         } else if (repos.length === (response.pagelen || 100)) {
@@ -201,24 +207,24 @@ export default class BitBucketRequester {
             currentUrl.searchParams.set("page", nextPage.toString());
             nextUrl = currentUrl.toString();
             console.log(
-              `No 'next' field found, trying page-based pagination: page ${nextPage}`
+              `No 'next' field found, trying page-based pagination: page ${nextPage}`,
             );
           } else {
             // Try start-based pagination (offset)
             const currentStart = parseInt(
-              currentUrl.searchParams.get("start") || "0"
+              currentUrl.searchParams.get("start") || "0",
             );
             const nextStart = currentStart + repos.length;
             currentUrl.searchParams.set("start", nextStart.toString());
             nextUrl = currentUrl.toString();
             console.log(
-              `No 'next' field found, trying start-based pagination: start=${nextStart}`
+              `No 'next' field found, trying start-based pagination: start=${nextStart}`,
             );
           }
         } else {
           // We got fewer results than requested, likely the last page
           console.log(
-            `Received ${repos.length} repos (less than page size ${response.pagelen || 100}), assuming last page`
+            `Received ${repos.length} repos (less than page size ${response.pagelen || 100}), assuming last page`,
           );
           nextUrl = null;
         }
@@ -253,12 +259,12 @@ export default class BitBucketRequester {
 
     if (page > maxPages) {
       console.warn(
-        `Reached maximum page limit (${maxPages}). There may be more repositories.`
+        `Reached maximum page limit (${maxPages}). There may be more repositories.`,
       );
     }
 
     console.log(
-      `Fetched ${allRepositories.length} total repositories across ${page - 1} pages`
+      `Fetched ${allRepositories.length} total repositories across ${page - 1} pages`,
     );
     return allRepositories;
   }
@@ -289,7 +295,7 @@ export default class BitBucketRequester {
             const errorJson = JSON.parse(errorBody);
             console.error(
               "Parsed error JSON:",
-              JSON.stringify(errorJson, null, 2)
+              JSON.stringify(errorJson, null, 2),
             );
           } catch (e) {
             // Not JSON, that's okay
@@ -298,7 +304,7 @@ export default class BitBucketRequester {
           errorBody = await response.text();
           console.error(
             "Error response body (non-JSON):",
-            errorBody.substring(0, 500)
+            errorBody.substring(0, 500),
           );
         }
       } catch (e) {
@@ -306,7 +312,7 @@ export default class BitBucketRequester {
       }
 
       throw new Error(
-        `Failed to fetch data: ${url} - Status: ${response.status} ${response.statusText}${errorBody ? ` - Body: ${errorBody.substring(0, 200)}` : ""}`
+        `Failed to fetch data: ${url} - Status: ${response.status} ${response.statusText}${errorBody ? ` - Body: ${errorBody.substring(0, 200)}` : ""}`,
       );
     }
 
@@ -316,7 +322,7 @@ export default class BitBucketRequester {
   async getPullRequestsForRepositories(
     repositories: BitBucketRepository[],
     monthsBack: number = 3,
-    useCache: boolean = true
+    useCache: boolean = true,
   ): Promise<
     Array<{
       repository: BitBucketRepository;
@@ -334,7 +340,7 @@ export default class BitBucketRequester {
     if (useCache && this.prCache.has(cacheKey)) {
       const cached = this.prCache.get(cacheKey)!;
       console.log(
-        `Returning cached PR data (cached at: ${new Date(cached.timestamp).toISOString()})`
+        `Returning cached PR data (cached at: ${new Date(cached.timestamp).toISOString()})`,
       );
       return cached.data;
     }
@@ -358,7 +364,7 @@ export default class BitBucketRequester {
         const prs = await this.getPullRequestsForRepository(
           repo,
           null, // No date filter - get all PRs
-          isBitBucketServer
+          isBitBucketServer,
         );
         results.push({
           repository: repo,
@@ -367,7 +373,7 @@ export default class BitBucketRequester {
       } catch (error) {
         console.error(
           `Error fetching PRs for ${repo.full_name || repo.name}:`,
-          error
+          error,
         );
         // Continue with other repositories even if one fails
         results.push({
@@ -410,7 +416,7 @@ export default class BitBucketRequester {
   async getPullRequestsForRepository(
     repository: BitBucketRepository,
     dateFilter: string | null,
-    isBitBucketServer: boolean
+    isBitBucketServer: boolean,
   ): Promise<BitBucketPullRequest[]> {
     const domain = process.env.BITBUCKET_DOMAIN;
     if (!domain) {
@@ -473,10 +479,10 @@ export default class BitBucketRequester {
     if (!projectKey || !repoSlug) {
       console.error(
         "Repository structure:",
-        JSON.stringify(repository, null, 2)
+        JSON.stringify(repository, null, 2),
       );
       throw new Error(
-        `Cannot determine repository path. full_name: "${fullName}", slug: "${repository.slug}", self link: "${repository.links?.self?.href}"`
+        `Cannot determine repository path. full_name: "${fullName}", slug: "${repository.slug}", self link: "${repository.links?.self?.href}"`,
       );
     }
 
@@ -509,7 +515,7 @@ export default class BitBucketRequester {
     while (url && page <= maxPages) {
       if (seenUrls.has(url)) {
         console.warn(
-          `Detected loop: URL ${url} was already fetched. Stopping pagination.`
+          `Detected loop: URL ${url} was already fetched. Stopping pagination.`,
         );
         break;
       }
@@ -522,8 +528,9 @@ export default class BitBucketRequester {
 
         const prs = response.values || [];
         console.log(
-          `  Page ${page}: Received ${prs.length} PRs from API (total so far: ${allPRs.length + prs.length})`
+          `  Page ${page}: Received ${prs.length} PRs from API (total so far: ${allPRs.length + prs.length})`,
         );
+
         allPRs = allPRs.concat(prs);
 
         // Check for next page using isLastPage
@@ -544,28 +551,28 @@ export default class BitBucketRequester {
             currentUrl.searchParams.set("page", nextPage.toString());
             nextUrl = currentUrl.toString();
             console.log(
-              `  Not last page, constructing next page URL: page ${nextPage}`
+              `  Not last page, constructing next page URL: page ${nextPage}`,
             );
           } else if ((response as any).nextPageStart !== undefined) {
             // Start-based pagination (API 1.0)
             currentUrl.searchParams.set(
               "start",
-              (response as any).nextPageStart.toString()
+              (response as any).nextPageStart.toString(),
             );
             nextUrl = currentUrl.toString();
             console.log(
-              `  Not last page, constructing next page URL: start=${(response as any).nextPageStart}`
+              `  Not last page, constructing next page URL: start=${(response as any).nextPageStart}`,
             );
           } else {
             // Try incrementing start parameter if it exists
             const currentStart = parseInt(
-              currentUrl.searchParams.get("start") || "0"
+              currentUrl.searchParams.get("start") || "0",
             );
             const nextStart = currentStart + prs.length;
             currentUrl.searchParams.set("start", nextStart.toString());
             nextUrl = currentUrl.toString();
             console.log(
-              `  Not last page, constructing next page URL: start=${nextStart}`
+              `  Not last page, constructing next page URL: start=${nextStart}`,
             );
           }
         } else {
@@ -607,6 +614,37 @@ export default class BitBucketRequester {
     });
     console.log(`  After filtering by merged state: ${mergedPRs.length} PRs`);
 
-    return mergedPRs;
+    // Also fetch open PRs using the same API endpoint
+    const openBaseUrl = baseUrl
+      .replace('state="MERGED"', 'state="OPEN"')
+      .replace("state=MERGED", "state=OPEN");
+    let openPRs: BitBucketPullRequest[] = [];
+    try {
+      let openUrl: string | null = openBaseUrl;
+      const openSeenUrls = new Set<string>();
+      while (openUrl) {
+        if (openSeenUrls.has(openUrl)) break;
+        openSeenUrls.add(openUrl);
+        const openResponse: BitBucketPullRequestsResponse =
+          await this.fetchRequest(openUrl);
+        openPRs = openPRs.concat(openResponse.values || []);
+        if (
+          openResponse.isLastPage === false &&
+          (openResponse as any).nextPageStart !== undefined
+        ) {
+          const nextStart: string = (openResponse as any).nextPageStart.toString();
+          openUrl = openUrl.includes("start=")
+            ? openUrl.replace(/([?&]start=)[^&]+/, `$1${nextStart}`)
+            : `${openUrl}&start=${nextStart}`;
+        } else {
+          openUrl = (openResponse.next as string | null | undefined) ?? null;
+        }
+      }
+      console.log(`  Fetched ${openPRs.length} open PRs`);
+    } catch (error) {
+      console.warn("  Could not fetch open PRs:", error);
+    }
+
+    return [...mergedPRs, ...openPRs];
   }
 }
