@@ -186,6 +186,8 @@ const WeWork: React.FC<WeWorkProps> = () => {
       natasa: ["nataša", "natasha"],
       natasha: ["natasa", "nataša"],
       petre: ["petre-iulian"],
+      sucky: ["suckhbir"],
+      suckhbir: ["sucky"],
     };
 
     // Check if either name is an abbreviation of the other
