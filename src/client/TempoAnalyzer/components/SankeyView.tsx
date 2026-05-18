@@ -908,34 +908,36 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       </Card>
       {splitByMonth && monthlyChartData.length > 0 && (
         <Card title="Monthly Category Distribution (%)" style={{ marginTop: 16 }}>
-          <Area
-            data={monthlyChartData}
-            xField="month"
-            yField="percentage"
-            colorField="category"
-            stack={true}
-            height={300}
-            scale={{
-              color: {
-                domain: colorScale.domain,
-                range: colorScale.range,
-              },
-            }}
-            axis={{
-              y: {
-                title: "Percentage (%)",
-                labelFormatter: (v: number) => `${v}%`,
-              },
-            }}
-            tooltip={{
-              items: [
-                {
-                  channel: "y",
-                  valueFormatter: (v: number) => `${Number(v).toFixed(1)}%`,
+          <div style={{ maxWidth: 900 }}>
+            <Area
+              data={monthlyChartData}
+              xField="month"
+              yField="percentage"
+              colorField="category"
+              stack={true}
+              height={450}
+              scale={{
+                color: {
+                  domain: colorScale.domain,
+                  range: colorScale.range,
                 },
-              ],
-            }}
-          />
+              }}
+              axis={{
+                y: {
+                  title: "Percentage (%)",
+                  labelFormatter: (v: number) => `${v}%`,
+                },
+              }}
+              tooltip={{
+                items: [
+                  {
+                    channel: "y",
+                    valueFormatter: (v: number) => `${Number(v).toFixed(1)}%`,
+                  },
+                ],
+              }}
+            />
+          </div>
         </Card>
       )}
     </>
