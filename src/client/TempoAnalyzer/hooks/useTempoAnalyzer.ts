@@ -639,8 +639,7 @@ export const useTempoAnalyzer = (
     const loggedHoursIndex = headers.findIndex(
       (header) =>
         header.toLowerCase().includes("logged hours") ||
-        header.toLowerCase().includes("loggedhours") ||
-        header.toLowerCase().includes("hours")
+        header.toLowerCase().includes("loggedhours")
     );
     const fullNameIndex = headers.findIndex(
       (header) =>
@@ -650,17 +649,20 @@ export const useTempoAnalyzer = (
     );
     const issueKeyIndex = headers.findIndex(
       (header) =>
+        header.toLowerCase() === "work item key" ||
         header.toLowerCase().includes("issue key") ||
         header.toLowerCase().includes("issuekey") ||
         header.toLowerCase().includes("key")
     );
     const issueTypeIndex = headers.findIndex(
       (header) =>
+        header.toLowerCase().includes("work item type") ||
         header.toLowerCase().includes("issue type") ||
         header.toLowerCase().includes("issuetype")
     );
     const issueSummaryIndex = headers.findIndex(
       (header) =>
+        header.toLowerCase().includes("work item summary") ||
         header.toLowerCase().includes("issue summary") ||
         header.toLowerCase().includes("issuesummary")
     );
@@ -678,7 +680,10 @@ export const useTempoAnalyzer = (
     );
     const dateIndex = headers.findIndex(
       (header) =>
-        header.toLowerCase().includes("date") ||
+        header.toLowerCase() === "work date" ||
+        header.toLowerCase() === "date" ||
+        header.toLowerCase().includes("work date") ||
+        header.toLowerCase().includes("logged date") ||
         header.toLowerCase().includes("date")
     );
 
