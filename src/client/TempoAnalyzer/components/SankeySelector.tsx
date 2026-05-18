@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Card, Button, Select, Space, Typography, Input } from "antd";
+import { Card, Button, Select, Space, Typography, Input, ColorPicker } from "antd";
 import {
   PlusOutlined,
   DeleteOutlined,
@@ -35,6 +35,8 @@ export interface SankeySelectorConfig {
   selectedValues?: string[];
   /** Multiple matchers: row matches selector if it matches ANY matcher (OR). */
   matchers?: SankeyMatcher[];
+  /** Optional hex color for this selector (e.g. "#1677ff"). */
+  color?: string;
 }
 
 /** Get matchers array from a selector, normalizing legacy type/selectedValues into matchers. */
@@ -264,14 +266,22 @@ export const SankeySelector: React.FC<SankeySelectorProps> = ({
                   <Text strong style={{ marginRight: "8px" }}>
                     Name:
                   </Text>
-                  <Input
-                    placeholder="Enter selector name (optional)"
-                    value={selector.name || ""}
-                    onChange={(e) =>
-                      updateSelector(selector.id, { name: e.target.value })
-                    }
-                    style={{ width: "100%" }}
-                  />
+                  <Space.Compact style={{ width: "100%" }}>
+                    <ColorPicker
+                      value={selector.color || "#1677ff"}
+                      onChange={(color) =>
+                        updateSelector(selector.id, { color: color.toHexString() })
+                      }
+                      size="small"
+                    />
+                    <Input
+                      placeholder="Enter selector name (optional)"
+                      value={selector.name || ""}
+                      onChange={(e) =>
+                        updateSelector(selector.id, { name: e.target.value })
+                      }
+                    />
+                  </Space.Compact>
                 </div>
                 {getMatchers(selector).map((matcher, matcherIndex) => (
                   <div key={matcherIndex} style={{ border: "1px solid #f0f0f0", padding: "8px", borderRadius: "4px" }}>

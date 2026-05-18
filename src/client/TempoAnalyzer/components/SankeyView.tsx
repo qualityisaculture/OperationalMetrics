@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Card, Table, Typography, Button, Space, Modal } from "antd";
 import type { TableProps } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
+import { Area } from "@ant-design/charts";
 import { SankeySelectorConfig, getMatchers, SankeyMatcher } from "./SankeySelector";
 import { LabelsMap } from "../hooks/useLabels";
 import { AncestryTypesMap } from "../hooks/useAncestryTypes";
@@ -218,6 +219,50 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     });
     return byMonth;
   }, [splitByMonth, monthsInData, dateIndex, filteredData, selectors, labels, ancestryTypes, issueTypeIndex, issueKeyIndex, loggedHoursIndex, accountCategoryIndex, accountNameIndex]);
+
+  const DEFAULT_COLORS = [
+    "#5B8FF9", "#5AD8A6", "#5D7092", "#F6BD16", "#E8684A",
+    "#6DC8EC", "#9270CA", "#FF9D4D", "#269A99", "#FF99C3",
+  ];
+
+  const colorScale = useMemo(() => {
+    const domain: string[] = [];
+    const range: string[] = [];
+    selectors.forEach((selector, idx) => {
+      domain.push(selector.name || `Selector ${idx + 1}`);
+      range.push(selector.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length]);
+    });
+    domain.push("Other");
+    range.push("#bfbfbf");
+    return { domain, range };
+  }, [selectors]);
+
+  const monthlyChartData = useMemo(() => {
+    if (!splitByMonth || monthsInData.length === 0 || Object.keys(selectorHoursByMonth).length === 0)
+      return [];
+    const result: { month: string; category: string; percentage: number }[] = [];
+    monthsInData.forEach((monthLabel) => {
+      const monthHours = selectorHoursByMonth[monthLabel] ?? {};
+      const monthTotal = Object.values(monthHours).reduce((a, b) => a + b, 0);
+      if (monthTotal === 0) return;
+      selectors.forEach((selector, idx) => {
+        const key = `Selector ${idx + 1}`;
+        const hours = monthHours[key] ?? 0;
+        result.push({
+          month: monthLabel,
+          category: selector.name || key,
+          percentage: parseFloat(((hours / monthTotal) * 100).toFixed(1)),
+        });
+      });
+      const otherHours = monthHours["Other"] ?? 0;
+      result.push({
+        month: monthLabel,
+        category: "Other",
+        percentage: parseFloat(((otherHours / monthTotal) * 100).toFixed(1)),
+      });
+    });
+    return result;
+  }, [splitByMonth, monthsInData, selectorHoursByMonth, selectors]);
 
   // Calculate total hours
   const totalHours = useMemo(() => {
@@ -492,7 +537,16 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       title: "Selector",
       dataIndex: "selector",
       key: "selector",
-      render: (text: string) => <Text strong>{text}</Text>,
+      render: (text: string) => {
+        const idx = colorScale.domain.indexOf(text);
+        const color = idx >= 0 ? colorScale.range[idx] : "#bfbfbf";
+        return (
+          <Space>
+            <span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 2, background: color, flexShrink: 0 }} />
+            <Text strong>{text}</Text>
+          </Space>
+        );
+      },
       sorter: (a: any, b: any) => {
         // Sort "Other" last when sorting ascending
         if (a.selector === "Other") return 1;
@@ -803,17 +857,51 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   );
 
   return (
-    <Card title="Sankey Analysis (Click a row to drill down)">
-      <Table
-        dataSource={tableData}
-        columns={summaryColumns}
-        pagination={false}
-        summary={summarySummary}
-        onRow={(record) => ({
-          onClick: () => handleRowClick(record),
-          style: { cursor: "pointer" },
-        })}
-      />
-    </Card>
+    <>
+      <Card title="Sankey Analysis (Click a row to drill down)">
+        <Table
+          dataSource={tableData}
+          columns={summaryColumns}
+          pagination={false}
+          summary={summarySummary}
+          onRow={(record) => ({
+            onClick: () => handleRowClick(record),
+            style: { cursor: "pointer" },
+          })}
+        />
+      </Card>
+      {splitByMonth && monthlyChartData.length > 0 && (
+        <Card title="Monthly Category Distribution (%)" style={{ marginTop: 16 }}>
+          <Area
+            data={monthlyChartData}
+            xField="month"
+            yField="percentage"
+            colorField="category"
+            stack={true}
+            height={300}
+            scale={{
+              color: {
+                domain: colorScale.domain,
+                range: colorScale.range,
+              },
+            }}
+            axis={{
+              y: {
+                title: "Percentage (%)",
+                labelFormatter: (v: number) => `${v}%`,
+              },
+            }}
+            tooltip={{
+              items: [
+                {
+                  channel: "y",
+                  valueFormatter: (v: number) => `${Number(v).toFixed(1)}%`,
+                },
+              ],
+            }}
+          />
+        </Card>
+      )}
+    </>
   );
 };
