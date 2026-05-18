@@ -327,7 +327,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       const hours = selectorHours[label] || 0;
       rows.push({
         key: label,
-        selector: getSelectorDescription(selector, idx),
+        selector: exportView ? (selector.name || `Selector ${idx + 1}`) : getSelectorDescription(selector, idx),
         hours,
         chargeableDays: hours / 7.5,
         estimatedDays: selectorEstimatedDays[label] || 0,
@@ -351,7 +351,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     });
 
     return rows.sort((a, b) => b.hours - a.hours);
-  }, [selectors, selectorHours, selectorEstimatedDays, totalHours, splitByMonth, monthsInData, selectorHoursByMonth]);
+  }, [selectors, selectorHours, selectorEstimatedDays, totalHours, splitByMonth, monthsInData, selectorHoursByMonth, exportView]);
 
   // Get matching issues for the selected selector
   const matchingIssues = useMemo(() => {
