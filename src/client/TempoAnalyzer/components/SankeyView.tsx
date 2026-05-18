@@ -896,7 +896,7 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
 
   const isLoadingJiraData = isLoadingAncestors || isLoadingLabels || isLoadingEstimates;
 
-  const exportViewKeys = new Set(["selector", "percentage", ...monthsInData.map((_, i) => `month_${i}_pct`)]);
+  const exportViewKeys = new Set(["selector", ...monthsInData.map((_, i) => `month_${i}_pct`)]);
   const visibleColumns = exportView
     ? summaryColumns.filter((c) => exportViewKeys.has(c.key as string))
     : summaryColumns;
