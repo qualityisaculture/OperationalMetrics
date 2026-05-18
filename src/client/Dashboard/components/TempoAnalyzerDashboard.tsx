@@ -84,6 +84,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
   const [isEditMode, setIsEditMode] = useState(false);
   const [showFilterControls, setShowFilterControls] = useState(false);
   const [splitByMonth, setSplitByMonth] = useState(false);
+  const [exportView, setExportView] = useState(false);
 
   // Local state for settings (editable)
   const [summaryViewMode, setSummaryViewMode] = useState(
@@ -602,6 +603,13 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                 >
                   Split by month
                 </Checkbox>
+                {" "}
+                <Checkbox
+                  checked={exportView}
+                  onChange={(e) => setExportView(e.target.checked)}
+                >
+                  Export view
+                </Checkbox>
               </Space>
               {isEditMode ? (
                 <Space>
@@ -754,6 +762,10 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                       ancestryTypes={ancestryTypes}
                       parentAncestors={parentAncestors}
                       estimates={estimates}
+                      isLoadingAncestors={isLoadingAncestors}
+                      isLoadingLabels={isLoadingLabels}
+                      isLoadingEstimates={isLoadingEstimates}
+                      exportView={exportView}
                       splitByMonth={splitByMonth}
                       monthsInData={monthsInData}
                       dateIndex={analyzer.dateIndex}

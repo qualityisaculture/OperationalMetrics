@@ -44,6 +44,8 @@ interface FilterControlsProps {
   onUsersChange?: (users: string[]) => void;
   splitByMonth?: boolean;
   onSplitByMonthChange?: (checked: boolean) => void;
+  exportView?: boolean;
+  onExportViewChange?: (checked: boolean) => void;
 }
 
 export const FilterControls: React.FC<FilterControlsProps> = ({
@@ -71,6 +73,8 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   onUsersChange,
   splitByMonth: splitByMonthProp,
   onSplitByMonthChange,
+  exportView: exportViewProp,
+  onExportViewChange,
 }) => {
   const [localSplitByMonth, setLocalSplitByMonth] = useState(false);
   const isControlled =
@@ -79,6 +83,14 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   const setSplitByMonth = isControlled
     ? onSplitByMonthChange!
     : setLocalSplitByMonth;
+
+  const [localExportView, setLocalExportView] = useState(false);
+  const isExportControlled =
+    exportViewProp !== undefined && onExportViewChange !== undefined;
+  const exportView = isExportControlled ? exportViewProp! : localExportView;
+  const setExportView = isExportControlled
+    ? onExportViewChange!
+    : setLocalExportView;
 
   if (!hasGroupedData) {
     return null;
@@ -222,6 +234,13 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
             onChange={(e) => setSplitByMonth(e.target.checked)}
           >
             Split by month
+          </Checkbox>
+          {" "}
+          <Checkbox
+            checked={exportView}
+            onChange={(e) => setExportView(e.target.checked)}
+          >
+            Export view
           </Checkbox>
           <br />
           <div>

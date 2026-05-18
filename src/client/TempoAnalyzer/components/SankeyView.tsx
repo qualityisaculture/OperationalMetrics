@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Card, Table, Typography, Button, Space, Modal } from "antd";
+import { Card, Table, Typography, Button, Space, Modal, Alert } from "antd";
 import type { TableProps } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { Area } from "@ant-design/charts";
@@ -29,6 +29,10 @@ interface SankeyViewProps {
   splitByMonth?: boolean;
   monthsInData?: string[];
   dateIndex?: number;
+  isLoadingAncestors?: boolean;
+  isLoadingLabels?: boolean;
+  isLoadingEstimates?: boolean;
+  exportView?: boolean;
 }
 
 export const SankeyView: React.FC<SankeyViewProps> = ({
@@ -49,6 +53,10 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   splitByMonth = false,
   monthsInData = [],
   dateIndex = -1,
+  isLoadingAncestors = false,
+  isLoadingLabels = false,
+  isLoadingEstimates = false,
+  exportView = false,
 }) => {
   const [workDescModalIssue, setWorkDescModalIssue] = useState<string | null>(null);
   const [selectedSelectorKey, setSelectedSelectorKey] = useState<string | null>(
@@ -836,32 +844,60 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     );
   }
 
-  const summarySummary: TableProps<(typeof tableData)[0]>["summary"] = () => (
-    <Table.Summary.Row style={{ fontWeight: "bold" }}>
-      <Table.Summary.Cell index={0}>Sum</Table.Summary.Cell>
-      <Table.Summary.Cell index={1}>
-        {totalHours.toFixed(2)} hrs
-      </Table.Summary.Cell>
-      <Table.Summary.Cell index={2}>
-        {(totalHours / 7.5).toFixed(2)} days
-      </Table.Summary.Cell>
-      <Table.Summary.Cell index={3}>
-        {totalEstimatedDays > 0 ? `${totalEstimatedDays.toFixed(2)} days` : "-"}
-      </Table.Summary.Cell>
-      <Table.Summary.Cell index={4}>100%</Table.Summary.Cell>
-      {monthsInData.flatMap((_, i) => [
-        <Table.Summary.Cell key={`m${i}d`} index={5 + i * 2} />,
-        <Table.Summary.Cell key={`m${i}p`} index={6 + i * 2} />,
-      ])}
-    </Table.Summary.Row>
-  );
+  const summarySummary: TableProps<(typeof tableData)[0]>["summary"] = () => {
+    if (exportView) {
+      return (
+        <Table.Summary.Row style={{ fontWeight: "bold" }}>
+          <Table.Summary.Cell index={0}>Sum</Table.Summary.Cell>
+          <Table.Summary.Cell index={1}>100%</Table.Summary.Cell>
+          {monthsInData.map((_, i) => (
+            <Table.Summary.Cell key={`m${i}p`} index={2 + i} />
+          ))}
+        </Table.Summary.Row>
+      );
+    }
+    return (
+      <Table.Summary.Row style={{ fontWeight: "bold" }}>
+        <Table.Summary.Cell index={0}>Sum</Table.Summary.Cell>
+        <Table.Summary.Cell index={1}>
+          {totalHours.toFixed(2)} hrs
+        </Table.Summary.Cell>
+        <Table.Summary.Cell index={2}>
+          {(totalHours / 7.5).toFixed(2)} days
+        </Table.Summary.Cell>
+        <Table.Summary.Cell index={3}>
+          {totalEstimatedDays > 0 ? `${totalEstimatedDays.toFixed(2)} days` : "-"}
+        </Table.Summary.Cell>
+        <Table.Summary.Cell index={4}>100%</Table.Summary.Cell>
+        {monthsInData.flatMap((_, i) => [
+          <Table.Summary.Cell key={`m${i}d`} index={5 + i * 2} />,
+          <Table.Summary.Cell key={`m${i}p`} index={6 + i * 2} />,
+        ])}
+      </Table.Summary.Row>
+    );
+  };
+
+  const isLoadingJiraData = isLoadingAncestors || isLoadingLabels || isLoadingEstimates;
+
+  const exportViewKeys = new Set(["selector", "percentage", ...monthsInData.map((_, i) => `month_${i}_pct`)]);
+  const visibleColumns = exportView
+    ? summaryColumns.filter((c) => exportViewKeys.has(c.key as string))
+    : summaryColumns;
 
   return (
     <>
+      {isLoadingJiraData && (
+        <Alert
+          type="info"
+          showIcon
+          message="Loading Jira data — table values may be incomplete until all data has been fetched."
+          style={{ marginBottom: 12 }}
+        />
+      )}
       <Card title="Sankey Analysis (Click a row to drill down)">
         <Table
           dataSource={tableData}
-          columns={summaryColumns}
+          columns={visibleColumns}
           pagination={false}
           summary={summarySummary}
           onRow={(record) => ({

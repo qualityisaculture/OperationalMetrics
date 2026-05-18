@@ -68,6 +68,7 @@ const TempoAnalyzer: React.FC<Props> = () => {
   >([]);
 
   const [splitByMonth, setSplitByMonth] = React.useState(false);
+  const [exportView, setExportView] = React.useState(false);
 
   // Update selected groups when user groups change (default to no filtering)
   React.useEffect(() => {
@@ -366,6 +367,8 @@ const TempoAnalyzer: React.FC<Props> = () => {
             onUsersChange={setSelectedUsers}
             splitByMonth={splitByMonth}
             onSplitByMonthChange={setSplitByMonth}
+            exportView={exportView}
+            onExportViewChange={setExportView}
           />
 
           {(Object.keys(groupedData).length > 0 ||
@@ -407,6 +410,10 @@ const TempoAnalyzer: React.FC<Props> = () => {
                       ancestryTypes={ancestryTypes}
                       parentAncestors={parentAncestors}
                       estimates={estimates}
+                      isLoadingAncestors={isLoadingAncestors}
+                      isLoadingLabels={isLoadingLabels}
+                      isLoadingEstimates={isLoadingEstimates}
+                      exportView={exportView}
                       splitByMonth={splitByMonth}
                       monthsInData={monthsInData}
                       dateIndex={analyzer.dateIndex}
