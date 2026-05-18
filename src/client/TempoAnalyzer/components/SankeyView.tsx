@@ -248,25 +248,42 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   const monthlyChartData = useMemo(() => {
     if (!splitByMonth || monthsInData.length === 0 || Object.keys(selectorHoursByMonth).length === 0)
       return [];
+
+    // Calculate total hours per category across all months to determine stack order
+    const categoryTotals: Record<string, number> = {};
+    selectors.forEach((selector, idx) => {
+      const key = `Selector ${idx + 1}`;
+      const name = selector.name || key;
+      categoryTotals[name] = monthsInData.reduce(
+        (sum, monthLabel) => sum + (selectorHoursByMonth[monthLabel]?.[key] ?? 0),
+        0
+      );
+    });
+    categoryTotals["Other"] = monthsInData.reduce(
+      (sum, monthLabel) => sum + (selectorHoursByMonth[monthLabel]?.["Other"] ?? 0),
+      0
+    );
+
+    // Sort categories largest-first so G2 renders the biggest chunk at the bottom
+    const sortedCategories = Object.entries(categoryTotals)
+      .sort(([, a], [, b]) => b - a)
+      .map(([name]) => name);
+
     const result: { month: string; category: string; percentage: number }[] = [];
     monthsInData.forEach((monthLabel) => {
       const monthHours = selectorHoursByMonth[monthLabel] ?? {};
       const monthTotal = Object.values(monthHours).reduce((a, b) => a + b, 0);
       if (monthTotal === 0) return;
-      selectors.forEach((selector, idx) => {
-        const key = `Selector ${idx + 1}`;
+
+      sortedCategories.forEach((category) => {
+        const selectorIdx = selectors.findIndex((s, i) => (s.name || `Selector ${i + 1}`) === category);
+        const key = selectorIdx >= 0 ? `Selector ${selectorIdx + 1}` : "Other";
         const hours = monthHours[key] ?? 0;
         result.push({
           month: monthLabel,
-          category: selector.name || key,
+          category,
           percentage: parseFloat(((hours / monthTotal) * 100).toFixed(1)),
         });
-      });
-      const otherHours = monthHours["Other"] ?? 0;
-      result.push({
-        month: monthLabel,
-        category: "Other",
-        percentage: parseFloat(((otherHours / monthTotal) * 100).toFixed(1)),
       });
     });
     return result;
