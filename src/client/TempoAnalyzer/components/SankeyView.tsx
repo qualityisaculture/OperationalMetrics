@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Card, Table, Typography, Button, Space, Modal, Alert } from "antd";
 import type { TableProps } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
@@ -33,6 +33,7 @@ interface SankeyViewProps {
   isLoadingLabels?: boolean;
   isLoadingEstimates?: boolean;
   exportView?: boolean;
+  splitBySheet?: boolean;
 }
 
 export const SankeyView: React.FC<SankeyViewProps> = ({
@@ -57,11 +58,13 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
   isLoadingLabels = false,
   isLoadingEstimates = false,
   exportView = false,
+  splitBySheet = false,
 }) => {
   const [workDescModalIssue, setWorkDescModalIssue] = useState<string | null>(null);
   const [selectedSelectorKey, setSelectedSelectorKey] = useState<string | null>(
     null
   );
+  const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
 
   const rowMatchesMatcher = (
     row: any,
@@ -228,6 +231,75 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     return byMonth;
   }, [splitByMonth, monthsInData, dateIndex, filteredData, selectors, labels, ancestryTypes, issueTypeIndex, issueKeyIndex, loggedHoursIndex, accountCategoryIndex, accountNameIndex]);
 
+  const selectorHoursBySheet = useMemo(() => {
+    if (!splitBySheet) return {} as Record<string, Record<string, number>>;
+    const result: Record<string, Record<string, number>> = {};
+    filteredData.forEach((row) => {
+      const loggedHours =
+        loggedHoursIndex !== -1
+          ? parseFloat(row[loggedHoursIndex.toString()] || "0")
+          : 0;
+      if (loggedHours <= 0) return;
+      const fileName: string = (row as any)._fileName || "Unknown";
+      let matched = false;
+      for (let i = 0; i < selectors.length; i++) {
+        if (rowMatchesSelector(row, selectors[i])) {
+          const key = `Selector ${i + 1}`;
+          if (!result[key]) result[key] = {};
+          result[key][fileName] = (result[key][fileName] || 0) + loggedHours;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        if (!result["Other"]) result["Other"] = {};
+        result["Other"][fileName] = (result["Other"][fileName] || 0) + loggedHours;
+      }
+    });
+    return result;
+  }, [splitBySheet, filteredData, selectors, loggedHoursIndex, issueTypeIndex, issueKeyIndex, accountCategoryIndex, accountNameIndex, labels, ancestryTypes]);
+
+  // selectorKey -> monthLabel -> fileName -> hours
+  const selectorHoursBySheetByMonth = useMemo(() => {
+    if (!splitBySheet || !splitByMonth || monthsInData.length === 0 || dateIndex === -1)
+      return {} as Record<string, Record<string, Record<string, number>>>;
+    const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const result: Record<string, Record<string, Record<string, number>>> = {};
+    filteredData.forEach((row) => {
+      const loggedHours = loggedHoursIndex !== -1 ? parseFloat(row[loggedHoursIndex.toString()] || "0") : 0;
+      if (loggedHours <= 0) return;
+      const workDate = row[dateIndex.toString()];
+      if (!workDate) return;
+      let monthLabel: string | null = null;
+      try {
+        const d = new Date(String(workDate).trim().split(" ")[0]);
+        if (!isNaN(d.getTime())) {
+          const label = `${MONTH_NAMES[d.getMonth()]} '${String(d.getFullYear()).slice(-2)}`;
+          if (monthsInData.includes(label)) monthLabel = label;
+        }
+      } catch { return; }
+      if (!monthLabel) return;
+      const fileName: string = (row as any)._fileName || "Unknown";
+      let matched = false;
+      for (let i = 0; i < selectors.length; i++) {
+        if (rowMatchesSelector(row, selectors[i])) {
+          const key = `Selector ${i + 1}`;
+          if (!result[key]) result[key] = {};
+          if (!result[key][monthLabel]) result[key][monthLabel] = {};
+          result[key][monthLabel][fileName] = (result[key][monthLabel][fileName] || 0) + loggedHours;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        if (!result["Other"]) result["Other"] = {};
+        if (!result["Other"][monthLabel]) result["Other"][monthLabel] = {};
+        result["Other"][monthLabel][fileName] = (result["Other"][monthLabel][fileName] || 0) + loggedHours;
+      }
+    });
+    return result;
+  }, [splitBySheet, splitByMonth, monthsInData, dateIndex, filteredData, selectors, loggedHoursIndex, issueTypeIndex, issueKeyIndex, accountCategoryIndex, accountNameIndex, labels, ancestryTypes]);
+
   const DEFAULT_COLORS = [
     "#5B8FF9", "#5AD8A6", "#5D7092", "#F6BD16", "#E8684A",
     "#6DC8EC", "#9270CA", "#FF9D4D", "#269A99", "#FF99C3",
@@ -311,14 +383,18 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
 
   // Prepare table data
   const tableData = useMemo(() => {
-    const rows: Array<{
+    type SankeyRow = {
       key: string;
       selector: string;
       hours: number;
       chargeableDays: number;
       estimatedDays: number;
       percentage: string;
-    }> = [];
+      isSheetRow?: boolean;
+      children?: SankeyRow[];
+      [key: string]: any;
+    };
+    const rows: SankeyRow[] = [];
 
     const getMonthFieldsForRow = (rowKey: string) => {
       const fields: Record<string, number | string> = {};
@@ -338,10 +414,63 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       return fields;
     };
 
+    // Total hours per sheet across all selectors (used as per-sheet percentage denominator)
+    const totalHoursPerSheet: Record<string, number> = {};
+    Object.values(selectorHoursBySheet).forEach((fileMap) => {
+      Object.entries(fileMap).forEach(([fileName, hrs]) => {
+        totalHoursPerSheet[fileName] = (totalHoursPerSheet[fileName] || 0) + hrs;
+      });
+    });
+
+    // Total hours per sheet per month (denominator for per-sheet monthly %)
+    const totalHoursPerSheetPerMonth: Record<string, Record<string, number>> = {};
+    Object.values(selectorHoursBySheetByMonth).forEach((monthMap) => {
+      Object.entries(monthMap).forEach(([monthLabel, fileMap]) => {
+        Object.entries(fileMap).forEach(([fileName, hrs]) => {
+          if (!totalHoursPerSheetPerMonth[fileName]) totalHoursPerSheetPerMonth[fileName] = {};
+          totalHoursPerSheetPerMonth[fileName][monthLabel] =
+            (totalHoursPerSheetPerMonth[fileName][monthLabel] || 0) + hrs;
+        });
+      });
+    });
+
+    const getMonthFieldsForSheetRow = (selectorKey: string, fileName: string) => {
+      const fields: Record<string, number | string> = {};
+      if (!splitByMonth || monthsInData.length === 0) return fields;
+      monthsInData.forEach((monthLabel, i) => {
+        const sheetMonthHrs = selectorHoursBySheetByMonth[selectorKey]?.[monthLabel]?.[fileName] ?? 0;
+        const sheetMonthTotal = totalHoursPerSheetPerMonth[fileName]?.[monthLabel] ?? 0;
+        fields[`month_${i}_days`] = sheetMonthHrs / 7.5;
+        fields[`month_${i}_pct`] =
+          sheetMonthTotal > 0 ? ((sheetMonthHrs / sheetMonthTotal) * 100).toFixed(1) : "0.0";
+      });
+      return fields;
+    };
+
+    const buildSheetChildren = (label: string): SankeyRow[] => {
+      if (!splitBySheet) return [];
+      const sheetHoursMap = selectorHoursBySheet[label] || {};
+      return Object.entries(sheetHoursMap)
+        .sort(([, a], [, b]) => b - a)
+        .map(([fileName, sheetHrs]) => ({
+          key: `${label}_sheet_${fileName}`,
+          selector: fileName,
+          hours: sheetHrs,
+          chargeableDays: sheetHrs / 7.5,
+          estimatedDays: 0,
+          percentage: totalHoursPerSheet[fileName] > 0
+            ? ((sheetHrs / totalHoursPerSheet[fileName]) * 100).toFixed(1)
+            : "0.0",
+          isSheetRow: true,
+          ...getMonthFieldsForSheetRow(label, fileName),
+        }));
+    };
+
     // Add rows for each selector
     selectors.forEach((selector, idx) => {
       const label = `Selector ${idx + 1}`;
       const hours = selectorHours[label] || 0;
+      const children = buildSheetChildren(label);
       rows.push({
         key: label,
         selector: exportView ? (selector.name || `Selector ${idx + 1}`) : getSelectorDescription(selector, idx),
@@ -351,11 +480,13 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
         percentage:
           totalHours > 0 ? ((hours / totalHours) * 100).toFixed(1) : "0.0",
         ...getMonthFieldsForRow(label),
+        ...(children.length > 0 ? { children } : {}),
       });
     });
 
     // Add Other row
     const otherHours = selectorHours["Other"] || 0;
+    const otherChildren = buildSheetChildren("Other");
     rows.push({
       key: "Other",
       selector: "Other",
@@ -365,10 +496,11 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       percentage:
         totalHours > 0 ? ((otherHours / totalHours) * 100).toFixed(1) : "0.0",
       ...getMonthFieldsForRow("Other"),
+      ...(otherChildren.length > 0 ? { children: otherChildren } : {}),
     });
 
     return rows.sort((a, b) => b.hours - a.hours);
-  }, [selectors, selectorHours, selectorEstimatedDays, totalHours, splitByMonth, monthsInData, selectorHoursByMonth, exportView]);
+  }, [selectors, selectorHours, selectorEstimatedDays, totalHours, splitByMonth, monthsInData, selectorHoursByMonth, exportView, splitBySheet, selectorHoursBySheet, selectorHoursBySheetByMonth]);
 
   // Get matching issues for the selected selector
   const matchingIssues = useMemo(() => {
@@ -496,6 +628,16 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
     [selectorEstimatedDays]
   );
 
+  useEffect(() => {
+    if (splitBySheet) {
+      setExpandedRowKeys(
+        tableData.filter((r: any) => r.children?.length > 0).map((r: any) => r.key)
+      );
+    } else {
+      setExpandedRowKeys([]);
+    }
+  }, [splitBySheet, tableData]);
+
   const handleRowClick = (record: any) => {
     setSelectedSelectorKey(record.key);
   };
@@ -562,7 +704,10 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
       title: "Selector",
       dataIndex: "selector",
       key: "selector",
-      render: (text: string) => {
+      render: (text: string, record: any) => {
+        if (record.isSheetRow) {
+          return <Text style={{ color: "#1d6fa5" }}>{text}</Text>;
+        }
         const idx = colorScale.domain.indexOf(text);
         const color = idx >= 0 ? colorScale.range[idx] : "#bfbfbf";
         return (
@@ -917,9 +1062,16 @@ export const SankeyView: React.FC<SankeyViewProps> = ({
           columns={visibleColumns}
           pagination={false}
           summary={summarySummary}
+          expandable={splitBySheet ? {
+            expandedRowKeys,
+            onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as string[]),
+          } : undefined}
           onRow={(record) => ({
-            onClick: () => handleRowClick(record),
-            style: { cursor: "pointer" },
+            onClick: () => !record.isSheetRow && handleRowClick(record),
+            style: {
+              cursor: record.isSheetRow ? "default" : "pointer",
+              backgroundColor: record.isSheetRow ? "#dbeeff" : undefined,
+            },
           })}
         />
       </Card>

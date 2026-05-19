@@ -85,6 +85,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
   const [showFilterControls, setShowFilterControls] = useState(false);
   const [splitByMonth, setSplitByMonth] = useState(false);
   const [exportView, setExportView] = useState(false);
+  const [splitBySheet, setSplitBySheet] = useState(false);
 
   // Local state for settings (editable)
   const [summaryViewMode, setSummaryViewMode] = useState(
@@ -610,6 +611,13 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                 >
                   Export view
                 </Checkbox>
+                {" "}
+                <Checkbox
+                  checked={splitBySheet}
+                  onChange={(e) => setSplitBySheet(e.target.checked)}
+                >
+                  Split by Sheet
+                </Checkbox>
               </Space>
               {isEditMode ? (
                 <Space>
@@ -718,6 +726,8 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                 onUsersChange={() => {}}
                 splitByMonth={splitByMonth}
                 onSplitByMonthChange={setSplitByMonth}
+                splitBySheet={splitBySheet}
+                onSplitBySheetChange={setSplitBySheet}
               />
 
               {(isEditMode ? summaryViewMode : analyzer.summaryViewMode) ===
@@ -769,6 +779,7 @@ const TempoAnalyzerDashboard: React.FC<TempoAnalyzerDashboardProps> = ({
                       splitByMonth={splitByMonth}
                       monthsInData={monthsInData}
                       dateIndex={analyzer.dateIndex}
+                      splitBySheet={splitBySheet}
                     />
                   )}
                 </>

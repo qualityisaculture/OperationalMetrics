@@ -46,6 +46,8 @@ interface FilterControlsProps {
   onSplitByMonthChange?: (checked: boolean) => void;
   exportView?: boolean;
   onExportViewChange?: (checked: boolean) => void;
+  splitBySheet?: boolean;
+  onSplitBySheetChange?: (checked: boolean) => void;
 }
 
 export const FilterControls: React.FC<FilterControlsProps> = ({
@@ -75,6 +77,8 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   onSplitByMonthChange,
   exportView: exportViewProp,
   onExportViewChange,
+  splitBySheet: splitBySheetProp,
+  onSplitBySheetChange,
 }) => {
   const [localSplitByMonth, setLocalSplitByMonth] = useState(false);
   const isControlled =
@@ -91,6 +95,14 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   const setExportView = isExportControlled
     ? onExportViewChange!
     : setLocalExportView;
+
+  const [localSplitBySheet, setLocalSplitBySheet] = useState(false);
+  const isSheetControlled =
+    splitBySheetProp !== undefined && onSplitBySheetChange !== undefined;
+  const splitBySheet = isSheetControlled ? splitBySheetProp! : localSplitBySheet;
+  const setSplitBySheet = isSheetControlled
+    ? onSplitBySheetChange!
+    : setLocalSplitBySheet;
 
   if (!hasGroupedData) {
     return null;
@@ -241,6 +253,13 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
             onChange={(e) => setExportView(e.target.checked)}
           >
             Export view
+          </Checkbox>
+          {" "}
+          <Checkbox
+            checked={splitBySheet}
+            onChange={(e) => setSplitBySheet(e.target.checked)}
+          >
+            Split by Sheet
           </Checkbox>
           <br />
           <div>
