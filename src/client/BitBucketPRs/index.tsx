@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import dayjs, { Dayjs } from "dayjs";
 import {
   Button,
   Input,
@@ -16,6 +17,7 @@ import {
   Form,
   Popconfirm,
   message,
+  DatePicker,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -38,60 +40,6 @@ import {
 
 const { Title, Text } = Typography;
 const { Option } = Select;
-
-// User Group Types - imported from hook
-
-interface UserPRsTableProps {
-  user: string;
-  allPRs: BitBucketPullRequest[];
-  prColumns: any[];
-}
-
-const UserPRsTable: React.FC<UserPRsTableProps> = ({
-  user,
-  allPRs,
-  prColumns,
-}) => {
-  // Filter PRs by user and sort by createdDate in reverse chronological order
-  const userPRs = useMemo(() => {
-    const filtered = allPRs.filter((pr) => {
-      const authorName =
-        pr.author?.display_name ||
-        pr.author?.user?.displayName ||
-        pr.author?.user?.name ||
-        "Unknown";
-      return authorName === user;
-    });
-
-    // Sort by createdDate in reverse chronological order (newest first)
-    return filtered.sort((a, b) => {
-      const dateA = a.createdDate || 0;
-      const dateB = b.createdDate || 0;
-      return dateB - dateA; // Reverse order: newest first
-    });
-  }, [allPRs, user]);
-
-  if (userPRs.length === 0) {
-    return <Text type="secondary">No pull requests found for {user}.</Text>;
-  }
-
-  return (
-    <div>
-      <Text type="secondary" style={{ marginBottom: "16px", display: "block" }}>
-        Showing {userPRs.length} pull request
-        {userPRs.length !== 1 ? "s" : ""} by {user} (newest first)
-      </Text>
-      <Table
-        dataSource={userPRs}
-        columns={prColumns}
-        rowKey={(record, index) => `${record.id || index}`}
-        pagination={{ pageSize: 50 }}
-        scroll={{ x: true }}
-        size="small"
-      />
-    </div>
-  );
-};
 
 const BitBucketPRs: React.FC = () => {
   const {
@@ -121,6 +69,7 @@ const BitBucketPRs: React.FC = () => {
   const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
   const { groups: userGroups, saveGroups } = useBitBucketGroups();
@@ -352,6 +301,44 @@ const BitBucketPRs: React.FC = () => {
     getRepoIdentifier,
   ]);
 
+  // Apply date range filter on top of filteredPRs (by createdDate)
+  const dateFilteredPRs = useMemo(() => {
+    if (!dateRange || (!dateRange[0] && !dateRange[1])) {
+      return filteredPRs;
+    }
+    const [start, end] = dateRange;
+    return filteredPRs.filter((pr) => {
+      if (!pr.createdDate) return false;
+      const d = dayjs(pr.createdDate);
+      if (start && d.isBefore(start, "day")) return false;
+      if (end && d.isAfter(end, "day")) return false;
+      return true;
+    });
+  }, [filteredPRs, dateRange]);
+
+  // Group PRs by user and count them
+  const prsByUser = useMemo(() => {
+    const userMap = new Map<string, { count: number; commentCount: number }>();
+    dateFilteredPRs.forEach((pr) => {
+      const authorName =
+        pr.author?.display_name ||
+        pr.author?.user?.displayName ||
+        pr.author?.user?.name ||
+        "Unknown";
+      const prComments = pr.properties?.commentCount ?? 0;
+      const existing = userMap.get(authorName);
+      if (existing) {
+        existing.count += 1;
+        existing.commentCount += prComments;
+      } else {
+        userMap.set(authorName, { count: 1, commentCount: prComments });
+      }
+    });
+    return Array.from(userMap.entries())
+      .map(([user, { count, commentCount }]) => ({ user, count, commentCount }))
+      .sort((a, b) => b.count - a.count);
+  }, [dateFilteredPRs]);
+
   // Group PRs by month and count them (using merged/closed date)
   const prsByMonth = useMemo(() => {
     const monthMap = new Map<
@@ -359,7 +346,7 @@ const BitBucketPRs: React.FC = () => {
       { label: string; count: number; commentCount: number; sortKey: string }
     >();
 
-    filteredPRs.forEach((pr) => {
+    dateFilteredPRs.forEach((pr) => {
       // Only count merged PRs
       const isMerged =
         pr.state === "MERGED" ||
@@ -415,7 +402,7 @@ const BitBucketPRs: React.FC = () => {
     }));
 
     // Append open PRs row
-    const openPRs = filteredPRs.filter((pr) => pr.state === "OPEN" || pr.open === true);
+    const openPRs = dateFilteredPRs.filter((pr) => pr.state === "OPEN" || pr.open === true);
     if (openPRs.length > 0) {
       rows.push({
         month: "Open",
@@ -426,7 +413,7 @@ const BitBucketPRs: React.FC = () => {
     }
 
     return rows;
-  }, [filteredPRs]);
+  }, [dateFilteredPRs]);
 
   // Helper function to count PRs for a repository based on table filters
   const getPRCountForRepository = useMemo(() => {
@@ -619,11 +606,11 @@ const BitBucketPRs: React.FC = () => {
       );
     }
     if (selectedMonth === "__open__") {
-      return filteredPRs.filter((pr) => pr.state === "OPEN" || pr.open === true);
+      return dateFilteredPRs.filter((pr) => pr.state === "OPEN" || pr.open === true);
     }
     if (selectedMonth) {
       // Filter PRs by the selected month
-      return filteredPRs.filter((pr) => {
+      return dateFilteredPRs.filter((pr) => {
         // Only merged PRs
         const isMerged =
           pr.state === "MERGED" ||
@@ -647,8 +634,20 @@ const BitBucketPRs: React.FC = () => {
         return monthKey === selectedMonth;
       });
     }
+    if (selectedUser) {
+      return dateFilteredPRs
+        .filter((pr) => {
+          const authorName =
+            pr.author?.display_name ||
+            pr.author?.user?.displayName ||
+            pr.author?.user?.name ||
+            "Unknown";
+          return authorName === selectedUser;
+        })
+        .sort((a, b) => (b.createdDate || 0) - (a.createdDate || 0));
+    }
     return [];
-  }, [selectedRepository, selectedMonth, pullRequests, filteredPRs]);
+  }, [selectedRepository, selectedMonth, selectedUser, pullRequests, dateFilteredPRs]);
 
   const prColumns = [
     {
@@ -812,10 +811,19 @@ const BitBucketPRs: React.FC = () => {
     setIsModalVisible(false);
     setSelectedRepository(null);
     setSelectedMonth(null);
+    setSelectedUser(null);
   };
 
   const handleViewPRsForMonth = (monthKey: string, monthLabel: string) => {
     setSelectedMonth(monthKey);
+    setSelectedRepository(null);
+    setSelectedUser(null);
+    setIsModalVisible(true);
+  };
+
+  const handleViewPRsForUser = (user: string) => {
+    setSelectedUser(user);
+    setSelectedMonth(null);
     setSelectedRepository(null);
     setIsModalVisible(true);
   };
@@ -1209,6 +1217,24 @@ const BitBucketPRs: React.FC = () => {
               </Text>
             </Space>
 
+            <div style={{ marginBottom: "16px" }}>
+              <Text strong style={{ marginRight: "8px" }}>
+                Date Range:
+              </Text>
+              <DatePicker.RangePicker
+                value={dateRange}
+                onChange={(dates) =>
+                  setDateRange(dates as [Dayjs | null, Dayjs | null] | null)
+                }
+                allowClear
+              />
+              {dateRange && (dateRange[0] || dateRange[1]) && (
+                <Text type="secondary" style={{ marginLeft: "12px" }}>
+                  Filtering by created date
+                </Text>
+              )}
+            </div>
+
             {prsByMonth.length > 0 && (
               <div>
                 <Title level={4}>PRs per Month</Title>
@@ -1265,49 +1291,79 @@ const BitBucketPRs: React.FC = () => {
             )}
 
             {/* User PRs Section */}
-            <Divider />
-            <div style={{ marginTop: "24px" }}>
-              <Title level={4}>View PRs by User</Title>
-              <Space
-                direction="vertical"
-                style={{ width: "100%", marginBottom: "16px" }}
-              >
-                <div>
-                  <Text strong style={{ marginRight: "8px" }}>
-                    Select User:
-                  </Text>
-                  <Select
-                    placeholder="Select a user to view their PRs"
-                    value={selectedUser}
-                    onChange={setSelectedUser}
-                    style={{ width: "100%", maxWidth: "400px" }}
-                    allowClear
-                    showSearch
-                    filterOption={(input, option) => {
-                      const label =
-                        typeof option?.label === "string"
-                          ? option.label
-                          : String(option?.label ?? "");
-                      return label.toLowerCase().includes(input.toLowerCase());
-                    }}
-                  >
-                    {uniqueAuthors.map((author) => (
-                      <Option key={author} value={author} label={author}>
-                        {author}
-                      </Option>
-                    ))}
-                  </Select>
+            {prsByUser.length > 0 && (
+              <>
+                <Divider />
+                <div style={{ marginTop: "24px" }}>
+                  <Title level={4}>PRs by User</Title>
+                  <div style={{ marginBottom: "12px" }}>
+                    <Text strong style={{ marginRight: "8px" }}>
+                      Select User:
+                    </Text>
+                    <Select
+                      placeholder="Select a user to view their PRs"
+                      value={null}
+                      onChange={(value: string) => handleViewPRsForUser(value)}
+                      style={{ width: "100%", maxWidth: "400px" }}
+                      allowClear
+                      showSearch
+                      filterOption={(input, option) => {
+                        const label =
+                          typeof option?.label === "string"
+                            ? option.label
+                            : String(option?.label ?? "");
+                        return label.toLowerCase().includes(input.toLowerCase());
+                      }}
+                    >
+                      {uniqueAuthors.map((author) => (
+                        <Option key={author} value={author} label={author}>
+                          {author}
+                        </Option>
+                      ))}
+                    </Select>
+                  </div>
+                  <Table
+                    dataSource={prsByUser}
+                    columns={[
+                      {
+                        title: "User",
+                        dataIndex: "user",
+                        key: "user",
+                      },
+                      {
+                        title: "Number of PRs",
+                        dataIndex: "count",
+                        key: "count",
+                        render: (count: number) => <Text strong>{count}</Text>,
+                      },
+                      {
+                        title: "Comments",
+                        dataIndex: "commentCount",
+                        key: "commentCount",
+                        render: (count: number) => <Text strong>{count}</Text>,
+                      },
+                      {
+                        title: "Actions",
+                        key: "actions",
+                        render: (_: any, record: { user: string; count: number; commentCount: number }) => (
+                          <Button
+                            size="small"
+                            type="link"
+                            onClick={() => handleViewPRsForUser(record.user)}
+                            disabled={record.count === 0}
+                          >
+                            View PRs
+                          </Button>
+                        ),
+                      },
+                    ]}
+                    rowKey="user"
+                    pagination={false}
+                    size="small"
+                  />
                 </div>
-              </Space>
-
-              {selectedUser && (
-                <UserPRsTable
-                  user={selectedUser}
-                  allPRs={allPRs}
-                  prColumns={prColumns}
-                />
-              )}
-            </div>
+              </>
+            )}
           </Card>
         </>
       )}
@@ -1451,7 +1507,9 @@ const BitBucketPRs: React.FC = () => {
             ? `Pull Requests - ${selectedRepository.full_name || selectedRepository.name}`
             : selectedMonth
               ? `Pull Requests - ${prsByMonth.find((m) => m.monthKey === selectedMonth)?.month || selectedMonth}`
-              : "Pull Requests"
+              : selectedUser
+                ? `Pull Requests - ${selectedUser}`
+                : "Pull Requests"
         }
         open={isModalVisible}
         onCancel={handleCloseModal}
@@ -1462,7 +1520,7 @@ const BitBucketPRs: React.FC = () => {
         ]}
         width={1200}
       >
-        {(selectedRepository || selectedMonth) && (
+        {(selectedRepository || selectedMonth || selectedUser) && (
           <div style={{ marginBottom: "16px" }}>
             <Text>
               Showing {selectedRepoPRs.length} pull request
@@ -1471,7 +1529,9 @@ const BitBucketPRs: React.FC = () => {
                 ? ` for ${selectedRepository.full_name || selectedRepository.name}`
                 : selectedMonth
                   ? ` for ${prsByMonth.find((m) => m.monthKey === selectedMonth)?.month || selectedMonth}`
-                  : ""}
+                  : selectedUser
+                    ? ` by ${selectedUser} (newest first)`
+                    : ""}
             </Text>
           </div>
         )}
