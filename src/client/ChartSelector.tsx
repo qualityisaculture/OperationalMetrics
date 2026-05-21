@@ -20,6 +20,7 @@ import WeWork from "./SecurityBarriers";
 import BugsAnalysis from "./BugsAnalysis";
 import ReleaseLeadTime from "./ReleaseLeadTime";
 import BitBucketPRs from "./BitBucketPRs";
+import BitBucketCycleTime from "./BitBucketCycleTime";
 import GitLabMRs from "./GitLabMRs";
 import AverageResolutionTime from "./AverageResolutionTime";
 import Dashboard from "./Dashboard";
@@ -47,6 +48,7 @@ interface State {
     | "bugsAnalysis"
     | "releaseLeadTime"
     | "bitbucketPRs"
+    | "bitbucketCycleTime"
     | "gitlabMRs"
     | "averageResolutionTime"
     | "dashboard";
@@ -122,6 +124,9 @@ export default class ChartSelector extends React.Component<Props, State> {
     let bitbucketPRsStyle = {
       display: this.state.chart === "bitbucketPRs" ? "block" : "none",
     };
+    let bitbucketCycleTimeStyle = {
+      display: this.state.chart === "bitbucketCycleTime" ? "block" : "none",
+    };
     let gitlabMRsStyle = {
       display: this.state.chart === "gitlabMRs" ? "block" : "none",
     };
@@ -166,6 +171,7 @@ export default class ChartSelector extends React.Component<Props, State> {
               Release Lead Time
             </Radio.Button>
             <Radio.Button value="bitbucketPRs">BitBucket PRs</Radio.Button>
+            <Radio.Button value="bitbucketCycleTime">BB Cycle Time</Radio.Button>
             <Radio.Button value="gitlabMRs">GitLab MRs</Radio.Button>
             <Radio.Button value="averageResolutionTime">
               Average Resolution Time
@@ -230,6 +236,9 @@ export default class ChartSelector extends React.Component<Props, State> {
           </div>
           <div style={bitbucketPRsStyle}>
             <BitBucketPRs />
+          </div>
+          <div style={bitbucketCycleTimeStyle}>
+            <BitBucketCycleTime />
           </div>
           <div style={gitlabMRsStyle}>
             <GitLabMRs />
