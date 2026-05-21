@@ -12,16 +12,32 @@ import {
   Row,
   Col,
   DatePicker,
+  Tag,
+  Form,
+  Input,
+  List,
+  Popconfirm,
+  message,
+  Modal,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import {
+  UserOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
 import { useBitBucketRepositories } from "../BitBucketPRs/hooks/useBitBucketRepositories";
 import {
   BitBucketPullRequest,
-  BitBucketRepository, // used in flatMap type annotation
+  BitBucketRepository,
 } from "../../server/BitBucketRequester";
-import { useBitBucketGroups } from "../Dashboard/hooks/useBitBucketGroups";
+import {
+  useBitBucketGroups,
+  UserGroup,
+} from "../Dashboard/hooks/useBitBucketGroups";
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
 
 interface PRRow {
@@ -123,7 +139,20 @@ const BitBucketCycleTime: React.FC = () => {
     isLoadingAllPRs,
   } = state;
 
+  const { groups: userGroups, saveGroups } = useBitBucketGroups();
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>([
+    dayjs().subtract(1, "month").startOf("month"),
+    dayjs().subtract(1, "month").endOf("month"),
+  ]);
+
   const [pendingLoad, setPendingLoad] = useState<{ refresh: boolean } | null>(null);
+
+  // Group management state
+  const [isGroupModalVisible, setIsGroupModalVisible] = useState(false);
+  const [isGroupListModalVisible, setIsGroupListModalVisible] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<UserGroup | null>(null);
+  const [groupForm] = Form.useForm();
 
   // Once repos arrive, fire the pending PR load
   useEffect(() => {
@@ -142,11 +171,14 @@ const BitBucketCycleTime: React.FC = () => {
     }
   }, [repositories.length, loadRepositories, loadPullRequestsForAllRepositories]);
 
-  const { groups: userGroups } = useBitBucketGroups();
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState<
-    [Dayjs | null, Dayjs | null] | null
-  >(null);
+  // All unique authors from loaded PRs (for group editor)
+  const uniqueAuthors = useMemo(() => {
+    const authorSet = new Set<string>();
+    pullRequests.forEach(({ pullRequests: prs }) => {
+      prs.forEach((pr) => authorSet.add(getAuthorName(pr)));
+    });
+    return Array.from(authorSet).sort();
+  }, [pullRequests]);
 
   const allMergedPRs = useMemo(() => {
     return pullRequests.flatMap(
@@ -208,8 +240,7 @@ const BitBucketCycleTime: React.FC = () => {
           title: pr.title,
           link: pr.links?.html?.href || pr.links?.self?.[0]?.href,
           author: getAuthorName(pr),
-          repository:
-            repository.full_name || repository.name || "Unknown",
+          repository: repository.full_name || repository.name || "Unknown",
           createdDate: pr.createdDate,
           mergedDate: pr.closedDate,
           cycleTime: getCycleTimeDays(pr),
@@ -217,6 +248,68 @@ const BitBucketCycleTime: React.FC = () => {
         .sort((a, b) => (b.mergedDate ?? 0) - (a.mergedDate ?? 0)),
     [filteredPRs]
   );
+
+  // Group management handlers
+  const handleManageGroups = () => setIsGroupListModalVisible(true);
+
+  const handleCreateGroup = () => {
+    setEditingGroup(null);
+    groupForm.resetFields();
+    setIsGroupListModalVisible(false);
+    setIsGroupModalVisible(true);
+  };
+
+  const handleEditGroup = (group: UserGroup) => {
+    setEditingGroup(group);
+    groupForm.setFieldsValue({ name: group.name, users: group.users });
+    setIsGroupListModalVisible(false);
+    setIsGroupModalVisible(true);
+  };
+
+  const handleDeleteGroup = async (groupId: string) => {
+    try {
+      await saveGroups(userGroups.filter((g) => g.id !== groupId));
+      if (selectedGroup === groupId) setSelectedGroup(null);
+    } catch {
+      message.error("Failed to delete group");
+    }
+  };
+
+  const handleSaveGroup = () => {
+    groupForm.validateFields().then(async (values) => {
+      try {
+        if (editingGroup) {
+          await saveGroups(
+            userGroups.map((g) =>
+              g.id === editingGroup.id
+                ? { ...g, name: values.name, users: values.users || [] }
+                : g
+            )
+          );
+          message.success("Group updated successfully");
+        } else {
+          const newGroup: UserGroup = {
+            id: Date.now().toString(),
+            name: values.name,
+            users: values.users || [],
+          };
+          await saveGroups([...userGroups, newGroup]);
+          message.success("Group created successfully");
+        }
+        setIsGroupModalVisible(false);
+        setEditingGroup(null);
+        groupForm.resetFields();
+      } catch {
+        message.error("Failed to save group");
+      }
+    });
+  };
+
+  const handleCloseGroupModal = () => {
+    setIsGroupModalVisible(false);
+    setEditingGroup(null);
+    groupForm.resetFields();
+  };
 
   return (
     <div style={{ padding: 24 }}>
@@ -246,28 +339,42 @@ const BitBucketCycleTime: React.FC = () => {
       )}
 
       <Card style={{ marginBottom: 16 }}>
-        <Space wrap>
-          <Select
-            placeholder="Select a group"
-            value={selectedGroup}
-            onChange={setSelectedGroup}
-            allowClear
-            style={{ width: 260 }}
-          >
-            {userGroups.map((group) => (
-              <Option key={group.id} value={group.id}>
-                {group.name} ({group.users.length} users)
-              </Option>
-            ))}
-          </Select>
-          <DatePicker.RangePicker
-            value={dateRange}
-            onChange={(dates) =>
-              setDateRange(dates as [Dayjs | null, Dayjs | null] | null)
-            }
-            allowClear
-            placeholder={["Merge date from", "Merge date to"]}
-          />
+        <Space wrap align="start">
+          <div>
+            <Space wrap>
+              <Select
+                placeholder="Select a group"
+                value={selectedGroup}
+                onChange={setSelectedGroup}
+                allowClear
+                style={{ width: 260 }}
+              >
+                {userGroups.map((group) => (
+                  <Option key={group.id} value={group.id}>
+                    {group.name} ({group.users.length} users)
+                  </Option>
+                ))}
+              </Select>
+              <Button icon={<UserOutlined />} onClick={handleManageGroups}>
+                Manage Groups
+              </Button>
+              <DatePicker.RangePicker
+                value={dateRange}
+                onChange={(dates) =>
+                  setDateRange(dates as [Dayjs | null, Dayjs | null] | null)
+                }
+                allowClear
+                placeholder={["Merge date from", "Merge date to"]}
+              />
+            </Space>
+            {usersInGroup.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                {usersInGroup.map((user) => (
+                  <Tag key={user} style={{ marginBottom: 4 }}>{user}</Tag>
+                ))}
+              </div>
+            )}
+          </div>
         </Space>
       </Card>
 
@@ -291,9 +398,7 @@ const BitBucketCycleTime: React.FC = () => {
             <Card>
               <Statistic
                 title="Median Cycle Time"
-                value={
-                  medianCycleTime !== null ? medianCycleTime.toFixed(1) : "—"
-                }
+                value={medianCycleTime !== null ? medianCycleTime.toFixed(1) : "—"}
                 suffix="days"
               />
             </Card>
@@ -306,8 +411,136 @@ const BitBucketCycleTime: React.FC = () => {
         columns={columns}
         pagination={{ pageSize: 50, showSizeChanger: true }}
         size="small"
-        locale={{ emptyText: pullRequests.length === 0 ? "Load PRs to see cycle time data" : "No merged PRs match the current filters" }}
+        locale={{
+          emptyText:
+            pullRequests.length === 0
+              ? "Load PRs to see cycle time data"
+              : "No merged PRs match the current filters",
+        }}
       />
+
+      {/* Create / Edit Group Modal */}
+      <Modal
+        title={editingGroup ? "Edit User Group" : "Create User Group"}
+        open={isGroupModalVisible}
+        onOk={handleSaveGroup}
+        onCancel={handleCloseGroupModal}
+        width={600}
+        okText={editingGroup ? "Update" : "Create"}
+      >
+        <Form form={groupForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="Group Name"
+            rules={[
+              { required: true, message: "Please enter a group name" },
+              {
+                validator: (_, value) => {
+                  if (!value || value.trim() === "") return Promise.resolve();
+                  const exists = userGroups.find(
+                    (g) =>
+                      g.name.toLowerCase() === value.trim().toLowerCase() &&
+                      g.id !== editingGroup?.id
+                  );
+                  return exists
+                    ? Promise.reject(new Error("A group with this name already exists"))
+                    : Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <Input placeholder="Enter group name" />
+          </Form.Item>
+          <Form.Item
+            name="users"
+            label="Users in Group"
+            rules={[
+              {
+                validator: (_, value) =>
+                  value && value.length > 0
+                    ? Promise.resolve()
+                    : Promise.reject(new Error("Please select at least one user")),
+              },
+            ]}
+          >
+            <Select
+              mode="multiple"
+              placeholder="Select users for this group"
+              showSearch
+              filterOption={(input, option) =>
+                String(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+              }
+            >
+              {uniqueAuthors.map((author) => (
+                <Option key={author} value={author} label={author}>
+                  {author}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Group List Modal */}
+      <Modal
+        title="Manage User Groups"
+        open={isGroupListModalVisible}
+        onCancel={() => setIsGroupListModalVisible(false)}
+        footer={[
+          <Button key="create" type="primary" icon={<PlusOutlined />} onClick={handleCreateGroup}>
+            Create New Group
+          </Button>,
+          <Button key="close" onClick={() => setIsGroupListModalVisible(false)}>
+            Close
+          </Button>,
+        ]}
+        width={700}
+      >
+        {userGroups.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 40 }}>
+            <Text type="secondary">No user groups created yet.</Text>
+            <br />
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreateGroup}
+              style={{ marginTop: 16 }}
+            >
+              Create Your First Group
+            </Button>
+          </div>
+        ) : (
+          <List
+            dataSource={userGroups}
+            renderItem={(group) => (
+              <List.Item
+                actions={[
+                  <Button key="edit" type="link" icon={<EditOutlined />} onClick={() => handleEditGroup(group)}>
+                    Edit
+                  </Button>,
+                  <Popconfirm
+                    key="delete"
+                    title="Delete this group?"
+                    description="This action cannot be undone."
+                    onConfirm={() => handleDeleteGroup(group.id)}
+                    okText="Yes"
+                    cancelText="No"
+                  >
+                    <Button type="link" danger icon={<DeleteOutlined />}>
+                      Delete
+                    </Button>
+                  </Popconfirm>,
+                ]}
+              >
+                <List.Item.Meta
+                  title={group.name}
+                  description={`${group.users.length} user${group.users.length !== 1 ? "s" : ""}: ${group.users.join(", ")}`}
+                />
+              </List.Item>
+            )}
+          />
+        )}
+      </Modal>
     </div>
   );
 };
