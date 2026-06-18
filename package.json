@@ -7,7 +7,9 @@
     "test": "jest",
     "build": "node --max-old-space-size=8192 node_modules/webpack/bin/webpack.js",
     "start": "node dist/server.bundle.js",
-    "start-dev": "ts-node src/server/dev-server.ts"
+    "start-dev": "ts-node src/server/dev-server.ts",
+    "test-hibob": "op run --env-file=.env.tpl -- ts-node src/server/HiBobRequester.ts",
+    "test-hibob-timeoff": "op run --env-file=.env.tpl -- ts-node src/server/hibob-timeoff-test.ts"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +23,7 @@
     "@testing-library/react": "^16.2.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
+    "@types/pg": "^8.20.0",
     "@types/react": "^18.3.12",
     "antd": "^5.22.7",
     "babel-loader": "^9.2.1",
@@ -41,6 +44,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "jest-html-reporter": "^4.1.0",
+    "pg": "^8.21.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "ts-node": "^10.9.2",

@@ -8,6 +8,7 @@ import {
   Modal,
   Tag,
   Collapse,
+  Select,
 } from "antd";
 import {
   UploadOutlined,
@@ -44,6 +45,7 @@ interface HolidaySummary {
   firstName: string;
   lastName: string;
   totalHolidayDays: number;
+  dates?: Array<{ date: string; isHalf: boolean }>;
 }
 
 interface CombinedUserData {
@@ -90,6 +92,26 @@ interface WeeklyAttendanceSummary {
   totalCount: number;
 }
 
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function getCompletedMonthOptions() {
+  const now = new Date();
+  const latestYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const latestMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+  const options = [];
+  for (let y = 2026; y <= latestYear; y++) {
+    const start = y === 2026 ? 1 : 1;
+    const end = y === latestYear ? latestMonth : 12;
+    for (let m = start; m <= end; m++) {
+      options.push({ value: `${y}-${m}`, label: `${MONTH_NAMES[m - 1]} ${y}` });
+    }
+  }
+  return options;
+}
+
 interface WeWorkProps {}
 
 const WeWork: React.FC<WeWorkProps> = () => {
@@ -103,6 +125,9 @@ const WeWork: React.FC<WeWorkProps> = () => {
   const [loading, setLoading] = useState(false);
   const [holidayLoading, setHolidayLoading] = useState(false);
   const [userListLoading, setUserListLoading] = useState(false);
+  const monthOptions = getCompletedMonthOptions();
+  const defaultMonth = monthOptions[monthOptions.length - 1]?.value ?? "";
+  const [selectedHolidayMonth, setSelectedHolidayMonth] = useState(defaultMonth);
   const [userList, setUserList] = useState<UserListEntry[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<PersonSummary | null>(
     null
@@ -523,6 +548,33 @@ const WeWork: React.FC<WeWorkProps> = () => {
     setHolidaySummaries(summaries);
   };
 
+  const processAbsenceRows = (rows: Array<{ firstName: string; lastName: string; absenceDate: string; isHalf: boolean }>) => {
+    const map = new Map<string, HolidaySummary>();
+
+    rows.forEach((row) => {
+      const key = `${row.firstName} ${row.lastName}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          fullName: key,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          totalHolidayDays: 0,
+          dates: [],
+        });
+      }
+      const summary = map.get(key)!;
+      summary.totalHolidayDays += row.isHalf ? 0.5 : 1;
+      summary.dates!.push({ date: row.absenceDate, isHalf: row.isHalf });
+    });
+
+    const summaries = Array.from(map.values()).sort((a, b) => {
+      if (b.totalHolidayDays !== a.totalHolidayDays) return b.totalHolidayDays - a.totalHolidayDays;
+      return a.fullName.localeCompare(b.fullName);
+    });
+
+    setHolidaySummaries(summaries);
+  };
+
   const processFlexibleRemoteSummaries = (data: FlexibleRemoteEntry[]) => {
     const flexibleRemoteMap = new Map<string, FlexibleRemoteSummary>();
 
@@ -761,6 +813,26 @@ const WeWork: React.FC<WeWorkProps> = () => {
     }
   };
 
+  const fetchAbsencesFromSquadMetrics = async () => {
+    const [year, month] = selectedHolidayMonth.split("-").map(Number);
+    setHolidayLoading(true);
+    try {
+      const response = await fetch(`/api/squadmetrics/absences?year=${year}&month=${month}`);
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error ?? "Unknown error");
+      }
+      const entries = await response.json();
+      processAbsenceRows(entries);
+      setHolidayFileUploaded(true);
+      message.success(`Loaded absence data for ${MONTH_NAMES[month - 1]} ${year}`);
+    } catch (err: any) {
+      message.error(`Failed to load absences from SquadMetrics: ${err.message}`);
+    } finally {
+      setHolidayLoading(false);
+    }
+  };
+
   const parseUserListFile = (file: File) => {
     setUserListLoading(true);
 
@@ -826,6 +898,25 @@ const WeWork: React.FC<WeWorkProps> = () => {
       parseUserListFile(file);
     } else {
       message.error("No file found in upload");
+    }
+  };
+
+  const fetchUserListFromHiBob = async () => {
+    setUserListLoading(true);
+    try {
+      const response = await fetch("/api/hibob/employees");
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error ?? "Unknown error");
+      }
+      const employees = await response.json();
+      setUserList(employees);
+      setUserListFileUploaded(true);
+      message.success(`Loaded ${employees.length} employees from HiBob`);
+    } catch (err: any) {
+      message.error(`Failed to load from HiBob: ${err.message}`);
+    } finally {
+      setUserListLoading(false);
     }
   };
 
@@ -1749,6 +1840,49 @@ const WeWork: React.FC<WeWorkProps> = () => {
     },
   ];
 
+  const holidayDataColumns = [
+    {
+      title: "First Name",
+      dataIndex: "firstName",
+      key: "firstName",
+      width: 120,
+      sorter: (a: HolidaySummary, b: HolidaySummary) =>
+        a.firstName.localeCompare(b.firstName),
+    },
+    {
+      title: "Last Name",
+      dataIndex: "lastName",
+      key: "lastName",
+      width: 120,
+      sorter: (a: HolidaySummary, b: HolidaySummary) =>
+        a.lastName.localeCompare(b.lastName),
+    },
+    {
+      title: "Days Off",
+      dataIndex: "totalHolidayDays",
+      key: "totalHolidayDays",
+      width: 100,
+      render: (days: number) => <Tag color="green">{days}</Tag>,
+      sorter: (a: HolidaySummary, b: HolidaySummary) =>
+        b.totalHolidayDays - a.totalHolidayDays,
+    },
+    {
+      title: "Dates",
+      key: "dates",
+      render: (_: any, record: HolidaySummary) => {
+        if (!record.dates || record.dates.length === 0) return <span style={{ color: "#999" }}>—</span>;
+        return record.dates
+          .map(({ date, isHalf }) => {
+            const d = new Date(date);
+            const day = String(d.getUTCDate()).padStart(2, "0");
+            const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+            return `${day}/${month}${isHalf ? " (½)" : ""}`;
+          })
+          .join(", ");
+      },
+    },
+  ];
+
   const dailyAttendanceColumns = [
     {
       title: "Day of the Week",
@@ -1832,29 +1966,45 @@ const WeWork: React.FC<WeWorkProps> = () => {
             flexWrap: "wrap",
           }}
         >
-          <Upload
-            accept=".xlsx,.xls,.csv"
-            showUploadList={false}
-            beforeUpload={() => false} // Prevent auto upload
-            onChange={handleUserListFileUpload}
-          >
-            <Button icon={<UploadOutlined />} loading={userListLoading}>
-              Upload User List
-            </Button>
-          </Upload>
-          {userListFileUploaded && <Tag color="green">✓ Uploaded</Tag>}
+          {false && (
+            <Upload
+              accept=".xlsx,.xls,.csv"
+              showUploadList={false}
+              beforeUpload={() => false} // Prevent auto upload
+              onChange={handleUserListFileUpload}
+            >
+              <Button icon={<UploadOutlined />} loading={userListLoading}>
+                Upload User List
+              </Button>
+            </Upload>
+          )}
+          <Button loading={userListLoading} onClick={fetchUserListFromHiBob}>
+            Load User List from HiBob
+          </Button>
+          {userListFileUploaded && <Tag color="green">✓ Loaded</Tag>}
 
-          <Upload
-            accept=".xlsx,.xls,.csv"
-            showUploadList={false}
-            beforeUpload={() => false} // Prevent auto upload
-            onChange={handleHolidayFileUpload}
-          >
-            <Button icon={<UploadOutlined />} loading={holidayLoading}>
-              Upload Holiday Data
-            </Button>
-          </Upload>
-          {holidayFileUploaded && <Tag color="green">✓ Uploaded</Tag>}
+          {false && (
+            <Upload
+              accept=".xlsx,.xls,.csv"
+              showUploadList={false}
+              beforeUpload={() => false}
+              onChange={handleHolidayFileUpload}
+            >
+              <Button icon={<UploadOutlined />} loading={holidayLoading}>
+                Upload Holiday Data
+              </Button>
+            </Upload>
+          )}
+          <Select
+            value={selectedHolidayMonth}
+            onChange={setSelectedHolidayMonth}
+            options={monthOptions}
+            style={{ width: 160 }}
+          />
+          <Button loading={holidayLoading} onClick={fetchAbsencesFromSquadMetrics}>
+            Load Absences from Squad Metrics
+          </Button>
+          {holidayFileUploaded && <Tag color="green">✓ Loaded</Tag>}
 
           <Upload
             accept=".xlsx,.xls,.csv"
@@ -1955,6 +2105,30 @@ const WeWork: React.FC<WeWorkProps> = () => {
                   <Table
                     columns={barrierDataColumns}
                     dataSource={personSummaries}
+                    rowKey="fullName"
+                    pagination={{ pageSize: 20 }}
+                    scroll={{ x: 450 }}
+                    size="small"
+                  />
+                ),
+              },
+            ]}
+            defaultActiveKey={[]}
+          />
+        </Card>
+      )}
+
+      {holidayFileUploaded && holidaySummaries.length > 0 && (
+        <Card style={{ marginBottom: "20px" }}>
+          <Collapse
+            items={[
+              {
+                key: "holiday-data",
+                label: `Holiday / Absence Data (${holidaySummaries.length} users)`,
+                children: (
+                  <Table
+                    columns={holidayDataColumns}
+                    dataSource={holidaySummaries}
                     rowKey="fullName"
                     pagination={{ pageSize: 20 }}
                     scroll={{ x: 450 }}

@@ -3,6 +3,8 @@ import express from "express";
 import path from "path";
 import { metricsRoute } from "./routes/metricsRoute";
 import dashboardRoute from "./routes/dashboardRoute";
+import hibobRoute from "./routes/hibobRoute";
+import squadMetricsRoute from "./routes/squadMetricsRoute";
 
 let app;
 
@@ -17,6 +19,8 @@ const Server = (
 
   app.use("/api", metricsRoute);
   app.use("/api/dashboard", dashboardRoute);
+  app.use("/api/hibob", hibobRoute);
+  app.use("/api/squadmetrics", squadMetricsRoute);
 
   app.get("/favicon.svg", (req, res) => {
     console.log("Favicon Request received " + req.url);
