@@ -35,6 +35,7 @@ const serverConfig = {
         test: /\.(ts|tsx|js|jsx)$/,
         exclude: /node_modules/,
         loader: 'ts-loader',
+        options: { transpileOnly: true },
       },
     ],
   },
