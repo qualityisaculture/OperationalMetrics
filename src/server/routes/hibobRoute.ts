@@ -9,7 +9,8 @@ hibobRoute.get("/employees", async (_req, res) => {
     const employees = await hibob.getEmployees();
     res.json(employees);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("[HiBob /employees]", err);
+    res.status(500).json({ error: err.message, cause: err.cause?.message ?? err.cause ?? undefined });
   }
 });
 
